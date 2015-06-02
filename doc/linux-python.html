@@ -1,0 +1,105 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Linux Python Installation and Configuration</title>
+  <link rel="stylesheet" type="text/css" href="stylesheet.css" />
+</head>
+
+<body>
+<div class="title">
+Linux Python Installation and Configuration
+</div>
+
+<h2>Options</h2>
+
+<p>
+If you are running a more recent Linux distribution, you probably already have
+Python-2.7.  In this case, using <span class="standout">pip</span> to install
+the needed modules is the best way to go.  Otherwise, you'll have to build
+Python-2.7 from source.
+
+</p>
+
+<p>
+Alternatively, I have provided a pre-built environment
+(<a href="python27-linux.tar.bz2">here</a>)
+compiled on a <span class="standout">Red Hat EL Workstation 6.6</span> system.
+It will extract a directory named
+<span class="literal">python27-linux</span> than contains all the modules
+and shared objects required to run
+<span class="standout">VeraView</span>.  It also includes a file named
+<span class="literal">setenv.sh</span> in the top directory that can
+be sourced from a
+<span class="standout">Bash</span> shell to set all the needed environment.
+You can extract it with a simple
+<span class="literal">tar</span> command:
+</p>
+
+<pre class="Preformatted">
+$ tar xvfj python27-linux.tar.bz2
+</pre>
+
+
+<h2>Install with Pip</h2>
+
+<p>
+If you don't have
+<span class="standout">Pip</span>, grab the source from
+<a href="../get-pip.py">here</a> and run this with your Python-2.7 executable:
+</a>
+
+<pre class="Preformatted">
+$ python get-pip.py
+</pre>
+
+<p>
+This should install a script named
+<span class="literal">pip</span> in your Python directory.  It can be
+used to install (download source and build) any modules you're missing
+except for 
+<span class="standout">wxPython</span>.  It will take care of downloading
+dependent modules as well.  You can test to see if you
+need a module by trying to import it in a Python script or interactively.
+The modules you need are:
+</p>
+
+<ul>
+  <li><span class="standout">h5py<span></li>
+  <li><span class="standout">matplotlib<span></li>
+  <li><span class="standout">numpy<span> (installed by h5py)</li>
+  <li><span class="standout">Pillow<span> (PIL)</li>
+  <li><span class="standout">pyparsing<span> (installed by matplotlib)</li>
+  <li><span class="standout">python-dateutil<span> (installed by matplotlib)</li>
+  <li><span class="standout">six<span> (installed by matplotlib)</li>
+</ul>
+
+<p>
+You install a module with a simple command, such as:
+</p>
+
+<pre class="Preformatted">
+$ pip install h5py
+</pre>
+
+
+<h2>Build wxPython</h2>
+
+<p>
+Unfortunately, you'll have to build <span class="standout">wxPython</span> from
+source, available
+<a href="wxPython-src-3.0.2.0.tar.bz2">here</a>.
+You must run the 
+<span class="literal">wxPython/build-wxpython.py</span> script with your Python-2.7
+executable, and there are a couple of arguments you should set.  For example,
+if your Python-2.7 was installed in
+<span class="literal">/usr/local</span>, you might do the following:
+</p>
+
+<pre class="Preformatted">
+$ python build-wxpython.py --install \
+--prefix=/usr/local \
+--wxpy_installdir=/usr/local/lib/python2.7/site-packages
+</pre>
+
+</body>
+

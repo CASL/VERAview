@@ -1,0 +1,467 @@
+#!/usr/bin/env python
+# $Id$
+#------------------------------------------------------------------------
+#	NAME:		widgetcontainer.py				-
+#	HISTORY:							-
+#		2015-05-11	leerw@ornl.gov				-
+#	  New State.axialValue.
+#		2015-04-27	leerw@ornl.gov				-
+#	  New STATE_CHANGE_detectorIndex.
+#		2015-04-11	leerw@ornl.gov				-
+#	  Passing ds_default to constructor.
+#		2015-04-04	leerw@ornl.gov				-
+#	  STATE_CHANGE_pinRowCol changed to STATE_CHANGE_pinColRow.
+#		2015-02-11	leerw@ornl.gov				-
+#	  Added STATE_CHANGE_pinRowCol to EVENT_LOCK_PAIRS.
+#		2015-01-31	leerw@ornl.gov				-
+#	  Switching to Widget.GetMenuDef() since we learned we cannot
+#	  handle event generated here in another class.
+#		2015-01-30	leerw@ornl.gov				-
+#	  Adding close and menu buttons.
+#		2015-01-16	leerw@ornl.gov				-
+#	  No longer a frame.
+#		2015-01-10	leerw@ornl.gov				-
+#		2015-01-02	leerw@ornl.gov				-
+#	  Event lock UI based on Widget.GetEventLockSet().
+#		2014-12-18	leerw@ornl.gov				-
+#		2014-12-08	leerw@ornl.gov				-
+#		2014-11-25	leerw@ornl.gov				-
+#------------------------------------------------------------------------
+#import os, sys, threading, traceback
+import functools, math, os, sys, time
+import pdb  #pdb.set_trace()
+
+try:
+  import wx
+except Exception:
+  raise ImportError( "The wxPython module is required" )
+
+from data.config import Config
+from event.state import *
+import widget
+
+
+EVENT_LOCK_PAIRS = \
+  [
+    ( STATE_CHANGE_assemblyIndex, 'Assy' ),
+    ( STATE_CHANGE_axialValue, 'Axial' ),
+    ( STATE_CHANGE_channelColRow, 'Channel' ),
+    ( STATE_CHANGE_channelDataSet, 'Channel Data' ),
+    ( STATE_CHANGE_detectorIndex, 'Detector' ),
+    ( STATE_CHANGE_detectorDataSet, 'Detector Data' ),
+    ( STATE_CHANGE_pinColRow, 'Pin' ),
+    ( STATE_CHANGE_pinDataSet, 'Pin Data' ),
+    ( STATE_CHANGE_scalarDataSet, 'Scalar Data' ),
+    ( STATE_CHANGE_stateIndex, 'State' )
+  ]
+
+
+###WIDGET_PREF_SIZE = ( 648, 405 )  # 1.6
+##WIDGET_PREF_SIZE = ( 600, 450 )  # 1.333
+##WIDGET_PREF_SIZE = ( 520, 390 )  # 1.333
+#WIDGET_PREF_SIZE = ( 540, 405 )  # 1.333  <--
+#WIDGET_PREF_SIZE = ( 486, 405 )  # 1.2
+#WIDGET_PREF_SIZE = ( 576, 480 )  # 1.2
+#WIDGET_PREF_SIZE = ( 1024, 768 )  # 1.333
+#WIDGET_PREF_SIZE = ( 960, 800 )  # 1.2
+#WIDGET_PREF_SIZE = ( 480, 400 )  # 1.2
+
+#WIDGET_PREF_SIZE = ( 800, 600 )  # 1.2
+#WIDGET_PREF_RATIO = float( WIDGET_PREF_SIZE[ 0 ] ) / float( WIDGET_PREF_SIZE[ 1 ] )
+
+WIDGET_PREF_RATIO = 1.2
+WIDGET_PREF_SIZE = ( 480, 400 )
+
+
+#------------------------------------------------------------------------
+#	CLASS:		WidgetContainer					-
+#------------------------------------------------------------------------
+class WidgetContainer( wx.Panel ):
+  """Widget frame.
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		__init__()					-
+  #----------------------------------------------------------------------
+  def __init__( self, parent, widget_classpath, state, **kwargs ):
+    super( WidgetContainer, self ).__init__( parent, -1, style = wx.BORDER_SIMPLE | wx.TAB_TRAVERSAL )
+
+    self.controlPanel = None
+    self.eventCheckBoxes = {}
+    #self.axialCheckBox = None
+    self.dataSetMenu = None
+    self.dataSetMenuButton = None
+    #self.exposureCheckBox = None
+    self.eventLocks = State.CreateLocks()
+    self.led = None
+    self.parent = parent
+    self.state = state
+    self.widget = None
+    self.widgetClassPath = widget_classpath
+    self.widgetMenu = None
+    self.widgetMenuButton = None
+
+    self._InitUI( widget_classpath, **kwargs )
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		FireStateChange()				-
+  #----------------------------------------------------------------------
+  def FireStateChange( self, **kwargs ):
+    reason = self.state.Change( self.eventLocks, **kwargs )
+    if reason != STATE_CHANGE_noop:
+      self.GetParent().FireStateChange( reason )
+
+    #if self.isEventLocked:
+      #self.GetParent().FireStateChange( **kwargs )
+  #end FireStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		HandleStateChange()				-
+  #----------------------------------------------------------------------
+  def HandleStateChange( self, reason ):
+    reason = self.state.ResolveLocks( reason, self.eventLocks )
+    #if self.isEventLocked:
+    if reason != STATE_CHANGE_noop:
+      self.widget.HandleStateChange( reason )
+  #end HandleStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_InitUI()					-
+  #----------------------------------------------------------------------
+  def _InitUI( self, widget_classpath, **kwargs ):
+#    dsize = wx.DisplaySize()
+#    wd = min( dsize[ 0 ], 1280 )
+#    ht = min( dsize[ 1 ], 800 )
+
+#		-- Instantiate Widget
+#		--
+    module_path, class_name = widget_classpath.rsplit( '.', 1 )
+    try:
+      module = __import__( module_path, fromlist = [ class_name ] )
+    except ImportError:
+      raise ValueError( 'Module "%s" could not be imported' % module_path )
+    try:
+      cls = getattr( module, class_name )
+    except AttributeError:
+      raise ValueError( 'Class "%s" not found in module "%s"' % (class_name, module_path ) )
+
+    self.widget = cls( self, -1, **kwargs )
+
+#		-- Create Control Panel
+#		--
+    control_panel = wx.Panel( self )
+    self.controlPanel = control_panel
+#    lock_label = wx.StaticText(
+#	control_panel, -1,
+#	label = 'Lock UI:', size = ( -1, 22 )
+#        )
+
+    cp_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    control_panel.SetSizer( cp_sizer )
+
+#    cp_sizer.Add(
+#        lock_label, 0, border = 1,
+#	flag = wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL
+#	#flag = wx.ALIGN_LEFT | wx.ALIGN_BOTTOM
+#	)
+    cp_sizer.AddSpacer( 6 )
+
+    lock_set = self.widget.GetEventLockSet()
+    for pairs in EVENT_LOCK_PAIRS:
+      event_id = pairs[ 0 ]
+      if event_id in lock_set:
+	event_label = pairs[ 1 ]
+        cb = wx.CheckBox(
+          control_panel, -1,
+	  label = event_label, size = ( -1, 24 )
+	  )
+        cb.SetValue( True )
+	self.Bind(
+	    wx.EVT_CHECKBOX,
+	    functools.partial( self._OnEventCheckBox, event_id ),
+	    cb
+	    )
+#(noworky in loop) lambda ev: self._OnEventCheckBox( ev, event_id ),
+        self.eventCheckBoxes[ pairs[ 0 ] ] = cb
+	cp_sizer.Add(
+	    cb, 0,
+	    border = 1, flag = wx.EXPAND | wx.ALIGN_CENTER_VERTICAL
+	    )
+	cp_sizer.AddSpacer( 4 )
+
+      else:
+        self.eventLocks[ event_id ] = False
+      #end if
+    #end for
+
+    cp_sizer.AddStretchSpacer( 1 )
+
+#		-- LED
+#		--
+    self.led = wx.StaticBitmap( control_panel, -1, size = wx.Size( 16, 16 ) )
+    self.led.SetBitmap( widget.Widget.GetBitmap( widget.BMAP_NAME_green ) )
+    cp_sizer.Add(
+        self.led, 0,
+	wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 4
+	)
+
+#		-- Dataset menu
+#		--
+    data_model = State.GetDataModel( self.state )
+    dataset_type = self.widget.GetDataSetType()
+    if dataset_type != None and dataset_type in data_model.dataSetNames:
+      dataset_names = data_model.dataSetNames[ dataset_type ]
+      self.dataSetMenu = wx.Menu()
+      for name in dataset_names:
+        item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+        self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+	self.dataSetMenu.AppendItem( item )
+      #end for
+
+      menu_im = wx.Image(
+            os.path.join( Config.GetResDir(), 'data_icon_16x16.png' ),
+	    wx.BITMAP_TYPE_PNG
+	    )
+      self.dataSetMenuButton = \
+          wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
+#      self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
+      self.dataSetMenuButton.Bind(
+          wx.EVT_BUTTON,
+	  functools.partial(
+	      self._OnPopupMenu,
+	      self.dataSetMenuButton, self.dataSetMenu
+	      )
+	  )
+      cp_sizer.Add(
+          self.dataSetMenuButton, 0,
+	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0
+	  )
+    #end if dataset names to select
+
+#		-- Menu and close buttons
+#		--
+    self.widgetMenu = wx.Menu()
+    save_item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Save Image' )
+    self.Bind( wx.EVT_MENU, self._OnSave, save_item )
+    self.widgetMenu.AppendItem( save_item )
+
+    widget_menu_def = self.widget.GetMenuDef( data_model )
+    if widget_menu_def != None:
+      self.widgetMenu.AppendSeparator()
+#      for label, id in widget_menu_def:
+#        item = wx.MenuItem( self.widgetMenu, id, label )
+#        self.Bind( wx.EVT_MENU, self._OnWidgetMenuItem, item )
+#	self.widgetMenu.AppendItem( item )
+#      #end for
+      for label, handler in widget_menu_def:
+        item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
+        self.Bind( wx.EVT_MENU, handler, item )
+	self.widgetMenu.AppendItem( item )
+      #end for
+    #end if widget_menu_def exists
+
+    menu_im = wx.Image(
+          os.path.join( Config.GetResDir(), 'menu_icon_16x16.png' ),
+	  wx.BITMAP_TYPE_PNG
+	  )
+    self.widgetMenuButton = \
+        wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
+    self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
+    cp_sizer.Add(
+        self.widgetMenuButton, 0,
+	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0
+	)
+
+    close_im = wx.Image(
+	os.path.join( Config.GetResDir(), 'close_icon_16x16.png' ),
+	wx.BITMAP_TYPE_PNG
+        )
+    close_button = wx.BitmapButton( control_panel, -1, close_im.ConvertToBitmap() )
+    close_button.Bind( wx.EVT_BUTTON, self._OnClose )
+    cp_sizer.Add( close_button, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
+
+#		-- Add Components to this Container
+#		--
+    vbox = wx.BoxSizer( wx.VERTICAL )
+    vbox.Add( control_panel, 0, border = 2, flag = wx.EXPAND )
+    vbox.Add( self.widget, 1, border = 2, flag = wx.EXPAND )
+    self.SetSizer( vbox )
+
+    #xxxxx get preferred size from widget
+    ##self.SetSize( wx.Size( 640, 480 ) )
+    #self.SetSize( self.widget.GetInitialSize() )
+    #self.SetTitle( self.widget.GetTitle() )
+    vbox.Layout()
+
+    self.widget.SetState( self.state )
+  #end _InitUI
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		IsEventLocked()					-
+  #----------------------------------------------------------------------
+  def IsEventLocked( self, reason ):
+    #return  self.IsEventLocked
+    return  self.eventLocks[ reason ]
+  #end IsEventLocked
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnAxialCheckBox()				-
+  #----------------------------------------------------------------------
+#  def _OnAxialCheckBox( self, ev ):
+#    """Handles events from the event lock check box.
+#"""
+#    ev.Skip()
+#
+#    obj = ev.GetEventObject()
+#    self.eventLocks[ STATE_CHANGE_axialLevel ] = obj.IsChecked()
+#  #end _OnAxialCheckBox
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnClose()					-
+  #----------------------------------------------------------------------
+  def _OnClose( self, ev ):
+    """
+"""
+    self.Destroy()
+  #end _OnClose
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnDataSetMenu()				-
+  #----------------------------------------------------------------------
+#  def _OnDataSetMenu( self, ev ):
+#    """@deprecated
+#"""
+#    # Only for EVT_CONTEXT_MENU
+#    #pos = ev.GetPosition()
+#    #pos = self.widgetMenuButton.ScreenToClient( pos )
+#    #self.widgetMenuButton.PopupMenu( self.widgetMenu, pos )
+#
+#    self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
+#  #end _OnDataSetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnDataSetMenuItem()				-
+  #----------------------------------------------------------------------
+  def _OnDataSetMenuItem( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item != None:
+      self.widget._BusyBegin()
+      self.widget.SetDataSet( item.GetText() )
+      self.widget._BusyEnd()
+  #end _OnDataSetMenuItem
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnEventCheckBox()				-
+  #----------------------------------------------------------------------
+  def _OnEventCheckBox( self, state_change_id, ev ):
+    """Handles events from an event lock checkbox
+"""
+    ev.Skip()
+
+    obj = ev.GetEventObject()
+    self.eventLocks[ state_change_id ] = obj.IsChecked()
+
+    if obj.IsChecked():
+      self.widget.HandleStateChange( state_change_id )
+
+    print >> sys.stderr, '[WidgetContainer._OnEventCheckBox] event_id=%d, checked=%d' % ( state_change_id, obj.IsChecked() )
+  #end _OnEventCheckBox
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnExposureCheckBox()				-
+  #----------------------------------------------------------------------
+  def _OnExposureCheckBox( self, ev ):
+    """Handles events from the event lock check box.
+"""
+    ev.Skip()
+
+    obj = ev.GetEventObject()
+    self.eventLocks[ STATE_CHANGE_exposureIndex ] = obj.IsChecked()
+  #end _OnExposureCheckBox
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnPopupMenu()					-
+  #----------------------------------------------------------------------
+  def _OnPopupMenu( self, button, menu, ev ):
+    """
+"""
+    button.PopupMenu( menu )
+  #end _OnPopupMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnSave()					-
+  #----------------------------------------------------------------------
+  def _OnSave( self, ev ):
+    """
+"""
+    self.SaveWidgetImage()
+  #end _OnSave
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnWidgetMenu()					-
+  #----------------------------------------------------------------------
+  def _OnWidgetMenu( self, ev ):
+    """
+"""
+    # Only for EVT_CONTEXT_MENU
+    #pos = ev.GetPosition()
+    #pos = self.widgetMenuButton.ScreenToClient( pos )
+    #self.widgetMenuButton.PopupMenu( self.widgetMenu, pos )
+
+    self.widgetMenuButton.PopupMenu( self.widgetMenu )
+  #end _OnWidgetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SaveWidgetImage()				-
+  #----------------------------------------------------------------------
+  def SaveWidgetImage( self, file_path = None ):
+    """
+"""
+    if file_path == None:
+      dialog = wx.FileDialog(
+          self, 'Save Widget Image', '', '',
+	  'PNG files (*.png)|*.png',
+	  wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
+	  )
+      if dialog.ShowModal() != wx.ID_CANCEL:
+        file_path = dialog.GetPath()
+    #end if
+
+    if file_path != None:
+      try:
+	result = self.widget.CreateImage( file_path )
+	if result == None:
+	  raise Exception( 'No image created' )
+	elif isinstance( result, wx.Image ):
+	  result.SaveFile( file_path, wx.BITMAP_TYPE_PNG )
+      except Exception, ex :
+	msg = 'Error saving image:' + os.linesep + str( ex )
+	wx.CallAfter( wx.MessageBox, msg, 'Save Error', wx.OK_DEFAULT, self )
+  #end SaveWidgetImage
+
+#end WidgetContainer

@@ -1,0 +1,126 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Mac OS X Python Installation and Configuration</title>
+  <link rel="stylesheet" type="text/css" href="stylesheet.css" />
+</head>
+
+<body>
+<div class="title">
+Mac OS X Python Installation and Configuration
+</div>
+
+<h2>Options</h2>
+
+<p>
+If you are running a more recent Mac OS X version, you probably already have
+Python-2.7.  In this case, using <span class="standout">pip</span> to install
+the needed modules is the best way to go.  Otherwise, you're best bet is to use
+<span class="standout">MacPorts</span> or
+<span class="standout">Homebrew</span> to install/build Python-2.7.  I have
+only used the former on a 10.6.8 system and will reference it below.
+</p>
+
+
+<h2>Already Have Python-2.7</h2>
+
+<h3>Install with Pip</h3>
+
+<p>
+If you don't have
+<span class="standout">Pip</span>, grab the source from
+<a href="../get-pip.py">here</a> and run this with your Python-2.7 executable:
+</a>
+
+<pre class="Preformatted">
+$ python get-pip.py
+</pre>
+
+<p>
+This should install a script named
+<span class="literal">pip</span> in your Python directory.  It can be
+used to install (download source and build) any modules you're missing
+except for 
+<span class="standout">wxPython</span>.  It will take care of downloading
+dependent modules as well.  You can test to see if you
+need a module by trying to import it in a Python script or interactively.
+The modules you need are:
+</p>
+
+<ul>
+  <li><span class="standout">h5py<span></li>
+  <li><span class="standout">matplotlib<span></li>
+  <li><span class="standout">numpy<span> (installed by h5py)</li>
+  <li><span class="standout">Pillow<span> (PIL)</li>
+  <li><span class="standout">pyparsing<span> (installed by matplotlib)</li>
+  <li><span class="standout">python-dateutil<span> (installed by matplotlib)</li>
+  <li><span class="standout">six<span> (installed by matplotlib)</li>
+</ul>
+
+<p>
+You install a module with a simple command, such as:
+</p>
+
+<pre class="Preformatted">
+$ pip install h5py
+</pre>
+
+
+<h3>Install wxPython</h3>
+
+<p>
+A pre-built <span class="standout">wxPython</span> is available
+<a href="wxPython3.0-osx-3.0.2.0-cocoa-py2.7.dmg">here</a>.
+Install it as you would any other Mac package.  You'll have to have
+elevated privileges to do so.
+</p>
+
+
+<h2>Using MacPorts</h2>
+
+<p>
+If you don't have it, get it pre-built for later versions of Mac OS X
+or get the source.  Go
+<a href="https://www.macports.org/install.php">here</a>.  You can get
+the source
+<a href="https://distfiles.macports.org/MacPorts/MacPorts-2.3.3.tar.bz2">here</a>.
+</p>
+
+<cite>
+Note I tried an install in my
+<a href="http://truongtx.me/2013/11/08/macports-from-home-directory/">home direcotry</a>,
+but libraries for required modules just wouldn't build.  Do the default install
+to <span class="literal">/opt/local</span> worked but requires elevated
+privileges.
+</cite>
+
+<p>
+After building and/or installing
+<span class="standout">MacPorts</span> do a self update and install
+Python-2.7 and the required modules, including
+<span class="standout">wxPython</span>.
+</p>
+
+<pre class="Preformatted">
+# port selfupdate
+# port install python27
+</pre>
+
+<p>
+The list of packages you'll need to install with
+<tt>port install package-name</tt> is:
+</p>
+
+<ul>
+  <li><span class="standout">py27-h5py<span></li>
+  <li><span class="standout">py27-matplotlib<span></li>
+  <li><span class="standout">py27-Pillow<span></li>
+  <li><span class="standout">py27-wxpython-3.0<span></li>
+  <li><span class="standout">py27-numpy<span> (installed by py27-h5py)</li>
+  <li><span class="standout">py27-parsing<span> (installed by py27-matplotlib)</li>
+  <li><span class="standout">py27-dateutil<span> (installed by py27-matplotlib)</li>
+  <li><span class="standout">py27-six<span> (installed by py27-matplotlib)</li>
+</ul>
+
+</body>
+
