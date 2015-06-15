@@ -794,9 +794,35 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Channel2DView.CreateImage()			-
+  #     METHOD:         Channel2DView.CreatePopupMenu()			-
   #----------------------------------------------------------------------
-  def CreateImage( self, file_path ):
+  def CreatePopupMenu( self ):
+    """Lazily creates.  Must be called from the UI thread.
+"""
+    if self.popupMenu == None:
+      self.popupMenu = wx.Menu()
+
+      for label, handler in self.menuDefs:
+        item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
+        self.Bind( wx.EVT_MENU, handler, item )
+        self.popupMenu.AppendItem( item )
+      #end for
+
+      self._UpdateVisibilityMenuItems(
+          self.popupMenu,
+	  'Labels', self.showLabels,
+	  'Legend', self.showLegend
+	  )
+    #end if must create menu
+
+    return  self.popupMenu
+  #end CreatePopupMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView.CreatePrintImage()		-
+  #----------------------------------------------------------------------
+  def CreatePrintImage( self, file_path ):
     wx_im = None
 
     if self.mode == 'assy':
@@ -830,33 +856,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
 
     return  wx_im
-  #end CreateImage
-
-
-  #----------------------------------------------------------------------
-  #     METHOD:         Channel2DView.CreatePopupMenu()			-
-  #----------------------------------------------------------------------
-  def CreatePopupMenu( self ):
-    """Lazily creates.  Must be called from the UI thread.
-"""
-    if self.popupMenu == None:
-      self.popupMenu = wx.Menu()
-
-      for label, handler in self.menuDefs:
-        item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
-        self.Bind( wx.EVT_MENU, handler, item )
-        self.popupMenu.AppendItem( item )
-      #end for
-
-      self._UpdateVisibilityMenuItems(
-          self.popupMenu,
-	  'Labels', self.showLabels,
-	  'Legend', self.showLegend
-	  )
-    #end if must create menu
-
-    return  self.popupMenu
-  #end CreatePopupMenu
+  #end CreatePrintImage
 
 
   #----------------------------------------------------------------------

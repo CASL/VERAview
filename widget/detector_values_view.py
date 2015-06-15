@@ -550,9 +550,27 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DetectorValues2DView.CreateImage()		-
+  #     METHOD:         DetectorValues2DView.CreateMenu()		-
   #----------------------------------------------------------------------
-  def CreateImage( self, file_path ):
+  def CreateMenu( self ):
+    if self.menu == None:
+      self.menu = wx.Menu()
+
+      for label, handler in self.menuDefs:
+        item = wx.MenuItem( self.menu, wx.ID_ANY, label )
+        self.Bind( wx.EVT_MENU, handler, item )
+        self.menu.AppendItem( item )
+      #end for
+    #end if
+
+    return  self.menu
+  #end CreateMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DetectorValues2DView.CreatePrintImage()		-
+  #----------------------------------------------------------------------
+  def CreatePrintImage( self, file_path ):
     wx_im = None
 
     config = self._CreateDrawConfig(
@@ -571,25 +589,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
 
     return  wx_im
-  #end CreateImage
-
-
-  #----------------------------------------------------------------------
-  #     METHOD:         DetectorValues2DView.CreateMenu()		-
-  #----------------------------------------------------------------------
-  def CreateMenu( self ):
-    if self.menu == None:
-      self.menu = wx.Menu()
-
-      for label, handler in self.menuDefs:
-        item = wx.MenuItem( self.menu, wx.ID_ANY, label )
-        self.Bind( wx.EVT_MENU, handler, item )
-        self.menu.AppendItem( item )
-      #end for
-    #end if
-
-    return  self.menu
-  #end CreateMenu
+  #end CreatePrintImage
 
 
   #----------------------------------------------------------------------

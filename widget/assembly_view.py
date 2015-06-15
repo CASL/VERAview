@@ -529,31 +529,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.CreateImage()			-
-  #----------------------------------------------------------------------
-  def CreateImage( self, file_path ):
-    wx_im = None
-
-    config = self._CreateDrawConfig(
-        self.data, self.dataSetName, self.cellRange, scale = 28
-	)
-    pil_im = self._CreateAssemblyImage(
-        config, self.data, self.dataSetName,
-	( self.stateIndex, self.axialValue[ 1 ] ) + self.assemblyIndex
-	)
-    wx_im = wx.EmptyImage( *pil_im.size )
-
-    pil_im_data_str = pil_im.convert( 'RGB' ).tostring()
-    wx_im.SetData( pil_im_data_str )
-
-    pil_im_data_str = pil_im.convert( 'RGBA' ).tostring()
-    wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
-
-    return  wx_im
-  #end CreateImage
-
-
-  #----------------------------------------------------------------------
   #     METHOD:         Assembly2DView.CreatePopupMenu()		-
   #----------------------------------------------------------------------
   def CreatePopupMenu( self ):
@@ -575,6 +550,31 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     return  self.popupMenu
   #end CreatePopupMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView.CreatePrintImage()		-
+  #----------------------------------------------------------------------
+  def CreatePrintImage( self, file_path ):
+    wx_im = None
+
+    config = self._CreateDrawConfig(
+        self.data, self.dataSetName, self.cellRange, scale = 28
+	)
+    pil_im = self._CreateAssemblyImage(
+        config, self.data, self.dataSetName,
+	( self.stateIndex, self.axialValue[ 1 ] ) + self.assemblyIndex
+	)
+    wx_im = wx.EmptyImage( *pil_im.size )
+
+    pil_im_data_str = pil_im.convert( 'RGB' ).tostring()
+    wx_im.SetData( pil_im_data_str )
+
+    pil_im_data_str = pil_im.convert( 'RGBA' ).tostring()
+    wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
+
+    return  wx_im
+  #end CreatePrintImage
 
 
   #----------------------------------------------------------------------

@@ -53,6 +53,7 @@ from widgetcontainer import *
 #------------------------------------------------------------------------
 class ExposurePlot( Widget ):
   """Per-exposure core-level plot.
+@deprecated  Use time_plot.TimePlot.
 
 Properties:
 """
@@ -91,9 +92,9 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CreateImage()					-
+  #	METHOD:		CreatePrintImage()				-
   #----------------------------------------------------------------------
-  def CreateImage( self, file_path ):
+  def CreatePrintImage( self, file_path ):
     result = None
 
     if self.fig != None:
@@ -110,7 +111,7 @@ Properties:
     #end if
 
     return  result
-  #end CreateImage
+  #end CreatePrintImage
 
 
   #----------------------------------------------------------------------

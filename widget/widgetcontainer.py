@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Calling Widget.CreatePrintImage().
 #		2015-05-11	leerw@ornl.gov				-
 #	  New State.axialValue.
 #		2015-04-27	leerw@ornl.gov				-
@@ -257,11 +259,6 @@ class WidgetContainer( wx.Panel ):
     widget_menu_def = self.widget.GetMenuDef( data_model )
     if widget_menu_def != None:
       self.widgetMenu.AppendSeparator()
-#      for label, id in widget_menu_def:
-#        item = wx.MenuItem( self.widgetMenu, id, label )
-#        self.Bind( wx.EVT_MENU, self._OnWidgetMenuItem, item )
-#	self.widgetMenu.AppendItem( item )
-#      #end for
       for label, handler in widget_menu_def:
         item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
         self.Bind( wx.EVT_MENU, handler, item )
@@ -454,7 +451,7 @@ class WidgetContainer( wx.Panel ):
 
     if file_path != None:
       try:
-	result = self.widget.CreateImage( file_path )
+	result = self.widget.CreatePrintImage( file_path )
 	if result == None:
 	  raise Exception( 'No image created' )
 	elif isinstance( result, wx.Image ):
