@@ -376,11 +376,11 @@ class VeraViewFrame( wx.Frame ):
       #end if
 
       con = WidgetContainer( self.grid, widget_class, self.state, )
-      #con.SetSize( self.grid.CalcWidgetSize() )
-#      grid_sizer.Add( con, 0, wx.ALIGN_CENTER | wx.SHAPED, 2 )
+      self.grid._FreezeWidgets()
       grid_sizer.Add( con, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
       self.grid.Layout()
       self.Fit()
+      self.grid._FreezeWidgets( False )
 
       wx.CallAfter( self._Refit )
 
@@ -794,7 +794,8 @@ Must be called from the UI thread.
       else:
         grid_sizer.SetRows( new_size[ 0 ] )
         grid_sizer.SetCols( new_size[ 1 ] )
-        self.grid.FitWidgets()
+        #self.grid.FitWidgets()
+	self._Refit()
     #end if different size
   #end _OnGridResize
 
@@ -1175,6 +1176,22 @@ class VeraViewGrid( wx.Panel ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewGrid._FreezeWidgets()			-
+  #----------------------------------------------------------------------
+  def _FreezeWidgets( self, freeze_flag = True ):
+    """
+@param  freeze_flag	True to freeze, False to Thaw
+"""
+    if freeze_flag:
+      for item in self.GetChildren():
+        item.Freeze()
+    else:
+      for item in self.GetChildren():
+        item.Thaw()
+  #end _FreezeWidgets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewGrid.GetListener()			-
   #----------------------------------------------------------------------
   def GetListener( self ):
@@ -1214,7 +1231,7 @@ class VeraViewGrid( wx.Panel ):
   #	METHOD:		VeraViewGrid._ResizeWidgets()			-
   #----------------------------------------------------------------------
   def _ResizeWidgets( self, new_size ):
-    self.GetTopLevelParent().Freeze()
+    self._FreezeWidgets()
     grid = self.GetSizer()
     items = []
     for item in self.GetChildren():
@@ -1229,7 +1246,8 @@ class VeraViewGrid( wx.Panel ):
 
     grid.Layout()
     self.Fit()
-    self.GetTopLevelParent().Thaw()
+
+    self._FreezeWidgets( False )
   #end _ResizeWidgets
 
 
