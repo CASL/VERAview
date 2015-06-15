@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.  Added State.CreateUpdateArgs().
 #		2015-05-25	leerw@ornl.gov				-
 #		2015-05-23	leerw@ornl.gov				-
 #	  Added channelColRow property and event.
@@ -31,6 +33,7 @@
 #------------------------------------------------------------------------
 import h5py, os, sys, traceback
 import numpy as np
+import pdb
 
 from data.datamodel import *
 
@@ -252,6 +255,56 @@ Keys passed and the corresponding state bit are:
 
     return  reason
   #end Change
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CreateUpdateArgs()				-
+  #----------------------------------------------------------------------
+  def CreateUpdateArgs( self, reason ):
+    """
+@return			dict with updated values based on reason
+"""
+    update_args = {}
+    if (reason & STATE_CHANGE_assemblyIndex) > 0:
+      update_args[ 'assembly_index' ] = self.assemblyIndex
+#      if hasattr( self, 'assemblyIndex' ) and \
+#          self.state.assemblyIndex != self.assemblyIndex:
+
+    if (reason & STATE_CHANGE_axialValue) > 0:
+      update_args[ 'axial_value' ] = self.axialValue
+
+    if (reason & STATE_CHANGE_channelColRow) > 0:
+      update_args[ 'channel_colrow' ] = self.channelColRow
+
+    if (reason & STATE_CHANGE_channelDataSet) > 0:
+      update_args[ 'channel_dataset' ] = self.channelDataSet
+
+    if (reason & STATE_CHANGE_dataModel) > 0:
+      update_args[ 'data_model' ] = self.dataModel
+
+    if (reason & STATE_CHANGE_detectorDataSet) > 0:
+      update_args[ 'detector_dataset' ] = self.detectorDataSet
+
+    if (reason & STATE_CHANGE_detectorIndex) > 0:
+      update_args[ 'detector_index' ] = self.detectorIndex
+
+    if (reason & STATE_CHANGE_pinColRow) > 0:
+      update_args[ 'pin_colrow' ] = self.pinColRow
+
+    if (reason & STATE_CHANGE_pinDataSet) > 0:
+      update_args[ 'pin_dataset' ] = self.pinDataSet
+
+    if (reason & STATE_CHANGE_scalarDataSet) > 0:
+      update_args[ 'scalar_dataset' ] = self.scalarDataSet
+
+    if (reason & STATE_CHANGE_stateIndex) > 0:
+      update_args[ 'state_index' ] = self.stateIndex
+
+    if (reason & STATE_CHANGE_timeDataSet) > 0:
+      update_args[ 'time_dataset' ] = self.timeDataSet
+
+    return  update_args
+  #end CreateUpdateArgs
 
 
   #----------------------------------------------------------------------

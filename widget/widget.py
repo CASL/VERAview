@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring, generalization.
 #		2015-05-11	leerw@ornl.gov				-
 #	  New State.axialValue.
 #		2015-04-13	leerw@ornl.gov				-
@@ -207,23 +209,6 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CreateImage()					-
-  #----------------------------------------------------------------------
-  def CreateImage( self, file_path ):
-    """
-Placeholder for widget implementations to create a PNG image.
-The default implementation returns None.
-@param  file_path	path to file if the widget creates the image
-@return			either a wx.Image instance that must be saved,
-			the file path saved (should be file_path), or
-			None if not processed
-"""
-    #return  wx.EmptyImage( 400, 300 )
-    return  None
-  #end CreateImage
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_CreateLegendPilImage()				-
   #----------------------------------------------------------------------
   def _CreateLegendPilImage( self, value_range, font_size = 16 ):
@@ -252,29 +237,46 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CreatePrintImage()				-
+  #----------------------------------------------------------------------
+  def CreatePrintImage( self, file_path ):
+    """
+Placeholder for widget implementations to create a PNG image.
+The default implementation returns None.
+@param  file_path	path to file if the widget creates the image
+@return			either a wx.Image instance that must be saved,
+			the file path saved (should be file_path), or
+			None if not processed
+"""
+    #return  wx.EmptyImage( 400, 300 )
+    return  None
+  #end CreatePrintImage
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_FindListIndex()				-
   #----------------------------------------------------------------------
-  def _FindListIndex( self, values, value ):
-    """Values in the list are assumed in ascending order.
-@param  values		list of values in ascending order
-@param  value		value to find
-@return			0-based index N, where
-			(values[ N ] le value lt values[ N + 1 ]), or
-			-1 if all items are gt value
-@deprecated	Use DataModel.FindListIndex()
-"""
-    match_ndx = -1
-
-    if len( values ) > 0 and value >= values[ 0 ]:
-      for i in range( len( values ) - 1, -1, -1 ):
-        if value >= values[ i ]:
-	  match_ndx = i
-	  break
-      #end for
-    #end if
-
-    return  match_ndx
-  #end _FindListIndex
+#  def _FindListIndex( self, values, value ):
+#    """Values in the list are assumed in ascending order.
+#@param  values		list of values in ascending order
+#@param  value		value to find
+#@return			0-based index N, where
+#			(values[ N ] le value lt values[ N + 1 ]), or
+#			-1 if all items are gt value
+#@deprecated	Use DataModel.FindListIndex()
+#"""
+#    match_ndx = -1
+#
+#    if len( values ) > 0 and value >= values[ 0 ]:
+#      for i in range( len( values ) - 1, -1, -1 ):
+#        if value >= values[ i ]:
+#	  match_ndx = i
+#	  break
+#      #end for
+#    #end if
+#
+#    return  match_ndx
+#  #end _FindListIndex
 
 
   #----------------------------------------------------------------------
@@ -390,7 +392,22 @@ Subclasses should override as this implementation returns None
   #	METHOD:		HandleStateChange()				-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
-    pass
+    """Note value difference checks must occur in _UpdateState()
+"""
+    print >> sys.stderr, \
+        '[Widget.HandleStateChange] reason=%d' % reason
+
+    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
+    if (reason & load_mask) > 0:
+      print >> sys.stderr, \
+          '[Core2DView.HandleStateChange] calling _LoadDataModel()'
+      self._LoadDataModel()
+
+    else:
+      update_args = self.state.CreateUpdateArgs( reason )
+      if len( update_args ) > 0:
+        wx.CallAfter( self._UpdateState, **update_args )
+    #end else not a data model load
   #end HandleStateChange
 
 
@@ -402,6 +419,16 @@ Subclasses should override as this implementation returns None
 """
     raise  Exception( "subclasses must implement" )
   #end _InitUI
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_LoadDataModel()				-
+  #----------------------------------------------------------------------
+  def _LoadDataModel( self ):
+    """Must be implemented by extensions.  This is a noop implementation
+"""
+    pass
+  #end _LoadDataModel
 
 
   #----------------------------------------------------------------------
@@ -457,6 +484,16 @@ Subclasses should override as this implementation returns None
 """
     pass
   #end _ShowMultiDataSetImpl
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateState()					-
+  #----------------------------------------------------------------------
+  def _UpdateState( self, **kwargs ):
+    """Must be implemented by extensions.  This is a noop implementation
+"""
+    pass
+  #end _UpdateState
 
 
   #----------------------------------------------------------------------

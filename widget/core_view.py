@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.
 #		2015-05-26	leerw@ornl.gov				-
 #	  Migrating to global state.timeDataSet.
 #		2015-05-21	leerw@ornl.gov				-
@@ -101,7 +103,7 @@ Properties:
     self.config = None
     self.curSize = None
     self.data = None
-    self.dataSetName = kwargs.get( 'dataset', 'pin_powers' )
+    self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.dragStartAssembly = None
     self.dragStartPosition = None
 
@@ -196,12 +198,12 @@ Calls _CreateCoreImage().
     if next_pair != None and self.config != None:
       if self.config.get( 'mode' ) == 'assy':
         pil_im = self._CreateAssyImage(
-	    self.config, self.data, self.dataSetName,
+	    self.config, self.data, self.pinDataSet,
 	    next_pair + self.assemblyIndex
 	    )
       else:
         pil_im = self._CreateCoreImage(
-	    self.config, self.data, self.dataSetName, next_pair
+	    self.config, self.data, self.pinDataSet, next_pair
 	    )
     #end if next_pair exists
 
@@ -214,8 +216,8 @@ Calls _CreateCoreImage().
   #----------------------------------------------------------------------
   def _CalcAvgValues( self, data, state_ndx, force = False ):
     if (force or (state_ndx not in self.avgValues)) and \
-	self.dataSetName in data.states[ state_ndx ].group:
-      ds_values = data.states[ state_ndx ].group[ self.dataSetName ].value
+	self.pinDataSet in data.states[ state_ndx ].group:
+      ds_values = data.states[ state_ndx ].group[ self.pinDataSet ].value
       avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
 
       for ax in range( data.core.nax ):  # pp_powers.shape( 2 )
@@ -239,8 +241,8 @@ Calls _CreateCoreImage().
   def _CalcAvgValues_orig( self, data, state_ndx, force = False ):
     if data.core.pinVolumes != None and data.core.pinVolumesSum > 0.0 and \
         (force or (state_ndx not in self.avgValues)) and \
-	self.dataSetName in data.states[ state_ndx ].group:
-      ds_values = data.states[ state_ndx ].group[ self.dataSetName ].value
+	self.pinDataSet in data.states[ state_ndx ].group:
+      ds_values = data.states[ state_ndx ].group[ self.pinDataSet ].value
       avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
       for ax in range( data.core.nax ):  # pp_powers.shape( 2 )
         for assy in range( data.core.nass ):  # pp_powers.shape( 3 )
@@ -290,12 +292,12 @@ Sets the config attribute.
 #      if self.cellRange[ -2 ] == 1 and self.cellRange[ -1 ] == 1:
       if self.mode == 'assy':
         self.config = self._CreateAssyDrawConfig(
-	    self.data, self.dataSetName,
+	    self.data, self.pinDataSet,
 	    size = ( wd, ht )
 	    )
       else:  # if self.mode == 'core'
         self.config = self._CreateCoreDrawConfig(
-            self.data, self.dataSetName, self.cellRange,
+            self.data, self.pinDataSet, self.cellRange,
 	    size = ( wd, ht )
 	    )
   #end _Configure
@@ -853,21 +855,21 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     if self.mode == 'assy':
       config = self._CreateAssyDrawConfig(
-	  self.data, self.dataSetName,
+	  self.data, self.pinDataSet,
 	  scale = 24
           )
       pil_im = self._CreateAssyImage(
-          config, self.data, self.dataSetName,
+          config, self.data, self.pinDataSet,
 	  ( self.stateIndex, self.axialValue[ 1 ] ) + self.assemblyIndex
 #	  ( self.stateIndex, self.axialLevel ) + self.assemblyIndex
 	  )
     else:  # if self.mode == 'core':
       config = self._CreateCoreDrawConfig(
-          self.data, self.dataSetName, self.cellRange,
+          self.data, self.pinDataSet, self.cellRange,
 	  scale = 4
 	  )
       pil_im = self._CreateCoreImage(
-          config, self.data, self.dataSetName,
+          config, self.data, self.pinDataSet,
 	  ( self.stateIndex, self.axialValue[ 1 ] )
 #	  ( self.stateIndex, self.axialLevel )
 	  )
@@ -1074,9 +1076,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.HandleStateChange()			-
+  #	METHOD:		Core2DView.HandleStateChange_()			-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def HandleStateChange_( self, reason ):
     print >> sys.stderr, \
         '[Core2DView.HandleStateChange] reason=%d' % reason
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
@@ -1109,7 +1111,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  wx.CallAfter( self._UpdateState, pin_colrow = self.state.pinColRow )
 
       if (reason & STATE_CHANGE_pinDataSet) > 0:
-        if self.state.pinDataSet != self.dataSetName:
+        if self.state.pinDataSet != self.pinDataSet:
 	  state_args[ 'pin_dataset' ] = self.state.pinDataSet
 
       if (reason & STATE_CHANGE_stateIndex) > 0:
@@ -1123,7 +1125,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       if len( state_args ) > 0:
         wx.CallAfter( self._UpdateState, **state_args )
     #end else not a data model load
-  #end HandleStateChange
+  #end HandleStateChange_
 
 
   #----------------------------------------------------------------------
@@ -1281,7 +1283,7 @@ model.  Sets properties: assemblyExtent, cellRange, data
 
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
-      self.dataSetName = self.state.pinDataSet
+      self.pinDataSet = self.state.pinDataSet
       self.pinColRow = self.state.pinColRow
       self.stateIndex = self.state.stateIndex
       wx.CallAfter( self._LoadDataModelUI )
@@ -1445,7 +1447,7 @@ model.  Sets properties: assemblyExtent, cellRange, data
 	tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
 	    ( assy[ 0 ] + 1, show_assy_addr,
 	      'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
-	      self.dataSetName, avg_value )
+	      self.pinDataSet, avg_value )
       #end if
 
 #      else:
@@ -1507,7 +1509,7 @@ model.  Sets properties: assemblyExtent, cellRange, data
     pin_addr = self.FindPin( *ev.GetPosition() )
     if pin_addr != None:
       state_ndx = self.stateIndex
-      ds_name = self.dataSetName
+      ds_name = self.pinDataSet
       pin_value = 0.0
       if ds_name in self.data.states[ state_ndx ].group:
         ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
@@ -1538,7 +1540,7 @@ model.  Sets properties: assemblyExtent, cellRange, data
 #          '[Assembly2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
 
       state_ndx = self.stateIndex
-      ds_name = self.dataSetName
+      ds_name = self.pinDataSet
       pin_value = 0.0
       if ds_name in self.data.states[ state_ndx ].group:
         ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
@@ -1672,9 +1674,9 @@ model.  Sets properties: assemblyExtent, cellRange, data
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    if ds_name != self.dataSetName:
+    if ds_name != self.pinDataSet:
 #      self.avgValues.clear()
-#      self.dataSetName = ds_name
+#      self.pinDataSet = ds_name
 #      wx.CallAfter( self._OnSize, None )
       wx.CallAfter( self._UpdateState, pin_dataset = ds_name )
       self.FireStateChange( pin_dataset = ds_name )
@@ -1732,24 +1734,22 @@ Must be called from the UI thread.
     if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
       changed = True
       self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
-#    if 'axial_level' in kwargs and kwargs[ 'axial_level' ] != self.axialLevel:
-#      changed = True
-#      self.axialLevel = self.data.NormalizeAxialLevel( kwargs[ 'axial_level' ] )
-##      self.axialBean.axialLevel = \
-##          max( 0, min( axial_level, self.data.core.nax - 1 ) )
 
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
       changed = True
       self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
 
-    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.dataSetName:
+    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       resized = True
-      self.dataSetName = kwargs[ 'pin_dataset' ]
+      self.pinDataSet = kwargs[ 'pin_dataset' ]
       self.avgValues.clear()
 
     if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
       changed = True
       self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
+
+    if 'time_dataset' in kwargs:
+      resized = True
 
     if resized:
       self._ClearBitmaps()
