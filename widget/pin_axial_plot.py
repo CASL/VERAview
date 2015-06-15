@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_axial_plot.py				-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.
 #		2015-05-26	leerw@ornl.gov				-
 #	  Migrating to global state.timeDataSet.
 #		2015-05-11	leerw@ornl.gov				-
@@ -74,9 +76,9 @@ Properties:
     self.canvas = None
     self.cursor = None
     self.data = None
-    self.dataSetName = kwargs.get( 'dataset', 'pin_powers' )
     self.dataSetValues = []
     self.fig = None
+    self.pinDataSet = kwargs.get( 'pin_dataset', 'pin_powers' )
 
     self.lx = None
     #self.ly = None
@@ -183,9 +185,9 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleStateChange()				-
+  #	METHOD:		HandleStateChange_()				-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def HandleStateChange_( self, reason ):
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
       print >> sys.stderr, '[PinAxialPlot.HandleStateChange] calling _LoadDataModel()'
@@ -215,7 +217,7 @@ Properties:
       #end if
 
       if (reason & STATE_CHANGE_pinDataSet) > 0:
-        if self.state.pinDataSet != self.dataSetName:
+        if self.state.pinDataSet != self.pinDataSet:
           update_args[ 'pin_dataset' ] = self.state.pinDataSet
       #end if
 
@@ -231,7 +233,7 @@ Properties:
       if len( update_args ) > 0:
         wx.CallAfter( self._UpdateState, **update_args )
     #end else not a data model load
-  #end HandleStateChange
+  #end HandleStateChange_
 
 
   #----------------------------------------------------------------------
@@ -292,11 +294,11 @@ model.
       pin_colrow = self.data.NormalizePinColRow( self.state.pinColRow )
       update_args = \
         {
-	'assy_ndx': assy_ndx,
+	'assembly_index': assy_ndx,
 	'axial_value': self.state.axialValue,
-	'dataset_name': self.dataSetName,
+	'pin_dataset': self.pinDataSet,
 	'pin_colrow': pin_colrow,
-	'state_ndx': max( 0, self.state.stateIndex )
+	'state_index': max( 0, self.state.stateIndex )
 	}
       wx.CallAfter( self._UpdateState, **update_args )
     #end if
@@ -339,7 +341,7 @@ model.
       if ds_value != None:
         tip_str = \
 	    'Axial=%.3g\n%s=%.3g' % \
-	    ( ev.ydata, self.dataSetName, ds_value )
+	    ( ev.ydata, self.pinDataSet, ds_value )
       self.canvas.SetToolTipString( tip_str )
     #end elif
   #end _OnMplMouseMotion
@@ -437,7 +439,7 @@ Must be called from the UI thread.
           self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] )
       self.ax.set_title(
 	  'Axial vs %s\nAssy %d %s, Pin %s, %s %.3g' % \
-	  ( self.dataSetName,
+	  ( self.pinDataSet,
 	    self.assemblyIndex[ 0 ] + 1, show_assy_addr, str( pin_rc ),
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -446,21 +448,21 @@ Must be called from the UI thread.
 	  )
 #      self.ax.set_title(
 #	  'Axial vs %s\nAssy %d %s, Pin %s, Exposure %.3f' % \
-#	  ( self.dataSetName,
+#	  ( self.pinDataSet,
 #	    self.assemblyIndex[ 0 ] + 1, show_assy_addr, str( pin_rc ),
 #	    self.data.states[ self.stateIndex ].exposure
 #	    ),
 #	  fontsize = self.titleFontSize
 #	  )
-      self.ax.set_xlabel( self.dataSetName, fontsize = label_font_size )
-      self.ax.set_xlim( *self.data.GetRange( self.dataSetName ) )
+      self.ax.set_xlabel( self.pinDataSet, fontsize = label_font_size )
+      self.ax.set_xlim( *self.data.GetRange( self.pinDataSet ) )
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
       self.ax.tick_params( axis = 'both', which = 'major', labelsize = tick_font_size )
 
       if len( self.axialValues ) == len( self.dataSetValues ):
         self.ax.plot(
 	    self.dataSetValues, self.axialValues, 'b-',  # b.
-	    label = self.dataSetName, linewidth = 2
+	    label = self.pinDataSet, linewidth = 2
 	    )
 
         self.axialLine = \
@@ -482,45 +484,38 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-#    replot = False
-#    redraw = False
     replot = kwargs[ 'replot' ] if 'replot' in kwargs  else False
     redraw = kwargs[ 'redraw' ] if 'redraw' in kwargs  else False
 
-    if 'assy_ndx' in kwargs:
-      if kwargs[ 'assy_ndx' ] != self.assemblyIndex:
-	replot = True
-        self.assemblyIndex = kwargs[ 'assy_ndx' ]
+    if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+      replot = True
+      self.assemblyIndex = kwargs[ 'assembly_index' ]
     #end if
 
-    if 'pin_colrow' in kwargs:
-      if kwargs[ 'pin_colrow' ] != self.pinColRow:
-	replot = True
-        self.pinColRow = kwargs[ 'pin_colrow' ]
+    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+      replot = True
+      self.pinColRow = kwargs[ 'pin_colrow' ]
     #end if
 
-    if 'pin_dataset' in kwargs:
-      if kwargs[ 'pin_dataset' ] != self.dataSetName:
-        replot = True
-	self.dataSetName = kwargs[ 'pin_dataset' ]
+    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
+      replot = True
+      self.pinDataSet = kwargs[ 'pin_dataset' ]
     #end if
 
-    if 'state_ndx' in kwargs:
-      if kwargs[ 'state_ndx' ] != self.stateIndex:
-	replot = True
-        self.stateIndex = kwargs[ 'state_ndx' ]
+    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+      replot = True
+      self.stateIndex = kwargs[ 'state_index' ]
     #end if
 
-    if 'axial_value' in kwargs:
-      if kwargs[ 'axial_value' ] != self.axialValue:
-	self.axialValue = kwargs[ 'axial_value' ]
-	if not replot:
-          redraw = True
-	  if self.axialLine == None:
-	    self.axialLine = \
-	        self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
-	  self.axialLine.set_ydata( self.axialValue[ 0 ] )
-      #end if value changed
+    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+      self.axialValue = kwargs[ 'axial_value' ]
+      if not replot:
+        redraw = True
+        if self.axialLine == None:
+	  self.axialLine = \
+	      self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
+        self.axialLine.set_ydata( self.axialValue[ 0 ] )
+      #end if
     #end if
 
     if replot:
@@ -529,9 +524,9 @@ Must be called from the UI thread.
 	  self.assemblyIndex[ 0 ] >= 0 and self.assemblyIndex[ 0 ] < self.data.core.nass and \
 	  self.pinColRow[ 0 ] >= 0 and self.pinColRow[ 0 ] < self.data.core.npin and \
 	  self.pinColRow[ 1 ] >= 0 and self.pinColRow[ 1 ] < self.data.core.npin and \
-	  self.dataSetName in self.data.states[ self.stateIndex ].group:
+	  self.pinDataSet in self.data.states[ self.stateIndex ].group:
 
-	ds = self.data.states[ self.stateIndex ].group[ self.dataSetName ]
+	ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
 	del self.dataSetValues[ : ]
 	for i in range( self.data.core.nax ):
 	  self.dataSetValues.append(

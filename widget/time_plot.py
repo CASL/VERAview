@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plot.py					-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.
 #		2015-05-25	leerw@ornl.gov				-
 #	  Copied from exposure_plot.py to use new timeDataSet state
 #	  mask and value.
@@ -157,9 +159,9 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleStateChange()				-
+  #	METHOD:		HandleStateChange_()				-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def HandleStateChange_( self, reason ):
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
       print >> sys.stderr, '[TimePlot.HandleStateChange] calling _LoadDataModel()'
@@ -179,7 +181,7 @@ Properties:
       if len( state_args ) > 0:
         wx.CallAfter( self._UpdateState, **state_args )
     #end else not a data model load
-  #end HandleStateChange
+  #end HandleStateChange_
 
 
   #----------------------------------------------------------------------
@@ -400,15 +402,14 @@ Must be called from the UI thread.
     if 'time_dataset' in kwargs:
       replot = True
 
-    if 'scalar_dataset' in kwargs:
-      if kwargs[ 'scalar_dataset' ] != self.scalarName:
-        replot = True
-	self.scalarName = kwargs[ 'scalar_dataset' ]
+    if 'scalar_dataset' in kwargs and kwargs[ 'scalar_dataset' ] != self.scalarName:
+      replot = True
+      self.scalarName = kwargs[ 'scalar_dataset' ]
     #end if
 
-    if 'state_ndx' in kwargs and kwargs[ 'state_ndx' ] != self.stateIndex:
+    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
       redraw = True
-      self.stateIndex = kwargs[ 'state_ndx' ]
+      self.stateIndex = kwargs[ 'state_index' ]
       if not replot and self.data.IsValid( state_index = self.stateIndex ):
         if self.timeLine == None:
           self.timeLine = \

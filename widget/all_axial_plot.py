@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.
 #		2015-05-26	leerw@ornl.gov				-
 #	  Migrating to global state.timeDataSet.
 #		2015-05-23	leerw@ornl.gov				-
@@ -250,9 +252,9 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleStateChange()				-
+  #	METHOD:		HandleStateChange_()				-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def HandleStateChange_( self, reason ):
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
       print >> sys.stderr, '[AllAxialPlot.HandleStateChange] calling _LoadDataModel()'
@@ -308,7 +310,7 @@ Properties:
       if len( update_args ) > 0:
         wx.CallAfter( self._UpdateState, **update_args )
     #end else not a data model load
-  #end HandleStateChange
+  #end HandleStateChange_
 
 
   #----------------------------------------------------------------------
@@ -362,13 +364,13 @@ model.
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
-	'assy_ndx': assy_ndx,
+	'assy_index': assy_ndx,
 	'axial_value': axial_value,
 	'channel_colrow': chan_colrow,
 #	'dataset_name': self.dataSetName,
-	'detector_ndx': detector_ndx,
+	'detector_index': detector_ndx,
 	'pin_colrow': pin_colrow,
-	'state_ndx': state_ndx
+	'state_index': state_ndx
 	}
       wx.CallAfter( self._UpdateState, **update_args )
     #end if
@@ -683,52 +685,48 @@ Must be called from the UI thread.
     replot = kwargs[ 'replot' ] if 'replot' in kwargs  else False
     redraw = kwargs[ 'redraw' ] if 'redraw' in kwargs  else False
 
-    if 'assy_ndx' in kwargs:
-      if kwargs[ 'assy_ndx' ] != self.assemblyIndex:
-	replot = True
-        self.assemblyIndex = kwargs[ 'assy_ndx' ]
+    if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+      replot = True
+      self.assemblyIndex = kwargs[ 'assembly_index' ]
     #end if
 
-    if 'channel_colrow' in kwargs:
-      if kwargs[ 'channel_colrow' ] != self.channelColRow:
-	replot = True
-        self.channelColRow = kwargs[ 'channel_colrow' ]
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
+      replot = True
+      self.channelColRow = kwargs[ 'channel_colrow' ]
     #end if
 
-    if 'detector_ndx' in kwargs:
-      if kwargs[ 'detector_ndx' ] != self.detectorIndex:
-	replot = True
-        self.detectorIndex = kwargs[ 'detector_ndx' ]
+    if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
+      replot = True
+      self.detectorIndex = kwargs[ 'detector_index' ]
     #end if
 
-    if 'pin_colrow' in kwargs:
-      if kwargs[ 'pin_colrow' ] != self.pinColRow:
-	replot = True
-        self.pinColRow = kwargs[ 'pin_colrow' ]
+    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+      replot = True
+      self.pinColRow = kwargs[ 'pin_colrow' ]
     #end if
 
-    if 'pin_dataset' in kwargs:
-      if kwargs[ 'pin_dataset' ] != self.dataSetName:
-        replot = True
-	self.dataSetName = kwargs[ 'pin_dataset' ]
+    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.dataSetName:
+      replot = True
+      self.dataSetName = kwargs[ 'pin_dataset' ]
     #end if
 
-    if 'state_ndx' in kwargs:
-      if kwargs[ 'state_ndx' ] != self.stateIndex:
-	replot = True
-        self.stateIndex = kwargs[ 'state_ndx' ]
+    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+      replot = True
+      self.stateIndex = kwargs[ 'state_index' ]
     #end if
 
-    if 'axial_value' in kwargs:
-      if kwargs[ 'axial_value' ] != self.axialValue:
-	self.axialValue = kwargs[ 'axial_value' ]
-	if not replot:
-          redraw = True
-	  if self.axialLine == None:
-	    self.axialLine = \
-	        self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
-	  self.axialLine.set_ydata( self.axialValue[ 0 ] )
-      #end if value changed
+    if 'time_dataset' in kwargs:
+      replot = True
+
+    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+      self.axialValue = kwargs[ 'axial_value' ]
+      if not replot:
+        redraw = True
+        if self.axialLine == None:
+	  self.axialLine = \
+	      self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
+	self.axialLine.set_ydata( self.axialValue[ 0 ] )
+      #end if
     #end if
 
     if replot:

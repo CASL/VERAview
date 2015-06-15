@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.
 #		2015-05-26	leerw@ornl.gov				-
 #	  Migrating to global state.timeDataSet.
 #		2015-05-23	leerw@ornl.gov				-
@@ -1020,9 +1022,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Channel2DView.HandleStateChange()		-
+  #	METHOD:		Channel2DView.HandleStateChange_()		-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def HandleStateChange_( self, reason ):
     print >> sys.stderr, \
         '[Channel2DView.HandleStateChange] reason=%d' % reason
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
@@ -1067,7 +1069,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       if len( state_args ) > 0:
         wx.CallAfter( self._UpdateState, **state_args )
     #end else not a data model load
-  #end HandleStateChange
+  #end HandleStateChange_
 
 
   #----------------------------------------------------------------------
@@ -1664,13 +1666,11 @@ Must be called from the UI thread.
       changed = True
       self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
-    if 'channel_colrow' in kwargs and \
-        kwargs[ 'channel_colrow' ] != self.channelColRow:
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
       changed = True
       self.channelColRow = self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
 
-    if 'channel_dataset' in kwargs and \
-        kwargs[ 'channel_dataset' ] != self.dataSetName:
+    if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.dataSetName:
       resized = True
       self.dataSetName = kwargs[ 'channel_dataset' ]
       self.avgValues.clear()
@@ -1678,6 +1678,9 @@ Must be called from the UI thread.
     if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
       changed = True
       self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
+
+    if 'time_dataset' in kwargs:
+      resized = True
 
     if resized:
       self._ClearBitmaps()

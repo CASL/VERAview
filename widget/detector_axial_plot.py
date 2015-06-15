@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_axial_plot.py				-
 #	HISTORY:							-
+#		2015-06-15	leerw@ornl.gov				-
+#	  Refactoring.
 #		2015-05-26	leerw@ornl.gov				-
 #	  Migrating to global state.timeDataSet.
 #		2015-05-11	leerw@ornl.gov				-
@@ -69,9 +71,9 @@ Properties:
     self.canvas = None
     self.cursor = None
     self.data = None
-    #self.dataSetName = kwargs.get( 'dataset', 'detector_response' )
-    self.dataSetName = 'detector_response'
     self.dataSetValues = []
+    #self.detectorDataSet = kwargs.get( 'detector_dataset', 'detector_response' )
+    self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
     self.fig = None
 
@@ -178,9 +180,9 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleStateChange()				-
+  #	METHOD:		HandleStateChange_()				-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def HandleStateChange_( self, reason ):
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
       print >> sys.stderr, '[DetectorAxialPlot.HandleStateChange] calling _LoadDataModel()'
@@ -194,7 +196,7 @@ Properties:
       #end if
 
       if (reason & STATE_CHANGE_detectorDataSet) > 0:
-        if self.state.detectorDataSet != self.dataSetName:
+        if self.state.detectorDataSet != self.detectorDataSet:
           update_args[ 'detector_dataset' ] = self.state.detectorDataSet
       #end if
 
@@ -215,7 +217,7 @@ Properties:
       if len( update_args ) > 0:
         wx.CallAfter( self._UpdateState, **update_args )
     #end else not a data model load
-  #end HandleStateChange
+  #end HandleStateChange_
 
 
   #----------------------------------------------------------------------
@@ -272,8 +274,8 @@ model.
       update_args = \
         {
 	'axial_value': self.state.axialValue,
-	'detector_ndx': det_ndx,
-	'state_ndx': max( 0, self.state.stateIndex )
+	'detector_index': det_ndx,
+	'state_index': max( 0, self.state.stateIndex )
 	}
       wx.CallAfter( self._UpdateState, **update_args )
     #end if
@@ -316,7 +318,7 @@ model.
       if ds_value != None:
         tip_str = \
 	    'Axial=%.3g\n%s=%.3g' % \
-	    ( ev.ydata, self.dataSetName, ds_value )
+	    ( ev.ydata, self.detectorDataSet, ds_value )
       self.canvas.SetToolTipString( tip_str )
     #end elif
   #end _OnMplMouseMotion
@@ -407,7 +409,7 @@ Must be called from the UI thread.
 	  )
       self.ax.set_title(
 	  'Axial vs %s\nDetector %d %s, %s %.3g' % \
-	  ( self.dataSetName, self.detectorIndex[ 0 ] + 1,
+	  ( self.detectorDataSet, self.detectorIndex[ 0 ] + 1,
 	    self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ),
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -416,21 +418,21 @@ Must be called from the UI thread.
 	  )
 #      self.ax.set_title(
 #	  'Axial vs %s\nDetector %d %s, Exposure %.3f' % \
-#	  ( self.dataSetName, self.detectorIndex[ 0 ] + 1,
+#	  ( self.detectorDataSet, self.detectorIndex[ 0 ] + 1,
 #	    self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ),
 #	    self.data.states[ self.stateIndex ].exposure
 #	    ),
 #	  fontsize = self.titleFontSize
 #	  )
-      self.ax.set_xlabel( self.dataSetName, fontsize = label_font_size )
-      self.ax.set_xlim( *self.data.GetRange( self.dataSetName ) )
+      self.ax.set_xlabel( self.detectorDataSet, fontsize = label_font_size )
+      self.ax.set_xlim( *self.data.GetRange( self.detectorDataSet ) )
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
       self.ax.tick_params( axis = 'both', which = 'major', labelsize = tick_font_size )
 
       if len( self.axialValues) == len( self.dataSetValues ):
         self.ax.plot(
 	    self.dataSetValues, self.axialValues, 'b.',  # b-
-	    label = self.dataSetName, linewidth = 2
+	    label = self.detectorDataSet, linewidth = 2
 	    )
 
         self.axialLine = \
@@ -455,43 +457,39 @@ Must be called from the UI thread.
     replot = kwargs[ 'replot' ] if 'replot' in kwargs  else False
     redraw = kwargs[ 'redraw' ] if 'redraw' in kwargs  else False
 
-    if 'detector_dataset' in kwargs:
-      if kwargs[ 'detector_dataset' ] != self.dataSetName:
-        replot = True
-	self.dataSetName = kwargs[ 'detector_dataset' ]
+    if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
+      replot = True
+      self.detectorDataSet = kwargs[ 'detector_dataset' ]
     #end if
 
-    if 'detector_ndx' in kwargs:
-      if kwargs[ 'detector_ndx' ] != self.detectorIndex:
-	replot = True
-        self.detectorIndex = kwargs[ 'detector_ndx' ]
+    if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
+      replot = True
+      self.detectorIndex = kwargs[ 'detector_index' ]
     #end if
 
-    if 'state_ndx' in kwargs:
-      if kwargs[ 'state_ndx' ] != self.stateIndex:
-	replot = True
-        self.stateIndex = kwargs[ 'state_ndx' ]
+    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+      replot = True
+      self.stateIndex = kwargs[ 'state_index' ]
     #end if
 
-    if 'axial_value' in kwargs:
-      if kwargs[ 'axial_value' ] != self.axialValue:
-	self.axialValue = kwargs[ 'axial_value' ]
-	if not replot:
-          redraw = True
-	  if self.axialLine == None:
-	    self.axialLine = \
-	        self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
-	  self.axialLine.set_ydata( self.axialValue[ 0 ] )
-      #end if value changed
+    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+      self.axialValue = kwargs[ 'axial_value' ]
+      if not replot:
+        redraw = True
+        if self.axialLine == None:
+	  self.axialLine = \
+	      self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
+        self.axialLine.set_ydata( self.axialValue[ 0 ] )
+      #end if
     #end if
 
     if replot:
       self.dataSetValues = []
       if self.stateIndex >= 0 and self.stateIndex < len( self.data.states ) and \
 	  self.detectorIndex[ 0 ] >= 0 and self.detectorIndex[ 0 ] < self.data.core.ndet and \
-	  self.dataSetName in self.data.states[ self.stateIndex ].group:
+	  self.detectorDataSet in self.data.states[ self.stateIndex ].group:
 
-	ds = self.data.states[ self.stateIndex ].group[ self.dataSetName ]
+	ds = self.data.states[ self.stateIndex ].group[ self.detectorDataSet ]
 	self.dataSetValues = ds[ :, self.detectorIndex[ 0 ] ]
       #end if
 
