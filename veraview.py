@@ -282,7 +282,7 @@ class VeraViewApp( wx.App ):
       app.filepath = args.file_path
       app.state = state
 
-      app.frame = VeraViewFrame( app, app.state )
+      app.frame = VeraViewFrame( app, state )
 #			-- If MDI on Mac, don't show
       app.frame.Show()
       app.MainLoop()
@@ -877,7 +877,8 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
     #self.Close()
-    self.app.ExitMainLoop()
+    #self.app.ExitMainLoop()
+    wx.App.Get().ExitMainLoop()
   #end _OnQuit
 
 
@@ -1213,6 +1214,7 @@ class VeraViewGrid( wx.Panel ):
   #	METHOD:		VeraViewGrid._ResizeWidgets()			-
   #----------------------------------------------------------------------
   def _ResizeWidgets( self, new_size ):
+    self.GetTopLevelParent().Freeze()
     grid = self.GetSizer()
     items = []
     for item in self.GetChildren():
@@ -1227,6 +1229,7 @@ class VeraViewGrid( wx.Panel ):
 
     grid.Layout()
     self.Fit()
+    self.GetTopLevelParent().Thaw()
   #end _ResizeWidgets
 
 
