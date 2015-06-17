@@ -57,7 +57,6 @@ COL_LABELS = \
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
 
 
-
 #------------------------------------------------------------------------
 #	CLASS:		Core						-
 #------------------------------------------------------------------------
@@ -995,6 +994,17 @@ the properties construct for this class soon.
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsValidObj()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsValidObj( data, **kwargs ):
+    """Checks for non-None data and then calls its IsValid() instance method.
+"""
+    return  data != None and data.IsValid( **kwargs )
+  #end IsValidObj
 
 
   #----------------------------------------------------------------------
