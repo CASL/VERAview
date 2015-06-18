@@ -223,8 +223,7 @@ If neither are specified, a default 'scale' value of 24 is used.
   #----------------------------------------------------------------------
   def _CreateAssyImage( self, tuple_in ):
     """Called in background task to create the PIL image for the state.
-@param  tuple_in	0-based
-			( state_index, assy_ndx, axial_level, assy_col, assy_row )
+@param  tuple_in	0-based ( state_index, assy_ndx, axial_level )
 """
     state_ndx = tuple_in[ 0 ]
     assy_ndx = tuple_in[ 1 ]
@@ -728,9 +727,14 @@ The config and data attributes are good to go.
   def FindCell( self, ev_x, ev_y ):
     """
 """
-    return \
-        self.FindPin( ev_x, ev_y ) if self.mode == 'assy' else \
-        self.FindAssembly( ev_x, ev_y )
+    result = None
+    if self.mode == 'assy':
+      pin = self.FindPin( ev_x, ev_y )
+      result = ( -1, pin[ 0 ], pin[ 1 ] )
+    else:
+      result = self.FindAssembly( ev_x, ev_y )
+
+    return  result
   #end FindCell
 
 
@@ -794,7 +798,7 @@ The config and data attributes are good to go.
   #	METHOD:		Core2DView.GetPrintScale()			-
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
-    """Should be overridden by subclasses.
+    """
 @return		24 in 'assy' mode, 4 in 'core' mode
 """
     return  24 if self.mode == 'assy' else 4

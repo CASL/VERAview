@@ -160,7 +160,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         '[Detector2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
     im = None
 
-    tuple_valid = self.data.IsValid( state_index = state_ndx )
+    #tuple_valid = self.data.IsValid( state_index = state_ndx )
+    tuple_valid = DataModel.IsValidObj( self.data, stat_index = state_ndx )
     if self.config != None and tuple_valid and \
 	self.data.core.detectorMeshCenters != None and \
 	len( self.data.core.detectorMeshCenters ) > 0:
