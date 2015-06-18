@@ -862,7 +862,6 @@ Calls _UpdateStateValues().
       else:
         self._BusyEnd()
     #end if
-    print >> sys.stderr, '[RasterWidget._UpdateState] exit'
   #end _UpdateState
 
 

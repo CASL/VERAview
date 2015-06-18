@@ -795,7 +795,7 @@ The config and data attributes are good to go.
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """Should be overridden by subclasses.
-@return		28
+@return		24 in 'assy' mode, 4 in 'core' mode
 """
     return  24 if self.mode == 'assy' else 4
   #end GetPrintScale
@@ -908,7 +908,7 @@ The config and data attributes are good to go.
   #	METHOD:		Core2DView.IsTupleCurrent()			-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
-    """Must be overridden by subclasses.  Always returns False.
+    """
 @param  tpl		tuple of state values
 @return			True if it matches the current state, false otherwise
 """
@@ -931,35 +931,6 @@ The config and data attributes are good to go.
 
     return  result
   #end IsTupleCurrent
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._LoadDataModel()			-
-  #----------------------------------------------------------------------
-  def _LoadDataModel( self ):
-    """Builds the images/bitmaps and updates the components for the current
-model.  Sets properties: assemblyExtent, cellRange, data
-"""
-    print >> sys.stderr, '[Core2DView._LoadDataModel]'
-    self.data = State.GetDataModel( self.state )
-    if self.data != None and self.data.HasData():
-      print >> sys.stderr, '[Core2DView._LoadDataModel] we have data'
-
-#		-- Do here what is not dependent on size
-#		--
-      self.assemblyExtent = self.data.ExtractSymmetryExtent()
-      self.avgValues.clear()
-      self.cellRange = list( self.assemblyExtent )
-      del self.cellRangeStack[ : ]
-
-      self.assemblyIndex = self.state.assemblyIndex
-      self.axialValue = self.state.axialValue
-      self.pinDataSet = self.state.pinDataSet
-      self.pinColRow = self.state.pinColRow
-      self.stateIndex = self.state.stateIndex
-      wx.CallAfter( self._LoadDataModelUI )
-    #end if
-  #end _LoadDataModel
 
 
   #----------------------------------------------------------------------

@@ -656,7 +656,7 @@ Must be called from the UI thread.
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 
-    #widget_list = [ 'widget.time_plot.TimePlot' ]
+    widget_list = [ 'widget.core_view.Core2DView', 'widget.assembly_view.Assembly2DView' ]
     for w in widget_list:
       self.CreateWidget( w )
 
