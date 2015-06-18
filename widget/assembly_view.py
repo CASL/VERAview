@@ -60,9 +60,6 @@ class Assembly2DView( RasterWidget ):
   """Pin-by-pin assembly view across axials and exposure times or states.
 
 Attrs/properties:
-  assemblyIndex		0-based index of selected assembly, col, row
-  bitmaps		ready-to-draw bitmaps[ ( state, axial, assy ) ]
-  data			data.DataModel
 """
 
 

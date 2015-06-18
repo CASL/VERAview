@@ -937,10 +937,7 @@ The config and data attributes are good to go.
   #	METHOD:		Core2DView._LoadDataModelValues()		-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
-    """This noop version should be implemented in subclasses to initialize
-attributes/properties that aren't already set in _LoadDataModel():
-  axialValue
-  stateIndex
+    """
 """
     self.avgValues.clear()
     self.assemblyIndex = self.state.assemblyIndex
