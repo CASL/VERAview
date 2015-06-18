@@ -618,13 +618,10 @@ If neither are specified, a default 'scale' value of 4 is used.
     """
 @return			kwargs with 'changed' and/or 'resized'
 """
-    resize = False
-
     if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
-      resized = True
       self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
-
-    kwargs[ 'resized' ] = True
+      kwargs[ 'resized' ] = True
+      del kwargs[ 'axial_value' ]
 
     kwargs = super( Detector2DView, self )._UpdateStateValues( **kwargs )
     changed = kwargs.get( 'changed', False )
