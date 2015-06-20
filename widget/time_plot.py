@@ -317,10 +317,11 @@ model.
     wd, ht = self.GetClientSize()
 
     if wd > 0 and ht > 0 and self.stateIndex >= 0:
-      state_ndx = self.stateIndex
-      self.stateIndex = -1
-#      self._UpdateState( state_ndx = state_ndx )
-      self._UpdateState( replot = True, state_ndx = state_ndx )
+      self._UpdateState( replot = True )
+#      state_ndx = self.stateIndex
+#      self.stateIndex = -1
+##      self._UpdateState( state_ndx = state_ndx )
+#      self._UpdateState( replot = True, state_ndx = state_ndx )
   #end _OnSize
 
 
