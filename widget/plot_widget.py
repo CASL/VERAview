@@ -73,7 +73,6 @@ Properties:
     ref_axis		reference axis 'x' or 'y', defaults to 'y'
 """
 
-    #self.assemblyIndex = ( -1, -1, -1 )
     self.ax = None
     self.axline = None  # axis line representing state
     self.canvas = None
@@ -108,6 +107,7 @@ Properties:
 
       if self.axline != None:
         self.axline.set_visible( True )
+      self.canvas.draw()
     #end if
 
     return  result
@@ -128,7 +128,7 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		_DoUpdatePlot()					-
   #----------------------------------------------------------------------
-  def _DoUpdatePlot( self ):
+  def _DoUpdatePlot( self, wd, ht ):
     """Do the work of creating the plot, setting titles and labels,
 configuring the grid, plotting, and creating self.axline.  This implementation
 calls self.ax.grid() and can be called by subclasses.
@@ -161,6 +161,16 @@ are axial values.
 
     return  value
   #end _FindAxialDataSetValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetStateIndex()					-
+  #----------------------------------------------------------------------
+  def GetStateIndex( self ):
+    """@return		0-based state/time index
+"""
+    return  self.stateIndex
+  #end GetStateIndex
 
 
   #----------------------------------------------------------------------
@@ -212,7 +222,7 @@ model.
 to be passed to _UpdateState().  Assume self.data is valid.
 @return			dict to be passed to _UpdateState()
 """
-    pass
+    return  {}
   #end _LoadDataModelValues
 
 
@@ -293,7 +303,7 @@ This noop version must be overridden by subclasses.
   #	METHOD:		_UpdateDataSetValues()				-
   #----------------------------------------------------------------------
   def _UpdateDataSetValues( self ):
-    """Rebuild dataset arrays to plot and set self.axline.
+    """Rebuild dataset arrays to plot.
 This noop version must be overridden by subclasses.
 """
     pass
@@ -344,7 +354,7 @@ Must be called from the UI thread.
 #          True, 'both', 'both',
 #	  color = '#c8c8c8', linestyle = ':', linewidth = 1
 #	  )
-      self._DoUpdatePlot()
+      self._DoUpdatePlot( wd, ht )
       self.canvas.draw()
     #end if
   #end _UpdatePlotImpl

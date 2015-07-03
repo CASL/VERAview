@@ -627,7 +627,6 @@ attributes/properties that aren't already set in _LoadDataModel():
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       resized = True
       self.pinDataSet = kwargs[ 'pin_dataset' ]
-      self.avgValues.clear()
 
     if changed:
       kwargs[ 'changed' ] = True

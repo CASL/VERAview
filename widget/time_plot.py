@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plot.py					-
 #	HISTORY:							-
+#		2015-07-03	leerw@ornl.gov				-
+#	  Migrating to a PlotWidget extension.
 #		2015-06-15	leerw@ornl.gov				-
 #	  Refactoring.
 #		2015-05-25	leerw@ornl.gov				-
@@ -49,6 +51,7 @@ except Exception:
 
 from event.state import *
 from legend import *
+from plot_widget import *
 from widget import *
 from widgetcontainer import *
 
@@ -56,7 +59,7 @@ from widgetcontainer import *
 #------------------------------------------------------------------------
 #	CLASS:		TimePlot					-
 #------------------------------------------------------------------------
-class TimePlot( Widget ):
+class TimePlot( PlotWidget ):
   """Per-time core-level plot.
 
 Properties:
@@ -72,50 +75,86 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
 
-    self.ax = None
-    self.canvas = None
-    self.cursor = None
-    self.data = None
-    self.fig = None
+#    self.ax = None
+#    self.canvas = None
+#    self.cursor = None
+#    self.data = None
+#    self.fig = None
 
-#x    self.fontSizeLabels = 14
-#x    self.fontSizeTicks = 12
-#x    self.fontSizeTitle = 16
-
-    self.scalarName = 'keff'
+    self.scalarDataSet = 'keff'
     self.scalarValues = []
-    #self.lx = None
-    self.ly = None
-    self.stateIndex = -1
-    self.timeLine = None
-    self.timeValues = []
-    self.titleFontSize = 16
+#    self.ly = None
+#    self.stateIndex = -1
+    self.timeDataSet = 'state'
+#    self.timeLine = None
+#    self.timeValues = []
+#    self.titleFontSize = 16
 
-    super( TimePlot, self ).__init__( container, id )
+    super( TimePlot, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CreatePrintImage()				-
+  #	METHOD:		_CreateToolTipText()				-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path ):
-    result = None
+  def _CreateToolTipText( self, ev ):
+    """Create a tool tip.  This implementation returns a blank string.
+@param  ev		mouse motion event
+"""
+    tip_str = ''
+    state_ndx = self.data.FindListIndex( self.refAxisValues, ev.xdata )
+    if state_ndx >= 0 and len( self.scalarValues ) >= state_ndx:
+      if self.state.timeDataSet == 'state':
+        tip_str = 'State=%d' % (state_ndx + 1)
+      else:
+        tip_str = '%s=%.3g' % ( self.state.timeDataSet, ev.xdata )
 
-    if self.fig != None:
-      if self.timeLine != None:
-        self.timeLine.set_visible( False )
+      tip_str += '\n%s=%.3g' % \
+          ( self.scalarDataSet, self.scalarValues[ state_ndx ] )
 
-      self.fig.savefig(
-          file_path, dpi = 144, format = 'png', orientation = 'landscape'
+    return  tip_str
+  #end _CreateToolTipText
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_DoUpdatePlot()					-
+  #----------------------------------------------------------------------
+  def _DoUpdatePlot( self, wd, ht ):
+    """Do the work of creating the plot, setting titles and labels,
+configuring the grid, plotting, and creating self.axline.  This implementation
+calls self.ax.grid() and can be called by subclasses.
+"""
+    super( TimePlot, self )._DoUpdatePlot( wd, ht )
+
+    label_font_size = 14
+    tick_font_size = 12
+    self.titleFontSize = 16
+    if 'wxMac' not in wx.PlatformInfo and wd < 800:
+      decr = (800 - wd) / 50.0
+      label_font_size -= decr
+      tick_font_size -= decr
+      self.titleFontSize -= decr
+
+    self.ax.set_title(
+        self.scalarDataSet + ' vs Time',
+	fontsize = self.titleFontSize
+	)
+    #self.ax.set_xlabel( 'Exposure (GWD/MT(HM))', fontsize = label_font_size )
+    self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
+    self.ax.set_ylabel( self.scalarDataSet, fontsize = label_font_size )
+    self.ax.tick_params( axis = 'both', which = 'major', labelsize = tick_font_size )
+
+    if len( self.refAxisValues ) == len( self.scalarValues ):
+      self.ax.plot(
+          self.refAxisValues, self.scalarValues, 'b-',
+	  label = self.scalarDataSet, linewidth = 2
 	  )
-      result = file_path
 
-      if self.timeLine != None:
-        self.timeLine.set_visible( True )
-    #end if
-
-    return  result
-  #end CreatePrintImage
+    self.axline = self.ax.axvline( color = 'r', linestyle = '-', linewidth = 1 )
+    if self.stateIndex >= 0 and self.stateIndex < len( self.refAxisValues ):
+      self.axline.set_xdata( self.refAxisValues[ self.stateIndex ] )
+    #end if data match
+  #end _DoUpdatePlot
 
 
   #----------------------------------------------------------------------
@@ -159,136 +198,25 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleStateChange_()				-
+  #	METHOD:		_LoadDataModelValues()				-
   #----------------------------------------------------------------------
-  def HandleStateChange_( self, reason ):
-    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
-    if (reason & load_mask) > 0:
-      print >> sys.stderr, '[TimePlot.HandleStateChange] calling _LoadDataModel()'
-      self._LoadDataModel()
-
-    else:
-      state_args = {}
-
-      if (reason & STATE_CHANGE_stateIndex) > 0:
-        if self.state.stateIndex != self.stateIndex:
-	  state_args[ 'state_ndx' ] = self.state.stateIndex
-          #wx.CallAfter( self._UpdateState, state_ndx = self.state.stateIndex )
-
-      if (reason & STATE_CHANGE_timeDataSet) > 0:
-        state_args[ 'time_dataset' ] = self.state.timeDataSet
-
-      if len( state_args ) > 0:
-        wx.CallAfter( self._UpdateState, **state_args )
-    #end else not a data model load
-  #end HandleStateChange_
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_InitUI()					-
-  #----------------------------------------------------------------------
-  def _InitUI( self ):
-    """Builds this UI component.  Obviously, must be called in the UI thread.
+  def _LoadDataModelValues( self ):
+    """This noop version should be implemented in subclasses to create a dict
+to be passed to _UpdateState().  Assume self.data is valid.
+@return			dict to be passed to _UpdateState()
 """
-    dpis = wx.ScreenDC().GetPPI()
-    size = ( WIDGET_PREF_SIZE[ 0 ] / dpis[ 0 ], WIDGET_PREF_SIZE[ 1 ] / dpis[ 0 ] )
-    self.fig = Figure( figsize = size, dpi = dpis[ 0 ] )
-    self.ax = self.fig.add_subplot( 111 )
-    #ax2 = ax1.twinx()
-    self.canvas = FigureCanvas( self, -1, self.fig )
-
-    sizer = wx.BoxSizer( wx.VERTICAL )
-    sizer.Add( self.canvas, 1, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND )
-    self.SetSizer( sizer )
-
-    self.canvas.mpl_connect( 'button_release_event', self._OnMplMouseRelease )
-    self.canvas.mpl_connect( 'motion_notify_event', self._OnMplMouseMotion )
-
-    self.Bind( wx.EVT_CLOSE, self._OnClose )
-    self.Bind( wx.EVT_SIZE, self._OnSize )
-  #end _InitUI
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_LoadDataModel()				-
-  #----------------------------------------------------------------------
-  def _LoadDataModel( self ):
-    """Builds the images/bitmaps and updates the components for the current
-model.
-"""
-
-    self.data = State.GetDataModel( self.state )
-    if self.data != None and self.data.states != None and len( self.data.states ) > 0:
+    if self.data != None and self.data.HasData():
       update_args = \
         {
-	'scalar_dataset': self.scalarName,
-	'state_ndx': max( 0, self.state.stateIndex ),
+	'scalar_dataset': self.scalarDataSet,
+	'state_index': max( 0, self.state.stateIndex ),
 	'time_dataset': self.state.timeDataSet
 	}
-      wx.CallAfter( self._UpdateState, **update_args )
+    else:
+      update_args = {}
 
-#      self.exposureValues = []
-#      for st in self.data.states:
-#	if st.exposure >= 0.0:
-#          self.exposureValues.append( st.exposure )
-#      #end for
-#
-#      update_args = \
-#        {
-#	'scalar_dataset': self.scalarName,
-#	'state_ndx': max( 0, self.state.stateIndex )
-#	}
-#      self.scalarName = ''
-#      self.stateIndex = -1
-#      wx.CallAfter( self._UpdateState, **update_args )
-    #end if
-  #end _LoadDataModel
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnClose()					-
-  #----------------------------------------------------------------------
-  def _OnClose( self, ev ):
-    """
-"""
-    if self.fig != None:
-      self.fig.close()
-  #end _OnClose
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnMplMouseMotion()				-
-  #----------------------------------------------------------------------
-  def _OnMplMouseMotion( self, ev ):
-    if ev.inaxes is None:
-      self.cursor = None
-      if self.ly != None:
-        self.ly.set_visible( False )
-        self.canvas.draw()
-      self.canvas.SetToolTipString( '' )
-
-    elif ev.inaxes == self.ax:
-      if self.ly == None:
-        self.ly = self.ax.axvline( color = 'k', linestyle = '--', linewidth = 1 )
-
-      self.cursor = ( ev.xdata, ev.ydata )
-      self.ly.set_xdata( ev.xdata )
-      self.ly.set_visible( True )
-      self.canvas.draw()
-
-      tip_str = ''
-      state_ndx = self.data.FindListIndex( self.timeValues, ev.xdata )
-      if state_ndx >= 0 and len( self.scalarValues ) >= state_ndx:
-        if self.state.timeDataSet == 'state':
-	  tip_str = 'State=%d' % (state_ndx + 1)
-        else:
-	  tip_str = '%s=%.3g' % ( self.state.timeDataSet, ev.xdata )
-
-        tip_str += '\n%s=%.3g' % \
-	    ( self.scalarName, self.scalarValues[ state_ndx ] )
-      self.canvas.SetToolTipString( tip_str )
-    #end elif
-  #end _OnMplMouseMotion
+    return  update_args
+  #end _LoadDataModelValues
 
 
   #----------------------------------------------------------------------
@@ -299,30 +227,11 @@ model.
 """
     button = ev.button or 1
     if button == 1 and self.cursor != None:
-      state_ndx = self.data.FindListIndex( self.timeValues, self.cursor[ 0 ] )
+      state_ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
       if state_ndx >= 0:
-        self._UpdateState( state_ndx = state_ndx )
-	    #exposure_value = self.cursor[ 0 ],
+        self._UpdateState( state_index = state_ndx )
 	self.FireStateChange( state_index = state_ndx )
   #end _OnMplMouseRelease
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnSize()					-
-  #----------------------------------------------------------------------
-  def _OnSize( self, ev ):
-    """
-"""
-    ev.Skip()
-    wd, ht = self.GetClientSize()
-
-    if wd > 0 and ht > 0 and self.stateIndex >= 0:
-      self._UpdateState( replot = True )
-#      state_ndx = self.stateIndex
-#      self.stateIndex = -1
-##      self._UpdateState( state_ndx = state_ndx )
-#      self._UpdateState( replot = True, state_ndx = state_ndx )
-  #end _OnSize
 
 
   #----------------------------------------------------------------------
@@ -337,114 +246,60 @@ model.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdatePlot()					-
+  #	METHOD:		_UpdateDataSetValues()				-
   #----------------------------------------------------------------------
-  def _UpdatePlot( self ):
-    """
+  def _UpdateDataSetValues( self ):
+    """Rebuild dataset arrays to plot and set self.axline.
+This noop version must be overridden by subclasses.
 """
-    if self.ax != None:
-      self.timeLine = None
-      self.ly = None
-      self.ax.clear()
+    del self.refAxisValues[ : ]
+    del self.scalarValues[ : ]
 
-#		-- Scale fonts
-#		--
-      wd, ht = self.GetClientSize()
-      label_font_size = 14
-      tick_font_size = 12
-      self.titleFontSize = 16
-      if 'wxMac' not in wx.PlatformInfo and wd < 800:
-	decr = (800 - wd) / 50.0
-	label_font_size -= decr
-	tick_font_size -= decr
-	self.titleFontSize -= decr
+    if self.data != None and self.data.HasData():
+      for st in self.data.states:
+        time_value = \
+	    self.data.GetScalarValue( st.group[ self.state.timeDataSet ] ) \
+	    if self.state.timeDataSet in st.group else \
+	    float( st.index + 1 )
+        self.refAxisValues.append( time_value )
 
-      self.ax.grid(
-          True, 'both', 'both',
-	  color = '#c8c8c8', linestyle = ':', linewidth = 1
-	  )
-      self.ax.set_title(
-	  self.scalarName + ' vs Time',
-	  fontsize = self.titleFontSize
-	  )
-      #self.ax.set_xlabel( 'Exposure (GWD/MT(HM))', fontsize = label_font_size )
-      self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
-      self.ax.set_ylabel( self.scalarName, fontsize = label_font_size )
-      self.ax.tick_params( axis = 'both', which = 'major', labelsize = tick_font_size )
-
-      if len( self.timeValues ) == len( self.scalarValues ):
-        self.ax.plot(
-            self.timeValues, self.scalarValues, 'b-',
-	    label = self.scalarName, linewidth = 2
-	    )
-
-        self.timeLine = \
-            self.ax.axvline( color = 'r', linestyle = '-', linewidth = 1 )
-	if self.stateIndex >= 0 and self.stateIndex < len( self.timeValues ):
-          self.timeLine.set_xdata( self.timeValues[ self.stateIndex ] )
-      #end if data match
-
-      self.canvas.draw()
+        scalar_value = \
+	    self.data.GetScalarValue( st.group[ self.scalarDataSet ] ) \
+	    if self.scalarDataSet in st.group else \
+	    0.0
+        self.scalarValues.append( scalar_value )
+      #end for
     #end if
-  #end _UpdatePlot
+  #end _UpdateDataSetValues
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateState()					-
+  #	METHOD:		_UpdateStateValues()				-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------
-  def _UpdateState( self, **kwargs ):
+  def _UpdateStateValues( self, **kwargs ):
     """
 Must be called from the UI thread.
+@return			kwargs with 'redraw' and/or 'replot'
 """
-    replot = kwargs[ 'replot' ] if 'replot' in kwargs  else False
-    redraw = kwargs[ 'redraw' ] if 'redraw' in kwargs  else False
+    kwargs = super( TimePlot, self )._UpdateStateValues( **kwargs )
+    replot = kwargs.get( 'replot', False )
+    redraw = kwargs.get( 'redraw', False )
+
+    if 'scalar_dataset' in kwargs and kwargs[ 'scalar_dataset' ] != self.scalarDataSet:
+      replot = True
+      self.scalarDataSet = kwargs[ 'scalar_dataset' ]
+    #end if
 
     if 'time_dataset' in kwargs:
       replot = True
 
-    if 'scalar_dataset' in kwargs and kwargs[ 'scalar_dataset' ] != self.scalarName:
-      replot = True
-      self.scalarName = kwargs[ 'scalar_dataset' ]
-    #end if
-
-    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
-      redraw = True
-      self.stateIndex = kwargs[ 'state_index' ]
-      if not replot and self.data.IsValid( state_index = self.stateIndex ):
-        if self.timeLine == None:
-          self.timeLine = \
-	      self.ax.axvline( color = 'r', linestyle = '-', linewidth = 1 )
-	self.timeLine.set_xdata( self.timeValues[ self.stateIndex ] )
-      #end if not replotting
-    #end if
-
+    if redraw:
+      kwargs[ 'redraw' ] = True
     if replot:
-      del self.scalarValues[ : ]
-      del self.timeValues[ : ]
+      kwargs[ 'replot' ] = True
 
-      if self.data != None and self.data.states != None:
-#          self.stateIndex >= 0 and self.stateIndex < len( self.data.states ):
-        for st in self.data.states:
-          time_value = \
-	      self.data.GetScalarValue( st.group[ self.state.timeDataSet ] ) \
-	      if self.state.timeDataSet in st.group else \
-	      float( st.index + 1 )
-	  self.timeValues.append( time_value )
-
-	  scalar_value = \
-	      self.data.GetScalarValue( st.group[ self.scalarName ] ) \
-	      if self.scalarName in st.group else \
-	      0.0
-	  self.scalarValues.append( scalar_value )
-        #end for
-      #end if
-
-      self._UpdatePlot()
-    #end if replot
-
-    elif redraw:
-      self.canvas.draw()
-  #end _UpdateState
+    return  kwargs
+  #end _UpdateStateValues
 
 #end TimePlot
