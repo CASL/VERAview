@@ -85,7 +85,7 @@ TOOLBAR_ITEMS = \
     'widget': 'Pin Axial Plot', 'icon': 'axial_plot_32x32.png', 'type': 'pin'
     },
     {
-    'widget': 'Axial Plot', 'icon': 'all_axial_plot_32x32.png', 'type': ''
+    'widget': 'Axial Plots', 'icon': 'all_axial_plot_32x32.png', 'type': ''
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     }
   ]
@@ -656,7 +656,7 @@ Must be called from the UI thread.
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 
-    widget_list = [ 'widget.core_view.Core2DView', 'widget.time_plot.TimePlot' ]
+    widget_list = [ 'widget.core_view.Core2DView', 'widget.time_plot.TimePlot', 'widget.all_axial_plot.AllAxialPlot' ]
     for w in widget_list:
       self.CreateWidget( w )
 

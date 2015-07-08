@@ -174,16 +174,31 @@ are axial values.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_InitAxes()					-
+  #----------------------------------------------------------------------
+  def _InitAxes( self ):
+    """Initialize axes.  By default creates a single axis 'ax'.
+"""
+    self.ax = self.fig.add_subplot( 111 )
+  #end _InitAxes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_InitUI()					-
   #----------------------------------------------------------------------
-  def _InitUI( self ):
+  def _InitUI( self, two_axes = False ):
     """Builds this UI component.  Obviously, must be called in the UI thread.
 """
     dpis = wx.ScreenDC().GetPPI()
     size = ( WIDGET_PREF_SIZE[ 0 ] / dpis[ 0 ], WIDGET_PREF_SIZE[ 1 ] / dpis[ 0 ] )
     self.fig = Figure( figsize = size, dpi = dpis[ 0 ] )
-    self.ax = self.fig.add_subplot( 111 )
-    #ax2 = ax1.twinx()
+
+    self._InitAxes()
+#    if two_axes:
+#      self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
+#      self.ax2 = self.ax.twiny()
+#    else:
+#      self.ax = self.fig.add_subplot( 111 )
     self.canvas = FigureCanvas( self, -1, self.fig )
 
     sizer = wx.BoxSizer( wx.VERTICAL )
@@ -250,7 +265,7 @@ to be passed to _UpdateState().  Assume self.data is valid.
         self.canvas.draw()
       #self.canvas.SetToolTipString( '' )
 
-    elif ev.inaxes == self.ax:
+    elif self.ax != None:
       if self.cursorLine == None:
         self.cursorLine = \
 	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
@@ -271,6 +286,42 @@ to be passed to _UpdateState().  Assume self.data is valid.
 
     self.canvas.SetToolTipString( tip_str )
   #end _OnMplMouseMotion
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnMplMouseMotion_old()				-
+  #----------------------------------------------------------------------
+  def _OnMplMouseMotion_old( self, ev ):
+    tip_str = ''
+
+    if ev.inaxes is None:
+      self.cursor = None
+      if self.cursorLine != None:
+        self.cursorLine.set_visible( False )
+        self.canvas.draw()
+      #self.canvas.SetToolTipString( '' )
+
+    elif ev.inaxes == self.ax:
+      if self.cursorLine == None:
+        self.cursorLine = \
+	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
+	    if self.refAxis == 'y' else \
+	    self.ax.axvline( color = 'k', linestyle = '--', linewidth = 1 ) \
+
+      self.cursor = ( ev.xdata, ev.ydata )
+      if self.refAxis == 'y':
+        self.cursorLine.set_ydata( ev.ydata )
+      else:
+        self.cursorLine.set_xdata( ev.xdata )
+      self.cursorLine.set_visible( True )
+      self.canvas.draw()
+
+      tip_str = self._CreateToolTipText( ev )
+      #self.canvas.SetToolTipString( tip_str )
+    #end elif
+
+    self.canvas.SetToolTipString( tip_str )
+  #end _OnMplMouseMotion_old
 
 
   #----------------------------------------------------------------------
@@ -336,7 +387,12 @@ Must be called from the UI thread.
     if self.ax != None and self.data != None:
       self.axline = None
       self.cursorLine = None
-      self.ax.clear()
+
+#      self.ax.clear()
+#      if hasattr( self, 'ax2' ) and self.ax2 != None:
+#        self.ax2.clear()
+      self.fig.clear()
+      self._InitAxes()
 
 #		-- Scale fonts
 #		--
