@@ -664,12 +664,12 @@ Must be called from the UI thread.
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 
-    widget_list = \
-      [
-        'widget.channel_view.Channel2DView',
-        'widget.channel_assembly_view.ChannelAssembly2DView',
-        'widget.all_axial_plot.AllAxialPlot'
-      ]
+#    widget_list = \
+#      [
+#        'widget.channel_view.Channel2DView',
+#        'widget.channel_assembly_view.ChannelAssembly2DView',
+#        'widget.all_axial_plot.AllAxialPlot'
+#      ]
     for w in widget_list:
       self.CreateWidget( w )
 
