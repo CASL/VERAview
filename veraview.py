@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-07-11	leerw@ornl.gov				-
+#	  New ChannelAssembly2DView.
 #		2015-05-25	leerw@ornl.gov				-
 #	  New menu for the global time dataset.
 #		2015-05-11	leerw@ornl.gov				-
@@ -69,6 +71,9 @@ TOOLBAR_ITEMS = \
     'widget': 'Channel 2D View', 'icon': 'channel_32x32.png', 'type': 'channel'
     },
     {
+    'widget': 'Channel Assembly 2D View', 'icon': 'channel_both_32x32.png', 'type': 'channel'
+    },
+    {
     'widget': 'Detector 2D View', 'icon': 'detector_32x32.png', 'type': 'detector'
     },
     {
@@ -95,6 +100,7 @@ WIDGET_MAP = \
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
   'Axial Plot': 'widget.all_axial_plot.AllAxialPlot',
   'Channel 2D View': 'widget.channel_view.Channel2DView',
+  'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
   'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
@@ -637,7 +643,9 @@ Must be called from the UI thread.
 #		-- Channel Mode
 #		--
     elif len( data.GetDataSetNames()[ 'channel' ] ) > 0:
-      widget_list.append( 'widget.channel_view.Channel2DView' )
+      if data.core.nass > 1:
+        widget_list.append( 'widget.channel_view.Channel2DView' )
+      widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
       if data.core.nax > 1:
         widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
@@ -656,7 +664,12 @@ Must be called from the UI thread.
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 
-    widget_list = [ 'widget.core_view.Core2DView', 'widget.time_plot.TimePlot', 'widget.all_axial_plot.AllAxialPlot' ]
+    widget_list = \
+      [
+        'widget.channel_view.Channel2DView',
+        'widget.channel_assembly_view.ChannelAssembly2DView',
+        'widget.all_axial_plot.AllAxialPlot'
+      ]
     for w in widget_list:
       self.CreateWidget( w )
 

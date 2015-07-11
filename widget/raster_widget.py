@@ -497,7 +497,8 @@ Subclasses that override should call this implementation.
   #	METHOD:		RasterWidget.IsTupleCurrent()			-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
-    """Must be overridden by subclasses.  Always returns False.
+    """Determines if the image tuple represents the current selection.
+Must be overridden by subclasses.  Always returns False.
 @param  tpl		tuple of state values
 @return			True if it matches the current state, false otherwise
 """

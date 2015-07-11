@@ -771,7 +771,7 @@ The config and data attributes are good to go.
   #	METHOD:		Channel2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Core 2D View'
+    return  'Channel Core 2D View'
   #end GetTitle
 
 
@@ -813,8 +813,8 @@ The config and data attributes are good to go.
 #			--
       else:  # 'assy'
 	if self.channelColRow[ 0 ] >= 0 and self.channelColRow[ 1 ] >= 0 and \
-	    self.channelColRow[ 0 ] < self.data.core.npin and \
-	    self.channelColRow[ 1 ] < self.data.core.npin:
+	    self.channelColRow[ 0 ] <= self.data.core.npin and \
+	    self.channelColRow[ 1 ] <= self.data.core.npin:
           assy_region = self.config[ 'assemblyRegion' ]
 	  chan_gap = self.config[ 'channelGap' ]
 	  chan_wd = self.config[ 'channelWidth' ]

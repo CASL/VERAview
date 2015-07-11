@@ -1,31 +1,9 @@
 #!/usr/bin/env python
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		assembly_view.py				-
+#	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
-#		2015-06-18	leerw@ornl.gov				-
-# 	  Extending RasterWidget.
-#		2015-05-26	leerw@ornl.gov				-
-#	  Migrating to global state.timeDataSet.
-#		2015-05-21	leerw@ornl.gov				-
-#	  Toggling legend.
-#		2015-05-18	leerw@ornl.gov				-
-#	  Making the showing of pin labels an option.
-#		2015-05-11	leerw@ornl.gov				-
-#	  Changed State.axialLevel to axialValue.
-#		2015-04-22	leerw@ornl.gov				-
-#	  Showing currently selected assembly.
-#		2015-04-11	leerw@ornl.gov				-
-#	  Transitioning to numbers and adding the capabilities of
-#	  core_view.py.
-#		2015-04-04	leerw@ornl.gov				-
-#		2015-03-11	leerw@ornl.gov				-
-#	  Using ExposureSliderBean.
-#		2015-03-06	leerw@ornl.gov				-
-#	  New Widget.GetImage() for 'loading' image.
-#	  Starting ellipse drawing at pixel (1,1).
-#		2015-02-06	leerw@ornl.gov				-
-#	  New grid system.
+#		2015-07-11	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback
 import numpy as np
@@ -54,9 +32,9 @@ from widget import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		Assembly2DView					-
+#	CLASS:		ChannelAssembly2DView				-
 #------------------------------------------------------------------------
-class Assembly2DView( RasterWidget ):
+class ChannelAssembly2DView( RasterWidget ):
   """Pin-by-pin assembly view across axials and exposure times or states.
 
 Attrs/properties:
@@ -68,19 +46,27 @@ Attrs/properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.__init__()			-
+  #	METHOD:		ChannelAssembly2DView.__init__()		-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.pinColRow = None
-    self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
+    self.channelColRow = None
+    self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
+    self.showPins = True
 
-    super( Assembly2DView, self ).__init__( container, id )
+    super( ChannelAssembly2DView, self ).__init__( container, id )
+
+    self.menuDef = \
+      [
+	( 'Hide Labels', self._OnToggleLabels ),
+	( 'Hide Legend', self._OnToggleLegend ),
+        ( 'Unzoom', self._OnUnzoom )
+      ]
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._CreateDrawConfig()		-
+  #	METHOD:		ChannelAssembly2DView._CreateDrawConfig()	-
   #----------------------------------------------------------------------
   def _CreateDrawConfig( self, **kwargs ):
     """Creates a draw configuration based on imposed 'size' (wd, ht ) or
@@ -99,14 +85,14 @@ If neither are specified, a default 'scale' value of 24 is used.
     pilFont
     +
     assemblyRegion
+    channelGap
+    channelWidth
     lineWidth
-    pinGap
-    pinWidth
     valueFont
     valueFontSize
 """
     config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
+        self.data.GetRange( self.channelDataSet ),
 	**kwargs
 	)
 
@@ -122,28 +108,31 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       # label : core : font-sp : legend
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      pin_adv_wd = region_wd / self.cellRange[ -2 ]
+      #chan_adv_wd = region_wd / (self.data.core.npin + 1)
+      chan_adv_wd = region_wd / self.cellRange[ -2 ]
 
       working_ht = max( ht, legend_size[ 1 ] )
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-      pin_adv_ht = region_ht / self.cellRange[ -1 ]
+      #chan_adv_ht = region_ht / (self.data.core.npin + 1)
+      chan_adv_ht = region_ht / self.cellRange[ -1 ]
 
-      if pin_adv_ht < pin_adv_wd:
-        pin_adv_wd = pin_adv_ht
+      if chan_adv_ht < chan_adv_wd:
+        chan_adv_wd = chan_adv_ht
 
-      pin_gap = pin_adv_wd >> 3
-      pin_wd = max( 1, pin_adv_wd - pin_gap )
+      #chan_gap = chan_adv_wd >> 3
+      chan_gap = 0
+      chan_wd = max( 1, chan_adv_wd - chan_gap )
 
-      assy_wd = self.cellRange[ -2 ] * (pin_wd + pin_gap)
-      assy_ht = self.cellRange[ -1 ] * (pin_wd + pin_gap)
+      assy_wd = self.cellRange[ -2 ] * (chan_wd + chan_gap)
+      assy_ht = self.cellRange[ -1 ] * (chan_wd + chan_gap)
 
     else:
-      pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 20
-      print >> sys.stderr, '[Assembly2DView._CreateDrawConfig] pin_wd=%d' % pin_wd
+      chan_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 24
 
-      pin_gap = pin_wd >> 3
-      assy_wd = self.cellRange[ -2 ] * (pin_wd + pin_gap)
-      assy_ht = self.cellRange[ -1 ] * (pin_wd + pin_gap)
+      #chan_gap = chan_wd >> 3
+      chan_gap = 0
+      assy_wd = self.cellRange[ -2 ] * (chan_wd + chan_gap)
+      assy_ht = self.cellRange[ -1 ] * (chan_wd + chan_gap)
 
       # label : core : font-sp : legend
       wd = label_size[ 0 ] + assy_wd + (font_size << 1) + legend_size[ 0 ]
@@ -153,16 +142,17 @@ If neither are specified, a default 'scale' value of 24 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
-    value_font_size = pin_wd >> 1
+
+    value_font_size = chan_wd >> 1
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
 	if value_font_size >= 6 else None
 
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
-    config[ 'lineWidth' ] = max( 1, pin_gap )
-    config[ 'pinGap' ] = pin_gap
-    config[ 'pinWidth' ] = pin_wd
+    config[ 'channelGap' ] = chan_gap
+    config[ 'channelWidth' ] = chan_wd
+    config[ 'lineWidth' ] = max( 1, chan_gap )
     config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
 
@@ -171,7 +161,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._CreateRasterImage()		-
+  #	METHOD:		ChannelAssembly2DView._CreateRasterImage()	-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in ):
     """Called in background task to create the PIL image for the state.
@@ -181,7 +171,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     assy_ndx = tuple_in[ 1 ]
     axial_level = tuple_in[ 2 ]
     print >> sys.stderr, \
-        '[Assembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
+        '[ChannelAssembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
     im = None
 
     tuple_valid = DataModel.IsValidObj(
@@ -192,24 +182,24 @@ If neither are specified, a default 'scale' value of 24 is used.
 	)
     if self.config != None and tuple_valid:
       assy_region = self.config[ 'assemblyRegion' ]
+      chan_gap = self.config[ 'channelGap' ]
+      chan_wd = self.config[ 'channelWidth' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
       font_size = self.config[ 'fontSize' ]
       label_font = self.config[ 'labelFont' ]
       legend_pil_im = self.config[ 'legendPilImage' ]
       pil_font = self.config[ 'pilFont' ]
-      pin_gap = self.config[ 'pinGap' ]
-      pin_wd = self.config[ 'pinWidth' ]
       value_font = self.config[ 'valueFont' ]
 
       title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.pinDataSet, self.state.timeDataSet )
+          ( self.channelDataSet, self.state.timeDataSet )
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
 
       ds_value = \
-          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-	  if self.pinDataSet in self.data.states[ state_ndx ].group \
+          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
+	  if self.channelDataSet in self.data.states[ state_ndx ].group \
 	  else None
-      ds_range = self.data.GetRange( self.pinDataSet )
+      ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
@@ -218,16 +208,16 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Loop on rows
 #			--
-      pin_y = assy_region[ 1 ]
-#      for pin_row in range( self.data.core.npin ):
-      for pin_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+      chan_y = assy_region[ 1 ]
+      for chan_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
 
 #				-- Row label
 #				--
-	if self.showLabels:
-	  label = '%d' % (pin_row + 1)
+	if self.showLabels and chan_row < self.data.core.npin:
+	  label = '%d' % (chan_row + 1)
 	  label_size = label_font.getsize( label )
-	  label_y = pin_y + ((pin_wd - label_size[ 1 ]) >> 1)
+	  #label_y = chan_y + ((chan_wd - label_size[ 1 ]) >> 1)
+	  label_y = chan_y + chan_wd + ((chan_gap - label_size[ 1 ]) >> 1)
 	  im_draw.text(
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
@@ -235,14 +225,17 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #				-- Loop on col
 #				--
-	pin_x = assy_region[ 0 ]
-	for pin_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	chan_x = assy_region[ 0 ]
+	for chan_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
-	  if pin_row == self.cellRange[ 1 ] and self.showLabels:
-	    label = '%d' % (pin_col + 1)
+	  #if chan_row == self.cellRange[ 1 ] and self.showLabels:
+	  if self.showLabels and chan_row == self.cellRange[ 1 ] and \
+	      chan_col < self.data.core.npin:
+	    label = '%d' % (chan_col + 1)
 	    label_size = label_font.getsize( label )
-	    label_x = pin_x + ((pin_wd - label_size[ 0 ]) >> 1)
+	    #label_x = chan_x + ((chan_wd - label_size[ 0 ]) >> 1)
+	    label_x = chan_x + chan_wd + ((chan_gap - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ),
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
@@ -251,7 +244,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	  value = 0.0
 	  if ds_value != None:
-	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -259,9 +252,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    pen_color = Widget.GetDarkerColor( brush_color, 255 )
 	    #brush_color = ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
 
-	    #im_draw.ellipse
 	    im_draw.rectangle(
-	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	        [ chan_x, chan_y, chan_x + chan_wd, chan_y + chan_wd ],
 	        fill = brush_color, outline = pen_color
 	        )
 
@@ -271,10 +263,10 @@ If neither are specified, a default 'scale' value of 24 is used.
 	      if e_ndx > 1:
 	        value_str = value_str[ : e_ndx ]
 	      value_size = value_font.getsize( value_str )
-	      #if value_size[ 0 ] <= pin_wd:
+	      #if value_size[ 0 ] <= chan_wd:
 	      if True:
-		value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
-		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1) 
+		value_x = chan_x + ((chan_wd - value_size[ 0 ]) >> 1)
+		value_y = chan_y + ((chan_wd - value_size[ 1 ]) >> 1) 
                 im_draw.text(
 		    ( value_x, value_y ), value_str,
 		    fill = Widget.GetContrastColor( *brush_color ),
@@ -283,11 +275,38 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    #end if value_font defined
 	  #end if value > 0
 
-	  pin_x += pin_wd + pin_gap
-	#end for pin_col
+	  chan_x += chan_wd + chan_gap
+	#end for chan_col
 
-	pin_y += pin_wd + pin_gap
-      #end for pin_row
+	chan_y += chan_wd + chan_gap
+      #end for chan_row
+
+#			-- Draw pins
+#			--
+      if self.showPins:
+        brush_color = ( 155, 155, 155, 128 )
+        pen_color = Widget.GetDarkerColor( brush_color, 128 )
+        pin_draw_wd = chan_wd >> 2
+
+        pin_y = assy_region[ 1 ] + chan_wd + ((chan_gap - pin_draw_wd) >> 1)
+        #for pin_row in range( self.data.core.npin ):
+        #for pin_row in range( self.cellRange[ -1 ] - 1 ):
+	for pin_row in range( self.cellRange[ 1 ], min( self.cellRange[ 3 ], self.data.core.npin ), 1 ):
+	  pin_x = assy_region[ 0 ] + chan_wd + ((chan_gap - pin_draw_wd) >> 1)
+	  #for pin_col in range( self.data.core.npin ):
+	  #for pin_col in range( self.cellRange[ -2 ] - 1 ):
+	  for pin_col in range( self.cellRange[ 0 ], min( self.cellRange[ 2 ], self.data.core.npin ), 1 ):
+	    im_draw.ellipse(
+	        [ pin_x, pin_y, pin_x + pin_draw_wd, pin_y + pin_draw_wd ],
+	        fill = brush_color, outline = pen_color
+	        )
+
+	    pin_x += chan_wd + chan_gap
+	  #end for pin_col
+
+	  pin_y += chan_wd + chan_gap
+        #end for pin_row
+      #end if self.showPins
 
 #			-- Draw Legend Image
 #			--
@@ -303,14 +322,13 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Draw Title String
 #			--
-      pin_y = max( pin_y, legend_size[ 1 ] )
-      pin_y += font_size >> 2
+      chan_y = max( chan_y, legend_size[ 1 ] )
+      chan_y += font_size >> 2
 
       title_str = title_fmt % ( \
 	  assy_ndx + 1,
 	  self.data.core.axialMeshCenters[ axial_level ],
 	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-#	  self.data.states[ state_ndx ].exposure
 	  )
       title_size = pil_font.getsize( title_str )
       title_x = max(
@@ -319,7 +337,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  )
 
       im_draw.text(
-          ( title_x, pin_y ),
+          ( title_x, chan_y ),
 	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
           )
 
@@ -331,7 +349,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._CreateStateTuple()		-
+  #	METHOD:		ChannelAssembly2DView._CreateStateTuple()	-
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
     """
@@ -342,7 +360,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._CreateToolTipText()		-
+  #	METHOD:		ChannelAssembly2DView._CreateToolTipText()	-
   #----------------------------------------------------------------------
   def _CreateToolTipText( self, cell_info ):
     """Create a tool tip.
@@ -352,23 +370,23 @@ If neither are specified, a default 'scale' value of 24 is used.
     valid = self.data.IsValid(
         assembly_index = self.assemblyIndex,
 	axial_level = self.axialValue[ 1 ],
-	dataset_name = self.pinDataSet,
-	pin_colrow = cell_info[ 1 : 3 ],
+	dataset_name = self.channelDataSet,
+	chan_colrow = cell_info[ 1 : 3 ],
 	state_index = self.stateIndex
 	)
 
     if valid:
-      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
+      ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
       ds_value = ds[
           cell_info[ 2 ], cell_info[ 1 ],
 	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	  ]
 
       if ds_value > 0.0:
-        show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
+        show_chan_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
-	    'Pin: %s\n%s: %g' % \
-	    ( str( show_pin_addr ), self.pinDataSet, ds_value )
+	    'Channel: %s\n%s: %g' % \
+	    ( str( show_chan_addr ), self.channelDataSet, ds_value )
     #end if valid
 
     return  tip_str
@@ -376,25 +394,26 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.FindCell()			-
+  #	METHOD:		ChannelAssembly2DView.FindCell()		-
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
-    """Calls FindPin() and prepends -1 for an index value for drag processing.
+    """Calls FindChannel() and prepends -1 for an index value for
+drag processing.
 @return			None if no match, otherwise tuple of
 			( -1, 0-based cell_col, cell_row )
 """
-    pin_addr = self.FindPin( ev_x, ev_y )
+    chan_addr = self.FindChannel( ev_x, ev_y )
     return \
-        None if pin_addr == None else \
-	( -1, pin_addr[ 0 ], pin_addr[ 1 ] )
+        None if chan_addr == None else \
+	( -1, chan_addr[ 0 ], chan_addr[ 1 ] )
   #end FindCell
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.FindPin()			-
+  #	METHOD:		ChannelAssembly2DView.FindChannel()		-
   #----------------------------------------------------------------------
-  def FindPin( self, ev_x, ev_y ):
-    """Finds the pin col and row.
+  def FindChannel( self, ev_x, ev_y ):
+    """Finds the channel col and row.
 @param  ev_x		event x coordinate (relative to this)
 @param  ev_y		event y coordinate (relative to this)
 @return			None if no match, otherwise tuple of
@@ -405,14 +424,14 @@ If neither are specified, a default 'scale' value of 24 is used.
     if self.config != None and self.data != None:
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
-        pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
+        chan_size = self.config[ 'channelWidth' ] + self.config[ 'channelGap' ]
         cell_x = min(
-	    int( (ev_x - assy_region[ 0 ]) / pin_size ) + self.cellRange[ 0 ],
+	    int( (ev_x - assy_region[ 0 ]) / chan_size ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
 	    )
 	cell_x = max( self.cellRange[ 0 ], cell_x )
         cell_y = min(
-	    int( (ev_y - assy_region[ 1 ]) / pin_size ) + self.cellRange[ 1 ],
+	    int( (ev_y - assy_region[ 1 ]) / chan_size ) + self.cellRange[ 1 ],
 	    self.cellRange[ 3 ] - 1
 	    )
 	cell_y = max( self.cellRange[ 1 ], cell_y )
@@ -421,26 +440,26 @@ If neither are specified, a default 'scale' value of 24 is used.
     #end if we have data
 
     return  result
-  #end FindPin
+  #end FindChannel
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.GetDataSetType()			-
+  #	METHOD:		ChannelAssembly2DView.GetDataSetType()		-
   #----------------------------------------------------------------------
   def GetDataSetType( self ):
-    return  'pin'
+    return  'channel'
   #end GetDataSetType
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.GetEventLockSet()		-
+  #	METHOD:		ChannelAssembly2DView.GetEventLockSet()		-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     """By default, all locks are enabled except
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -448,7 +467,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.GetInitialCellRange()		-
+  #	METHOD:		ChannelAssembly2DView.GetInitialCellRange()	-
   #----------------------------------------------------------------------
   def GetInitialCellRange( self ):
     """This implementation returns self.data.ExtractSymmetryExtent().
@@ -460,44 +479,56 @@ Subclasses should override as needed.
     if self.data != None:
       result = [
           0, 0,
-	  self.data.core.npin, self.data.core.npin,
-	  self.data.core.npin, self.data.core.npin
+	  self.data.core.npin + 1, self.data.core.npin + 1,
+	  self.data.core.npin + 1, self.data.core.npin + 1
           ]
     return  result
   #end GetInitialCellRange
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.GetTitle()			-
+  #	METHOD:		RasterWidget.GetMenuDef()			-
+  #----------------------------------------------------------------------
+  def GetMenuDef( self, data_model ):
+    """
+"""
+    menu_def = super( ChannelAssembly2DView, self ).GetMenuDef( data_model )
+    menu_def.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
+    return  menu_def
+  #end GetMenuDef
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView.GetTitle()		-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Assembly 2D View'
+    return  'Channel Assembly 2D View'
   #end GetTitle
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._HiliteBitmap()			-
+  #	METHOD:		ChannelAssembly2DView._HiliteBitmap()		-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
     if self.config != None:
-      rel_col = self.pinColRow[ 0 ] - self.cellRange[ 0 ]
-      rel_row = self.pinColRow[ 1 ] - self.cellRange[ 1 ]
+      rel_col = self.channelColRow[ 0 ] - self.cellRange[ 0 ]
+      rel_row = self.channelColRow[ 1 ] - self.cellRange[ 1 ]
 
       if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
           rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
 	assy_region = self.config[ 'assemblyRegion' ]
-        pin_gap = self.config[ 'pinGap' ]
-        pin_wd = self.config[ 'pinWidth' ]
-	pin_adv = pin_gap + pin_wd
+        chan_gap = self.config[ 'channelGap' ]
+        chan_wd = self.config[ 'channelWidth' ]
+	chan_adv = chan_gap + chan_wd
         line_wd = self.config[ 'lineWidth' ]
 
 	rect = \
 	  [
-	    rel_col * pin_adv + assy_region[ 0 ],
-	    rel_row * pin_adv + assy_region[ 1 ],
-	    pin_wd + 1, pin_wd + 1
+	    rel_col * chan_adv + assy_region[ 0 ],
+	    rel_row * chan_adv + assy_region[ 1 ],
+	    chan_wd + 1, chan_wd + 1
 	  ]
 
 	new_bmap = self._CopyBitmap( bmap )
@@ -531,7 +562,7 @@ Subclasses should override as needed.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.IsTupleCurrent()			-
+  #	METHOD:		ChannelAssembly2DView.IsTupleCurrent()		-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
     """
@@ -548,7 +579,7 @@ Subclasses should override as needed.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._LoadDataModelValues()		-
+  #	METHOD:		ChannelAssembly2DView._LoadDataModelValues()	-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """This noop version should be implemented in subclasses to initialize
@@ -557,13 +588,13 @@ attributes/properties that aren't already set in _LoadDataModel():
   stateIndex
 """
     self.assemblyIndex = self.state.assemblyIndex
-    self.pinDataSet = self.state.pinDataSet
-    self.pinColRow = self.state.pinColRow
+    self.channelDataSet = self.state.channelDataSet
+    self.channelColRow = self.state.channelColRow
   #end _LoadDataModelValues
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._OnClick()			-
+  #	METHOD:		ChannelAssembly2DView._OnClick()		-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
     """
@@ -573,46 +604,84 @@ attributes/properties that aren't already set in _LoadDataModel():
 #		-- Validate
 #		--
     valid = False
-    pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr != None and pin_addr != self.pinColRow:
+    chan_addr = self.FindChannel( *ev.GetPosition() )
+    if chan_addr != None and chan_addr != self.channelColRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
-	  pin_colrow = pin_addr,
+	  channel_colrow = chan_addr,
 	  state_index = self.stateIndex
 	  )
 
     if valid:
-      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
+      ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
       ds_value = ds[ \
-          pin_addr[ 1 ], pin_addr[ 0 ], self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
+          chan_addr[ 1 ], chan_addr[ 0 ], self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
 	  ]
       if ds_value > 0.0:
-        self.FireStateChange( pin_colrow = pin_addr )
+        self.FireStateChange( channel_colrow = chan_addr )
     #end if valid
   #end _OnClick
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView.SetDataSet()			-
+  #	METHOD:		RasterWidget._OnTogglePins()			-
+  #----------------------------------------------------------------------
+  def _OnTogglePins( self, ev ):
+    """Must be called on the UI thread.
+"""
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    label = item.GetItemLabel()
+
+#		-- Change Label for Toggle Items
+#		--
+    if label.startswith( 'Show' ):
+      item.SetItemLabel( label.replace( 'Show', 'Hide' ) )
+      self.showPins = True
+    else:
+      item.SetItemLabel( label.replace( 'Hide', 'Show' ) )
+      self.showPins = False
+
+#		-- Change Toggle Pins for Other Menu
+#		--
+    other_menu = \
+        self.popupMenu \
+	if menu == self.container.widgetMenu else \
+	self.container.widgetMenu
+    if other_menu != None:
+      self._UpdateVisibilityMenuItems(
+          other_menu,
+	  'Pins', self.showPins
+	  )
+
+#		-- Redraw
+#		--
+    self._UpdateState( resized = True )
+  #end _OnTogglePins
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView.SetDataSet()		-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    if ds_name != self.pinDataSet:
-      wx.CallAfter( self._UpdateState, pin_dataset = ds_name )
-      self.FireStateChange( pin_dataset = ds_name )
+    if ds_name != self.channelDataSet:
+      wx.CallAfter( self._UpdateState, channel_dataset = ds_name )
+      self.FireStateChange( channel_dataset = ds_name )
   #end SetDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._UpdateStateValues()		-
+  #	METHOD:		ChannelAssembly2DView._UpdateStateValues()	-
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
     """
 @return			kwargs with 'changed' and/or 'resized'
 """
-    kwargs = super( Assembly2DView, self )._UpdateStateValues( **kwargs )
+    kwargs = super( ChannelAssembly2DView, self )._UpdateStateValues( **kwargs )
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
@@ -620,13 +689,13 @@ attributes/properties that aren't already set in _LoadDataModel():
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
       changed = True
-      self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+      self.channelColRow = self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
 
-    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
+    if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       resized = True
-      self.pinDataSet = kwargs[ 'pin_dataset' ]
+      self.channelDataSet = kwargs[ 'channel_dataset' ]
 
     if changed:
       kwargs[ 'changed' ] = True
@@ -636,4 +705,4 @@ attributes/properties that aren't already set in _LoadDataModel():
     return  kwargs
   #end _UpdateStateValues
 
-#end Assembly2DView
+#end ChannelAssembly2DView

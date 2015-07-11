@@ -373,7 +373,7 @@ calls self.ax.grid() and can be called by subclasses.
     """Initialize axes, 'ax', and 'ax2'.
 """
     self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
-    self.ax2 = self.ax.twiny()
+    self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
 
@@ -482,8 +482,14 @@ This noop version must be overridden by subclasses.
 """
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
+
     if self.data != None and \
         self.data.IsValid( state_index = self.stateIndex ):
+#      if self.data.core.axialMeshCenters != None:
+#        self.refAxisValues = self.data.core.axialMeshCenters.tolist()
+#      elif self.data.core.detectorMeshCenters != None:
+#        self.refAxisValues = self.data.core.detectorMeshCenters.tolist()
+
       state_group = self.data.states[ self.stateIndex ].group
 
       for k in self.dataSetSelections:
@@ -570,10 +576,10 @@ Must be called from the UI thread.
       self.pinColRow = kwargs[ 'pin_colrow' ]
     #end if
 
-    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.dataSetName:
-      replot = True
-      self.dataSetName = kwargs[ 'pin_dataset' ]
-    #end if
+#    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.dataSetName:
+#      replot = True
+#      self.dataSetName = kwargs[ 'pin_dataset' ]
+#    #end if
 
     if 'time_dataset' in kwargs:
       replot = True
