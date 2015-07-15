@@ -38,6 +38,7 @@ try:
 except Exception:
   raise ImportError( "The wxPython module is required" )
 
+from bean.events_chooser import *
 from data.config import Config
 from event.state import *
 import widget
@@ -100,6 +101,10 @@ class WidgetContainer( wx.Panel ):
     self.dataSetMenuButton = None
     #self.exposureCheckBox = None
     self.eventLocks = State.CreateLocks()
+    self.eventsChooserDialog = None
+    self.eventsMenu = None
+    self.eventsMenuButton = None
+    self.eventsMenuItems = {}
     self.led = None
     self.parent = parent
     self.state = state
@@ -162,48 +167,23 @@ class WidgetContainer( wx.Panel ):
 #		--
     control_panel = wx.Panel( self )
     self.controlPanel = control_panel
-#    lock_label = wx.StaticText(
-#	control_panel, -1,
-#	label = 'Lock UI:', size = ( -1, 22 )
-#        )
 
     cp_sizer = wx.BoxSizer( wx.HORIZONTAL )
     control_panel.SetSizer( cp_sizer )
 
-#    cp_sizer.Add(
-#        lock_label, 0, border = 1,
-#	flag = wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL
-#	#flag = wx.ALIGN_LEFT | wx.ALIGN_BOTTOM
-#	)
-    cp_sizer.AddSpacer( 6 )
+    cp_sizer.AddSpacer( 4 )
 
-    lock_set = self.widget.GetEventLockSet()
-    for pairs in EVENT_LOCK_PAIRS:
-      event_id = pairs[ 0 ]
-      if event_id in lock_set:
-	event_label = pairs[ 1 ]
-        cb = wx.CheckBox(
-          control_panel, -1,
-	  label = event_label, size = ( -1, 24 )
-	  )
-        cb.SetValue( True )
-	self.Bind(
-	    wx.EVT_CHECKBOX,
-	    functools.partial( self._OnEventCheckBox, event_id ),
-	    cb
-	    )
-#(noworky in loop) lambda ev: self._OnEventCheckBox( ev, event_id ),
-        self.eventCheckBoxes[ pairs[ 0 ] ] = cb
-	cp_sizer.Add(
-	    cb, 0,
-	    border = 1, flag = wx.EXPAND | wx.ALIGN_CENTER_VERTICAL
-	    )
-	cp_sizer.AddSpacer( 4 )
-
-      else:
-        self.eventLocks[ event_id ] = False
-      #end if
-    #end for
+#		-- Widget Title
+#		--
+    widget_title = wx.StaticText(
+        control_panel, -1,
+	label = self.widget.GetTitle(), size = ( -1, 22 )
+	)
+    widget_title.SetFont( widget_title.GetFont().Italic() )
+    cp_sizer.Add(
+        widget_title, 0,
+	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 2
+	)
 
     cp_sizer.AddStretchSpacer( 1 )
 
@@ -213,7 +193,53 @@ class WidgetContainer( wx.Panel ):
     self.led.SetBitmap( widget.Widget.GetBitmap( widget.BMAP_NAME_green ) )
     cp_sizer.Add(
         self.led, 0,
-	wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 4
+	wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 2
+	)
+
+#		-- Events menu
+#		--
+    lock_set = self.widget.GetEventLockSet()
+    self.eventsMenu = wx.Menu()
+    for ev_pair in EVENT_ID_NAMES:
+      ev_id = ev_pair[ 0 ]
+      if ev_id in lock_set:
+        item = wx.MenuItem(
+            self.eventsMenu, wx.ID_ANY, ev_pair[ 1 ],
+	    kind = wx.ITEM_CHECK
+	    )
+        item.Check( True )
+        self.Bind(
+            wx.EVT_MENU,
+	    functools.partial( self._OnEventMenuItem, ev_id ),
+	    item
+	    )
+	self.eventsMenu.AppendItem( item )
+	self.eventsMenuItems[ ev_id ] = item
+
+      else:
+        self.eventLocks[ ev_id ] = False
+    #end for
+    item = wx.MenuItem( self.eventsMenu, wx.ID_ANY, 'Edit...' )
+    self.Bind( wx.EVT_MENU, self._OnEventsEdit, item )
+    self.eventsMenu.AppendItem( item )
+
+    menu_im = wx.Image(
+        os.path.join( Config.GetResDir(), 'events_icon_16x16.png' ),
+	wx.BITMAP_TYPE_PNG
+	)
+    self.eventsMenuButton = wx.BitmapButton(
+        control_panel, -1, menu_im.ConvertToBitmap()
+	)
+    self.eventsMenuButton.Bind(
+        wx.EVT_BUTTON,
+	functools.partial(
+	    self._OnPopupMenu,
+	    self.eventsMenuButton, self.eventsMenu
+	    )
+	)
+    cp_sizer.Add(
+        self.eventsMenuButton, 0,
+	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	)
 
 #		-- Dataset menu
@@ -245,7 +271,7 @@ class WidgetContainer( wx.Panel ):
 	  )
       cp_sizer.Add(
           self.dataSetMenuButton, 0,
-	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0
+	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	  )
     #end if dataset names to select
 
@@ -275,7 +301,7 @@ class WidgetContainer( wx.Panel ):
     self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
     cp_sizer.Add(
         self.widgetMenuButton, 0,
-	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0
+	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	)
 
     close_im = wx.Image(
@@ -284,7 +310,10 @@ class WidgetContainer( wx.Panel ):
         )
     close_button = wx.BitmapButton( control_panel, -1, close_im.ConvertToBitmap() )
     close_button.Bind( wx.EVT_BUTTON, self._OnClose )
-    cp_sizer.Add( close_button, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
+    cp_sizer.Add(
+        close_button, 0,
+	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
+	)
 
 #		-- Add Components to this Container
 #		--
@@ -370,19 +399,65 @@ class WidgetContainer( wx.Panel ):
   #----------------------------------------------------------------------
   #	METHOD:		_OnEventCheckBox()				-
   #----------------------------------------------------------------------
-  def _OnEventCheckBox( self, state_change_id, ev ):
-    """Handles events from an event lock checkbox
+#  def _OnEventCheckBox( self, state_change_id, ev ):
+#    """Handles events from an event lock checkbox
+#"""
+#    ev.Skip()
+#
+#    obj = ev.GetEventObject()
+#    self.eventLocks[ state_change_id ] = obj.IsChecked()
+#
+#    if obj.IsChecked():
+#      self.widget.HandleStateChange( state_change_id )
+#
+#    print >> sys.stderr, '[WidgetContainer._OnEventCheckBox] event_id=%d, checked=%d' % ( state_change_id, obj.IsChecked() )
+#  #end _OnEventCheckBox
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnEventMenuItem()				-
+  #----------------------------------------------------------------------
+  def _OnEventMenuItem( self, ev_id, ev ):
+    """
 """
     ev.Skip()
 
-    obj = ev.GetEventObject()
-    self.eventLocks[ state_change_id ] = obj.IsChecked()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item != None:
+      self.eventLocks[ ev_id ] = item.IsChecked()
+      if item.IsChecked():
+        self.widget.HandleStateChange( ev_id )
+  #end _OnEventMenuItem
 
-    if obj.IsChecked():
-      self.widget.HandleStateChange( state_change_id )
 
-    print >> sys.stderr, '[WidgetContainer._OnEventCheckBox] event_id=%d, checked=%d' % ( state_change_id, obj.IsChecked() )
-  #end _OnEventCheckBox
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnEventsEdit()					-
+  #----------------------------------------------------------------------
+  def _OnEventsEdit( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    if self.eventsChooserDialog == None:
+      self.eventsChooserDialog = EventsChooserDialog(
+          self, wx.ID_ANY,
+	  event_set = self.widget.GetEventLockSet()
+	  )
+
+    self.eventsChooserDialog.ShowModal( self.eventLocks )
+    new_events = self.eventsChooserDialog.GetResult()
+    if new_events != None:
+      for k in new_events:
+        if k in self.eventsMenuItems:
+	  on = new_events[ k ]
+          self.eventsMenuItems[ k ].Check( on )
+	  self.eventLocks[ k ] = on
+	  if on:
+            self.widget.HandleStateChange( k )
+      #end for
+    #end if
+  #end _OnEventsEdit
 
 
   #----------------------------------------------------------------------

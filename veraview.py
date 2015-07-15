@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-07-15	leerw@ornl.gov				-
+#	  Build 14.
 #		2015-07-11	leerw@ornl.gov				-
 #	  New ChannelAssembly2DView.
 #		2015-05-25	leerw@ornl.gov				-
@@ -57,7 +59,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 13)'
+TITLE = 'VERAView (Build 14)'
 
 TOOLBAR_ITEMS = \
   [
@@ -664,12 +666,7 @@ Must be called from the UI thread.
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 
-#    widget_list = \
-#      [
-#        'widget.channel_view.Channel2DView',
-#        'widget.channel_assembly_view.ChannelAssembly2DView',
-#        'widget.all_axial_plot.AllAxialPlot'
-#      ]
+#    widget_list = [ 'widget.core_view.Core2DView', 'widget.all_axial_plot.AllAxialPlot' ]
     for w in widget_list:
       self.CreateWidget( w )
 

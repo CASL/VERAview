@@ -54,7 +54,7 @@ Attributes/properties:
   def value( self ):
     """@return		dict reference"""
     return  self.fValue
-  #end axialLevel.getter
+  #end value.getter
 
 
 #  @value.deleter
@@ -79,7 +79,7 @@ Attributes/properties:
 
       self._UpdateControls()
     #end if
-  #end axialLevel.setter
+  #end value.setter
 
 
 #		-- Object Methods
