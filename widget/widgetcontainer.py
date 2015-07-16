@@ -207,13 +207,13 @@ class WidgetContainer( wx.Panel ):
             self.eventsMenu, wx.ID_ANY, ev_pair[ 1 ],
 	    kind = wx.ITEM_CHECK
 	    )
-        item.Check( True )
         self.Bind(
             wx.EVT_MENU,
 	    functools.partial( self._OnEventMenuItem, ev_id ),
 	    item
 	    )
 	self.eventsMenu.AppendItem( item )
+        item.Check( True )
 	self.eventsMenuItems[ ev_id ] = item
 
       else:
@@ -230,6 +230,7 @@ class WidgetContainer( wx.Panel ):
     self.eventsMenuButton = wx.BitmapButton(
         control_panel, -1, menu_im.ConvertToBitmap()
 	)
+    self.eventsMenuButton.SetToolTip( wx.ToolTip( 'Control Events' ) )
     self.eventsMenuButton.Bind(
         wx.EVT_BUTTON,
 	functools.partial(
@@ -262,6 +263,7 @@ class WidgetContainer( wx.Panel ):
       self.dataSetMenuButton = \
           wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
 #      self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
+      self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset to View' ) )
       self.dataSetMenuButton.Bind(
           wx.EVT_BUTTON,
 	  functools.partial(
@@ -298,6 +300,7 @@ class WidgetContainer( wx.Panel ):
 	  )
     self.widgetMenuButton = \
         wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
+    self.widgetMenuButton.SetToolTip( wx.ToolTip( 'Widget Functions' ) )
     self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
     cp_sizer.Add(
         self.widgetMenuButton, 0,
@@ -309,6 +312,7 @@ class WidgetContainer( wx.Panel ):
 	wx.BITMAP_TYPE_PNG
         )
     close_button = wx.BitmapButton( control_panel, -1, close_im.ConvertToBitmap() )
+    close_button.SetToolTip( wx.ToolTip( 'Close This Widget' ) )
     close_button.Bind( wx.EVT_BUTTON, self._OnClose )
     cp_sizer.Add(
         close_button, 0,

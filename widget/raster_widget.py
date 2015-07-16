@@ -301,7 +301,8 @@ specified, a default scale value of 8 is used.
     if self.popupMenu == None:
       self.popupMenu = wx.Menu()
 
-      for label, handler in self.menuDef:
+      #for label, handler in self.menuDef:
+      for label, handler in self.GetMenuDef( None ):
         item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
         self.Bind( wx.EVT_MENU, handler, item )
         self.popupMenu.AppendItem( item )
@@ -480,6 +481,7 @@ Subclasses that override should call this implementation.
     self.bitmapCtrl = wx.StaticBitmap( self.bitmapPanel, bitmap = self.blankBitmap )
 
     self._InitEventHandlers()
+    self.CreatePopupMenu()
 
 #		-- Lay out
 #		--

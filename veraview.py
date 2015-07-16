@@ -100,7 +100,7 @@ TOOLBAR_ITEMS = \
 WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
-  'Axial Plot': 'widget.all_axial_plot.AllAxialPlot',
+  'Axial Plots': 'widget.all_axial_plot.AllAxialPlot',
   'Channel 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',

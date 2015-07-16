@@ -161,6 +161,24 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
+  #     METHOD:         ChannelAssembly2DView.CreatePopupMenu()		-
+  #----------------------------------------------------------------------
+  def CreatePopupMenu( self ):
+    """Lazily creates.  Must be called from the UI thread.
+"""
+    super( ChannelAssembly2DView, self ).CreatePopupMenu()
+    if self.popupMenu != None:
+      self._UpdateVisibilityMenuItems(
+          self.popupMenu,
+	  'Pins', self.showPins
+	  )
+    #end if must create menu
+
+    return  self.popupMenu
+  #end CreatePopupMenu
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		ChannelAssembly2DView._CreateRasterImage()	-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in ):
