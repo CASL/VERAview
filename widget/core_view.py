@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-07-27	leerw@ornl.gov				-
+#	  Fixing order of dataset references to row, col, axial, assy
+#	  instead of col, row, ...
 #		2015-06-17	leerw@ornl.gov				-
 # 	  Extending RasterWidget.
 #		2015-06-15	leerw@ornl.gov				-
@@ -295,7 +298,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	  value = 0.0
 	  if ds_value != None:
-#	    value = ds_value[ pin_col, pin_row, axial_level, assy_ndx ]
 	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
@@ -1006,7 +1008,7 @@ The config and data attributes are good to go.
       if ds_name in self.data.states[ state_ndx ].group:
         ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
 	pin_value = ds_value[
-	    pin_addr[ 0 ], pin_addr[ 1 ],
+	    pin_addr[ 1 ], pin_addr[ 0 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	    ]
 #	    self.axialBean.axialLevel, self.assemblyIndex
@@ -1037,7 +1039,7 @@ The config and data attributes are good to go.
       if ds_name in self.data.states[ state_ndx ].group:
         ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
 	pin_value = ds_value[
-	    pin_addr[ 0 ], pin_addr[ 1 ],
+	    pin_addr[ 1 ], pin_addr[ 0 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	    ]
 #	    self.axialBean.axialLevel, self.assemblyIndex

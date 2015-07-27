@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2015-07-27	leerw@ornl.gov				-
+#	  Fixing order of dataset references to row, col, axial, assy
+#	  instead of col, row, ...
 #		2015-07-11	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback

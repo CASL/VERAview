@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-07-27	leerw@ornl.gov				-
+#	  Build 15 with fixes to dataset reference order.
 #		2015-07-15	leerw@ornl.gov				-
 #	  Build 14.
 #		2015-07-11	leerw@ornl.gov				-
@@ -59,7 +61,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 14)'
+TITLE = 'VERAView (Build 15)'
 
 TOOLBAR_ITEMS = \
   [

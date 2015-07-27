@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_axial_plot.py				-
 #	HISTORY:							-
+#		2015-07-27	leerw@ornl.gov				-
+#	  Fixing order of dataset references to row, col, axial, assy
+#	  instead of col, row, ...
+#		2015-07-27	leerw@ornl.gov				-
+#	  Fixing order of dataset references to row, col, axial, assy
+#	  instead of col, row, ...
 #		2015-06-15	leerw@ornl.gov				-
 #	  Refactoring.
 #		2015-05-26	leerw@ornl.gov				-
@@ -287,10 +293,6 @@ model.
       self.dataSetValues = [ 0.0 ] * self.data.core.nax
 
       assy_ndx = self.data.NormalizeAssemblyIndex( self.state.assemblyIndex )
-#      pin_colrow = (
-#	  max( 0, self.state.pinColRow[ 0 ] ),
-#	  max( 0, self.state.pinColRow[ 1 ] )
-#          )
       pin_colrow = self.data.NormalizePinColRow( self.state.pinColRow )
       update_args = \
         {
@@ -530,7 +532,7 @@ Must be called from the UI thread.
 	del self.dataSetValues[ : ]
 	for i in range( self.data.core.nax ):
 	  self.dataSetValues.append(
-	      ds[ self.pinColRow[ 0 ], self.pinColRow[ 1 ], i, self.assemblyIndex[ 0 ] ]
+	      ds[ self.pinColRow[ 1 ], self.pinColRow[ 0 ], i, self.assemblyIndex[ 0 ] ]
 	      )
 	#end for
       #end if

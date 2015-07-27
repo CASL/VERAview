@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2015-07-27	leerw@ornl.gov				-
+#	  Fixing order of dataset references to row, col, axial, assy
+#	  instead of col, row, ...
 #		2015-06-18	leerw@ornl.gov				-
 # 	  Extending RasterWidget.
 #		2015-05-26	leerw@ornl.gov				-

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2015-07-27	leerw@ornl.gov				-
+#	  Fixing order of dataset references to row, col, axial, assy
+#	  instead of col, row, ...
 #		2015-07-08	leerw@ornl.gov				-
 #	  Extending PlotWidget.
 #		2015-06-15	leerw@ornl.gov				-
@@ -506,7 +509,7 @@ This noop version must be overridden by subclasses.
 	      new_values = []
 	      for i in range( self.data.core.nax ):
 	        new_values.append(
-		    ds[ self.channelColRow[ 0 ], self.channelColRow[ 1 ],
+		    ds[ self.channelColRow[ 1 ], self.channelColRow[ 0 ],
 		        i, self.assemblyIndex[ 0 ] ]
 		    )
               self.dataSetValues[ k ] = np.array( new_values )
@@ -526,7 +529,7 @@ This noop version must be overridden by subclasses.
 	      new_values = []
 	      for i in range( self.data.core.nax ):
 	        new_values.append(
-		    ds[ self.pinColRow[ 0 ], self.pinColRow[ 1 ],
+		    ds[ self.pinColRow[ 1 ], self.pinColRow[ 0 ],
 		        i, self.assemblyIndex[ 0 ] ]
 		    )
 	      self.dataSetValues[ k ] = np.array( new_values )
