@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2015-08-20	leerw@ornl.gov				-
+#	  Added workaround for MacOS DCOverlay bug in _OnMouseMotion().
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
@@ -688,18 +690,21 @@ This implementation is a noop.
 
     else:
       rect = wx.RectPP( self.dragStartPosition, ev.GetPosition() )
-      print >> sys.stderr, '[RasterWidget._OnMouseMotion]', str( rect )
+      #print >> sys.stderr, '[RasterWidget._OnMouseMotion]', str( rect )
 
       if rect.width > 5 and rect.height > 5:
         dc = wx.ClientDC( self.bitmapCtrl )
         odc = wx.DCOverlay( self.overlay, dc )
-        odc.Clear()
+#		MacOS bug doesn't properly copy or restore the saved
+#		image, so we don't this hear until the bug is fixed
+        #odc.Clear()
 
         if 'wxMac' in wx.PlatformInfo:
           dc.SetPen( wx.Pen( 'black', 2 ) )
           dc.SetBrush( wx.Brush( wx.Colour( 192, 192, 192, 128 ) ) )
           dc.DrawRectangle( *rect )
         else:
+	  odc.Clear()
           ctx = wx.GraphicsContext_Create( dc )
           ctx.SetPen( wx.GREY_PEN )
           ctx.SetBrush( wx.Brush( wx.Colour( 192, 192, 192, 128 ) ) )
