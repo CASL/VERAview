@@ -54,6 +54,7 @@ STATE_CHANGE_detectorIndex = 0x1 << 9
 STATE_CHANGE_channelDataSet = 0x1 << 10
 STATE_CHANGE_channelColRow = 0x1 << 11
 STATE_CHANGE_timeDataSet = 0x1 << 12
+#STATE_CHANGE_ALL = 0x1fff
 
 LOCKABLE_STATES = \
   (
@@ -105,7 +106,7 @@ All indices are 0-based.
     #self.axialLevel = -1
     self.axialValue = ( 0.0, -1, -1 )
     self.channelColRow = ( -1, -1 )
-    self.channelDataSet = None
+    self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataModel = None
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )

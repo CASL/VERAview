@@ -662,9 +662,6 @@ Must be called from the UI thread.
 
 #		-- Time Plot?
 #		--
-#    if len( data.states ) > 1 and \
-#        'exposure' in data.GetDataSetNames( 'scalar' ):
-#      widget_list.append( 'widget.exposure_plot.ExposurePlot' )
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 

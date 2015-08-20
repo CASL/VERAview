@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2015-08-20	leerw@ornl.gov				-
+#	  Adding special references for selected datasets.
 #		2015-07-27	leerw@ornl.gov				-
 #	  Fixing order of dataset references to row, col, axial, assy
 #	  instead of col, row, ...
@@ -27,7 +29,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, time, traceback
 import numpy as np
-import pdb  # pdb.set_trace()
+#import pdb  # pdb.set_trace()
 
 try:
   import matplotlib
@@ -100,29 +102,19 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-#    self.ax = None
-#    self.axialLine = None
     self.axialValue = ( 0.0, -1, -1 )
-    #self.axialValues = []
-#    self.canvas = None
     self.channelColRow = ( -1, -1 )
-    self.channelDataSet = None
-#    self.cursor = None
-#    self.data = None
+    self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataSetDialog = None
-    self.dataSetSelections = {}
+    self.dataSetSelections = {}  # keyed by dataset name or pseudo name
     self.dataSetTypes = set()
-    self.dataSetValues = {}  # keyed by dataset name
-    self.detectorDataSet = None
+    self.dataSetValues = {}  # keyed by dataset name or pseudo name
+    self.detectorDataSet = 'detector_respose'
     self.detectorIndex = ( -1, -1, -1 )
-#    self.fig = None
 
-#    self.lx = None
     self.menuDefs = [ ( 'Select Datasets', self._OnSelectDataSets ) ]
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
-#    self.stateIndex = -1
-#    self.titleFontSize = 16
 
     super( AllAxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
@@ -139,9 +131,10 @@ Properties:
     ds_values = self._FindDataSetValues( ev.ydata )
     if ds_values != None:
       tip_str = 'Axial=%.3g' % ev.ydata
-      ds_keys = ds_values.keys()
-      ds_keys.sort()
-      for k in ds_keys:
+#      ds_keys = ds_values.keys()
+#      ds_keys.sort()
+#      for k in ds_keys:
+      for k in sorted( ds_values.keys() ):
         tip_str += '\n%s=%.3g' % ( k, ds_values[ k ] )
 
     return  tip_str
@@ -178,23 +171,19 @@ calls self.ax.grid() and can be called by subclasses.
 #			-- Determine axis datasets
 #			--
       bottom_ds_name = top_ds_name = None
-      for k in self.dataSetValues:
-        rec = self.dataSetSelections[ k ]
-        if rec[ 'axis' ] == 'bottom':
-	  bottom_ds_name = k
-        elif rec[ 'axis' ] == 'top':
-	  top_ds_name = k
+      for k, rec in self.dataSetSelections.iteritems():
+	if rec[ 'visible' ]:
+          if rec[ 'axis' ] == 'bottom':
+	    bottom_ds_name = self._GetDataSetName( k )
+          elif rec[ 'axis' ] == 'top':
+	    top_ds_name = self._GetDataSetName( k )
+          elif bottom_ds_name == None:
+	    bottom_ds_name = self._GetDataSetName( k )
       #end for
-      if bottom_ds_name == None:
-        for k in self.dataSetValues:
-	  if top_ds_name != k:
-	    bottom_ds_name = k
-	    break
 
 #			-- Configure axes
 #			--
-      if top_ds_name != None:
-        #self.ax2 = self.ax.twiny()
+      if top_ds_name != None and self.ax2 != None:
         self.ax2.set_xlabel( top_ds_name, fontsize = label_font_size )
         self.ax2.set_xlim( *self.data.GetRange( top_ds_name ) )
 	self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
@@ -238,13 +227,14 @@ calls self.ax.grid() and can be called by subclasses.
 #			--
       count = 0
       for k in self.dataSetValues:
+	ds_name = self._GetDataSetName( k )
 	rec = self.dataSetSelections[ k ]
 	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
-	legend_label = k
+	legend_label = ds_name
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
-	if k in self.data.GetDataSetNames( 'detector' ):
+	if ds_name in self.data.GetDataSetNames( 'detector' ):
 	  axial_values = self.data.core.detectorMeshCenters
 	  plot_type = '.'
 	else:
@@ -299,20 +289,22 @@ calls self.ax.grid() and can be called by subclasses.
   def _FindDataSetValues( self, axial_cm ):
     """Find matching dataset values for the axial.
 @param  axial_cm	axial value
-@return			dict by name of dataset values or None if no matches
+@return			dict by real dataset name (not pseudo name) of
+			dataset values or None if no matches
 """
 
     values = {}
     for k in self.dataSetValues:
       ndx = -1
+      ds_name = self._GetDataSetName( k )
 
-      if k in self.data.GetDataSetNames( 'detector' ):
+      if ds_name in self.data.GetDataSetNames( 'detector' ):
         if self.data.core.detectorMeshCenters != None:
 	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
       if ndx >= 0:
-        values[ k ] = self.dataSetValues[ k ][ ndx ]
+        values[ ds_name ] = self.dataSetValues[ k ][ ndx ]
     #end for
 
     return  values
@@ -327,6 +319,20 @@ calls self.ax.grid() and can be called by subclasses.
 """
     return  self.axialValue
   #end GetAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_GetDataSetName()				-
+  #----------------------------------------------------------------------
+  def _GetDataSetName( self, name ):
+    """Determines actual dataset name if a pseudo name is provided.
+"""
+    return \
+	self.channelDataSet  if name == '_channelDataSet_' else \
+	self.detectorDataSet  if name == '_detectorDataSet_' else \
+        self.pinDataSet  if name == '_pinDataSet_' else \
+	name
+  #end _GetDataSetName
 
 
   #----------------------------------------------------------------------
@@ -345,9 +351,10 @@ calls self.ax.grid() and can be called by subclasses.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_channelColRow, STATE_CHANGE_detectorIndex,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_stateIndex,
-	STATE_CHANGE_timeDataSet
+	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
+	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
+	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
   #end GetEventLockSet
@@ -374,21 +381,11 @@ calls self.ax.grid() and can be called by subclasses.
   #----------------------------------------------------------------------
   def _InitAxes( self ):
     """Initialize axes, 'ax', and 'ax2'.
+XXX size according to how many datasets selected?
 """
     self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
     self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_InitUI()					-
-  #----------------------------------------------------------------------
-#  def _InitUI( self ):
-#    """Builds this UI component.  Obviously, must be called in the UI thread.
-#"""
-#    super( AllAxialPlot, self )._InitUI()
-#    self.ax2 = None
-#  #end _InitUI
 
 
   #----------------------------------------------------------------------
@@ -399,6 +396,7 @@ calls self.ax.grid() and can be called by subclasses.
 to be passed to _UpdateState().  Assume self.data is valid.
 @return			dict to be passed to _UpdateState()
 """
+    self.dataSetDialog = None
     if self.data != None and self.data.HasData():
       assy_ndx = self.data.NormalizeAssemblyIndex( self.state.assemblyIndex )
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
@@ -411,11 +409,11 @@ to be passed to _UpdateState().  Assume self.data is valid.
 	'assy_index': assy_ndx,
 	'axial_value': axial_value,
 	'channel_colrow': chan_colrow,
-	'channel_dataset': self.channelDataSet,
-	'detector_dataset': self.detectorDataSet,
+	'channel_dataset': self.state.channelDataSet,
+	'detector_dataset': self.state.detectorDataSet,
 	'detector_index': detector_ndx,
 	'pin_colrow': pin_colrow,
-	'pin_dataset': self.pinDataSet,
+	'pin_dataset': self.state.pinDataSet,
 	'state_index': state_ndx,
 	'time_dataset': self.state.timeDataSet
 	}
@@ -452,6 +450,10 @@ to be passed to _UpdateState().  Assume self.data is valid.
         wx.MessageBox( self, 'No data model', 'Select Datasets' ).ShowModal()
       else:
         ds_names = self.data.GetDataSetNames( 'axial' )
+	for dtype in ( 'channel', 'detector', 'pin' ):
+	  if len( self.data.GetDataSetNames( dtype ) ) > 0:
+	    ds_names.append( '_' + dtype + 'DataSet_' )
+	#end for
 	self.dataSetDialog = DataSetChooserDialog( self, ds_names = ds_names )
     #end if
 
@@ -481,7 +483,6 @@ to be passed to _UpdateState().  Assume self.data is valid.
   #----------------------------------------------------------------------
   def _UpdateDataSetValues( self ):
     """Rebuild dataset arrays to plot.
-This noop version must be overridden by subclasses.
 """
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
@@ -497,10 +498,11 @@ This noop version must be overridden by subclasses.
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
-        if ds_rec[ 'visible' ] and k in state_group:
-	  ds = state_group[ k ]
+	ds_name = self._GetDataSetName( k )
+        if ds_rec[ 'visible' ] and ds_name != None and ds_name in state_group:
+	  ds = state_group[ ds_name ]
 
-	  if k in self.data.GetDataSetNames( 'channel' ):
+	  if ds_name in self.data.GetDataSetNames( 'channel' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
 		channel_colrow = self.channelColRow
@@ -515,12 +517,12 @@ This noop version must be overridden by subclasses.
               self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'channel' )
 
-	  elif k in self.data.GetDataSetNames( 'detector' ):
+	  elif ds_name in self.data.GetDataSetNames( 'detector' ):
 	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
 	      self.dataSetValues[ k ] = ds[ :, self.detectorIndex[ 0 ] ]
               self.dataSetTypes.add( 'detector' )
 
-	  elif k in self.data.GetDataSetNames( 'pin' ):
+	  elif ds_name in self.data.GetDataSetNames( 'pin' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
 		pin_colrow = self.pinColRow
@@ -569,6 +571,18 @@ Must be called from the UI thread.
       self.channelColRow = kwargs[ 'channel_colrow' ]
     #end if
 
+    if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
+      self.channelDataSet = kwargs[ 'channel_dataset' ]
+      if '_channelDataSet_' in self.dataSetSelections:
+        replot = True
+    #end if
+
+    if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
+      self.detectorDataSet = kwargs[ 'detector_dataset' ]
+      if '_detectorDataSet_' in self.dataSetSelections:
+        replot = True
+    #end if
+
     if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
       replot = True
       self.detectorIndex = kwargs[ 'detector_index' ]
@@ -579,10 +593,11 @@ Must be called from the UI thread.
       self.pinColRow = kwargs[ 'pin_colrow' ]
     #end if
 
-#    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.dataSetName:
-#      replot = True
-#      self.dataSetName = kwargs[ 'pin_dataset' ]
-#    #end if
+    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
+      self.pinDataSet = kwargs[ 'pin_dataset' ]
+      if '_pinDataSet_' in self.dataSetSelections:
+        replot = True
+    #end if
 
     if 'time_dataset' in kwargs:
       replot = True
