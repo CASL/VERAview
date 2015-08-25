@@ -328,10 +328,15 @@ calls self.ax.grid() and can be called by subclasses.
     """Determines actual dataset name if a pseudo name is provided.
 """
     return \
-	self.channelDataSet  if name == '_channelDataSet_' else \
-	self.detectorDataSet  if name == '_detectorDataSet_' else \
-        self.pinDataSet  if name == '_pinDataSet_' else \
+	self.channelDataSet  if name == 'Selected channel dataset' else \
+        self.detectorDataSet  if name == 'Selected detector dataset' else \
+        self.pinDataSet  if name == 'Selected pin dataset' else \
 	name
+#    return \
+#	self.channelDataSet  if name == '_channelDataSet_' else \
+#	self.detectorDataSet  if name == '_detectorDataSet_' else \
+#        self.pinDataSet  if name == '_pinDataSet_' else \
+#	name
   #end _GetDataSetName
 
 
@@ -369,6 +374,17 @@ calls self.ax.grid() and can be called by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_GetSelectedDataSetName()			-
+  #----------------------------------------------------------------------
+  def _GetSelectedDataSetName( self, dtype ):
+    """
+@param  dtype		dataset type/category
+"""
+    return  'Selected ' + dtype + ' dataset'
+  #end _GetSelectedDataSetName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetTitle()					-
   #----------------------------------------------------------------------
   def GetTitle( self ):
@@ -386,6 +402,20 @@ XXX size according to how many datasets selected?
     self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
     self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		InitDataSetSelections()				-
+  #----------------------------------------------------------------------
+  def InitDataSetSelections( self, ds_types ):
+    """
+"""
+    axis = 'bottom'
+    for dtype in sorted( list( ds_types ) ):
+      self.dataSetSelections[ self._GetSelectedDataSetName( dtype ) ] = \
+        { 'axis': axis, 'scale': 1.0, 'visible': True }
+      axis = 'top' if axis == 'bottom' else ''
+  #end InitDataSetSelections
 
 
   #----------------------------------------------------------------------
@@ -452,7 +482,8 @@ to be passed to _UpdateState().  Assume self.data is valid.
         ds_names = self.data.GetDataSetNames( 'axial' )
 	for dtype in ( 'channel', 'detector', 'pin' ):
 	  if len( self.data.GetDataSetNames( dtype ) ) > 0:
-	    ds_names.append( '_' + dtype + 'DataSet_' )
+	    ds_names.append( self._GetSelectedDataSetName( dtype ) )
+	    #ds_names.append( '_' + dtype + 'DataSet_' )
 	#end for
 	self.dataSetDialog = DataSetChooserDialog( self, ds_names = ds_names )
     #end if
@@ -573,13 +604,19 @@ Must be called from the UI thread.
 
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       self.channelDataSet = kwargs[ 'channel_dataset' ]
-      if '_channelDataSet_' in self.dataSetSelections:
+      select_name = self._GetSelectedDataSetName( 'channel' )
+      #if '_channelDataSet_' in self.dataSetSelections:
+      if select_name in self.dataSetSelections and \
+          self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
     #end if
 
     if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
       self.detectorDataSet = kwargs[ 'detector_dataset' ]
-      if '_detectorDataSet_' in self.dataSetSelections:
+      select_name = self._GetSelectedDataSetName( 'detector' )
+      #if '_detectorDataSet_' in self.dataSetSelections:
+      if select_name in self.dataSetSelections and \
+          self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
     #end if
 
@@ -595,7 +632,10 @@ Must be called from the UI thread.
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       self.pinDataSet = kwargs[ 'pin_dataset' ]
-      if '_pinDataSet_' in self.dataSetSelections:
+      select_name = self._GetSelectedDataSetName( 'pin' )
+      #if '_pinDataSet_' in self.dataSetSelections:
+      if select_name in self.dataSetSelections and \
+          self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
     #end if
 

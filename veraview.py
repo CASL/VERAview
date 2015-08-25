@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-08-25	leerw@ornl.gov				-
+#	  Replacing various axial plots with AllAxialPlot and specific
+#	  "selected" datasets enabled.
 #		2015-07-27	leerw@ornl.gov				-
 #	  Build 15 with fixes to dataset reference order.
 #		2015-07-15	leerw@ornl.gov				-
@@ -37,7 +40,7 @@
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import argparse, os, sys, threading, traceback
-import pdb  # set_trace()
+#import pdb  # set_trace()
 
 try:
   import wx
@@ -364,8 +367,9 @@ class VeraViewFrame( wx.Frame ):
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.CreateWidget()			-
   #----------------------------------------------------------------------
-  def CreateWidget( self, widget_class ):
+  def CreateWidget( self, widget_class, refit_flag = True ):
     """Must be called on the UI thread.
+@return		widget container object
 """
     print >> sys.stderr, '[VeraViewFrame.CreateWidget]'
 
@@ -385,18 +389,17 @@ class VeraViewFrame( wx.Frame ):
           grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
       #end if
 
-      con = WidgetContainer( self.grid, widget_class, self.state, )
+      con = WidgetContainer( self.grid, widget_class, self.state )
       self.grid._FreezeWidgets()
       grid_sizer.Add( con, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
       self.grid.Layout()
       self.Fit()
       self.grid._FreezeWidgets( False )
 
-      wx.CallAfter( self._Refit )
+      if refit_flag:
+        wx.CallAfter( self._Refit )
 
-      #title = self._ResolveTitle( win.widget.GetTitle() )
-      #win.SetTitle( title )
-      #win.Show( True )
+      return  con
 
     except Exception, ex:
       wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
@@ -631,6 +634,7 @@ Must be called from the UI thread.
 
 #		-- Determine Initial Widgets
 #		--
+    axial_plot_types = set()
     widget_list = []
 
     if data.core.nass > 1:
@@ -641,33 +645,52 @@ Must be called from the UI thread.
     if len( data.GetDataSetNames()[ 'detector' ] ) > 0:
       widget_list.append( 'widget.detector_view.Detector2DView' )
       if data.core.ndetax > 1:
-        widget_list.append( 'widget.detector_axial_plot.DetectorAxialPlot' )
-        widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
+	axial_plot_types.add( 'detector' )
+	axial_plot_types.add( 'pin' )
+        #widget_list.append( 'widget.detector_axial_plot.DetectorAxialPlot' )
+        #widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
 
 #		-- Channel Mode
 #		--
-    elif len( data.GetDataSetNames()[ 'channel' ] ) > 0:
+    if len( data.GetDataSetNames()[ 'channel' ] ) > 0:
       if data.core.nass > 1:
         widget_list.append( 'widget.channel_view.Channel2DView' )
       widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
       if data.core.nax > 1:
-        widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
+	axial_plot_types.add( 'channel' )
+        #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
 #		-- Pin Mode
 #		--
-    elif len( data.GetDataSetNames()[ 'pin' ] ) > 0:
+    if len( data.GetDataSetNames()[ 'pin' ] ) > 0:
       widget_list.append( 'widget.assembly_view.Assembly2DView' )
       if data.core.nax > 1:
-        widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
+	axial_plot_types.add( 'pin' )
+        #widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
+
+#		-- Axial Plot?
+#		--
+    if len( axial_plot_types ) > 0:
+      widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
 #		-- Time Plot?
 #		--
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plot.TimePlot' )
 
+#		-- Create widgets, find AllAxialPlot widget reference
+#		--
 #    widget_list = [ 'widget.core_view.Core2DView', 'widget.all_axial_plot.AllAxialPlot' ]
+    axial_plot_widget = None
     for w in widget_list:
-      self.CreateWidget( w )
+      con = self.CreateWidget( w, False )
+      if con.widget.GetTitle() == 'Axial Plots':
+        axial_plot_widget = con.widget
+    #end for
+
+    if axial_plot_widget != None:
+      axial_plot_widget.InitDataSetSelections( axial_plot_types )
+    #end if
 
 #		-- Update title
 #		--
