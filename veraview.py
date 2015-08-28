@@ -69,27 +69,32 @@ TITLE = 'VERAView (Build 15)'
 TOOLBAR_ITEMS = \
   [
     {
-    'widget': 'Core 2D View', 'icon': 'core_both_32x32.png', 'type': 'pin'
+    'widget': 'Core 2D View', 'icon': 'Core2DView.32.png', 'type': 'pin'
+#    'widget': 'Core 2D View', 'icon': 'core_both_32x32.png', 'type': 'pin'
     },
     {
-    'widget': 'Assembly 2D View', 'icon': 'assy_both_32x32.png', 'type': 'pin'
+    'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.32.png', 'type': 'pin'
+#    'widget': 'Assembly 2D View', 'icon': 'assy_both_32x32.png', 'type': 'pin'
     },
     {
-    'widget': 'Channel 2D View', 'icon': 'channel_32x32.png', 'type': 'channel'
+    'widget': 'Channel 2D View', 'icon': 'Channel2DView.32.png', 'type': 'channel'
+#    'widget': 'Channel 2D View', 'icon': 'channel_32x32.png', 'type': 'channel'
     },
     {
-    'widget': 'Channel Assembly 2D View', 'icon': 'channel_both_32x32.png', 'type': 'channel'
+    'widget': 'Channel Assembly 2D View', 'icon': 'ChannelAssembly2DView.32.png', 'type': 'channel'
+#    'widget': 'Channel Assembly 2D View', 'icon': 'channel_both_32x32.png', 'type': 'channel'
     },
     {
-    'widget': 'Detector 2D View', 'icon': 'detector_32x32.png', 'type': 'detector'
+    'widget': 'Detector 2D View', 'icon': 'Detector2DView.32.png', 'type': 'detector'
+#    'widget': 'Detector 2D View', 'icon': 'detector_32x32.png', 'type': 'detector'
     },
     {
     'widget': 'Detector Axial Plot', 'icon': 'detector_plot_32x32.png',
     'type': 'detector'
     },
     {
-#    'widget': 'Exposure Plot', 'icon': 'exposure_plot_32x32.png',
-    'widget': 'Time Plot', 'icon': 'exposure_plot_32x32.png',
+    'widget': 'Time Plot', 'icon': 'TimePlot.32.png',
+#    'widget': 'Time Plot', 'icon': 'exposure_plot_32x32.png',
     'type': 'scalar',
     'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
