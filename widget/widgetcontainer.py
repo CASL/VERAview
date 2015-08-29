@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2015-08-29	leerw@ornl.gov				-
+#	  Adding capability to save animated gif.
 #		2015-06-15	leerw@ornl.gov				-
 #	  Calling Widget.CreatePrintImage().
 #		2015-05-11	leerw@ornl.gov				-
@@ -30,14 +32,15 @@
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 #import os, sys, threading, traceback
-import functools, math, os, sys, time
-import pdb  #pdb.set_trace()
+import functools, math, os, shutil, sys, tempfile
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
 except Exception:
   raise ImportError( "The wxPython module is required" )
 
+from animators import *
 from bean.events_chooser import *
 from data.config import Config
 from event.state import *
@@ -94,6 +97,7 @@ class WidgetContainer( wx.Panel ):
   def __init__( self, parent, widget_classpath, state, **kwargs ):
     super( WidgetContainer, self ).__init__( parent, -1, style = wx.BORDER_SIMPLE | wx.TAB_TRAVERSAL )
 
+    self.animateMenu = None
     self.controlPanel = None
     self.eventCheckBoxes = {}
     #self.axialCheckBox = None
@@ -115,6 +119,36 @@ class WidgetContainer( wx.Panel ):
 
     self._InitUI( widget_classpath, **kwargs )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CheckAndPromptForAnimatedImage()		-
+  #----------------------------------------------------------------------
+  def _CheckAndPromptForAnimatedImage( self, file_path ):
+    """
+Must be called on the UI thread.
+@param  file_path	input file path, None to prompt
+@return			file path if selected, None if canceled or
+			animated images cannot be created
+"""
+    if not Config.HaveImageMagick():
+      wx.MessageBox(
+	  'Cannot find ImageMagick tools for animated image creation',
+	  'Save Animated Image', wx.OK_DEFAULT, self
+	  )
+      file_path = None
+
+    elif file_path == None:
+      dialog = wx.FileDialog(
+          self, 'Save Widget Animated Image', '', '',
+	  'GIF files (*.gif)|*.gif',
+	  wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
+	  )
+      if dialog.ShowModal() != wx.ID_CANCEL:
+        file_path = dialog.GetPath()
+
+    return  file_path
+  #end _CheckAndPromptForAnimatedImage
 
 
   #----------------------------------------------------------------------
@@ -243,12 +277,13 @@ class WidgetContainer( wx.Panel ):
 	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	)
 
-#		-- Dataset menu
+#		-- Dataset menu button
 #		--
     data_model = State.GetDataModel( self.state )
     dataset_type = self.widget.GetDataSetType()
     if dataset_type != None and dataset_type in data_model.dataSetNames:
-      dataset_names = data_model.dataSetNames[ dataset_type ]
+      #dataset_names = data_model.dataSetNames[ dataset_type ]
+      dataset_names = data_model.GetDataSetNames( dataset_type )
       self.dataSetMenu = wx.Menu()
       for name in dataset_names:
         item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
@@ -277,13 +312,33 @@ class WidgetContainer( wx.Panel ):
 	  )
     #end if dataset names to select
 
-#		-- Menu and close buttons
+#		-- Widget menu
 #		--
+#			-- Save image
     self.widgetMenu = wx.Menu()
     save_item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Save Image' )
     self.Bind( wx.EVT_MENU, self._OnSave, save_item )
     self.widgetMenu.AppendItem( save_item )
 
+#			-- Save animated image
+    self.animateMenu = wx.Menu()
+    #lock_set
+    if data_model.GetCore() != None and data_model.GetCore().nax > 1 and \
+        STATE_CHANGE_axialValue in lock_set:
+      anim_item = wx.MenuItem( self.animateMenu, wx.ID_ANY, 'Over Axial Levels' )
+      self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+      self.animateMenu.AppendItem( anim_item )
+    #end if
+    if data_model.GetStates() != None and len( data_model.GetStates() ) > 1 and \
+        STATE_CHANGE_stateIndex in lock_set:
+      anim_item = wx.MenuItem( self.animateMenu, wx.ID_ANY, 'Over State Points' )
+      self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+      self.animateMenu.AppendItem( anim_item )
+    #end if
+
+    self.widgetMenu.AppendMenu( wx.ID_ANY, 'Save Animated Image', self.animateMenu )
+
+#			-- Widget-defined items
     widget_menu_def = self.widget.GetMenuDef( data_model )
     if widget_menu_def != None:
       self.widgetMenu.AppendSeparator()
@@ -294,6 +349,8 @@ class WidgetContainer( wx.Panel ):
       #end for
     #end if widget_menu_def exists
 
+#		-- Widget menu button
+#		--
     menu_im = wx.Image(
           os.path.join( Config.GetResDir(), 'menu_icon_16x16.png' ),
 	  wx.BITMAP_TYPE_PNG
@@ -307,6 +364,8 @@ class WidgetContainer( wx.Panel ):
 	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	)
 
+#		-- Close button
+#		--
     close_im = wx.Image(
 	os.path.join( Config.GetResDir(), 'close_icon_16x16.png' ),
 	wx.BITMAP_TYPE_PNG
@@ -498,6 +557,35 @@ class WidgetContainer( wx.Panel ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnSaveAnimated()				-
+  #----------------------------------------------------------------------
+  def _OnSaveAnimated( self, ev ):
+    """
+"""
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item != None and self.widget.GetState() != None:
+      state = self.widget.GetState()
+      data = State.GetDataModel( state )
+      kwargs = { 'data_model': data, 'state': state }
+      animator = None
+
+      label = item.GetText().lower()
+      if label.find( 'axial' ) > 0:
+        if data.HasDataSetCategory( 'detector' ):
+          animator = DetectorAxialAnimator( **kwargs )
+        elif data.HasDataSetCategory( 'pin' ):
+          animator = PinAxialAnimator( **kwargs )
+      elif label.find( 'state' ) > 0:
+        animator = StatePointAnimator( **kwargs )
+
+      if data != None and animator != None:
+        self.SaveWidgetAnimatedImage( animator )
+    #end if item found
+  #end _OnSaveAnimated
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnWidgetMenu()					-
   #----------------------------------------------------------------------
   def _OnWidgetMenu( self, ev ):
@@ -510,6 +598,47 @@ class WidgetContainer( wx.Panel ):
 
     self.widgetMenuButton.PopupMenu( self.widgetMenu )
   #end _OnWidgetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SaveWidgetAnimatedImage()			-
+  #----------------------------------------------------------------------
+  def SaveWidgetAnimatedImage( self, animator, file_path = None ):
+    """
+Must be called from the UI event thread
+XXXXX
+  All this must be done in a separate thread with Animator
+  Animator copies the current state and waits for state change on
+  widget, then calls CreatePrintImage().
+"""
+    file_path = self._CheckAndPromptForAnimatedImage( file_path )
+
+    if file_path != None:
+      temp_dir = None
+
+      try:
+        self.Freeze()
+        temp_dir = tempfile.mkdtemp( '.animations' )
+
+	count = 0
+	while animator.DoNextStep( self.widget ):
+	  fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
+	  self.widget.CreatePrintImage( fpath )
+	  count += 1
+        #end while
+
+        animator.CreateAnimatedImage( file_path, temp_dir )
+
+      except Exception, ex :
+	msg = 'Error creating image:' + os.linesep + str( ex )
+	wx.CallAfter( wx.MessageBox, msg, 'Save Error', wx.OK_DEFAULT, self )
+
+      finally:
+        self.Thaw()
+	if temp_dir != None:
+	  shutil.rmtree( temp_dir )
+    #end if we have a destination file path
+  #end SaveWidgetAnimatedImage
 
 
   #----------------------------------------------------------------------

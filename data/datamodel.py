@@ -779,6 +779,20 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.HasDataSetCategory()			-
+  #----------------------------------------------------------------------
+  def HasDataSetCategory( self, category = None ):
+    """Tests existence of datasets in category
+@param  category	one of 'axial', 'channel', 'detector', 'pin', 'scalar'
+@return			True if there are datasets, False otherwise
+"""
+    return  \
+        category in self.dataSetNames and \
+	len( self.dataSetNames[ category ] ) > 0
+  #end HasDataSetCategory
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.IsValid()				-
   #----------------------------------------------------------------------
   def IsValid( self, **kwargs ):

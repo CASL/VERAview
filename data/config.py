@@ -3,11 +3,13 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2015-08-29	leerw@ornl.gov				-
+#	  Added test for ImageMagick.
 #		2015-04-11	leerw@ornl.gov				-
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import os
+import os, subprocess
 #import h5py, os, sys, traceback
 #import numpy as np
 
@@ -29,6 +31,7 @@ Static properties (use accessors):
 #		--
 
   defaultDataSetName_ = 'pin_powers'
+  haveImageMagick_ = None
   resDir_ = ''
   rootDir_ = ''
 
@@ -62,6 +65,28 @@ Static properties (use accessors):
   def GetRootDir():
     return  Config.rootDir_
   #end GetRootDir
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		HaveImageMagick()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def HaveImageMagick():
+    """
+@return			True or False
+"""
+    if Config.haveImageMagick_ == None:
+      proc = subprocess.Popen( [ 'convert', '-h' ], stdout = subprocess.PIPE )
+      line = proc.stdout.readline()
+      proc.stdout.readlines()
+      proc.wait()
+
+      Config.haveImageMagick_ = \
+        line != None and line.lower().find( 'version: imagemagick' ) == 0
+    #end if
+
+    return  Config.haveImageMagick_
+  #end HaveImageMagick
 
 
   #----------------------------------------------------------------------

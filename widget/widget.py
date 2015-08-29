@@ -25,7 +25,7 @@
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 #import os, sys, threading, traceback
-import math, os, sys
+import math, os, sys, threading
 import pdb  # set_trace()
 
 try:
@@ -244,8 +244,7 @@ Must be called from the UI thread.
 Placeholder for widget implementations to create a PNG image.
 The default implementation returns None.
 @param  file_path	path to file if the widget creates the image
-@return			either a wx.Image instance that must be saved,
-			the file path saved (should be file_path), or
+@return			the file path saved (should be file_path), or
 			None if not processed
 """
     #return  wx.EmptyImage( 400, 300 )
@@ -394,8 +393,10 @@ Subclasses should override as this implementation returns None
   def HandleStateChange( self, reason ):
     """Note value difference checks must occur in _UpdateState()
 """
+    ct = threading.current_thread()
     print >> sys.stderr, \
-        '[Widget.HandleStateChange] reason=%d' % reason
+        '[Widget.HandleStateChange] reason=%d, thread=%s/%d' % \
+        ( reason, ct.name, -1 if ct.ident == None else ct.ident )
 
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
@@ -419,6 +420,14 @@ Subclasses should override as this implementation returns None
 """
     raise  Exception( "subclasses must implement" )
   #end _InitUI
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		IsBusy()                                        -
+  #----------------------------------------------------------------------
+  def IsBusy( self ):
+    return  self.busy
+  #end IsBusy
 
 
   #----------------------------------------------------------------------

@@ -10,7 +10,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback
 import numpy as np
-import pdb  #pdb.set_trace()
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -328,16 +328,20 @@ specified, a default scale value of 8 is used.
     wx_im = None
 
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
+    print >> sys.stderr, '[RasterWidget.CreatePrintImage] XXXXX tuple=', str( self._CreateStateTuple() )
     pil_im = self._CreateRasterImage( self._CreateStateTuple() )
-    wx_im = wx.EmptyImage( *pil_im.size )
+#    wx_im = wx.EmptyImage( *pil_im.size )
 
-    pil_im_data_str = pil_im.convert( 'RGB' ).tostring()
-    wx_im.SetData( pil_im_data_str )
+#    pil_im_data_str = pil_im.convert( 'RGB' ).tostring()
+#    wx_im.SetData( pil_im_data_str )
 
-    pil_im_data_str = pil_im.convert( 'RGBA' ).tostring()
-    wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
+#    pil_im_data_str = pil_im.convert( 'RGBA' ).tostring()
+#    wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
+#    #return  wx_im
 
-    return  wx_im
+#    wx_im.SaveFile( file_path, wx.BITMAP_TYPE_PNG )
+    pil_im.save( file_path, 'PNG' )
+    return  file_path
   #end CreatePrintImage
 
 
