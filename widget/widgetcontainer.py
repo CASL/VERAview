@@ -33,7 +33,7 @@
 #------------------------------------------------------------------------
 #import os, sys, threading, traceback
 import functools, math, os, shutil, sys, tempfile
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -77,6 +77,27 @@ EVENT_LOCK_PAIRS = \
 
 WIDGET_PREF_RATIO = 1.2
 WIDGET_PREF_SIZE = ( 480, 400 )
+
+
+#------------------------------------------------------------------------
+#	CLASS:		AnimationCallback				-
+#------------------------------------------------------------------------
+class AnimationCallback( object ):
+
+
+  def __call__( self, i, n, msg = None ):
+    n = max( n, 1 )
+    print >> sys.stderr, \
+        '[AnimationCallback] %d/%d (%.2f%%) %s' % \
+	( i, n, i * 100.0 / n, '' if msg == None else msg )
+  #end __call__
+
+
+  def __init__( self ):
+    pass
+  #end __init__
+
+#end AnimationCallback
 
 
 #------------------------------------------------------------------------
@@ -565,22 +586,36 @@ Must be called on the UI thread.
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
     if item != None and self.widget.GetState() != None:
-      state = self.widget.GetState()
-      data = State.GetDataModel( state )
-      kwargs = { 'data_model': data, 'state': state }
-      animator = None
 
-      label = item.GetText().lower()
-      if label.find( 'axial' ) > 0:
-        if data.HasDataSetCategory( 'detector' ):
-          animator = DetectorAxialAnimator( **kwargs )
-        elif data.HasDataSetCategory( 'pin' ):
-          animator = PinAxialAnimator( **kwargs )
-      elif label.find( 'state' ) > 0:
-        animator = StatePointAnimator( **kwargs )
+      try:
+        animator = None
+        kwargs = { 'callback': AnimationCallback(), 'widget': self.widget }
 
-      if data != None and animator != None:
-        self.SaveWidgetAnimatedImage( animator )
+        data = State.GetDataModel( self.widget.GetState() )
+        label = item.GetText().lower()
+        if label.find( 'axial' ) > 0:
+          if data.HasDataSetCategory( 'detector' ):
+            animator = DetectorAxialAnimator(
+		self.widget, callback = AnimationCallback()
+	        )
+          elif data.HasDataSetCategory( 'pin' ):
+            animator = PinAxialAnimator(
+		self.widget, callback = AnimationCallback()
+	        )
+        elif label.find( 'state' ) > 0:
+          animator = StatePointAnimator(
+	      self.widget, callback = AnimationCallback()
+	      )
+
+        if animator != None:
+          self.SaveWidgetAnimatedImage( animator )
+      #end try
+
+      except Exception, ex:
+        wx.MessageBox(
+	    'Cannot animate the widget, data missing:\n' + str( ex ),
+	    'Save Animated Image', wx.OK_DEFAULT, self
+	    )
     #end if item found
   #end _OnSaveAnimated
 
@@ -606,37 +641,11 @@ Must be called on the UI thread.
   def SaveWidgetAnimatedImage( self, animator, file_path = None ):
     """
 Must be called from the UI event thread
-XXXXX
-  All this must be done in a separate thread with Animator
-  Animator copies the current state and waits for state change on
-  widget, then calls CreatePrintImage().
 """
     file_path = self._CheckAndPromptForAnimatedImage( file_path )
 
     if file_path != None:
-      temp_dir = None
-
-      try:
-        self.Freeze()
-        temp_dir = tempfile.mkdtemp( '.animations' )
-
-	count = 0
-	while animator.DoNextStep( self.widget ):
-	  fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
-	  self.widget.CreatePrintImage( fpath )
-	  count += 1
-        #end while
-
-        animator.CreateAnimatedImage( file_path, temp_dir )
-
-      except Exception, ex :
-	msg = 'Error creating image:' + os.linesep + str( ex )
-	wx.CallAfter( wx.MessageBox, msg, 'Save Error', wx.OK_DEFAULT, self )
-
-      finally:
-        self.Thaw()
-	if temp_dir != None:
-	  shutil.rmtree( temp_dir )
+      animator.Start( file_path )
     #end if we have a destination file path
   #end SaveWidgetAnimatedImage
 

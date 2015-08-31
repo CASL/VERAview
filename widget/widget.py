@@ -209,6 +209,16 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CreateAnimateImages()				-
+  #----------------------------------------------------------------------
+  def CreateAnimateImages( self, temp_dir, over = 'axial' ):
+    """
+"""
+    return  False
+  #end CreateAnimateImages
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_CreateLegendPilImage()				-
   #----------------------------------------------------------------------
   def _CreateLegendPilImage( self, value_range, font_size = 16 ):

@@ -325,10 +325,9 @@ specified, a default scale value of 8 is used.
   #	METHOD:		RasterWidget.CreatePrintImage()			-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
-    wx_im = None
+#    wx_im = None
 
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
-    print >> sys.stderr, '[RasterWidget.CreatePrintImage] XXXXX tuple=', str( self._CreateStateTuple() )
     pil_im = self._CreateRasterImage( self._CreateStateTuple() )
 #    wx_im = wx.EmptyImage( *pil_im.size )
 
@@ -340,7 +339,8 @@ specified, a default scale value of 8 is used.
 #    #return  wx_im
 
 #    wx_im.SaveFile( file_path, wx.BITMAP_TYPE_PNG )
-    pil_im.save( file_path, 'PNG' )
+    if pil_im != None:
+      pil_im.save( file_path, 'PNG' )
     return  file_path
   #end CreatePrintImage
 
