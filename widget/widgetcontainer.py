@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Fixed _OnSaveAnimated() and SaveWidgetAnimatedImage().
 #		2015-08-29	leerw@ornl.gov				-
 #	  Adding capability to save animated gif.
 #		2015-06-15	leerw@ornl.gov				-
@@ -46,19 +48,20 @@ from event.state import *
 import widget
 
 
-EVENT_LOCK_PAIRS = \
-  [
-    ( STATE_CHANGE_assemblyIndex, 'Assy' ),
-    ( STATE_CHANGE_axialValue, 'Axial' ),
-    ( STATE_CHANGE_channelColRow, 'Channel' ),
-    ( STATE_CHANGE_channelDataSet, 'Channel Data' ),
-    ( STATE_CHANGE_detectorIndex, 'Detector' ),
-    ( STATE_CHANGE_detectorDataSet, 'Detector Data' ),
-    ( STATE_CHANGE_pinColRow, 'Pin' ),
-    ( STATE_CHANGE_pinDataSet, 'Pin Data' ),
-    ( STATE_CHANGE_scalarDataSet, 'Scalar Data' ),
-    ( STATE_CHANGE_stateIndex, 'State' )
-  ]
+## Now using events_chooser
+#EVENT_LOCK_PAIRS = \
+#  [
+#    ( STATE_CHANGE_assemblyIndex, 'Assy' ),
+#    ( STATE_CHANGE_axialValue, 'Axial' ),
+#    ( STATE_CHANGE_channelColRow, 'Channel' ),
+#    ( STATE_CHANGE_channelDataSet, 'Channel Data' ),
+#    ( STATE_CHANGE_detectorIndex, 'Detector' ),
+#    ( STATE_CHANGE_detectorDataSet, 'Detector Data' ),
+#    ( STATE_CHANGE_pinColRow, 'Pin' ),
+#    ( STATE_CHANGE_pinDataSet, 'Pin Data' ),
+#    ( STATE_CHANGE_scalarDataSet, 'Scalar Data' ),
+#    ( STATE_CHANGE_stateIndex, 'State' )
+#  ]
 
 
 ###WIDGET_PREF_SIZE = ( 648, 405 )  # 1.6
@@ -664,7 +667,8 @@ Must be called from the UI event thread
     file_path = self._CheckAndPromptForAnimatedImage( file_path )
 
     if file_path != None:
-      animator.Start( file_path )
+      animator.Run( file_path )
+      #animator.Start( file_path )
     #end if we have a destination file path
   #end SaveWidgetAnimatedImage
 
