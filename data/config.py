@@ -76,7 +76,10 @@ Static properties (use accessors):
 @return			True or False
 """
     if Config.haveImageMagick_ == None:
-      proc = subprocess.Popen( [ 'convert', '-h' ], stdout = subprocess.PIPE )
+      proc = subprocess.Popen(
+          [ 'convert', '-h' ],
+	  shell = True, stdout = subprocess.PIPE
+	  )
       line = proc.stdout.readline()
       proc.stdout.readlines()
       proc.wait()
