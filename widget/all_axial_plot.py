@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Added GetAnimationIndexes().
 #		2015-08-20	leerw@ornl.gov				-
 #	  Adding special references for selected datasets.
 #		2015-07-27	leerw@ornl.gov				-
@@ -312,6 +314,19 @@ calls self.ax.grid() and can be called by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetAnimationIndexes()				-
+  #----------------------------------------------------------------------
+  def GetAnimationIndexes( self ):
+    """Accessor for the list of indexes over which this widget can be
+animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
+@return			list of indexes or None
+"""
+    return  ( 'statepoint', )
+    #return  ( 'axial:detector', 'axial:pin', 'statepoint' )
+  #end GetAnimationIndexes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetAxialValue()					-
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
@@ -423,8 +438,8 @@ XXX size according to how many datasets selected?
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """This noop version should be implemented in subclasses to create a dict
-to be passed to _UpdateState().  Assume self.data is valid.
-@return			dict to be passed to _UpdateState()
+to be passed to UpdateState().  Assume self.data is valid.
+@return			dict to be passed to UpdateState()
 """
     self.dataSetDialog = None
     if self.data != None and self.data.HasData():
@@ -464,7 +479,7 @@ to be passed to _UpdateState().  Assume self.data is valid.
     button = ev.button or 1
     if button == 1 and self.cursor != None:
       axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
-      self._UpdateState( axial_value = axial_value )
+      self.UpdateState( axial_value = axial_value )
       self.FireStateChange( axial_value = axial_value )
   #end _OnMplMouseRelease
 
@@ -493,7 +508,7 @@ to be passed to _UpdateState().  Assume self.data is valid.
       selections = self.dataSetDialog.GetResult()
       if selections != None:
         self.dataSetSelections = selections
-	self._UpdateState( replot = True )
+	self.UpdateState( replot = True )
     #end if
   #end _OnSelectDataSets
 
@@ -504,7 +519,7 @@ to be passed to _UpdateState().  Assume self.data is valid.
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    wx.CallAfter( self._UpdateState, pin_dataset = ds_name )
+    wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
     self.FireStateChange( pin_dataset = ds_name )
   #end SetDataSet
 

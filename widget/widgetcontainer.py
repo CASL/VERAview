@@ -31,9 +31,8 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-#import os, sys, threading, traceback
-import functools, math, os, shutil, sys, tempfile
-import pdb  #pdb.set_trace()
+import functools, math, os, sys
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -342,22 +341,43 @@ Must be called on the UI thread.
     self.widgetMenu.AppendItem( save_item )
 
 #			-- Save animated image
-    self.animateMenu = wx.Menu()
-    #lock_set
-    if data_model.GetCore() != None and data_model.GetCore().nax > 1 and \
-        STATE_CHANGE_axialValue in lock_set:
-      anim_item = wx.MenuItem( self.animateMenu, wx.ID_ANY, 'Over Axial Levels' )
-      self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
-      self.animateMenu.AppendItem( anim_item )
-    #end if
-    if data_model.GetStates() != None and len( data_model.GetStates() ) > 1 and \
-        STATE_CHANGE_stateIndex in lock_set:
-      anim_item = wx.MenuItem( self.animateMenu, wx.ID_ANY, 'Over State Points' )
-      self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
-      self.animateMenu.AppendItem( anim_item )
-    #end if
+    anim_indexes = self.widget.GetAnimationIndexes()
+    if anim_indexes != None:
+      self.animateMenu = wx.Menu()
+      anim_indexes = self.widget.GetAnimationIndexes()
 
-    self.widgetMenu.AppendMenu( wx.ID_ANY, 'Save Animated Image', self.animateMenu )
+      if 'axial:detector' in anim_indexes and \
+        data_model.GetCore().ndetax > 1 and \
+	data_model.HasDataSetCategory( 'detector' ):
+          anim_item = wx.MenuItem(
+	      self.animateMenu, wx.ID_ANY, 'Detector Axial Levels'
+	      )
+          self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+          self.animateMenu.AppendItem( anim_item )
+      #end 'axial:detector'
+
+      if 'axial:pin' in anim_indexes and \
+        data_model.GetCore().nax > 1 and \
+	data_model.HasDataSetCategory( 'pin' ):
+          anim_item = wx.MenuItem(
+	      self.animateMenu, wx.ID_ANY, 'Pin Axial Levels'
+	      )
+          self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+          self.animateMenu.AppendItem( anim_item )
+      #end 'axial:detector'
+
+      if 'statepoint' in anim_indexes and len( data_model.GetStates() ) > 1:
+          anim_item = wx.MenuItem(
+	      self.animateMenu, wx.ID_ANY, 'State Points'
+	      )
+          self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+          self.animateMenu.AppendItem( anim_item )
+      #end 'axial:detector'
+
+      self.widgetMenu.AppendMenu(
+          wx.ID_ANY, 'Save Animated Image', self.animateMenu
+	  )
+    #end if anim_indexes for this widget
 
 #			-- Widget-defined items
     widget_menu_def = self.widget.GetMenuDef( data_model )
@@ -585,26 +605,25 @@ Must be called on the UI thread.
 """
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item != None and self.widget.GetState() != None:
 
+    if item != None and self.widget.GetState() != None:
       try:
         animator = None
-        kwargs = { 'callback': AnimationCallback(), 'widget': self.widget }
 
-        data = State.GetDataModel( self.widget.GetState() )
         label = item.GetText().lower()
-        if label.find( 'axial' ) > 0:
-          if data.HasDataSetCategory( 'detector' ):
-            animator = DetectorAxialAnimator(
-		self.widget, callback = AnimationCallback()
-	        )
-          elif data.HasDataSetCategory( 'pin' ):
-            animator = PinAxialAnimator(
-		self.widget, callback = AnimationCallback()
-	        )
-        elif label.find( 'state' ) > 0:
-          animator = StatePointAnimator(
-	      self.widget, callback = AnimationCallback()
+	if label.find( 'detector axial' ) >= 0:
+	  animator = DetectorAxialAnimator(
+              self.widget, callback = AnimationCallback()
+	      )
+
+	elif label.find( 'pin axial' ) >= 0:
+	  animator = PinAxialAnimator(
+              self.widget, callback = AnimationCallback()
+	      )
+
+	elif label.find( 'state' ) >= 0:
+	  animator = StatePointAnimator(
+              self.widget, callback = AnimationCallback()
 	      )
 
         if animator != None:

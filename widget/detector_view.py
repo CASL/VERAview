@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Added GetAnimationIndexes().
 #		2015-06-18	leerw@ornl.gov				-
 # 	  Extending RasterWidget.
 #		2015-06-15	leerw@ornl.gov				-
@@ -455,6 +457,18 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Detector2DView.GetAnimationIndexes()		-
+  #----------------------------------------------------------------------
+  def GetAnimationIndexes( self ):
+    """Accessor for the list of indexes over which this widget can be
+animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
+@return			list of indexes or None
+"""
+    return  ( 'statepoint' )
+  #end GetAnimationIndexes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Detector2DView.GetDataSetType()			-
   #----------------------------------------------------------------------
   def GetDataSetType( self ):
@@ -607,7 +621,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     """May be called from any thread.
 """
     if ds_name != self.detectorDataSet:
-      wx.CallAfter( self._UpdateState, detector_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, detector_dataset = ds_name )
       self.FireStateChange( detector_dataset = ds_name )
   #end SetDataSet
 

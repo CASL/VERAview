@@ -116,13 +116,9 @@ WIDGET_MAP = \
   'Core 2D View': 'widget.core_view.Core2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
   'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
-  'Exposure Plot': 'widget.exposure_plot.ExposurePlot',
   'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
   'Time Plot': 'widget.time_plot.TimePlot'
   }
-#  'Core Keff Plot': 'widget.core_keff.CoreKeffPlot',
-#  'Dummy': 'widget.basewidget.BaseWidget',
-#  'Pin Axial Power Plot': 'widget.pin_axial_power.PinAxialPowerPlot'
 
 
 #------------------------------------------------------------------------

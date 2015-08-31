@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_axial_plot.py				-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
 #	  Fixing order of dataset references to row, col, axial, assy
 #	  instead of col, row, ...
@@ -140,6 +142,18 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetAnimationIndexes()				-
+  #----------------------------------------------------------------------
+  def GetAnimationIndexes( self ):
+    """Accessor for the list of indexes over which this widget can be
+animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
+@return			list of indexes or None
+"""
+    return  ( 'statepoint' )
+  #end GetAnimationIndexes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetAxialLevel()					-
   #----------------------------------------------------------------------
 #  def GetAxialLevel( self ):
@@ -204,22 +218,15 @@ Properties:
       if (reason & STATE_CHANGE_assemblyIndex) > 0:
         if self.state.assemblyIndex != self.assemblyIndex:
           update_args[ 'assy_ndx' ] = self.state.assemblyIndex
-          #wx.CallAfter( self._UpdateState, assy_ndx = self.state.assemblyIndex )
       #end if
 
       if (reason & STATE_CHANGE_axialValue) > 0:
         if self.state.axialValue != self.axialValue:
           update_args[ 'axial_value' ] = self.state.axialValue
-#      if (reason & STATE_CHANGE_axialLevel) > 0:
-#        if self.state.axialLevel != self.axialLevel:
-#          update_args[ 'axial_level' ] = self.state.axialLevel
-#          #wx.CallAfter( self._UpdateState, axial_level = self.state.axialLevel )
-#      #end if
 
       if (reason & STATE_CHANGE_pinColRow) > 0:
         if self.state.pinColRow != self.pinColRow:
           update_args[ 'pin_colrow' ] = self.state.pinColRow
-          #wx.CallAfter( self._UpdateState, pin_colrow = self.state.pinColRow )
       #end if
 
       if (reason & STATE_CHANGE_pinDataSet) > 0:
@@ -230,14 +237,13 @@ Properties:
       if (reason & STATE_CHANGE_stateIndex) > 0:
         if self.state.stateIndex != self.stateIndex:
 	  update_args[ 'state_ndx' ] = self.state.stateIndex
-          #wx.CallAfter( self._UpdateState, state_ndx = self.state.stateIndex )
       #end if
 
       if (reason & STATE_CHANGE_timeDataSet) > 0:
         update_args[ 'replot' ] = True
 
       if len( update_args ) > 0:
-        wx.CallAfter( self._UpdateState, **update_args )
+        wx.CallAfter( self.UpdateState, **update_args )
     #end else not a data model load
   #end HandleStateChange_
 
@@ -302,7 +308,7 @@ model.
 	'pin_colrow': pin_colrow,
 	'state_index': max( 0, self.state.stateIndex )
 	}
-      wx.CallAfter( self._UpdateState, **update_args )
+      wx.CallAfter( self.UpdateState, **update_args )
     #end if
   #end _LoadDataModel
 
@@ -358,7 +364,7 @@ model.
     button = ev.button or 1
     if button == 1 and self.cursor != None:
       axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
-      self._UpdateState( axial_value = axial_value )
+      self.UpdateState( axial_value = axial_value )
       self.FireStateChange( axial_value = axial_value )
   #end _OnMplMouseRelease
 
@@ -374,10 +380,10 @@ model.
     print >> sys.stderr, '[PinAxialPlot._OnSize] clientSize=%d,%d' % ( wd, ht )
 
     if wd > 0 and ht > 0 and self.data != None:
-      self._UpdateState( replot = True )
+      self.UpdateState( replot = True )
 #      axial_level = self.axialLevel
 #      self.axialLevel = -1
-#      self._UpdateState( axial_level = axial_level, replot = True )
+#      self.UpdateState( axial_level = axial_level, replot = True )
   #end _OnSize
 
 
@@ -387,7 +393,7 @@ model.
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    wx.CallAfter( self._UpdateState, pin_dataset = ds_name )
+    wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
     self.FireStateChange( pin_dataset = ds_name )
   #end SetDataSet
 
@@ -479,10 +485,10 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateState()					-
+  #	METHOD:		UpdateState()					-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------
-  def _UpdateState( self, **kwargs ):
+  def UpdateState( self, **kwargs ):
     """
 Must be called from the UI thread.
 """
@@ -542,6 +548,6 @@ Must be called from the UI thread.
 
     elif redraw:
       self.canvas.draw()
-  #end _UpdateState
+  #end UpdateState
 
 #end PinAxialPlot

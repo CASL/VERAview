@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
 #	  Fixing order of dataset references to row, col, axial, assy
 #	  instead of col, row, ...
@@ -774,6 +776,18 @@ The config and data attributes are good to go.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core2DView.GetAnimationIndexes()		-
+  #----------------------------------------------------------------------
+  def GetAnimationIndexes( self ):
+    """Accessor for the list of indexes over which this widget can be
+animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
+@return			list of indexes or None
+"""
+    return  ( 'axial:pin', 'statepoint' )
+  #end GetAnimationIndexes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core2DView.GetDataSetType()			-
   #----------------------------------------------------------------------
   def GetDataSetType( self ):
@@ -1070,7 +1084,7 @@ The config and data attributes are good to go.
     """May be called from any thread.
 """
     if ds_name != self.pinDataSet:
-      wx.CallAfter( self._UpdateState, pin_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
       self.FireStateChange( pin_dataset = ds_name )
   #end SetDataSet
 

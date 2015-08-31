@@ -164,7 +164,7 @@ Properties:
     elif (reason & STATE_CHANGE_stateIndex) > 0:
       print >> sys.stderr, '[ExposurePlot.HandleStateChange] state.stateIndex=%d, self.stateIndex=%d' % ( self.state.stateIndex, self.stateIndex )
       if self.state.stateIndex != self.stateIndex:
-        wx.CallAfter( self._UpdateState, state_ndx = self.state.stateIndex )
+        wx.CallAfter( self.UpdateState, state_ndx = self.state.stateIndex )
   #end HandleStateChange
 
 
@@ -218,7 +218,7 @@ model.
 	}
       self.scalarName = ''
       self.stateIndex = -1
-      wx.CallAfter( self._UpdateState, **update_args )
+      wx.CallAfter( self.UpdateState, **update_args )
     #end if
   #end _LoadDataModel
 
@@ -275,7 +275,7 @@ model.
     if button == 1 and self.cursor != None:
       state_ndx = self.data.FindListIndex( self.exposureValues, self.cursor[ 0 ] )
       if state_ndx >= 0:
-        self._UpdateState(
+        self.UpdateState(
 	    exposure_value = self.cursor[ 0 ],
 	    state_ndx = state_ndx
 	    )
@@ -297,8 +297,8 @@ model.
 
       state_ndx = self.stateIndex
       self.stateIndex = -1
-#      self._UpdateState( state_ndx = state_ndx )
-      self._UpdateState( replot = True, state_ndx = state_ndx )
+#      self.UpdateState( state_ndx = state_ndx )
+      self.UpdateState( replot = True, state_ndx = state_ndx )
   #end _OnSize
 
 
@@ -308,7 +308,7 @@ model.
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    wx.CallAfter( self._UpdateState, scalar_dataset = ds_name )
+    wx.CallAfter( self.UpdateState, scalar_dataset = ds_name )
     self.FireStateChange( scalar_dataset = ds_name )
   #end SetDataSet
 
@@ -365,11 +365,10 @@ model.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateState()					-
+  #	METHOD:		UpdateState()					-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------
-  #def _UpdateState( self, state_ndx, exposure_value = None ):
-  def _UpdateState( self, **kwargs ):
+  def UpdateState( self, **kwargs ):
     """
 Must be called from the UI thread.
 """
@@ -427,6 +426,6 @@ Must be called from the UI thread.
 
     elif redraw:
       self.canvas.draw()
-  #end _UpdateState
+  #end UpdateState
 
 #end ExposurePlot

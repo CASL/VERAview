@@ -202,8 +202,8 @@ calls self.ax.grid() and can be called by subclasses.
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """This noop version should be implemented in subclasses to create a dict
-to be passed to _UpdateState().  Assume self.data is valid.
-@return			dict to be passed to _UpdateState()
+to be passed to UpdateState().  Assume self.data is valid.
+@return			dict to be passed to UpdateState()
 """
     if self.data != None and self.data.HasData():
       update_args = \
@@ -229,7 +229,7 @@ to be passed to _UpdateState().  Assume self.data is valid.
     if button == 1 and self.cursor != None:
       state_ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
       if state_ndx >= 0:
-        self._UpdateState( state_index = state_ndx )
+        self.UpdateState( state_index = state_ndx )
 	self.FireStateChange( state_index = state_ndx )
   #end _OnMplMouseRelease
 
@@ -240,7 +240,7 @@ to be passed to _UpdateState().  Assume self.data is valid.
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    wx.CallAfter( self._UpdateState, scalar_dataset = ds_name )
+    wx.CallAfter( self.UpdateState, scalar_dataset = ds_name )
     self.FireStateChange( scalar_dataset = ds_name )
   #end SetDataSet
 

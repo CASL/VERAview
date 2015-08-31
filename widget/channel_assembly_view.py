@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
 #	  Fixing order of dataset references to row, col, axial, assy
 #	  instead of col, row, ...
@@ -465,6 +467,18 @@ drag processing.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetAnimationIndexes()				-
+  #----------------------------------------------------------------------
+  def GetAnimationIndexes( self ):
+    """Accessor for the list of indexes over which this widget can be
+animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
+@return			list of indexes or None
+"""
+    return  ( 'axial:pin', 'statepoint' )
+  #end GetAnimationIndexes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		ChannelAssembly2DView.GetDataSetType()		-
   #----------------------------------------------------------------------
   def GetDataSetType( self ):
@@ -679,7 +693,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 
 #		-- Redraw
 #		--
-    self._UpdateState( resized = True )
+    self.UpdateState( resized = True )
   #end _OnTogglePins
 
 
@@ -690,7 +704,7 @@ attributes/properties that aren't already set in _LoadDataModel():
     """May be called from any thread.
 """
     if ds_name != self.channelDataSet:
-      wx.CallAfter( self._UpdateState, channel_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, channel_dataset = ds_name )
       self.FireStateChange( channel_dataset = ds_name )
   #end SetDataSet
 

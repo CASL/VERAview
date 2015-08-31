@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2015-08-31	leerw@ornl.gov				-
+#	  Added GetAnimationIndexes().  Renamed _UpdateState() to
+#	  UpdateState() since now called by Animator.
 #		2015-06-15	leerw@ornl.gov				-
 #	  Refactoring, generalization.
 #		2015-05-11	leerw@ornl.gov				-
@@ -297,6 +300,18 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetAnimationIndexes()				-
+  #----------------------------------------------------------------------
+  def GetAnimationIndexes( self ):
+    """Accessor for the list of indexes over which this widget can be
+animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
+@return			list of indexes or None
+"""
+    return  None
+  #end GetAnimationIndexes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetContainer()					-
   #----------------------------------------------------------------------
   def GetContainer( self ):
@@ -401,7 +416,7 @@ Subclasses should override as this implementation returns None
   #	METHOD:		HandleStateChange()				-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
-    """Note value difference checks must occur in _UpdateState()
+    """Note value difference checks must occur in UpdateState()
 """
     ct = threading.current_thread()
     print >> sys.stderr, \
@@ -417,7 +432,7 @@ Subclasses should override as this implementation returns None
     else:
       update_args = self.state.CreateUpdateArgs( reason )
       if len( update_args ) > 0:
-        wx.CallAfter( self._UpdateState, **update_args )
+        wx.CallAfter( self.UpdateState, **update_args )
     #end else not a data model load
   #end HandleStateChange
 
@@ -506,13 +521,13 @@ Subclasses should override as this implementation returns None
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateState()					-
+  #	METHOD:		UpdateState()					-
   #----------------------------------------------------------------------
-  def _UpdateState( self, **kwargs ):
+  def UpdateState( self, **kwargs ):
     """Must be implemented by extensions.  This is a noop implementation
 """
     pass
-  #end _UpdateState
+  #end UpdateState
 
 
   #----------------------------------------------------------------------

@@ -225,7 +225,7 @@ model.
     self.data = State.GetDataModel( self.state )
     if self.data != None and self.data.HasData():
       update_args = self._LoadDataModelValues()
-      wx.CallAfter( self._UpdateState, **update_args )
+      wx.CallAfter( self.UpdateState, **update_args )
   #end _LoadDataModel
 
 
@@ -234,8 +234,8 @@ model.
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """This noop version should be implemented in subclasses to create a dict
-to be passed to _UpdateState().  Assume self.data is valid.
-@return			dict to be passed to _UpdateState()
+to be passed to UpdateState().  Assume self.data is valid.
+@return			dict to be passed to UpdateState()
 """
     return  {}
   #end _LoadDataModelValues
@@ -346,7 +346,7 @@ This noop version must be overridden by subclasses.
     print >> sys.stderr, '[PlotWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
 
     if wd > 0 and ht > 0 and self.data != None:
-      self._UpdateState( replot = True )
+      self.UpdateState( replot = True )
   #end _OnSize
 
 
@@ -417,10 +417,10 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateState()					-
+  #	METHOD:		UpdateState()					-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------
-  def _UpdateState( self, **kwargs ):
+  def UpdateState( self, **kwargs ):
     """
 Must be called from the UI thread.
 """
@@ -435,7 +435,7 @@ Must be called from the UI thread.
 
     elif redraw:
       self.canvas.draw()
-  #end _UpdateState
+  #end UpdateState
 
 
   #----------------------------------------------------------------------

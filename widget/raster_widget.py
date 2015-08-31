@@ -738,7 +738,7 @@ This implementation is a noop.
       self._BusyBegin()
       self.curSize = ( wd, ht )
       #wx.CallAfter( self._Configure )
-      wx.CallAfter( self._UpdateState, resized = True )
+      wx.CallAfter( self.UpdateState, resized = True )
   #end _OnSize
 
 
@@ -776,7 +776,7 @@ This implementation is a noop.
 
 #		-- Redraw
 #		--
-    self._UpdateState( resized = True )
+    self.UpdateState( resized = True )
   #end _OnToggleLabels
 
 
@@ -814,7 +814,7 @@ This implementation is a noop.
 
 #		-- Redraw
 #		--
-    self._UpdateState( resized = True )
+    self.UpdateState( resized = True )
   #end _OnToggleLegend
 
 
@@ -831,10 +831,10 @@ This implementation is a noop.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget._UpdateState()			-
+  #	METHOD:		RasterWidget.UpdateState()			-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------
-  def _UpdateState( self, **kwargs ):
+  def UpdateState( self, **kwargs ):
     """Called to update the components on a new state property.
 Calls _UpdateStateValues().
 @param  kwargs		any state change values plus 'resized', 'changed'
@@ -864,7 +864,7 @@ Calls _UpdateStateValues().
 
       if must_create_image:
         print >> sys.stderr, \
-	    '[RasterWidget._UpdateState] starting worker, tpl=%s' % \
+	    '[RasterWidget.UpdateState] starting worker, tpl=%s' % \
 	    str( tpl )
         wxlibdr.startWorker(
 	    self._BitmapThreadFinish,
@@ -874,7 +874,7 @@ Calls _UpdateStateValues().
       else:
         self._BusyEnd()
     #end if
-  #end _UpdateState
+  #end UpdateState
 
 
   #----------------------------------------------------------------------
