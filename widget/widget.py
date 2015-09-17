@@ -257,8 +257,7 @@ Must be called from the UI thread.
 Placeholder for widget implementations to create a PNG image.
 The default implementation returns None.
 @param  file_path	path to file if the widget creates the image
-@return			the file path saved (should be file_path), or
-			None if not processed
+@return			file_path or None if not processed
 """
     #return  wx.EmptyImage( 400, 300 )
     return  None

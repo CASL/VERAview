@@ -42,8 +42,8 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import argparse, glob, os, shutil, sys, tempfile, threading, traceback
-import pdb  # set_trace()
+import argparse, os, sys, threading, traceback
+#import pdb  # set_trace()
 
 try:
   import wx
@@ -1151,19 +1151,14 @@ Must be called on the UI event thread.
       #end if
 
       if file_path != None:
-	temp_dir = None
         try:
-	  temp_dir = tempfile.mkdtemp( 'veraview', 'images' )
-	  count = 0
-
+	  widgets = []
 	  for wc in self.grid.GetChildren():
-	    name = 'image.%03d.png' % count
-	    wc.widget.CreatePrintImage( os.path.join( temp_dir, name ) )
-	  #end for child widget containers
+	    widgets.append( wc.widget )
 
-	  montager = ImageMontager(
+	  montager = WidgetImageMontager(
 	      result_path = file_path,
-	      images = sorted( glob.glob( os.path.join( temp_dir, '*.png' ) ) ),
+	      widgets = widgets,
 	      cols = self.grid.GetSizer().GetCols()
 	      )
 	  montager.Run( 'Save Widgets Image' )
@@ -1171,18 +1166,8 @@ Must be called on the UI event thread.
 	except Exception, ex:
 	  msg = 'Error saving image:' + os.linesep + str( ex )
           self.ShowMessageDialog( msg, 'Save Image' )
-
-        finally:
-	  if temp_dir != None:
-	    shutil.rmtree( temp_dir )
       #end if
     #end else we have child widget containers
-
-    for child in self.GetChildren():
-      if isinstance( child, WidgetContainer ):
-	child.SaveWidgetImage()
-	break
-    #end for
   #end SaveWidgetsImage
 
 
