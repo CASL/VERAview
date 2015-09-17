@@ -88,7 +88,6 @@ Creates a separate thread with the _Run() method as target.
     try:
 #			-- Open images to get sizes
 #			--
-      pdb.set_trace()
       im_wd, im_ht = -1, -1
       pil_images = []
       for name in self.images:
