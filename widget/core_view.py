@@ -68,7 +68,7 @@ try:
   import PIL.Image, PIL.ImageDraw, PIL.ImageFont
   #from PIL import Image, ImageDraw
 except Exception:
-  raise ImportError, 'The Python Imaging Library (PIL) required for this component'
+  raise ImportError, 'The Python Imaging Library (PIL) is required for this component'
 
 #from bean.axial_slider import *
 #from bean.exposure_slider import *

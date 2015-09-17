@@ -3,10 +3,10 @@
 
 __all__ = \
   [
-    'all_axial_plot', 'assembly_view',
+    'all_axial_plot', 'animators', 'assembly_view',
     'channel_assembly_view', 'channel_view',
     'core_view', 'detector_axial_plot', 'detector_view',
-    'exposure_plot', 'legend', 'pin_axial_plot',
+    'exposure_plot', 'image_ops', 'legend', 'pin_axial_plot',
     'plot_widget', 'raster_widget', 'time_plot',
     'widget', 'widgetcontainer'
   ]

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-09-17	leerw@ornl.gov				-
+#	  Remove erroneous 'func' from the Time Plot toolbar item definition.
+#	  Began addition of the "plot everything" function.
 #		2015-08-25	leerw@ornl.gov				-
 #	  Replacing various axial plots with AllAxialPlot and specific
 #	  "selected" datasets enabled.
@@ -39,8 +42,8 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import argparse, os, sys, threading, traceback
-#import pdb  # set_trace()
+import argparse, glob, os, shutil, sys, tempfile, threading, traceback
+import pdb  # set_trace()
 
 try:
   import wx
@@ -56,6 +59,7 @@ from data.datamodel import *
 
 from event.state import *
 
+from widget.image_ops import *
 from widget.widgetcontainer import *
 
 from widget.bean.axial_slider import *
@@ -95,14 +99,16 @@ TOOLBAR_ITEMS = \
     {
     'widget': 'Time Plot', 'icon': 'TimePlot.32.png',
 #    'widget': 'Time Plot', 'icon': 'exposure_plot_32x32.png',
-    'type': 'scalar',
-    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
+    'type': 'scalar'
+#    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
     {
     'widget': 'Pin Axial Plot', 'icon': 'axial_plot_32x32.png', 'type': 'pin'
     },
     {
-    'widget': 'Axial Plots', 'icon': 'all_axial_plot_32x32.png', 'type': ''
+#    'widget': 'Axial Plots', 'icon': 'all_axial_plot_32x32.png',
+    'widget': 'Axial Plots', 'icon': 'AllAxialPlot.32.png',
+    'type': ''
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     }
   ]
@@ -470,6 +476,14 @@ class VeraViewFrame( wx.Frame ):
 #    save_im_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Save Image\tCtrl+S' )
 #    self.Bind( wx.EVT_MENU, self._OnSaveWindow, save_im_item )
 #    file_menu.AppendItem( save_im_item )
+
+    file_menu.AppendSeparator()
+    save_item = wx.MenuItem(
+        file_menu, wx.ID_ANY,
+	'&Save Image of All Widgets\tCtrl+Shift+S'
+	)
+    self.Bind( wx.EVT_MENU, self._OnSaveImageAllWidgets, save_item )
+    file_menu.AppendItem( save_item )
 
     file_menu.AppendSeparator()
     quit_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Quit\tCtrl+Q' )
@@ -917,6 +931,17 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnSaveImageAllWidgets()		-
+  #----------------------------------------------------------------------
+  def _OnSaveImageAllWidgets( self, ev ):
+    """
+Must be called on the UI event thread.
+"""
+    self.SaveWidgetsImage()
+  #end _OnSaveImageAllWidgets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnSaveWindow()			-
   #----------------------------------------------------------------------
 #  def _OnSaveWindow( self, ev ):
@@ -1102,6 +1127,63 @@ Must be called from the UI thread.
 #    result = '%d: %s' % ( last + 1, title )
     return  result
   #end _ResolveTitle
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.SaveWidgetsImage()		-
+  #----------------------------------------------------------------------
+  def SaveWidgetsImage( self, file_path = None ):
+    """
+Must be called on the UI event thread.
+"""
+    if len( self.grid.GetChildren() ) == 0:
+      self.ShowMessageDialog( 'No widgets to save', 'Save Image' )
+
+    else:
+      if file_path == None:
+        dialog = wx.FileDialog(
+	    self, 'Save Widgets Image', '', '',
+	    'PNG files (*.png)|*.png',
+	    wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
+	    )
+        if dialog.ShowModal() != wx.ID_CANCEL:
+	  file_path = dialog.GetPath()
+      #end if
+
+      if file_path != None:
+	temp_dir = None
+        try:
+	  temp_dir = tempfile.mkdtemp( 'veraview', 'images' )
+	  count = 0
+
+	  for wc in self.grid.GetChildren():
+	    name = 'image.%03d.png' % count
+	    wc.widget.CreatePrintImage( os.path.join( temp_dir, name ) )
+	  #end for child widget containers
+
+	  montager = ImageMontager(
+	      result_path = file_path,
+	      images = sorted( glob.glob( os.path.join( temp_dir, '*.png' ) ) ),
+	      cols = self.grid.GetSizer().GetCols()
+	      )
+	  montager.Run( 'Save Widgets Image' )
+
+	except Exception, ex:
+	  msg = 'Error saving image:' + os.linesep + str( ex )
+          self.ShowMessageDialog( msg, 'Save Image' )
+
+        finally:
+	  if temp_dir != None:
+	    shutil.rmtree( temp_dir )
+      #end if
+    #end else we have child widget containers
+
+    for child in self.GetChildren():
+      if isinstance( child, WidgetContainer ):
+	child.SaveWidgetImage()
+	break
+    #end for
+  #end SaveWidgetsImage
 
 
   #----------------------------------------------------------------------
