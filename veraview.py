@@ -68,47 +68,47 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 15)'
+TITLE = 'VERAView (Build 16)'
 
 TOOLBAR_ITEMS = \
   [
     {
     'widget': 'Core 2D View', 'icon': 'Core2DView.32.png', 'type': 'pin'
-#    'widget': 'Core 2D View', 'icon': 'core_both_32x32.png', 'type': 'pin'
+#'core_both_32x32.png'
     },
     {
     'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.32.png', 'type': 'pin'
-#    'widget': 'Assembly 2D View', 'icon': 'assy_both_32x32.png', 'type': 'pin'
+#'assy_both_32x32.png'
     },
     {
-    'widget': 'Channel 2D View', 'icon': 'Channel2DView.32.png', 'type': 'channel'
-#    'widget': 'Channel 2D View', 'icon': 'channel_32x32.png', 'type': 'channel'
+    'widget': 'Channel Core 2D View', 'icon': 'Channel2DView.32.png', 'type': 'channel'
+#'channel_32x32.png'
     },
     {
     'widget': 'Channel Assembly 2D View', 'icon': 'ChannelAssembly2DView.32.png', 'type': 'channel'
-#    'widget': 'Channel Assembly 2D View', 'icon': 'channel_both_32x32.png', 'type': 'channel'
+#'channel_both_32x32.png'
     },
     {
     'widget': 'Detector 2D View', 'icon': 'Detector2DView.32.png', 'type': 'detector'
-#    'widget': 'Detector 2D View', 'icon': 'detector_32x32.png', 'type': 'detector'
+#'detector_32x32.png'
     },
+#    {
+#    'widget': 'Detector Axial Plot', 'icon': 'detector_plot_32x32.png',
+#    'type': 'detector'
+#    },
     {
-    'widget': 'Detector Axial Plot', 'icon': 'detector_plot_32x32.png',
-    'type': 'detector'
-    },
-    {
-    'widget': 'Time Plot', 'icon': 'TimePlot.32.png',
-#    'widget': 'Time Plot', 'icon': 'exposure_plot_32x32.png',
-    'type': 'scalar'
+    'widget': 'Axial Plots', 'icon': 'AllAxialPlot.32.png',
+#'all_axial_plot_32x32.png'
+    'type': ''
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
+#    {
+#    'widget': 'Pin Axial Plot', 'icon': 'axial_plot_32x32.png', 'type': 'pin'
+#    }
     {
-    'widget': 'Pin Axial Plot', 'icon': 'axial_plot_32x32.png', 'type': 'pin'
-    },
-    {
-#    'widget': 'Axial Plots', 'icon': 'all_axial_plot_32x32.png',
-    'widget': 'Axial Plots', 'icon': 'AllAxialPlot.32.png',
-    'type': ''
+    'widget': 'Time Plot', 'icon': 'TimePlot.32.png',
+#'exposure_plot_32x32.png'
+    'type': 'scalar'
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     }
   ]
@@ -117,7 +117,7 @@ WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
   'Axial Plots': 'widget.all_axial_plot.AllAxialPlot',
-  'Channel 2D View': 'widget.channel_view.Channel2DView',
+  'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
