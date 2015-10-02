@@ -256,6 +256,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	  value = 0.0
 	  if ds_value != None:
+	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(

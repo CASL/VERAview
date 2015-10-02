@@ -239,6 +239,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	  value = 0.0
 	  if ds_value != None:
+	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
@@ -496,6 +497,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      for chan_col in range( self.data.core.npin + 1 ):
 		value = 0.0
 	        if ds_value != None:
+		  #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 		  value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(

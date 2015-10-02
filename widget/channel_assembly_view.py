@@ -267,6 +267,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	  value = 0.0
 	  if ds_value != None:
+	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(
@@ -312,12 +313,8 @@ If neither are specified, a default 'scale' value of 24 is used.
         pin_draw_wd = chan_wd >> 2
 
         pin_y = assy_region[ 1 ] + chan_wd + ((chan_gap - pin_draw_wd) >> 1)
-        #for pin_row in range( self.data.core.npin ):
-        #for pin_row in range( self.cellRange[ -1 ] - 1 ):
 	for pin_row in range( self.cellRange[ 1 ], min( self.cellRange[ 3 ], self.data.core.npin ), 1 ):
 	  pin_x = assy_region[ 0 ] + chan_wd + ((chan_gap - pin_draw_wd) >> 1)
-	  #for pin_col in range( self.data.core.npin ):
-	  #for pin_col in range( self.cellRange[ -2 ] - 1 ):
 	  for pin_col in range( self.cellRange[ 0 ], min( self.cellRange[ 2 ], self.data.core.npin ), 1 ):
 	    im_draw.ellipse(
 	        [ pin_x, pin_y, pin_x + pin_draw_wd, pin_y + pin_draw_wd ],

@@ -576,6 +576,10 @@ to be passed to UpdateState().  Assume self.data is valid.
 	    if valid:
 	      new_values = []
 	      for i in range( self.data.core.nax ):
+		#DataModel.GetPinIndex(
+		#    self.assemblyIndex[ 0 ], i,
+		#    self.pinColRow[ 0 ], self.pinColRow[ 1 ]
+		#    )
 	        new_values.append(
 		    ds[ self.pinColRow[ 1 ], self.pinColRow[ 0 ],
 		        i, self.assemblyIndex[ 0 ] ]

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-10-02	leerw@ornl.gov				-
+#	  Added GetAssyIndex() and GetPinIndex() static methods.
 #		2015-05-11	leerw@ornl.gov				-
 #	  Changed State.axialLevel to axialValue.
 #	  Added "axial" dataset type.
@@ -1014,6 +1016,36 @@ the properties construct for this class soon.
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetAssyIndex()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetAssyIndex( assy_col, assy_row ):
+    """Creates the tuple necessary to reference an assembly in a core dataset
+@param  assy_col	0-based column index
+@param  assy_row	0-based row index
+@return			( assy_row, assy_col )
+"""
+    return  ( assy_row, assy_col )
+  #end GetAssyIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetPinIndex()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetPinIndex( assy_ndx, axial_level, pin_col, pin_row ):
+    """Creates the tuple necessary to reference a pin in an assembly dataset
+@param  assy_ndx	0-based assembly index
+@param  axial_level	0-based axial level index (not value)
+@param  pin_col		0-based pin column index
+@param  pin_row		0-based pin row index
+@return			( pin_row, pin_col, axial_level, assy_ndx )
+"""
+    return  ( pin_row, pin_col, axial_level, assy_ndx )
+  #end GetPinIndex
 
 
   #----------------------------------------------------------------------
