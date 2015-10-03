@@ -1,5 +1,5 @@
 """Data model stuff.
 """
 
-__all__ = [ 'config', 'datamodel', 'depletion' ]
+__all__ = [ 'averager', 'config', 'datamodel', 'utils' ]
 __version__ = '0.0.1'

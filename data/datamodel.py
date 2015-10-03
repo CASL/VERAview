@@ -46,7 +46,7 @@
 #------------------------------------------------------------------------
 import h5py, json, math, os, sys, threading, traceback
 import numpy as np
-import pdb
+#import pdb
 
 
 COL_LABELS = \
@@ -742,6 +742,22 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetState()				-
+  #----------------------------------------------------------------------
+  def GetState( self, ndx = 0 ):
+    """Retrieves a specific state point by index.
+@param  ndx		0-based index
+@return			State object or None if states not defined or ndx out
+			of range
+"""
+    return  \
+	self.states[ ndx ]  \
+	if self.states != None and ndx >= 0 and ndx < len( self.states ) else \
+	None
+  #end GetState
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetStates()				-
   #----------------------------------------------------------------------
   def GetStates( self ):
@@ -1167,6 +1183,24 @@ Fields:
 
     return  missing
   #end Check
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		State.GetDataSet()				-
+  #----------------------------------------------------------------------
+  def GetDataSet( self, ds_name ):
+    return  \
+        self.group[ ds_name ] if ds_name != None and ds_name in self.group \
+	else None
+  #end GetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		State.GetGroup()				-
+  #----------------------------------------------------------------------
+  def GetGroup( self ):
+    return  self.group
+  #end GetGroup
 
 
   #----------------------------------------------------------------------
