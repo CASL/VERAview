@@ -22,6 +22,8 @@ class FakeCore( object ):
     self.nass = nass
     self.nax = nax
     self.npin = npin
+    self.npinx = npin
+    self.npiny = npin
   #end __init__
 #end  FakeCore
 
@@ -64,6 +66,78 @@ class TestAverager( unittest.TestCase ):
   #----------------------------------------------------------------------
 #  def tearDown( self ):
 #  #end tearDown
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc2DPinAverage1()		-
+  #----------------------------------------------------------------------
+  def test_Calc2DPinAverage1( self ):
+    data = self._readArray( 'one.data' )
+    results = self._readArray( 'one.2dpin.1.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc2DPinAverage( core, data )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc2DPinAverage_( core, data )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+	'calc methods comparison'
+	)
+  #end test_Calc2DPinAverage1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc2DPinAverage2()		-
+  #----------------------------------------------------------------------
+  def test_Calc2DPinAverage2( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    results = self._readArray( 'one.2dpin.2.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc2DPinAverage( core, data, factors )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc2DPinAverage_( core, data, factors )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+	'calc methods comparison'
+	)
+  #end test_Calc2DPinAverage2
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc2DPinAverage3()		-
+  #----------------------------------------------------------------------
+  def test_Calc2DPinAverage3( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    weights = self._readArray( 'one.weights' )
+    results = self._readArray( 'one.2dpin.3.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc2DPinAverage( core, data, factors, weights )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc2DPinAverage_( core, data, factors, weights )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+	'calc methods comparison'
+	)
+  #end test_Calc2DPinAverage3
 
 
   #----------------------------------------------------------------------

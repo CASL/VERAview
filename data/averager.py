@@ -34,6 +34,84 @@ averages over 4D VERAOutput datasets.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Averager.Calc2DPinAverage()			-
+  #----------------------------------------------------------------------
+  def Calc2DPinAverage( self, core, data_in, pin_factors = None, weights = None ):
+    """Calculates a 2D pin radial average over a 4D dataset
+@param  core		datamodel.Core object or any object with properties:
+			'nass', 'nax', 'npinx', 'npiny'
+			cannot be None
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  pin_factors	optional pin factors (numpy.ndarray) to apply
+@param  weights		optional weights (numpy.ndarray) to apply
+@return			numpy.ndarray with shape ( nax, nass )
+"""
+    wts = \
+        pin_factors * weights if pin_factors != None and weights != None else \
+	pin_factors if pin_factors != None else \
+	weights
+
+    avg = np.ndarray( ( core.npiny, core.npinx, core.nass ), np.float64 )
+    avg.fill( 0.0 )
+
+    for i in range( core.nass ):
+      for x in range( core.npin ):
+        for y in range( core.npin ):
+          avg[ y, x, i ] = \
+	      np.average( data_in[ y, x, :, i ] )  if wts == None else \
+	      0.0  if np.sum( wts[ y, x, :, i ] ) == 0.0 else \
+	      np.average( data_in[ y, x, :, i ], weights = wts[ y, x, :, i ] )
+        #end for rows
+      #end for cols
+    #end for assemblies
+
+    return  avg
+  #end Calc2DPinAverage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Averager.Calc2DPinAverage_()			-
+  #----------------------------------------------------------------------
+  def Calc2DPinAverage_( self, core, data_in, pin_factors = None, weights = None ):
+    """Calculates a 2D pin radial average over a 4D dataset
+@param  core		datamodel.Core object or any object with properties:
+			'nass', 'nax', 'npinx', 'npiny'
+			cannot be None
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  pin_factors	optional pin factors (numpy.ndarray) to apply
+@param  weights		optional weights (numpy.ndarray) to apply
+@return			numpy.ndarray with shape ( nax, nass )
+"""
+    avg = np.ndarray( ( core.npiny, core.npinx, core.nass ), np.float64 )
+    avg.fill( 0.0 )
+
+    for i in range( core.nass ):
+      for x in range( core.npin ):
+        for y in range( core.npin ):
+          sum_weights = 0.0
+
+          for k in range( core.nax ):
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
+	    if weights != None:
+	      local_wt *= weights[ y, x, k, i ]
+
+	    avg[ y, x, i ] += data_in[ y, x, k, i ] * local_wt
+	    sum_weights += local_wt
+          #end for axial levels
+
+	  if sum_weights > 0.0:
+	    avg[ y, x, i ] /= sum_weights
+          else:
+	    avg[ y, x, i ] = 0.0
+        #end for rows
+      #end for cols
+    #end for assemblies
+
+    return  avg
+  #end Calc2DPinAverage_
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Averager.Calc3DAssyAverage()			-
   #----------------------------------------------------------------------
   def Calc3DAssyAverage( self, core, data_in, pin_factors = None, weights = None ):
@@ -56,7 +134,8 @@ averages over 4D VERAOutput datasets.
     for i in range( core.nass ):
       for k in range( core.nax ):
         avg[ k, i ] = \
-	    np.average( data_in[ :, :, k, i ] ) if wts == None else \
+	    np.average( data_in[ :, :, k, i ] )  if wts == None else \
+	    0.0  if np.sum( wts[ :, :, k, i ] ) == 0.0 else \
 	    np.average( data_in[ :, :, k, i ], weights = wts[ :, :, k, i ] )
       #end for axial levels
     #edd for assemblies
@@ -123,7 +202,10 @@ averages over 4D VERAOutput datasets.
         pin_factors * weights if pin_factors != None and weights != None else \
 	pin_factors if pin_factors != None else \
 	weights
-    avg = np.average( data_in, weights = wts )
+    avg = \
+	np.average( data_in )  if wts == None else \
+	0.0  if np.sum( wts ) == 0.0 else \
+        np.average( data_in, weights = wts )
     return  avg
   #end CalcScalarAverage
 

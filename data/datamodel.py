@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-10-05	leerw@ornl.gov				-
+#	  Setting core.npinx and core.npiny to be generally ready to
+#	  accept non-square pin arrays.
 #		2015-10-02	leerw@ornl.gov				-
 #	  Added GetAssyIndex() and GetPinIndex() static methods.
 #		2015-05-11	leerw@ornl.gov				-
@@ -292,9 +295,9 @@ Properties:
     if item != None:
       self.pinVolumes = item.value
       self.pinVolumesSum = np.sum( item.value )
+      self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
       self.npiny = self.pinVolumes.shape[ 0 ]
       self.npinx = self.pinVolumes.shape[ 1 ]
-      self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
       if self.nax == 0:
         self.nax = self.pinVolumes.shape[ 2 ]
       self.nass = self.pinVolumes.shape[ 3 ]
@@ -340,6 +343,8 @@ Properties:
       num_pins_ds = input_group.get( 'CASEID/ASSEMBLIES/Assembly_1/num_pins' )
       if num_pins_ds != None:
         self.npin = num_pins_ds.value.item() if len( num_pins_ds.shape ) > 0 else num_pins_ds.value
+	self.npinx = self.npin
+	self.npiny = self.npin
         #self.npin = num_pins_ds.value[ 0 ]
     #end if
 
