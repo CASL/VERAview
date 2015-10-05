@@ -67,13 +67,92 @@ class TestAverager( unittest.TestCase ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc3DAssyAverage1()		-
+  #----------------------------------------------------------------------
+  def test_Calc3DAssyAverage1( self ):
+    data = self._readArray( 'one.data' )
+    results = self._readArray( 'one.3dassy.1.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc3DAssyAverage( core, data )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc3DAssyAverage_( core, data )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+	'calc methods comparison'
+	)
+  #end test_Calc3DAssyAverage1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc3DAssyAverage2()		-
+  #----------------------------------------------------------------------
+  def test_Calc3DAssyAverage2( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    results = self._readArray( 'one.3dassy.2.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc3DAssyAverage( core, data, factors )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc3DAssyAverage_( core, data, factors )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
+	'calc methods comparison'
+	)
+  #end test_Calc3DAssyAverage2
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc3DAssyAverage3()		-
+  #----------------------------------------------------------------------
+  def test_Calc3DAssyAverage3( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    weights = self._readArray( 'one.weights' )
+    results = self._readArray( 'one.3dassy.3.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc3DAssyAverage( core, data, factors, weights )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc3DAssyAverage_( core, data, factors, weights )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
+	'calc methods comparison'
+	)
+  #end test_Calc3DAssyAverage3
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		TestAverager.test_CalcScalarAverage1()		-
   #----------------------------------------------------------------------
   def test_CalcScalarAverage1( self ):
     data = self._readArray( 'one.data' )
     core = FakeCore( 2, 2, 2 )
-    avg = Averager().CalcScalarAverage( core, data )
-    self.assertEqual( avg, 0.5555 )
+    obj = Averager()
+
+    avg = obj.CalcScalarAverage( core, data )
+    #0.555499999999
+    self.assertEqual( avg, 0.5555, 'calc vs baseline' )
+    self.assertEqual(
+        avg, obj.CalcScalarAverage_( core, data ),
+	'calc methods comparison'
+	)
   #end test_CalcScalarAverage1
 
 
@@ -84,9 +163,44 @@ class TestAverager( unittest.TestCase ):
     data = self._readArray( 'one.data' )
     factors = self._readArray( 'one.factors' )
     core = FakeCore( 2, 2, 2 )
-    avg = Averager().CalcScalarAverage( core, data, factors )
-    self.assertAlmostEqual( avg, 1.010090909, places = 9 )
+    obj = Averager()
+
+    avg = obj.CalcScalarAverage( core, data, factors )
+    #1.0100909090909092
+    self.assertAlmostEqual(
+        avg, 1.010090909,
+	msg = 'calc vs baseline', places = 9
+	)
+    self.assertEqual(
+        avg,
+	obj.CalcScalarAverage_( core, data, factors ),
+	'calc methods comparison'
+	)
   #end test_CalcScalarAverage2
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcScalarAverage3()		-
+  #----------------------------------------------------------------------
+  def test_CalcScalarAverage3( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    weights = self._readArray( 'one.weights' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.CalcScalarAverage( core, data, factors, weights )
+    #1.0555049950499504
+    self.assertAlmostEqual(
+        avg, 1.055504995,
+	msg = 'calc vs baseline', places = 9
+	)
+    self.assertAlmostEqual(
+        avg,
+	obj.CalcScalarAverage_( core, data, factors, weights ),
+	msg = 'calc methods comparison', places = 9
+	)
+  #end test_CalcScalarAverage3
 
 
 #		-- Static Methods

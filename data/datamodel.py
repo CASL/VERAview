@@ -176,6 +176,8 @@ Properties:
     self.ndet = 0
     self.ndetax = 0
     self.npin = 0
+    self.npinx = 0
+    self.npiny = 0
     self.pinVolumes = None
     self.pinVolumesSum = 0.0
     self.ratedFlow = 0
@@ -290,6 +292,8 @@ Properties:
     if item != None:
       self.pinVolumes = item.value
       self.pinVolumesSum = np.sum( item.value )
+      self.npiny = self.pinVolumes.shape[ 0 ]
+      self.npinx = self.pinVolumes.shape[ 1 ]
       self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
       if self.nax == 0:
         self.nax = self.pinVolumes.shape[ 2 ]
