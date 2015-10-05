@@ -189,6 +189,38 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.CreateAssyLabel()				-
+  #----------------------------------------------------------------------
+  def CreateAssyLabel( self, col, row ):
+    result = '(?)'
+    if self.coreLabels != None and len( self.coreLabels ) >= 2:
+      result = '(%s-%s)' % \
+          ( self.coreLabels[ 0 ][ col ], self.coreLabels[ 1 ][ row ] )
+
+    return  result
+  #end CreateAssyLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.CreatePinFactors()				-
+  #----------------------------------------------------------------------
+  def CreatePinFactors( self ):
+    """Creates a pin factors np.ndarray for the current config properties:
+coreSym, npiny, npinx, nax, and nass.
+@return			np.ndarray with shape ( npiny, npinx, nax, nass ) or
+			None if any of the properties are 0
+"""
+    factors = None
+    if self.npiny > 0 and self.npinx > 0 and self.nax > 0 and \
+        self.nass > 0 and self.coreSym > 0:
+      factors = np.ndarray( ( npiny, npinx, nax, nass ), nd.float32 )
+
+    #xxxxx
+    return  factors
+  #end CreatePinFactors
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core._FindInGroup()				-
   #----------------------------------------------------------------------
   def _FindInGroup( self, name, *groups ):
@@ -200,19 +232,6 @@ Properties:
     #end for
     return  match
   #end _FindInGroup
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core.CreateAssyLabel()				-
-  #----------------------------------------------------------------------
-  def CreateAssyLabel( self, col, row ):
-    result = '(?)'
-    if self.coreLabels != None and len( self.coreLabels ) >= 2:
-      result = '(%s-%s)' % \
-          ( self.coreLabels[ 0 ][ col ], self.coreLabels[ 1 ][ row ] )
-
-    return  result
-  #end CreateAssyLabel
 
 
   #----------------------------------------------------------------------
@@ -531,7 +550,9 @@ Parameters:
   #----------------------------------------------------------------------
   def ExtractSymmetryExtent( self ):
     """Returns the starting horizontal (left) and ending vertical (top)
-indexes, inclusive.
+assembly 0-based indexes, inclusive, and the right and bottom indexes,
+exclusive, followed by the number of assemblies in the horizontal and vertical
+dimensions.
 @return			None if core is None, otherwise
 			( left, top, right+1, bottom+1, dx, dy )
 """
