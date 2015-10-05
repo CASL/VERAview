@@ -35,6 +35,80 @@ averages over 4D VERAOutput datasets.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Averager.Calc1DAxialAverage()			-
+  #----------------------------------------------------------------------
+  def Calc1DAxialAverage( self, core, data_in, pin_factors = None, weights = None ):
+    """Calculates 1D radial averages over a 4D dataset
+@param  core		datamodel.Core object or any object with properties:
+			'nass', 'nax', 'npinx', 'npiny'
+			cannot be None
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  pin_factors	optional pin factors (numpy.ndarray) to apply
+@param  weights		optional weights (numpy.ndarray) to apply
+@return			numpy.ndarray with shape ( nax, nass )
+"""
+    wts = \
+        pin_factors * weights if pin_factors != None and weights != None else \
+	pin_factors if pin_factors != None else \
+	weights
+
+    avg = np.ndarray( ( core.nax, ), np.float64 )
+    avg.fill( 0.0 )
+
+    for k in range( core.nax ):
+      avg[ k ] = \
+          np.average( data_in[ :, :, k, : ] )  if wts == None else \
+          0.0  if np.sum( wts[ :, :, k, : ] ) == 0.0 else \
+          np.average( data_in[ :, :, k, : ], weights = wts[ :, :, k, : ] )
+    #end for axial levels
+
+    return  avg
+  #end Calc1DAxialAverage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Averager.Calc1DAxialAverage_()			-
+  #----------------------------------------------------------------------
+  def Calc1DAxialAverage_( self, core, data_in, pin_factors = None, weights = None ):
+    """Calculates 1D radial averages over a 4D dataset
+@param  core		datamodel.Core object or any object with properties:
+			'nass', 'nax', 'npinx', 'npiny'
+			cannot be None
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  pin_factors	optional pin factors (numpy.ndarray) to apply
+@param  weights		optional weights (numpy.ndarray) to apply
+@return			numpy.ndarray with shape ( nax, nass )
+"""
+    avg = np.ndarray( ( core.nax, ), np.float64 )
+    avg.fill( 0.0 )
+
+    for k in range( core.nax ):
+      sum_weights = 0.0
+
+      for i in range( core.nass ):
+        for x in range( core.npin ):
+          for y in range( core.npin ):
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
+	    if weights != None:
+	      local_wt *= weights[ y, x, k, i ]
+
+	    avg[ k ] += data_in[ y, x, k, i ] * local_wt
+	    sum_weights += local_wt
+          #end for rows
+        #end for cols
+      #end for assemblies
+
+      if sum_weights > 0.0:
+        avg[ k ] /= sum_weights
+      else:
+        avg[ k ] = 0.0
+    #end for axial levels
+
+    return  avg
+  #end Calc1DAxialAverage_
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Averager.Calc2DAssyAverage()			-
   #----------------------------------------------------------------------
   def Calc2DAssyAverage( self, core, data_in, pin_factors = None, weights = None ):
