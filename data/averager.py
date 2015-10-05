@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		averager.py					-
 #	HISTORY:							-
+#		2015-10-05	leerw@ornl.gov				-
 #		2015-10-03	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import math, os, sys, traceback
@@ -34,10 +35,84 @@ averages over 4D VERAOutput datasets.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Averager.Calc2DAssyAverage()			-
+  #----------------------------------------------------------------------
+  def Calc2DAssyAverage( self, core, data_in, pin_factors = None, weights = None ):
+    """Calculates a 2D axially averaged assembly values over a 4D dataset
+@param  core		datamodel.Core object or any object with properties:
+			'nass', 'nax', 'npinx', 'npiny'
+			cannot be None
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  pin_factors	optional pin factors (numpy.ndarray) to apply
+@param  weights		optional weights (numpy.ndarray) to apply
+@return			numpy.ndarray with shape ( nax, nass )
+"""
+    wts = \
+        pin_factors * weights if pin_factors != None and weights != None else \
+	pin_factors if pin_factors != None else \
+	weights
+
+    avg = np.ndarray( ( core.nass, ), np.float64 )
+    avg.fill( 0.0 )
+
+    for i in range( core.nass ):
+      avg[ i ] = \
+          np.average( data_in[ :, :, :, i ] )  if wts == None else \
+          0.0  if np.sum( wts[ :, :, :, i ] ) == 0.0 else \
+          np.average( data_in[ :, :, :, i ], weights = wts[ :, :, :, i ] )
+    #end for assemblies
+
+    return  avg
+  #end Calc2DAssyAverage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Averager.Calc2DAssyAverage_()			-
+  #----------------------------------------------------------------------
+  def Calc2DAssyAverage_( self, core, data_in, pin_factors = None, weights = None ):
+    """Calculates a 2D axially averaged assembly values over a 4D dataset
+@param  core		datamodel.Core object or any object with properties:
+			'nass', 'nax', 'npinx', 'npiny'
+			cannot be None
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  pin_factors	optional pin factors (numpy.ndarray) to apply
+@param  weights		optional weights (numpy.ndarray) to apply
+@return			numpy.ndarray with shape ( nax, nass )
+"""
+    avg = np.ndarray( ( core.nass, ), np.float64 )
+    avg.fill( 0.0 )
+
+    for i in range( core.nass ):
+      sum_weights = 0.0
+
+      for x in range( core.npin ):
+        for y in range( core.npin ):
+          for k in range( core.nax ):
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
+	    if weights != None:
+	      local_wt *= weights[ y, x, k, i ]
+
+	    avg[ i ] += data_in[ y, x, k, i ] * local_wt
+	    sum_weights += local_wt
+          #end for axial levels
+        #end for rows
+      #end for cols
+
+      if sum_weights > 0.0:
+        avg[ i ] /= sum_weights
+      else:
+        avg[ i ] = 0.0
+    #end for assemblies
+
+    return  avg
+  #end Calc2DAssyAverage_
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Averager.Calc2DPinAverage()			-
   #----------------------------------------------------------------------
   def Calc2DPinAverage( self, core, data_in, pin_factors = None, weights = None ):
-    """Calculates a 2D pin radial average over a 4D dataset
+    """Calculates a 2D pin axial averages over a 4D dataset
 @param  core		datamodel.Core object or any object with properties:
 			'nass', 'nax', 'npinx', 'npiny'
 			cannot be None
@@ -73,7 +148,7 @@ averages over 4D VERAOutput datasets.
   #	METHOD:		Averager.Calc2DPinAverage_()			-
   #----------------------------------------------------------------------
   def Calc2DPinAverage_( self, core, data_in, pin_factors = None, weights = None ):
-    """Calculates a 2D pin radial average over a 4D dataset
+    """Calculates a 2D pin axial averages over a 4D dataset
 @param  core		datamodel.Core object or any object with properties:
 			'nass', 'nax', 'npinx', 'npiny'
 			cannot be None

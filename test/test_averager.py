@@ -69,6 +69,78 @@ class TestAverager( unittest.TestCase ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc2DAssyAverage1()		-
+  #----------------------------------------------------------------------
+  def test_Calc2DAssyAverage1( self ):
+    data = self._readArray( 'one.data' )
+    results = self._readArray( 'one.2dassy.1.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc2DAssyAverage( core, data )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc2DAssyAverage_( core, data )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
+	'calc methods comparison'
+	)
+  #end test_Calc2DAssyAverage1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc2DAssyAverage2()		-
+  #----------------------------------------------------------------------
+  def test_Calc2DAssyAverage2( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    results = self._readArray( 'one.2dassy.2.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc2DAssyAverage( core, data, factors )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc2DAssyAverage_( core, data, factors )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
+	'calc methods comparison'
+	)
+  #end test_Calc2DAssyAverage2
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_Calc2DAssyAverage3()		-
+  #----------------------------------------------------------------------
+  def test_Calc2DAssyAverage3( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    weights = self._readArray( 'one.weights' )
+    results = self._readArray( 'one.2dassy.3.out' )
+    core = FakeCore( 2, 2, 2 )
+    obj = Averager()
+
+    avg = obj.Calc2DAssyAverage( core, data, factors, weights )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+
+    avg2 = obj.Calc2DAssyAverage_( core, data, factors, weights )
+    self.assertTrue(
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
+	'calc methods comparison'
+	)
+  #end test_Calc2DAssyAverage3
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		TestAverager.test_Calc2DPinAverage1()		-
   #----------------------------------------------------------------------
   def test_Calc2DPinAverage1( self ):
@@ -79,13 +151,13 @@ class TestAverager( unittest.TestCase ):
 
     avg = obj.Calc2DPinAverage( core, data )
     self.assertTrue(
-        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
 	'calc vs baseline'
 	)
 
     avg2 = obj.Calc2DPinAverage_( core, data )
     self.assertTrue(
-        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
 	'calc methods comparison'
 	)
   #end test_Calc2DPinAverage1
@@ -103,13 +175,13 @@ class TestAverager( unittest.TestCase ):
 
     avg = obj.Calc2DPinAverage( core, data, factors )
     self.assertTrue(
-        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
 	'calc vs baseline'
 	)
 
     avg2 = obj.Calc2DPinAverage_( core, data, factors )
     self.assertTrue(
-        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
 	'calc methods comparison'
 	)
   #end test_Calc2DPinAverage2
@@ -128,13 +200,13 @@ class TestAverager( unittest.TestCase ):
 
     avg = obj.Calc2DPinAverage( core, data, factors, weights )
     self.assertTrue(
-        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
 	'calc vs baseline'
 	)
 
     avg2 = obj.Calc2DPinAverage_( core, data, factors, weights )
     self.assertTrue(
-        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
 	'calc methods comparison'
 	)
   #end test_Calc2DPinAverage3
@@ -151,13 +223,13 @@ class TestAverager( unittest.TestCase ):
 
     avg = obj.Calc3DAssyAverage( core, data )
     self.assertTrue(
-        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
 	'calc vs baseline'
 	)
 
     avg2 = obj.Calc3DAssyAverage_( core, data )
     self.assertTrue(
-        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-5 ),
+        np.allclose( avg, avg2, rtol = 0.0, atol = 1.0e-6 ),
 	'calc methods comparison'
 	)
   #end test_Calc3DAssyAverage1
