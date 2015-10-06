@@ -211,11 +211,17 @@ coreSym, npiny, npinx, nax, and nass.
 			None if any of the properties are 0
 """
     factors = None
-    if self.npiny > 0 and self.npinx > 0 and self.nax > 0 and \
-        self.nass > 0 and self.coreSym > 0:
-      factors = np.ndarray( ( npiny, npinx, nax, nass ), nd.float32 )
+    if self.IsNonZero():
+      factors = np.ndarray(
+          ( self.npiny, self.npinx, self.nax, self.nass ),
+	  nd.float32
+	  )
+      factors.fill( 1.0 )
+      factors[ 0, :, :, : ] = 1.0 / self.coreSym
+      factors[ :, 0, :, : ] = 1.0 / self.coreSym
+      factors[ 0, 0, :, : ] /= self.coreSym
+    #end if
 
-    #xxxxx
     return  factors
   #end CreatePinFactors
 
@@ -232,6 +238,20 @@ coreSym, npiny, npinx, nax, and nass.
     #end for
     return  match
   #end _FindInGroup
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.IsNonZero()				-
+  #----------------------------------------------------------------------
+  def IsNonZero( self ):
+    """
+@return			True if npiny, npinx, nax, nass, and coreSym are all
+			gt 0
+"""
+    return  \
+        self.npiny > 0 and self.npinx > 0 and \
+	self.nax > 0 and self.nass > 0 and self.coreSym > 0
+  #end IsNonZero
 
 
   #----------------------------------------------------------------------
