@@ -398,6 +398,36 @@ averages over 4D VERAOutput datasets.
   #end CalcScalarAverage_
 
 
+  #----------------------------------------------------------------------
+  #	METHOD:		Averager.CreateCorePinFactors()			-
+  #----------------------------------------------------------------------
+  def CreateCorePinFactors( self, core ):
+    """Creates a pin factors np.ndarray for the current config properties:
+coreSym, npiny, npinx, nax, and nass.
+@param  core		datamodel.Core object, cannot be None
+			or any object with properties: 'coreSym',
+			'nass', 'nax', 'npinx', 'npiny'
+@return			np.ndarray with shape ( npiny, npinx, nax, nass ) or
+			None if any of the properties are 0
+"""
+    factors = None
+    if core != None and core.coreSym > 0 and \
+        core.nass > 0 and core.nax > 0 and \
+	core.npinx > 0 and core.npiny > 0:
+      factors = np.ndarray(
+          ( core.npiny, core.npinx, core.nax, core.nass ),
+	  np.float32
+	  )
+      factors.fill( 1.0 )
+      factors[ 0, :, :, : ] = 1.0 / core.coreSym
+      factors[ :, 0, :, : ] = 1.0 / core.coreSym
+      factors[ 0, 0, :, : ] /= core.coreSym
+    #end if
+
+    return  factors
+  #end CreateCorePinFactors
+
+
 #		-- Static Methods
 #		--
 

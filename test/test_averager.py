@@ -17,8 +17,9 @@ from data.datamodel import *
 #------------------------------------------------------------------------
 #	CLASS:		FakeCore					-
 #------------------------------------------------------------------------
-class FakeCore( object ):
-  def __init__( self, nass, nax, npin ):
+class FakeCore( Core ):
+  def __init__( self, nass, nax, npin, core_sym = 4 ):
+    self.coreSym = core_sym
     self.nass = nass
     self.nax = nax
     self.npin = npin
@@ -419,6 +420,46 @@ class TestAverager( unittest.TestCase ):
 	msg = 'calc methods comparison', places = 9
 	)
   #end test_CalcScalarAverage3
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CreateCorePinFactors1()	-
+  #----------------------------------------------------------------------
+  def test_CreateCorePinFactors1( self ):
+    obj = Averager()
+
+    results = self._readArray( 'pinfactors1.2222.out' )
+    core = FakeCore( 2, 2, 2, 2 )
+    factors = obj.CreateCorePinFactors( core )
+    self.assertTrue(
+        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
+	'npin=2, nax=2, nass=2, coresym=2'
+	)
+
+    results = self._readArray( 'pinfactors1.2224.out' )
+    core = FakeCore( 2, 2, 2, 4 )
+    factors = obj.CreateCorePinFactors( core )
+    self.assertTrue(
+        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
+	'npin=2, nax=2, nass=2, coresym=4'
+	)
+
+    results = self._readArray( 'pinfactors1.4322.out' )
+    core = FakeCore( 2, 3, 4, 2 )
+    factors = obj.CreateCorePinFactors( core )
+    self.assertTrue(
+        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
+	'npin=4, nax=3, nass=2, coresym=2'
+	)
+
+    results = self._readArray( 'pinfactors1.4324.out' )
+    core = FakeCore( 2, 3, 4, 4 )
+    factors = obj.CreateCorePinFactors( core )
+    self.assertTrue(
+        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
+	'npin=4, nax=3, nass=2, coresym=4'
+	)
+  #end test_CreateCorePinFactors1
 
 
 #		-- Static Methods
