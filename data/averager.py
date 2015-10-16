@@ -45,7 +45,7 @@ averages over 4D VERAOutput datasets.
 @param  data_in		dataset (numpy.ndarray) to average, cannot be None
 @param  pin_factors	optional pin factors (numpy.ndarray) to apply
 @param  weights		optional weights (numpy.ndarray) to apply
-@return			numpy.ndarray with shape ( nax, nass )
+@return			numpy.ndarray with shape ( nax )
 """
     wts = \
         pin_factors * weights if pin_factors != None and weights != None else \
@@ -77,7 +77,7 @@ averages over 4D VERAOutput datasets.
 @param  data_in		dataset (numpy.ndarray) to average, cannot be None
 @param  pin_factors	optional pin factors (numpy.ndarray) to apply
 @param  weights		optional weights (numpy.ndarray) to apply
-@return			numpy.ndarray with shape ( nax, nass )
+@return			numpy.ndarray with shape ( nax )
 """
     avg = np.ndarray( ( core.nax, ), np.float64 )
     avg.fill( 0.0 )
@@ -119,7 +119,7 @@ averages over 4D VERAOutput datasets.
 @param  data_in		dataset (numpy.ndarray) to average, cannot be None
 @param  pin_factors	optional pin factors (numpy.ndarray) to apply
 @param  weights		optional weights (numpy.ndarray) to apply
-@return			numpy.ndarray with shape ( nax, nass )
+@return			numpy.ndarray with shape ( nass )
 """
     wts = \
         pin_factors * weights if pin_factors != None and weights != None else \
@@ -151,7 +151,7 @@ averages over 4D VERAOutput datasets.
 @param  data_in		dataset (numpy.ndarray) to average, cannot be None
 @param  pin_factors	optional pin factors (numpy.ndarray) to apply
 @param  weights		optional weights (numpy.ndarray) to apply
-@return			numpy.ndarray with shape ( nax, nass )
+@return			numpy.ndarray with shape ( nass )
 """
     avg = np.ndarray( ( core.nass, ), np.float64 )
     avg.fill( 0.0 )
@@ -193,7 +193,7 @@ averages over 4D VERAOutput datasets.
 @param  data_in		dataset (numpy.ndarray) to average, cannot be None
 @param  pin_factors	optional pin factors (numpy.ndarray) to apply
 @param  weights		optional weights (numpy.ndarray) to apply
-@return			numpy.ndarray with shape ( nax, nass )
+@return			numpy.ndarray with shape ( npiny, npinx, nass )
 """
     wts = \
         pin_factors * weights if pin_factors != None and weights != None else \
