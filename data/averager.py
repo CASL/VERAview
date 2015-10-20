@@ -405,23 +405,67 @@ averages over 4D VERAOutput datasets.
     """Creates a pin factors np.ndarray for the current config properties:
 coreSym, npiny, npinx, nax, and nass.
 @param  core		datamodel.Core object, cannot be None
-			or any object with properties: 'coreSym',
-			'nass', 'nax', 'npinx', 'npiny'
+			or any object with properties: 'axialMesh',
+			'coreMap', 'coreSym', 'nass', 'nassx', 'nassy',
+			'nax', 'npinx', 'npiny'
 @return			np.ndarray with shape ( npiny, npinx, nax, nass ) or
 			None if any of the properties are 0
 """
     factors = None
     if core != None and core.coreSym > 0 and \
         core.nass > 0 and core.nax > 0 and \
-	core.npinx > 0 and core.npiny > 0:
+	core.npinx > 0 and core.npiny > 0 and \
+	core.axialMesh != None and core.axialMesh.shape[ 0 ] == core.nax + 1:
       factors = np.ndarray(
           ( core.npiny, core.npinx, core.nax, core.nass ),
 	  np.float32
 	  )
-      factors.fill( 1.0 )
-      factors[ 0, :, :, : ] = 1.0 / core.coreSym
-      factors[ :, 0, :, : ] = 1.0 / core.coreSym
-      factors[ 0, 0, :, : ] /= core.coreSym
+      factors.fill( 0.0 )
+
+      for k in range( core.nax ):
+        factors[ :, :, k, : ] = core.axialMesh[ k + 1 ] - core.axialMesh[ k ]
+
+#core.coreSym == 4
+#		-- Account for odd number of assemblies and pins in Y dimension
+#		--
+      if (core.nassy % 2) == 1 and (core.npiny % 2) == 1:
+        mid_pin_row = (core.npiny + 1) / 2 - 1
+	mid_assy_row = (core.nassy + 1) / 2 - 1
+
+#			-- Loop over top row of SE quadrant
+	xstart = (core.nassx + (core.nassx % 2)) / 2 - 1
+        for i in range( xstart, core.nassx ):
+	  assy_ndx = core.coreMap[ mid_assy_row, i ]
+
+	  for k in range( core.nax ):
+	    for x in range( core.npinx ):
+	      factors[ mid_pin_row, x, k, assy_ndx ] /= 2.0
+	    #for pin columns
+	  #end for axial
+	#end for assembly quadrant columns
+      #end if
+
+      if (core.nassx % 2) == 1 and (core.npinx % 2) == 1:
+        mid_pin_col = (core.npinx + 1) / 2 - 1
+	mid_assy_col = (core.nassx + 1) / 2 - 1
+
+#			-- Loop over left col of SE quadrant
+	ystart = (core.nassy + (core.nassy % 2)) / 2 - 1
+        for j in range( ystart, core.nassy ):
+	  assy_ndx = core.coreMap[ mid_assy_col, j ]
+
+	  for k in range( core.nax ):
+	    for y in range( core.npiny ):
+	      factors[ y, mid_pin_col, k, assy_ndx ] /= 2.0
+	    #for pin rows
+	  #end for axial
+	#end for assembly quadrant rows
+      #end if
+
+#      factors.fill( 1.0 )
+#      factors[ 0, :, :, : ] = 1.0 / core.coreSym
+#      factors[ :, 0, :, : ] = 1.0 / core.coreSym
+#      factors[ 0, 0, :, : ] /= core.coreSym
     #end if
 
     return  factors
