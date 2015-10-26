@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-10-26	leerw@ornl.gov				-
+#	  Added 'avg' as a category type with storage in a separate HDF5
+#	  file.
 #		2015-10-05	leerw@ornl.gov				-
 #	  Setting core.npinx and core.npiny to be generally ready to
 #	  accept non-square pin arrays.
@@ -443,7 +446,8 @@ property.
 Properties:
   core			Core
   dataSetNames		dict of dataset names by category
-			  ( 'channel', 'detector', 'pin', 'scalar' )
+			  ( 'avg', 'channel', 'detector', 'pin', 'scalar' )
+  h5avg			averages h5py.File, None until exists or created
   h5file		h5py.File
   pinPowerRange		( min, max ), computed from all states
   ranges		dict of ranges ( min, max ) by dataset
@@ -703,7 +707,8 @@ descending.
 			category
 			if category == None, dict of dataset name lists by
 			category
-			( 'axial', 'channel', 'detector', 'pin', 'scalar' )
+			( 'avg', 'axial',
+			  'channel', 'detector', 'pin', 'scalar' )
 """
     return \
         self.dataSetNames if category == None else \
@@ -867,7 +872,8 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   def HasDataSetCategory( self, category = None ):
     """Tests existence of datasets in category
-@param  category	one of 'axial', 'channel', 'detector', 'pin', 'scalar'
+@param  category	one of 'avg', 'axial', 'channel', 'detector',
+			'pin', 'scalar'
 @return			True if there are datasets, False otherwise
 """
     return  \
@@ -1033,6 +1039,15 @@ the properties construct for this class soon.
 
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }
+
+#	-- Try reading averages file
+#	--
+    self.h5avg = None
+    base, ext = os.path.splitext( self.h5file.filename )
+    avg_fname = base + '.avg' + ext
+    if os.path.exists( avg_fname ):
+      self.h5avg = h5py.File( avg_fname, 'r+' )  # 'a': r/w or creates
+      self.dataSetNames[ 'avg' ] = self.h5avg.keys()
   #end Read
 
 

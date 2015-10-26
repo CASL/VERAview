@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		averager.py					-
 #	HISTORY:							-
+#		2015-10-26	leerw@ornl.gov				-
+#	  Added support for coreSym == 8 in CreateCorePinFactors().
 #		2015-10-05	leerw@ornl.gov				-
 #		2015-10-03	leerw@ornl.gov				-
 #------------------------------------------------------------------------

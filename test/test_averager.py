@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		test_averager.py				-
 #	HISTORY:							-
+#		2015-10-26	leerw@ornl.gov				-
+#	  Testing CreateCorePinFactors().
 #		2015-10-03	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import gzip, h5py, os, sys, traceback, unittest
