@@ -5,7 +5,7 @@
 #	HISTORY:							-
 #		2015-10-03	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import h5py, os, sys, traceback, unittest
+import gzip, h5py, os, sys, traceback, unittest
 #import pdb  # set_trace()
 
 sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
@@ -45,7 +45,11 @@ class TestAverager( unittest.TestCase ):
   #	METHOD:		TestAverager._readArray()			-
   #----------------------------------------------------------------------
   def _readArray( self, fname ):
-    fp = file( os.path.join( 'data', fname ) )
+    fpath = os.path.join( 'data', fname )
+    if fname.endswith( '.gz' ):
+      fp = gzip.GzipFile( fpath, 'rb' )
+    else:
+      fp = file( os.path.join( 'data', fname ) )
     try:
       content = fp.read( -1 )
     finally:
@@ -428,37 +432,16 @@ class TestAverager( unittest.TestCase ):
   def test_CreateCorePinFactors1( self ):
     obj = Averager()
 
-    results = self._readArray( 'pinfactors1.2222.out' )
-    core = FakeCore( 2, 2, 2, 2 )
-    factors = obj.CreateCorePinFactors( core )
-    self.assertTrue(
-        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
-	'npin=2, nax=2, nass=2, coresym=2'
-	)
-
-    results = self._readArray( 'pinfactors1.2224.out' )
-    core = FakeCore( 2, 2, 2, 4 )
-    factors = obj.CreateCorePinFactors( core )
-    self.assertTrue(
-        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
-	'npin=2, nax=2, nass=2, coresym=4'
-	)
-
-    results = self._readArray( 'pinfactors1.4322.out' )
-    core = FakeCore( 2, 3, 4, 2 )
-    factors = obj.CreateCorePinFactors( core )
-    self.assertTrue(
-        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
-	'npin=4, nax=3, nass=2, coresym=2'
-	)
-
-    results = self._readArray( 'pinfactors1.4324.out' )
-    core = FakeCore( 2, 3, 4, 4 )
-    factors = obj.CreateCorePinFactors( core )
-    self.assertTrue(
-        np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
-	'npin=4, nax=3, nass=2, coresym=4'
-	)
+    results = self._readArray( 'pinfactors1.out.gz' )
+    data = DataModel( os.path.join( 'data', 'pinfactors1.h5' ) )
+    try:
+      factors = obj.CreateCorePinFactors( data.core )
+      self.assertTrue(
+          np.allclose( factors, results, rtol = 0.0, atol = 1.0e-6 ),
+	  'quarter-core pin factors'
+	  )
+    finally:
+      data.Close()
   #end test_CreateCorePinFactors1
 
 

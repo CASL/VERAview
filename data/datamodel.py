@@ -526,6 +526,16 @@ passed, the read() method must be called.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.Close()				-
+  #----------------------------------------------------------------------
+  def Close( self ):
+    if self.h5file:
+      self.h5file.close()
+    self.Clear()
+  #end Close
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.CreateAxialValue()			-
   #----------------------------------------------------------------------
   def CreateAxialValue( self, **kwargs ):

@@ -425,42 +425,86 @@ coreSym, npiny, npinx, nax, and nass.
       for k in range( core.nax ):
         factors[ :, :, k, : ] = core.axialMesh[ k + 1 ] - core.axialMesh[ k ]
 
-#core.coreSym == 4
-#		-- Account for odd number of assemblies and pins in Y dimension
+#		-- Quarter core symmetry
 #		--
-      if (core.nassy % 2) == 1 and (core.npiny % 2) == 1:
-        mid_pin_row = (core.npiny + 1) / 2 - 1
-	mid_assy_row = (core.nassy + 1) / 2 - 1
+      if core.coreSym == 4:
+#			-- Account for odd number of assemblies and pins in
+#			-- Y dimension
+        if (core.nassy % 2) == 1 and (core.npiny % 2) == 1:
+	  mid_pin_row = (core.npiny - 1) / 2
+	  mid_assy_row = (core.nassy - 1) / 2
+          #mid_pin_row = (core.npiny + 1) / 2 - 1
+	  #mid_assy_row = (core.nassy + 1) / 2 - 1
 
-#			-- Loop over top row of SE quadrant
-	xstart = (core.nassx + (core.nassx % 2)) / 2 - 1
-        for i in range( xstart, core.nassx ):
-	  assy_ndx = core.coreMap[ mid_assy_row, i ]
+#				-- Loop over top row of SE quadrant
+	  xstart = (core.nassx + (core.nassx % 2)) / 2 - 1
+          for i in range( xstart, core.nassx ):
+	    assy_ndx = core.coreMap[ mid_assy_row, i ] - 1
 
-	  for k in range( core.nax ):
-	    for x in range( core.npinx ):
-	      factors[ mid_pin_row, x, k, assy_ndx ] /= 2.0
-	    #for pin columns
-	  #end for axial
-	#end for assembly quadrant columns
-      #end if
+	    factors[ mid_pin_row, 0 : core.npinx, 0 : core.nax, assy_ndx ] /= 2.0
+#	    for k in range( core.nax ):
+#	      for x in range( core.npinx ):
+#	        factors[ mid_pin_row, x, k, assy_ndx ] /= 2.0
+#	      #for pin columns
+#	    #end for axial
+	  #end for assembly quadrant columns
+        #end if
 
-      if (core.nassx % 2) == 1 and (core.npinx % 2) == 1:
-        mid_pin_col = (core.npinx + 1) / 2 - 1
-	mid_assy_col = (core.nassx + 1) / 2 - 1
+        if (core.nassx % 2) == 1 and (core.npinx % 2) == 1:
+          mid_pin_col = (core.npinx - 1) / 2
+	  mid_assy_col = (core.nassx - 1) / 2
+          #mid_pin_col = (core.npinx + 1) / 2 - 1
+	  #mid_assy_col = (core.nassx + 1) / 2 - 1
 
-#			-- Loop over left col of SE quadrant
-	ystart = (core.nassy + (core.nassy % 2)) / 2 - 1
-        for j in range( ystart, core.nassy ):
-	  assy_ndx = core.coreMap[ mid_assy_col, j ]
+#				-- Loop over left col of SE quadrant
+	  ystart = (core.nassy + (core.nassy % 2)) / 2 - 1
+          for j in range( ystart, core.nassy ):
+	    assy_ndx = core.coreMap[ mid_assy_col, j ] - 1
 
-	  for k in range( core.nax ):
-	    for y in range( core.npiny ):
-	      factors[ y, mid_pin_col, k, assy_ndx ] /= 2.0
-	    #for pin rows
-	  #end for axial
-	#end for assembly quadrant rows
-      #end if
+	    factors[ 0 : core.npiny, mid_pin_col, 0 : core.nax, assy_ndx ] /= 2.0
+#	    for k in range( core.nax ):
+#	      for y in range( core.npiny ):
+#	        factors[ y, mid_pin_col, k, assy_ndx ] /= 2.0
+#	      #for pin rows
+#	    #end for axial
+	  #end for assembly quadrant rows
+        #end if
+
+#		-- Eighth core symmetry
+#		--
+      elif core.coreSym == 8:
+#			-- Account for odd number of assemblies and pins in
+#			-- Y dimension
+        if (core.nassy % 4) == 3 and (core.npiny % 4) == 3:
+	  pin_row_offset = (core.npiny - 1) / 4
+	  mid_pin_row = core.npiny - 1 - pin_row_offset
+	  assy_row_offset = (core.nassy - 1) / 4
+	  mid_assy_row = core.nassy - 1 - assy_row_offset
+
+#				-- Loop over top row of SE quadrant
+	  xstart = (core.nassx + (core.nassx % 4)) / 4 - 1
+          for i in range( xstart, core.nassx ):
+	    assy_ndx = core.coreMap[ mid_assy_row, i ] - 1
+
+	    factors[ mid_pin_row, 0 : core.npinx, 0 : core.nax, assy_ndx ] /= 2.0
+	  #end for assembly quadrant columns
+        #endif
+
+        if (core.nassx % 4) == 3 and (core.npinx % 4) == 3:
+	  pin_col_offset = (core.npinx - 1) / 4
+          mid_pin_col = core.npinx - 1 - pin_col_offset
+	  assy_col_offset = (core.nassx - 1) / 4
+	  mid_assy_col = core.nassx - 1 - assy_col_offset
+
+#				-- Loop over left col of SE quadrant
+	  ystart = (core.nassy + (core.nassy % 4)) / 4 - 1
+          for j in range( ystart, core.nassy ):
+	    assy_ndx = core.coreMap[ mid_assy_col, j ] - 1
+
+	    factors[ 0 : core.npiny, mid_pin_col, 0 : core.nax, assy_ndx ] /= 2.0
+	  #end for assembly quadrant rows
+	#endif
+      #end if-else core.coreSym
 
 #      factors.fill( 1.0 )
 #      factors[ 0, :, :, : ] = 1.0 / core.coreSym
