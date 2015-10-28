@@ -415,6 +415,188 @@ class TestAverager( unittest.TestCase ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage1DAxial()	-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage1DAxial( self ):
+    obj = Averager()
+    data = DataModel( os.path.join( 'data', 'pinpowers1.h5' ) )
+    powers = data.GetStates()[ 0 ].GetDataSet( 'pin_powers' )
+    factors = obj.CreateCorePinFactors( data.core )
+    volumes = data.core.pinVolumes
+
+    cur_shape = ( 1, 1, powers.shape[ 2 ], 1 )
+    averages = obj.CalcGeneralAverage( powers, cur_shape )
+    comp = np.array( averages[ 0, 0, :, 0 ] )
+    results = self._readArray( 'pinpowers1.1daxial.1.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline no factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors )
+    comp = np.array( averages[ 0, 0, :, 0 ] )
+    results = self._readArray( 'pinpowers1.1daxial.2.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors, volumes )
+    comp = np.array( averages[ 0, 0, :, 0 ] )
+    results = self._readArray( 'pinpowers1.1daxial.3.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors with weights'
+	)
+  #end test_CalcGeneralAverage1DAxial
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage2DAssy()	-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage2DAssy( self ):
+    obj = Averager()
+    data = DataModel( os.path.join( 'data', 'pinpowers1.h5' ) )
+    powers = data.GetStates()[ 0 ].GetDataSet( 'pin_powers' )
+    factors = obj.CreateCorePinFactors( data.core )
+    volumes = data.core.pinVolumes
+
+    cur_shape = ( 1, 1, 1, powers.shape[ 3 ] )
+    averages = obj.CalcGeneralAverage( powers, cur_shape )
+    comp = np.array( averages[ 0, 0, 0, : ] )
+    results = self._readArray( 'pinpowers1.2dassy.1.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline no factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors )
+    comp = np.array( averages[ 0, 0, 0, : ] )
+    results = self._readArray( 'pinpowers1.2dassy.2.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors, volumes )
+    results = self._readArray( 'pinpowers1.2dassy.3.out' )
+    comp = np.array( averages[ 0, 0, 0, : ] )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors with weights'
+	)
+  #end test_CalcGeneralAverage2DAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage2DPin()	-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage2DPin( self ):
+    obj = Averager()
+    data = DataModel( os.path.join( 'data', 'pinpowers1.h5' ) )
+    powers = data.GetStates()[ 0 ].GetDataSet( 'pin_powers' )
+    factors = obj.CreateCorePinFactors( data.core )
+    volumes = data.core.pinVolumes
+
+    cur_shape = ( powers.shape[ 0 ], powers.shape[ 1 ], 1, powers.shape[ 3 ] )
+    averages = obj.CalcGeneralAverage( powers, cur_shape )
+    comp = np.array( averages[ :, :, 0, : ] )
+    results = self._readArray( 'pinpowers1.2dpin.1.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline no factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors )
+    comp = np.array( averages[ :, :, 0, : ] )
+    results = self._readArray( 'pinpowers1.2dpin.2.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors, volumes )
+    comp = np.array( averages[ :, :, 0, : ] )
+    results = self._readArray( 'pinpowers1.2dpin.3.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors with weights'
+	)
+  #end test_CalcGeneralAverage2DPin
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage3DAssy()	-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage3DAssy( self ):
+    obj = Averager()
+    data = DataModel( os.path.join( 'data', 'pinpowers1.h5' ) )
+    powers = data.GetStates()[ 0 ].GetDataSet( 'pin_powers' )
+    factors = obj.CreateCorePinFactors( data.core )
+    volumes = data.core.pinVolumes
+
+    cur_shape = ( 1, 1, powers.shape[ 2 ], powers.shape[ 3 ] )
+    averages = obj.CalcGeneralAverage( powers, cur_shape )
+    comp = np.array( averages[ 0, 0, :, : ] )
+    results = self._readArray( 'pinpowers1.3dassy.1.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline no factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors )
+    comp = np.array( averages[ 0, 0, :, : ] )
+    results = self._readArray( 'pinpowers1.3dassy.2.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors, volumes )
+    comp = np.array( averages[ 0, 0, :, : ] )
+    results = self._readArray( 'pinpowers1.3dassy.3.out' )
+    self.assertTrue(
+        np.allclose( comp, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors with weights'
+	)
+  #end test_CalcGeneralAverage3DAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverageScalar()	-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverageScalar( self ):
+    obj = Averager()
+    data = DataModel( os.path.join( 'data', 'pinpowers1.h5' ) )
+    powers = data.GetStates()[ 0 ].GetDataSet( 'pin_powers' )
+    factors = obj.CreateCorePinFactors( data.core )
+    volumes = data.core.pinVolumes
+
+    cur_shape = ( 1, 1, 1, 1 )
+    averages = obj.CalcGeneralAverage( powers, cur_shape )
+    results = self._readArray( 'pinpowers1.scalar.1.out' )
+    self.assertTrue(
+        np.allclose( averages, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline no factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors )
+    results = self._readArray( 'pinpowers1.scalar.2.out' )
+    self.assertTrue(
+        np.allclose( averages, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors no weights'
+	)
+
+    averages = obj.CalcGeneralAverage( powers, cur_shape, factors, volumes )
+    results = self._readArray( 'pinpowers1.scalar.3.out' )
+    self.assertTrue(
+        np.allclose( averages, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline with factors with weights'
+	)
+  #end test_CalcGeneralAverageScalar
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		TestAverager.test_CalcScalarAverage1()		-
   #----------------------------------------------------------------------
   def test_CalcScalarAverage1( self ):
@@ -513,8 +695,14 @@ if __name__ == '__main__':
   #suite = unittest.TestSuite()
   #suite.addTest( TestAverager( 'test_CalcGeneralAverage1' ) )
 
-  #tests = [ 'test_CalcGeneralAverage1', 'test_CalcGeneralAverage2', 'test_CalcGeneralAverage3' ]
-  #suite = unittest.TestSuite( map( TestAverager, tests ) )
+#  tests = [
+#      'test_CalcGeneralAverage1DAxial',
+#      'test_CalcGeneralAverage2DAssy',
+#      'test_CalcGeneralAverage2DPin',
+#      'test_CalcGeneralAverage3DAssy',
+#      'test_CalcGeneralAverageScalar'
+#      ]
+#  suite = unittest.TestSuite( map( TestAverager, tests ) )
 
   suite = unittest.TestLoader().loadTestsFromTestCase( TestAverager )
   unittest.TextTestRunner( verbosity = 2 ).run( suite )
