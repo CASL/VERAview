@@ -364,6 +364,57 @@ class TestAverager( unittest.TestCase ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage1()		-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage1( self ):
+    data = self._readArray( 'one.data' )
+    obj = Averager()
+
+    avg = obj.CalcGeneralAverage( data, ( 1, 1, 2, 2 ) )
+    results = self._readArray( 'one.3dassy.1.out' )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+  #end test_CalcGeneralAverage1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage2()		-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage2( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    results = self._readArray( 'one.3dassy.2.out' )
+    obj = Averager()
+
+    avg = obj.CalcGeneralAverage( data, ( 1, 1, 2, 2 ), factors )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+  #end test_CalcGeneralAverage2
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TestAverager.test_CalcGeneralAverage3()		-
+  #----------------------------------------------------------------------
+  def test_CalcGeneralAverage3( self ):
+    data = self._readArray( 'one.data' )
+    factors = self._readArray( 'one.factors' )
+    weights = self._readArray( 'one.weights' )
+    results = self._readArray( 'one.3dassy.3.out' )
+    obj = Averager()
+
+    avg = obj.CalcGeneralAverage( data, ( 1, 1, 2, 2 ), factors, weights )
+    self.assertTrue(
+        np.allclose( avg, results, rtol = 0.0, atol = 1.0e-6 ),
+	'calc vs baseline'
+	)
+  #end test_CalcGeneralAverage3
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		TestAverager.test_CalcScalarAverage1()		-
   #----------------------------------------------------------------------
   def test_CalcScalarAverage1( self ):
@@ -458,5 +509,12 @@ class TestAverager( unittest.TestCase ):
 #------------------------------------------------------------------------
 if __name__ == '__main__':
   #unittest.main()
+
+  #suite = unittest.TestSuite()
+  #suite.addTest( TestAverager( 'test_CalcGeneralAverage1' ) )
+
+  #tests = [ 'test_CalcGeneralAverage1', 'test_CalcGeneralAverage2', 'test_CalcGeneralAverage3' ]
+  #suite = unittest.TestSuite( map( TestAverager, tests ) )
+
   suite = unittest.TestLoader().loadTestsFromTestCase( TestAverager )
   unittest.TextTestRunner( verbosity = 2 ).run( suite )

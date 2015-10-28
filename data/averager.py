@@ -3,12 +3,13 @@
 #------------------------------------------------------------------------
 #	NAME:		averager.py					-
 #	HISTORY:							-
+#		2015-10-28	leerw@ornl.gov				-
 #		2015-10-26	leerw@ornl.gov				-
 #	  Added support for coreSym == 8 in CreateCorePinFactors().
 #		2015-10-05	leerw@ornl.gov				-
 #		2015-10-03	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, traceback
+import math, os, sys, tempfile, traceback
 import numpy as np
 #import pdb
 
@@ -334,6 +335,102 @@ averages over 4D VERAOutput datasets.
 
     return  avg
   #end Calc3DAssyAverage_
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Averager.CalcGeneralAverage()			-
+  #----------------------------------------------------------------------
+  def CalcGeneralAverage( self, data_in, avg_shape, factors = None, weights = None ):
+    """Calculates any average, preserving the original dimensionality of
+data_in.
+@param  data_in		dataset (numpy.ndarray) to average, cannot be None
+@param  avg_shape	tuple defining the shape of the result, with 1 for
+			the axes across which averages will be computed,
+			must be of the same length of data_in.shape with
+			no zeros, cannot be None
+@param  factors		optional factors (numpy.ndarray) to apply, must have
+			the same shape as data_in
+@param  weights		optional weights (numpy.ndarray) to apply, must have
+			the same shape as data_in
+@return			numpy.ndarray of shape avg_shape with averaged values
+@exception		if any of the shape/size assertions fail
+"""
+#	-- Assertions
+#	--
+    if len( avg_shape ) != len( data_in.shape ):
+      raise Exception( 'Average shape must have same length as data shape' )
+
+    if np.count_nonzero( avg_shape ) != len( avg_shape ):
+      raise Exception( 'Average shape cannot have zeros' )
+
+    if factors != None and factors.shape != data_in.shape:
+      raise Exception( 'Factors must have same shape as data' )
+
+    if weights != None and weights.shape != data_in.shape:
+      raise Exception( 'Weights must have same shape as data' )
+
+#	-- Resolve factors and weights
+#	--
+    wts = \
+        factors * weights if factors != None and weights != None else \
+	factors if factors != None else \
+	weights
+
+    avg = np.ndarray( avg_shape, np.float64 )
+    avg.fill( 0.0 )
+
+#	-- Determine flattened axes
+#	--
+    flat_indexes = filter(
+        lambda x: avg_shape[ x ] == 1,
+	range( len( avg_shape ) )
+	)
+
+    indent = ''
+    exec_str = ''
+    data_expr = '['
+    for axis_ndx in range( len( avg_shape ) ):
+      if axis_ndx > 0:
+        data_expr += ','
+
+      if avg_shape[ axis_ndx ] == 1:
+        data_expr += ':'
+      else:
+	var = 'i' + str(axis_ndx)
+        data_expr += var
+	s = '%sfor %s in range( data_in.shape[ %d ] ):\n' % \
+	    ( indent, var, axis_ndx )
+        exec_str += s
+        indent += '  '
+      #end if-else
+    #for axis_ndx
+
+    data_expr += ']'
+    avg_expr = data_expr.replace( ':', '0' )
+
+    s = """%savg%s = \\
+    np.average( data_in%s )  if wts == None else \\
+    0.0  if np.sum( wts%s ) == 0.0 else \\
+    np.average( data_in%s, weights = wts%s )
+"""
+    exec_str += \
+        s % ( indent, avg_expr, data_expr, data_expr, data_expr, data_expr )
+
+    fd, name = tempfile.mkstemp( '.avg' )
+    try:
+      fp = os.fdopen( fd, 'w' )
+      try:
+        fp.write( exec_str )
+      finally:
+        fp.close()
+
+      execfile( name )
+
+    finally:
+      os.remove( name )
+
+    return  avg
+  #end CalcGeneralAverage
 
 
   #----------------------------------------------------------------------
