@@ -416,6 +416,7 @@ data_in.
     exec_str += \
         s % ( indent, avg_expr, data_expr, data_expr, data_expr, data_expr )
 
+#    exec( exec_str )
     fd, name = tempfile.mkstemp( '.avg' )
     try:
       fp = os.fdopen( fd, 'w' )
