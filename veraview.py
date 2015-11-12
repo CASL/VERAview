@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-11-12	leerw@ornl.gov				-
+#	  Adding menu to create a pseudo dataset.
 #		2015-09-17	leerw@ornl.gov				-
 #	  Remove erroneous 'func' from the Time Plot toolbar item definition.
 #	  Began addition of the "plot everything" function.
@@ -501,6 +503,10 @@ class VeraViewFrame( wx.Frame ):
 #		-- Edit Menu
 #		--
     edit_menu = wx.Menu()
+    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets' )
+    self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
+    edit_menu.AppendItem( datasets_item )
+
     grid_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Resize &Grid\tCtrl+G' )
     self.Bind( wx.EVT_MENU, self._OnGridResize, grid_item )
     edit_menu.AppendItem( grid_item )
@@ -815,6 +821,20 @@ Must be called from the UI thread.
     if reason != STATE_CHANGE_noop:
       self.grid.FireStateChange( reason )
   #end _OnExposure
+
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnManageDataSets()		-
+  #----------------------------------------------------------------------
+  def _OnManageDataSets( self, ev ):
+    ev.Skip()
+
+    wx.MessageDialog( self, 'Coming Soon', 'Manage Extra DataSets' ).\
+        ShowWindowModal()
+    #dialog = DataSetManagerDialog( None )
+    #dialog.ShowModal( self.state.dataModel )
+  #end _OnManageDataSets
 
 
 

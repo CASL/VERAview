@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-11-12	leerw@ornl.gov				-
+# 	  Renamed 'avg' category to 'extra' to support imports as well
+#	  as calculated datasets.
 #		2015-10-26	leerw@ornl.gov				-
 #	  Added 'avg' as a category type with storage in a separate HDF5
 #	  file.
@@ -446,12 +449,14 @@ property.
 Properties:
   core			Core
   dataSetNames		dict of dataset names by category
-			  ( 'avg', 'channel', 'detector', 'pin', 'scalar' )
-  h5avg			averages h5py.File, None until exists or created
-  h5file		h5py.File
+			  ( 'channel', 'detector', 'extra', 'pin', 'scalar' )
+  extraStates		list of ExtraState instances
+  h5ExtraFile		extra datasets h5py.File, None until exists or created
+  h5ExtraFilePath	path to extra datasets file
+  h5File		h5py.File
   pinPowerRange		( min, max ), computed from all states
   ranges		dict of ranges ( min, max ) by dataset
-  states		list of State
+  states		list of State instances
 """
 
 
@@ -469,8 +474,11 @@ Properties:
   #	METHOD:		DataModel.__del__()				-
   #----------------------------------------------------------------------
   def __del__( self ):
-    if self.h5file != None:
-      self.h5file.close()
+    if self.h5ExtraFile != None:
+      self.h5ExtraFile.close()
+
+    if self.h5File != None:
+      self.h5File.close()
   #end __del__
 
 
@@ -522,7 +530,10 @@ passed, the read() method must be called.
   def Clear( self ):
     self.core = None
     self.dataSetNames = None
-    self.h5file = None
+    self.extraStates = None
+    self.h5ExtraFile = None
+    self.h5ExtraFilePath = None
+    self.h5File = None
     self.pinPowerRange = None
     self.ranges = None
     self.states = None
@@ -533,8 +544,8 @@ passed, the read() method must be called.
   #	METHOD:		DataModel.Close()				-
   #----------------------------------------------------------------------
   def Close( self ):
-    if self.h5file:
-      self.h5file.close()
+    if self.h5File:
+      self.h5File.close()
     self.Clear()
   #end Close
 
@@ -577,6 +588,53 @@ Parameters:
 
     return  ( axial_cm, core_ndx, det_ndx )
   #end CreateAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._CreateExtraH5File()			-
+  #----------------------------------------------------------------------
+  def _CreateExtraH5File( self, truncate_flag = False ):
+    """Creates and initializes the "extras" HDF5 file.  The state points
+are initialized.
+@param  truncate_flag	if True, any exist file is first removed
+@return			new h5py.File object (h5ExtraFile property)
+"""
+#		-- Delete existing if requexted
+#		--
+    if truncate_flag and self.h5ExtraFile != None:
+      self.h5ExtraFile.close()
+      if os.path.exists( self.h5ExtraFilePath ):
+        os.remove( self.h5ExtraFilePath )
+      self.h5ExtraFile = None
+    #end if
+
+#		-- Create if it does not exist
+#		--
+    if self.h5ExtraFile == None:
+      self.h5ExtraFile = h5py.File( self.h5ExtraFilePath, 'w' )
+
+#			-- Add states with exposure values
+#			--
+      if self.GetStates() != None:
+        for st in self.GetStates():
+	  if st.GetGroup() != None:
+	    from_group = st.GetGroup()
+	    to_group = self.h5ExtraFile.\
+	        create_group( from_group.name.replace( '/', '' ) )
+	    if 'exposure' in from_group:
+	      exp_ds = to_group.create_dataset(
+	          'exposure',
+		  data = from_group[ 'exposure' ].value
+		  )
+	  #end if state h5py group exists
+	#end for
+      #end if states exist
+
+      self.h5ExtraFile.flush()
+    #end if file doesn't exist
+
+    return  self.h5ExtraFile
+  #end _CreateExtraH5File
 
 
   #----------------------------------------------------------------------
@@ -707,13 +765,41 @@ descending.
 			category
 			if category == None, dict of dataset name lists by
 			category
-			( 'avg', 'axial',
-			  'channel', 'detector', 'pin', 'scalar' )
+			( 'axial', 'channel', 'detector', 'extra', 'pin',
+			  'scalar' )
 """
     return \
         self.dataSetNames if category == None else \
 	self.dataSetNames.get( category, [] )
   #end GetDataSetNames
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetExtraState()			-
+  #----------------------------------------------------------------------
+  def GetExtraState( self, ndx = 0 ):
+    """Retrieves a specific extra state point by index.
+@param  ndx		0-based index
+@return			ExtraState object or None if extraStates not defined
+			or ndx out of range
+"""
+    return  \
+	self.extraStates[ ndx ]  \
+	if self.extraStates != None and \
+	    ndx >= 0 and ndx < len( self.extraStates ) else \
+	None
+  #end GetExtraState
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetExtraStates()			-
+  #----------------------------------------------------------------------
+  def GetExtraStates( self ):
+    """Accessor for the 'extraStates' property.
+@return			list of ExtraState instances or None
+"""
+    return  self.extraStates
+  #end GetExtraStates
 
 
   #----------------------------------------------------------------------
@@ -730,13 +816,24 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetH5ExtraFile()			-
+  #----------------------------------------------------------------------
+  def GetH5ExtraFile( self ):
+    """Accessor for the 'h5ExtraFile' property.
+@return			h5py.File instance or None
+"""
+    return  self.h5ExtraFile
+  #end GetH5ExtraFile
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetH5File()				-
   #----------------------------------------------------------------------
   def GetH5File( self ):
-    """Accessor for the 'file' property.
+    """Accessor for the 'h5File' property.
 @return			h5py.File instance or None
 """
-    return  self.h5file
+    return  self.h5File
   #end GetH5File
 
 
@@ -827,7 +924,7 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   def GetStates( self ):
     """Accessor for the 'states' property.
-@return			States instance or None
+@return			list of State instances or None
 """
     return  self.states
   #end GetStates
@@ -872,7 +969,7 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   def HasDataSetCategory( self, category = None ):
     """Tests existence of datasets in category
-@param  category	one of 'avg', 'axial', 'channel', 'detector',
+@param  category	one of 'axial', 'channel', 'detector', 'extra',
 			'pin', 'scalar'
 @return			True if there are datasets, False otherwise
 """
@@ -1030,24 +1127,25 @@ the properties construct for this class soon.
 			HDF5 file (.h5)
 """
     if isinstance( h5f_param, h5py.File ):
-      self.h5file = h5f_param
+      self.h5File = h5f_param
     else:
-      self.h5file = h5py.File( str( h5f_param ) )
+      self.h5File = h5py.File( str( h5f_param ) )
 
-    self.core = Core( self.h5file )
-    self.dataSetNames, self.states = State.ReadAll( self.h5file, self.core )
+    self.core = Core( self.h5File )
+    self.dataSetNames, self.states = State.ReadAll( self.h5File, self.core )
 
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }
 
-#	-- Try reading averages file
+#	-- Read extras file if it exists
 #	--
-    self.h5avg = None
-    base, ext = os.path.splitext( self.h5file.filename )
-    avg_fname = base + '.avg' + ext
-    if os.path.exists( avg_fname ):
-      self.h5avg = h5py.File( avg_fname, 'r+' )  # 'a': r/w or creates
-      self.dataSetNames[ 'avg' ] = self.h5avg.keys()
+    self.h5ExtraFile = None
+    base, ext = os.path.splitext( self.h5File.filename )
+    self.h5ExtraFilePath = base + '.extra' + ext
+    if os.path.exists( self.h5ExtraFilePath ):
+      self.h5ExtraFile = h5py.File( self.h5ExtraFilePath, 'r+' )  # 'a': r/w or creates
+      self.dataSetNames[ 'extra' ], self.extraStates = \
+          ExtraState.ReadAll( self.h5ExtraFile )
   #end Read
 
 
@@ -1086,6 +1184,61 @@ the properties construct for this class soon.
 
     return  ( range_min, range_max )
   #end _ReadDataSetRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.RemoveExtraDataSet()			-
+  #----------------------------------------------------------------------
+  def RemoveExtraDataSet( self, ds_name ):
+    """Removes the named dataset from all extra states.
+Note the fully-qualified name of a caculated dataset is 'source.name',
+where 'source' is the name of the dataset from which the extra dataset was
+calculated.
+@param  ds_name		dataset name
+"""
+    if self.GetExtraStates() != None:
+      for st in self.GetExtraStates():
+        del st[ ds_name ]
+      #end for
+
+      self.h5ExtraFile.flush()
+    #end if
+  #end RemoveExtraDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.StoreExtraDataSet()			-
+  #----------------------------------------------------------------------
+  def StoreExtraDataSet( self, ds_name, get_data_for_state ):
+    """Adds or replaces the named dataset in all extra states.
+Note the fully-qualified name of a caculated dataset is 'source.name',
+where 'source' is the name of the dataset from which the extra dataset was
+calculated.
+@param  ds_name		dataset name
+@param  get_data_for_state  function to return the numpy.ndarray for each
+			state index, called for each index
+@return			list of h5py.Dataset objects added for each state point
+"""
+#		-- Create Extra File if Necessary
+#		--
+    if self.h5ExtraFile == None:
+      self._CreateExtraH5File( self )
+
+    dsets = []
+    ndx = 0
+    for st in self.GetExtraStates():
+      if ds_name in st:
+        del st[ ds_name ]
+
+      data_in = get_data_for_state( ndx )
+      dsets.append( st.create_dataset( ds_name, data = data_in ) )
+      ndx += 1
+    #end for each state
+
+    self.h5ExtraFile.flush()
+
+    return  dsets
+  #end StoreExtraDataSet
 
 
   #----------------------------------------------------------------------
@@ -1264,6 +1417,9 @@ Fields:
   #	METHOD:		State.GetDataSet()				-
   #----------------------------------------------------------------------
   def GetDataSet( self, ds_name ):
+    """
+@return			h5py.Dataset or None if not found
+"""
     return  \
         self.group[ ds_name ] if ds_name != None and ds_name in self.group \
 	else None
@@ -1315,11 +1471,16 @@ Fields:
   #	METHOD:		State.ToJson()					-
   #----------------------------------------------------------------------
   def ToJson( self ):
-    obj = \
-      {
-      'exposure': self.exposure.item(),
-      'keff': self.keff.item()
-      }
+#    obj = \
+#      {
+#      'exposure': self.exposure.item(),
+#      'keff': self.keff.item()
+#      }
+    obj = {}
+    if self.exposure != None:
+      obj[ 'exposure' ] = self.exposure.item()
+    if self.keff != None:
+      obj[ 'keff' ] = self.keff.item()
 
     if self.pinPowers != None:
       obj[ 'pinPowers' ] = self.pinPowers.tolist()
@@ -1478,6 +1639,81 @@ Fields:
     return  json_arr
   #end ToJsonAll
 #end State
+
+
+#------------------------------------------------------------------------
+#	CLASS:		ExtraState					-
+#------------------------------------------------------------------------
+class ExtraState( object ):
+  """Special State for extra datasets.
+  
+Fields:
+  exposure		exposure time in (?) secs
+  group			HDF5 group
+  keff			always None
+  pinPowers		always None
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ExtraState.__init__()				-
+  #----------------------------------------------------------------------
+  def __init__( self, index, name = None, state_group = None ):
+    """
+@param  state_group	HDF5 group for this state
+"""
+    super( ExtraState, self ).__init__( index, name, state_group )
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ExtraState.Check()				-
+  #----------------------------------------------------------------------
+  def Check( self, core ):
+    """
+@return			empty list
+"""
+    return  []
+  #end Check
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ExtraState.ReadAll()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ReadAll( h5_group ):
+    """
+@return			( ds_names, states )
+"""
+    ds_names = []
+    states = []
+
+    missing_count = 0
+    n = 1
+    while True:
+      name = 'STATE_%04d' % n
+      if name not in h5_group:
+	missing_count += 1
+	if missing_count > 5:
+          break
+      else:
+	missing_count = 0
+	cur_group = h5_group[ name ]
+        states.append( ExtraState( n - 1, name, cur_group ) )
+
+	if n == 1:
+	  ds_names = cur_group.keys()
+      #end if-else
+
+      n += 1
+    #end while
+
+    return  ( ds_names, states )
+  #end ReadAll
+#end ExtraState
 
 
 #------------------------------------------------------------------------
