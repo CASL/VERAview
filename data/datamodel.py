@@ -1198,14 +1198,15 @@ calculated.
 """
     if self.GetExtraStates() != None:
       for st in self.GetExtraStates():
-        del st[ ds_name ]
+	if ds_name in st.GetGroup():
+          del st.GetGroup()[ ds_name ]
       #end for
 
       self.h5ExtraFile.flush()
     #end if
 
     if 'extra' in self.dataSetNames and ds_name in self.dataSetNames[ 'extra' ]:
-      del self.dataSetNames[ 'extra' ][ ds_name ]
+      self.dataSetNames[ 'extra' ].remove( ds_name )
   #end RemoveExtraDataSet
 
 

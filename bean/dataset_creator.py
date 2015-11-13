@@ -178,7 +178,7 @@ which to average.
     super( DataSetCreatorBean, self ).__init__( container, id )
 
     self.fDataModel = data_model
-    self.fDataSetName = ds_name
+    self.fSrcDataSetName = ds_name
 
     dset = None
     st = data_model.GetState( 0 )
@@ -190,6 +190,7 @@ which to average.
     #extra_names = data_model.GetDataSetNames( 'extra' )
     #self.fExtraNames = [] if extra_names == None else extra_names
 
+    self.fAvgNameField = None
     self.fAxisCheckBoxes = []
     self.fCreateButton = None
 
@@ -203,10 +204,9 @@ which to average.
   def Enable( self, flag = True ):
     super( DataSetCreatorBean, self ).Enable( flag )
 
-    # self.fCreateButton, self.fDeleteButton,
-    objs = ( self.fCategoryTabs, self.fExtrasList )
-    for obj in objs:
-      obj.Enable( flag )
+    self.fCreateButton.Enable( flag )
+    for cb in self.fAxisCheckBoxes:
+      cb.Enable( flag )
   #end Enable
 
 
@@ -220,9 +220,49 @@ which to average.
     axis_names_rev = ( 'nass', 'nax', 'npinx', 'npiny' )
     shape_rev = sorted( self.fShape, reverse = True )
 
+#		-- Create names panel
+#		--
+    names_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
+    names_sizer = wx.FlexGridSizer( 2, 2, 6, 4 )
+    names_panel.SetSizer( names_sizer )
+
+    self.fAvgNameField = wx.TextCtrl(
+        self, -1, 'average',
+	size = ( 240, -1 ), style = wx.TE_DONTWRAP
+	)
+
+    names_sizer.Add(
+	wx.StaticText(
+	    self, -1,
+	    label = 'Source Dataset:',
+	    style = wx.ALIGN_LEFT
+	    ),
+	0, wx.ALIGN_LEFT | wx.LEFT | wx.TOP, 8
+        )
+    names_sizer.Add(
+	wx.TextCtrl(
+	    self, -1, self.fSrcDataSetName,
+	    size = ( 40, -1 ),
+	    style = wx.ALIGN_LEFT | wx.TE_READONLY
+	    ),
+	1, wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT | wx.TOP, 8
+        )
+    names_sizer.Add(
+	wx.StaticText(
+	    self, -1,
+	    label = 'New Dataset:',
+	    style = wx.ALIGN_LEFT
+	    ),
+	0, wx.ALIGN_LEFT | wx.LEFT | wx.TOP, 8
+        )
+    names_sizer.Add(
+        self.fAvgNameField,
+	1, wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT | wx.TOP, 8
+	)
+
 #		-- Create axis panel
 #		--
-    axis_panel = wx.Panel( self, -1 )
+    axis_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
     axis_sizer = wx.FlexGridSizer( 3, len( shape_rev ), 8, 6 )
     axis_panel.SetSizer( axis_sizer )
 
@@ -232,7 +272,7 @@ which to average.
 	      axis_panel, -1,
 	      label = axis_names_rev[ i ], style = wx.ALIGN_CENTER
 	      ),
-	  1, wx.EXPAND, 0
+	  1, wx.EXPAND | wx.TOP, 4
           )
     #end for
 
@@ -251,7 +291,9 @@ which to average.
       cb = wx.CheckBox( axis_panel, -1, '' )
       self.fAxisCheckBoxes.append( cb )
       #axis_sizer.Add( cb, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.LEFT, 6 )
-      axis_sizer.Add( cb, 0, wx.ALIGN_CENTER_HORIZONTAL, 0 )
+      axis_sizer.Add(
+          cb, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 8
+	  )
     #end for
 
 #		-- Buttons
@@ -273,22 +315,17 @@ which to average.
 
 #		-- Lay Out
 #		--
-    left_sizer = wx.BoxSizer( wx.VERTICAL )
-    left_sizer.Add(
-	  wx.StaticText(
-	      self, -1,
-	      label = 'Source Dataset: ' + self.fDataSetName,
-	      style = wx.ALIGN_LEFT
-	      ),
-	  0, wx.ALIGN_LEFT | wx.BOTTOM, 4
-          )
-    left_sizer.Add( axis_panel, wx.ALL | wx.EXPAND, 0 )
+    middle_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    middle_sizer.Add( axis_panel, 0, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0 )
+    middle_sizer.AddStretchSpacer()
+    middle_sizer.Add( button_panel, 0, wx.ALIGN_LEFT | wx.ALL, 0 )
 
-    sizer = wx.BoxSizer( wx.HORIZONTAL )
+    sizer = wx.BoxSizer( wx.VERTICAL )
     self.SetSizer( sizer )
 
-    sizer.Add( left_sizer, 1, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 4 )
-    sizer.Add( button_panel, 0, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 4 )
+    sizer.Add( names_panel, 0, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 4 )
+    sizer.Add( middle_sizer, 0, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 4 )
+    sizer.AddStretchSpacer()
 
     self.Fit()
     #self.Layout()
@@ -312,8 +349,12 @@ Called on the UI thread.
       avg_shape.insert( 0, val )
     #end for
 
+    avg_name = self.fAvgNameField.GetValue()
+    if len( avg_name.replace( ' ', '' ) ) == 0:
+      avg_name = 'average'
     creator = DataSetCreator(
-        self.fDataModel, self.fDataSetName, 'some_avg', avg_shape
+        self.fDataModel, self.fSrcDataSetName,
+	avg_name, avg_shape
 	)
     creator.Run()
 #    wx.MessageDialog(

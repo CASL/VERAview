@@ -67,51 +67,6 @@ average datasets.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetManagerBean._CreateExtraControls()	-
-  #----------------------------------------------------------------------
-  def _CreateExtraControls( self, parent, dset ):
-    """
-@param  parent		parent window
-@param  dset		h5py.Dataset object
-@return			dict with
-			  'delete': delete CheckBox
-			  'name': name StaticText
-			  'shape': shape StaticText
-"""
-    ds_name = dset.name.replace( '/', '' )
-
-    sizer = parent.GetSizer()
-
-    delete_field = wx.CheckBox( parent, -1, label = '' )
-#    delete_field.Bind(
-#        wx.EVT_CHECKBOX,
-#	functools.partial( self._OnDelete, ds_name )
-#	)
-    sizer.Add( delete_field, 0, wx.ALL | wx.ALIGN_CENTER, 0 )
-
-    name_field = wx.StaticText(
-        parent, -1, label = ds_name,
-	style = wx.ALIGN_LEFT
-	)
-    sizer.Add( name_field, 0, wx.ALL | wx.EXPAND, 0 )
-
-    shape_field = wx.StaticText(
-	parent, -1, label = str( dset.shape ),
-	style = wx.ALIGN_LEFT
-        )
-    sizer.Add( shape_field, 0, wx.ALL | wx.ALIGN_LEFT, 0 )
-
-    rec = \
-      {
-      'delete': delete_field,
-      'name': name_field,
-      'shape': shape_field
-      }
-    return  rec
-  #end _CreateExtraControls
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataSetManagerBean.Enable()			-
   #----------------------------------------------------------------------
   def Enable( self, flag = True ):
@@ -291,6 +246,17 @@ Called on the UI thread.
 Called on the UI thread.
 """
     ev.Skip()
+
+    ndx = self.fExtrasList.GetFirstSelected()
+    while ndx >= 0:
+      name = self.fExtrasList.GetItemText( ndx, 0 )
+      if name != None:
+        self.fDataModel.RemoveExtraDataSet( name )
+
+      ndx = self.fExtrasList.GetNextSelected( ndx )
+    #end while
+
+    self._UpdateControls()
   #end _OnDelete
 
 
