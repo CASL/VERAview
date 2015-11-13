@@ -16,6 +16,7 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
+from bean.dataset_creator import *
 from data.datamodel import *
 
 
@@ -54,6 +55,8 @@ average datasets.
     self.fButtonPanel = None
     self.fCategoryListBoxes = {}
     self.fCategoryTabs = None
+    self.fCreateButton = None
+    self.fDeleteButton = None
     self.fExtrasList = None
     #self.fTablePanel = None
     #self.fTableSizer = None
@@ -114,16 +117,19 @@ average datasets.
   def Enable( self, flag = True ):
     super( DataSetManagerBean, self ).Enable( flag )
 
-    for panel in ( self.fButtonPanel, self.fTablePanel ):
-      if panel != None:
-        for child in panel.GetChildren():
-          if isinstance( child, wx.Window ):
-	    child.Enable( flag )
-        #end for
-      #end if panel exists
-    #end for panels
+    # self.fCreateButton, self.fDeleteButton,
+    objs = ( self.fCategoryTabs, self.fExtrasList )
+    for obj in objs:
+      obj.Enable( flag )
 
-    self._UpdateControls()
+#    for panel in ( self.fButtonPanel, self.fCategoryTabs, self.fExtrasList ):
+#      if panel != None:
+#        for child in panel.GetChildren():
+#          if isinstance( child, wx.Window ):
+#	    child.Enable( flag )
+#        #end for
+#      #end if panel exists
+#    #end for panels
   #end Enable
 
 
@@ -149,6 +155,11 @@ average datasets.
       self.fExtrasList.SetColumnWidth( i, -1 )
     self.fExtrasList.Fit()
 
+    self.fExtrasList.Bind(
+        wx.EVT_LIST_ITEM_SELECTED,
+	functools.partial( self._OnListSelect, 'extra' )
+	)
+
 #		-- NoteBook for dataset category lists
 #		--
     self.fCategoryTabs = wx.Notebook( self, -1, style = wx.NB_TOP )
@@ -164,6 +175,10 @@ average datasets.
 	    #size = ( 320, 100 ),
 	    style = wx.LB_ALWAYS_SB | wx.LB_SINGLE | wx.LB_SORT
 	    )
+	lb.Bind(
+	    wx.EVT_LISTBOX,
+	    functools.partial( self._OnListSelect, category )
+	    )
         self.fCategoryTabs.AddPage( lb, label )
         self.fCategoryListBoxes[ category ] = lb
       #end if
@@ -176,21 +191,23 @@ average datasets.
 #		--  BORDER _NONE, _THEME, _SUNKEN, _RAISED, _SIMPLE
     self.fButtonPanel = wx.Panel( self, -1, style = wx.BORDER_NONE )
 
-    create_button = wx.Button( self.fButtonPanel, -1, label = 'Create Extra Dataset' )
+    self.fCreateButton = wx.Button( self.fButtonPanel, -1, label = 'Create Extra Dataset' )
     #create_button.SetToolTipString( 'Create/calculate a dataset' )
-    create_button.Bind( wx.EVT_BUTTON, self._OnCreate )
+    self.fCreateButton.Bind( wx.EVT_BUTTON, self._OnCreate )
+    self.fCreateButton.Enable( False )
 
-    delete_button = wx.Button( self.fButtonPanel, -1, label = 'Delete Extra Datasets' )
+    self.fDeleteButton = wx.Button( self.fButtonPanel, -1, label = 'Delete Extra Datasets' )
     #delete_button.SetToolTipString( 'Delete the selected extra datasets' )
-    delete_button.Bind( wx.EVT_BUTTON, self._OnDelete )
+    self.fDeleteButton.Bind( wx.EVT_BUTTON, self._OnDelete )
+    self.fDeleteButton.Enable( False )
 
     button_sizer = wx.BoxSizer( wx.VERTICAL )
     self.fButtonPanel.SetSizer( button_sizer )
 
-    button_sizer.AddStretchSpacer()
-    button_sizer.Add( create_button, 0, wx.ALL | wx.EXPAND, 6 )
+    #button_sizer.AddStretchSpacer()
+    button_sizer.Add( self.fCreateButton, 0, wx.ALL | wx.EXPAND, 6 )
     button_sizer.AddSpacer( 8 )
-    button_sizer.Add( delete_button, 0, wx.ALL | wx.EXPAND, 6 )
+    button_sizer.Add( self.fDeleteButton, 0, wx.ALL | wx.EXPAND, 6 )
     button_sizer.AddStretchSpacer()
 
 #		-- Lay Out
@@ -232,6 +249,37 @@ average datasets.
 Called on the UI thread.
 """
     ev.Skip()
+
+    category = self.fCategoryTabs.\
+        GetPageText( self.fCategoryTabs.GetSelection() ).lower()
+    if category not in self.fCategoryListBoxes:
+      wx.MessageDialog(
+          self, "Category '" + category + "' not found",
+	  'Application Error'
+	  ).\
+      ShowWindowModal()
+
+    else:
+      lb = self.fCategoryListBoxes[ category ]
+      ndx = lb.GetSelection()
+      if ndx == wx.NOT_FOUND:
+        wx.MessageDialog(
+	    self, "Must select a source dataset", 'Create Dataset'
+	    ).\
+        ShowWindowModal()
+
+      else:
+        ds_name = lb.GetString( ndx )
+	create_dialog = DataSetCreatorDialog(
+	    self,
+	    data_model = self.fDataModel,
+	    ds_name = ds_name
+	    )
+	create_dialog.ShowModal()
+	create_dialog.Destroy()
+	self._UpdateControls()
+      #end if-else source dataset selected
+    #end if-else category matched
   #end _OnCreate
 
 
@@ -244,6 +292,19 @@ Called on the UI thread.
 """
     ev.Skip()
   #end _OnDelete
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetManagerBean._OnListSelect()		-
+  #----------------------------------------------------------------------
+  def _OnListSelect( self, name, ev ):
+    """
+Called on the UI thread.
+"""
+    ev.Skip()
+    obj = self.fDeleteButton if name == 'extra' else self.fCreateButton
+    obj.Enable( True )
+  #end _OnListSelect
 
 
   #----------------------------------------------------------------------
@@ -261,9 +322,10 @@ Called on the UI thread.
 
       ndx = 0
       for name in sorted( st.GetGroup().keys() ):
-	ds = st.GetDataSet( name )
-	self.fExtrasList.InsertStringItem( ndx, name )
-	self.fExtrasList.SetStringItem( ndx, 1, str( ds.shape ) )
+	if name != 'exposure':
+	  ds = st.GetDataSet( name )
+	  self.fExtrasList.InsertStringItem( ndx, name )
+	  self.fExtrasList.SetStringItem( ndx, 1, str( ds.shape ) )
       #end for
     #end if
 
@@ -373,7 +435,7 @@ Must pass the 'data_model' parameter.
     sizer.Layout()
 
     self.SetSizer( sizer )
-    self.SetTitle( 'DataSet Manager' )
+    self.SetTitle( 'Extra Dataset Manager' )
     self.Fit()
     self.Center()
   #end _InitUI

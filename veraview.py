@@ -54,6 +54,7 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required to run this program' )
 
+from bean.dataset_mgr import *
 from bean.grid_sizer_dialog import *
 
 from data.config import Config
@@ -429,6 +430,29 @@ class VeraViewFrame( wx.Frame ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.GetDataModel()			-
+  #----------------------------------------------------------------------
+  def GetDataModel( self ):
+    """Convenience accessor for the state.dataModel property.
+@return			DataModel object
+"""
+    #return  None if self.state == None else self.state.GetDataModel()
+    return  State.GetDataModel( self.state )
+  #end GetDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.GetState()			-
+  #----------------------------------------------------------------------
+  def GetState( self ):
+    """Accessor for the state property.
+@return			State object
+"""
+    return  self.state
+  #end GetState
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.HandleStateChange()		-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
@@ -503,13 +527,9 @@ class VeraViewFrame( wx.Frame ):
 #		-- Edit Menu
 #		--
     edit_menu = wx.Menu()
-    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets' )
+    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets...' )
     self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
     edit_menu.AppendItem( datasets_item )
-
-    grid_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Resize &Grid\tCtrl+G' )
-    self.Bind( wx.EVT_MENU, self._OnGridResize, grid_item )
-    edit_menu.AppendItem( grid_item )
 
     self.timeDataSetMenu = wx.Menu()
     time_item = wx.MenuItem(
@@ -517,6 +537,12 @@ class VeraViewFrame( wx.Frame ):
 	subMenu = self.timeDataSetMenu
 	)
     edit_menu.AppendItem( time_item )
+
+    edit_menu.AppendSeparator()
+
+    grid_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Resize &Grid\tCtrl+G' )
+    self.Bind( wx.EVT_MENU, self._OnGridResize, grid_item )
+    edit_menu.AppendItem( grid_item )
 
 #		-- Menu Bar
 #		--
@@ -830,10 +856,23 @@ Must be called from the UI thread.
   def _OnManageDataSets( self, ev ):
     ev.Skip()
 
-    wx.MessageDialog( self, 'Coming Soon', 'Manage Extra DataSets' ).\
-        ShowWindowModal()
-    #dialog = DataSetManagerDialog( None )
-    #dialog.ShowModal( self.state.dataModel )
+    msg = None
+    data_model = self.GetDataModel()
+
+    if data_model == None:
+      msg = 'No VERAOutput file has been read'
+
+    elif len( data_model.GetStates() ) == 0:
+      msg = 'No state points read from VERAOutput file'
+
+    if msg != None:
+      wx.MessageDialog( self, msg, 'Manage Extra DataSets' ).ShowWindowModal()
+
+    else:
+      dialog = DataSetManagerDialog( self, data_model = data_model )
+      dialog.ShowModal()
+      dialog.Destroy()
+    #end if-else
   #end _OnManageDataSets
 
 

@@ -309,6 +309,17 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetDataModel()					-
+  #----------------------------------------------------------------------
+  def GetDataModel( self ):
+    """Accessor for the dataModel property.
+@return			DataModel object
+"""
+    return  self.dataModel
+  #end GetDataModel
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Load()						-
   #----------------------------------------------------------------------
   def Load( self, data_model = None ):

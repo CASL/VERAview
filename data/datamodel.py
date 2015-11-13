@@ -1203,21 +1203,65 @@ calculated.
 
       self.h5ExtraFile.flush()
     #end if
+
+    if 'extra' in self.dataSetNames and ds_name in self.dataSetNames[ 'extra' ]:
+      del self.dataSetNames[ 'extra' ][ ds_name ]
   #end RemoveExtraDataSet
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.StoreExtraDataSet()			-
   #----------------------------------------------------------------------
-  def StoreExtraDataSet( self, ds_name, get_data_for_state ):
-    """Adds or replaces the named dataset in all extra states.
+  def StoreExtraDataSet( self, ds_name, state_ndx, data_in ):
+    """Adds or replaces the named extra dataset in the specified state point.
 Note the fully-qualified name of a caculated dataset is 'source.name',
 where 'source' is the name of the dataset from which the extra dataset was
 calculated.
 @param  ds_name		dataset name
-@param  get_data_for_state  function to return the numpy.ndarray for each
-			state index, called for each index
-@return			list of h5py.Dataset objects added for each state point
+@param  state_ndx	0-based state index
+@param  data_in		numpy.ndarray with data
+@return			h5py.Dataset object added
+"""
+#		-- Create Extra File if Necessary
+#		--
+    if self.h5ExtraFile == None:
+      self._CreateExtraH5File( self )
+
+#		-- Assert on Index
+#		--
+    if state_ndx < 0 or state_ndx >= len( self.GetExtraStates() ):
+      raise  Exception( 'state_ndx out of range' )
+
+    st = self.GetExtraState( state_ndx )
+    st_group = st.GetGroup()
+    if ds_name in st_group:
+      del st_group[ ds_name ]
+
+    dset = st_group.create_dataset( ds_name, data = data_in )
+    self.h5ExtraFile.flush()
+
+    if 'extra' not in self.dataSetNames:
+      self.dataSetNames[ 'extra' ] = []
+    if ds_name not in self.dataSetNames[ 'extra' ]:
+      self.dataSetNames[ 'extra' ].append( ds_name )
+      self.dataSetNames[ 'extra' ].sort()
+
+    return  dset
+  #end StoreExtraDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.StoreExtraDataSet_no()		-
+  #----------------------------------------------------------------------
+  def StoreExtraDataSet_no( self, ds_name, get_data_for_state ):
+    """Adds or replaces the named extra dataset in the specified state point.
+Note the fully-qualified name of a caculated dataset is 'source.name',
+where 'source' is the name of the dataset from which the extra dataset was
+calculated.
+@param  ds_name		dataset name
+@param  get_data_for_state  function returning the numpy.ndarray for the
+			the specified 0-based state index
+@return			list of h5py.Dataset objects added
 """
 #		-- Create Extra File if Necessary
 #		--
@@ -1238,7 +1282,7 @@ calculated.
     self.h5ExtraFile.flush()
 
     return  dsets
-  #end StoreExtraDataSet
+  #end StoreExtraDataSet_no
 
 
   #----------------------------------------------------------------------
@@ -1644,7 +1688,7 @@ Fields:
 #------------------------------------------------------------------------
 #	CLASS:		ExtraState					-
 #------------------------------------------------------------------------
-class ExtraState( object ):
+class ExtraState( State ):
   """Special State for extra datasets.
   
 Fields:

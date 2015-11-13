@@ -357,6 +357,10 @@ data_in.
 """
 #	-- Assertions
 #	--
+    print >> sys.stderr, \
+        '[Averager.CalcGeneralAverage] data_in.shape=%s, avg_shape=%s' % \
+	( str( data_in.shape ), str( avg_shape ) )
+
     if len( avg_shape ) != len( data_in.shape ):
       raise Exception( 'Average shape must have same length as data shape' )
 
