@@ -3,11 +3,13 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_mgr.py					-
 #	HISTORY:							-
+#		2015-11-14	leerw@ornl.gov				-
+#	  Added creation of pin_factors.
 #		2015-11-12	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, json, math, os, sys, time, traceback
 import numpy as np
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
 #  import wx, wx.lib.newevent
@@ -55,7 +57,8 @@ average datasets.
     self.fButtonPanel = None
     self.fCategoryListBoxes = {}
     self.fCategoryTabs = None
-    self.fCreateButton = None
+    self.fCreateDsButton = None
+    self.fCreateFactorsButton = None
     self.fDeleteButton = None
     self.fExtrasList = None
     #self.fTablePanel = None
@@ -72,7 +75,7 @@ average datasets.
   def Enable( self, flag = True ):
     super( DataSetManagerBean, self ).Enable( flag )
 
-    # self.fCreateButton, self.fDeleteButton,
+    # self.fCreateDsButton, self.fDeleteButton,
     objs = ( self.fCategoryTabs, self.fExtrasList )
     for obj in objs:
       obj.Enable( flag )
@@ -118,7 +121,6 @@ average datasets.
 #		-- NoteBook for dataset category lists
 #		--
     self.fCategoryTabs = wx.Notebook( self, -1, style = wx.NB_TOP )
-    self.fCategoryTabs.SetBackgroundColour( wx.Colour( 255, 255, 0 ) )
 
     for category in ( 'channel', 'pin' ):
       names = self.fDataModel.GetDataSetNames( category )
@@ -144,12 +146,18 @@ average datasets.
 
 #		-- Buttons
 #		--  BORDER _NONE, _THEME, _SUNKEN, _RAISED, _SIMPLE
-    self.fButtonPanel = wx.Panel( self, -1, style = wx.BORDER_NONE )
+    self.fButtonPanel = wx.Panel( self, -1, style = wx.BORDER_THEME )
 
-    self.fCreateButton = wx.Button( self.fButtonPanel, -1, label = 'Create Extra Dataset' )
+    self.fCreateFactorsButton = \
+        wx.Button( self.fButtonPanel, -1, label = 'Create Pin Factors' )
+    self.fCreateFactorsButton.Bind( wx.EVT_BUTTON, self._OnCreateFactors )
+
+    self.fCreateDsButton = \
+        wx.Button( self.fButtonPanel, -1, label = 'Create Average Dataset' )
     #create_button.SetToolTipString( 'Create/calculate a dataset' )
-    self.fCreateButton.Bind( wx.EVT_BUTTON, self._OnCreate )
-    self.fCreateButton.Enable( False )
+    self.fCreateDsButton.Bind( wx.EVT_BUTTON, self._OnCreateDataSet )
+    self.fCreateDsButton.Enable( False )
+    #self.fCreateDsButton.SetForegroundColour( wx.Colour( 0, 0, 255 ) )
 
     self.fDeleteButton = wx.Button( self.fButtonPanel, -1, label = 'Delete Extra Datasets' )
     #delete_button.SetToolTipString( 'Delete the selected extra datasets' )
@@ -160,16 +168,25 @@ average datasets.
     self.fButtonPanel.SetSizer( button_sizer )
 
     #button_sizer.AddStretchSpacer()
-    button_sizer.Add( self.fCreateButton, 0, wx.ALL | wx.EXPAND, 6 )
+    button_sizer.Add( self.fCreateFactorsButton, 0, wx.ALL | wx.EXPAND, 6 )
+    button_sizer.AddSpacer( 8 )
+    button_sizer.Add( self.fCreateDsButton, 0, wx.ALL | wx.EXPAND, 6 )
     button_sizer.AddSpacer( 8 )
     button_sizer.Add( self.fDeleteButton, 0, wx.ALL | wx.EXPAND, 6 )
-    button_sizer.AddStretchSpacer()
+    #button_sizer.AddStretchSpacer()
 
 #		-- Lay Out
 #		--
+    button_panel_wrapper = wx.BoxSizer( wx.VERTICAL )
+    button_panel_wrapper.Add(
+        self.fButtonPanel,
+	0, wx.ALL | wx.ALIGN_CENTER | wx.EXPAND, 8
+	)
+    button_panel_wrapper.AddStretchSpacer()
+
     lower_sizer = wx.BoxSizer( wx.HORIZONTAL )
     lower_sizer.Add( self.fCategoryTabs, 1, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
-    lower_sizer.Add( self.fButtonPanel, 0, wx.ALL | wx.ALIGN_TOP | wx.EXPAND, 0 )
+    lower_sizer.Add( button_panel_wrapper, 0, wx.ALL | wx.ALIGN_TOP | wx.EXPAND, 0 )
     sizer = wx.BoxSizer( wx.VERTICAL )
     self.SetSizer( sizer )
 
@@ -197,9 +214,9 @@ average datasets.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetManagerBean._OnCreate()			-
+  #	METHOD:		DataSetManagerBean._OnCreateDataSet()		-
   #----------------------------------------------------------------------
-  def _OnCreate( self, ev ):
+  def _OnCreateDataSet( self, ev ):
     """
 Called on the UI thread.
 """
@@ -235,7 +252,35 @@ Called on the UI thread.
 	self._UpdateControls()
       #end if-else source dataset selected
     #end if-else category matched
-  #end _OnCreate
+  #end _OnCreateDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetManagerBean._OnCreateFactors()		-
+  #----------------------------------------------------------------------
+  def _OnCreateFactors( self, ev ):
+    """
+Called on the UI thread.
+"""
+    ev.Skip()
+
+    result = wx.ID_YES
+    if self.fDataModel.HasExtraDataSet( 'core.pin_factors' ):
+      dialog = wx.MessageDialog(
+          self,
+	  'Dataset "core.pin_factors" exists. Do you want to overwrite it?',
+	  'Create Pin Factors',
+	  style = wx.ICON_QUESTION | wx.YES_NO | wx.YES_DEFAULT
+	  )
+      result = dialog.ShowModal()
+    #end if
+
+    if result == wx.ID_YES:
+      averager = Averager()
+      factors = averager.CreateCorePinFactors( self.fDataModel.GetCore() )
+      self.fDataModel.StoreExtraDataSet( 'pin_factors', factors )
+      self._UpdateControls()
+  #end _OnCreateFactors
 
 
   #----------------------------------------------------------------------
@@ -247,16 +292,25 @@ Called on the UI thread.
 """
     ev.Skip()
 
-    ndx = self.fExtrasList.GetFirstSelected()
-    while ndx >= 0:
-      name = self.fExtrasList.GetItemText( ndx, 0 )
-      if name != None:
-        self.fDataModel.RemoveExtraDataSet( name )
+    dialog = wx.MessageDialog(
+        self, 'Are you sure?', 'Delete Datasets',
+	style = wx.ICON_QUESTION | wx.YES_NO | wx.YES_DEFAULT
+	)
+    result = dialog.ShowModal()
 
-      ndx = self.fExtrasList.GetNextSelected( ndx )
-    #end while
+    if result == wx.ID_YES:
+      print >> sys.stderr, '[XXX.3] YES'
+      ndx = self.fExtrasList.GetFirstSelected()
+      while ndx >= 0:
+        name = self.fExtrasList.GetItemText( ndx, 0 )
+        if name != None:
+          self.fDataModel.RemoveExtraDataSet( name )
 
-    self._UpdateControls()
+        ndx = self.fExtrasList.GetNextSelected( ndx )
+      #end while
+
+      self._UpdateControls()
+    #end if wx.ID_YES
   #end _OnDelete
 
 
@@ -268,7 +322,7 @@ Called on the UI thread.
 Called on the UI thread.
 """
     ev.Skip()
-    obj = self.fDeleteButton if name == 'extra' else self.fCreateButton
+    obj = self.fDeleteButton if name == 'extra' else self.fCreateDsButton
     obj.Enable( True )
   #end _OnListSelect
 
@@ -280,18 +334,31 @@ Called on the UI thread.
     """
 """
     self.fExtrasList.DeleteAllItems()
+    ndx = 0
+
+    extra_file = self.fDataModel.GetH5ExtraFile()
+    if extra_file != None:
+      for name in sorted( extra_file.keys() ):
+        if not name.startswith( 'STATE' ):
+	  ds = extra_file[ name ]
+          self.fExtrasList.InsertStringItem( ndx, name )
+          self.fExtrasList.SetStringItem( ndx, 1, str( ds.shape ) )
+	  ndx += 1
+      #end for
+    #end if
 
     #extra_names = self.fDataModel.GetDataSetNames( 'extra' )
     extra_states = self.fDataModel.GetExtraStates()
     if extra_states != None and len( extra_states ) > 0:
       st = self.fDataModel.GetExtraState( 0 )
 
-      ndx = 0
+      #ndx = 0
       for name in sorted( st.GetGroup().keys() ):
 	if name != 'exposure':
 	  ds = st.GetDataSet( name )
 	  self.fExtrasList.InsertStringItem( ndx, name )
 	  self.fExtrasList.SetStringItem( ndx, 1, str( ds.shape ) )
+	  ndx += 1
       #end for
     #end if
 
@@ -387,6 +454,8 @@ Must pass the 'data_model' parameter.
 
     close_button = wx.Button( self, label = '&Close' )
     close_button.Bind( wx.EVT_BUTTON, self._OnButton )
+    close_button.SetDefault()
+
     button_sizer.AddStretchSpacer()
     button_sizer.Add( close_button, 0, wx.ALL | wx.EXPAND, 6 );
     button_sizer.AddStretchSpacer()

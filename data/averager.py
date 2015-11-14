@@ -508,10 +508,10 @@ data_in.
   def CreateCorePinFactors( self, core ):
     """Creates a pin factors np.ndarray for the current config properties:
 coreSym, npiny, npinx, nax, and nass.
-@param  core		datamodel.Core object, cannot be None
-			or any object with properties: 'axialMesh',
-			'coreMap', 'coreSym', 'nass', 'nassx', 'nassy',
-			'nax', 'npinx', 'npiny'
+@param  core		datamodel.Core object or any object with properties:
+			'axialMesh', 'coreMap', 'coreSym', 'nass', 'nassx',
+			'nassy', 'nax', 'npinx', 'npiny',
+			cannot be None
 @return			np.ndarray with shape ( npiny, npinx, nax, nass ) or
 			None if any of the properties are 0
 """

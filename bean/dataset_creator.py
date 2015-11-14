@@ -3,11 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_creator.py				-
 #	HISTORY:							-
+#		2015-11-14	leerw@ornl.gov				-
 #		2015-11-13	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, json, math, os, sys, time, traceback
 import numpy as np
-import pdb  #pdb.set_trace()
+#import pdb  #pdb.set_trace()
 
 try:
 #  import wx, wx.lib.newevent
@@ -113,7 +114,12 @@ Must be called in the UI thread.
 	    )
 
 	avg_name = self.fSrcDataSetName + '.' + self.fAvgDataSetName
-	self.fDataModel.StoreExtraDataSet( avg_name, count, avg_data )
+	self.fDataModel.StoreExtraDataSet(
+	    ds_name = self.fAvgDataSetName,
+	    data = avg_data,
+	    src_name = self.fSrcDataSetName,
+	    state_ndx = count
+	    )
 
         count += 1
       #end for
@@ -193,6 +199,7 @@ which to average.
     self.fAvgNameField = None
     self.fAxisCheckBoxes = []
     self.fCreateButton = None
+    self.fPinFactorsCheckBox = None
 
     self._InitUI()
   #end __init__
@@ -223,13 +230,20 @@ which to average.
 #		-- Create names panel
 #		--
     names_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
-    names_sizer = wx.FlexGridSizer( 2, 2, 6, 4 )
+    names_sizer = wx.FlexGridSizer( 3, 2, 6, 4 )
     names_panel.SetSizer( names_sizer )
 
     self.fAvgNameField = wx.TextCtrl(
         self, -1, 'average',
 	size = ( 240, -1 ), style = wx.TE_DONTWRAP
 	)
+
+    self.fPinFactorsCheckBox = wx.CheckBox( self, -1, '' )
+    if self.fDataModel.HasExtraDataSet( 'core.pin_factors' ):
+      self.fPinFactorsCheckBox.SetValue( True )
+    else:
+      self.fPinFactorsCheckBox.Enable( False )
+      self.fPinFactorsCheckBox.SetValue( False )
 
     names_sizer.Add(
 	wx.StaticText(
@@ -257,6 +271,18 @@ which to average.
         )
     names_sizer.Add(
         self.fAvgNameField,
+	1, wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT | wx.TOP, 8
+	)
+    names_sizer.Add(
+	wx.StaticText(
+	    self, -1,
+	    label = 'Use Pin Factors:',
+	    style = wx.ALIGN_LEFT
+	    ),
+	0, wx.ALIGN_LEFT | wx.LEFT | wx.TOP, 8
+        )
+    names_sizer.Add(
+        self.fPinFactorsCheckBox,
 	1, wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT | wx.TOP, 8
 	)
 
@@ -303,10 +329,12 @@ which to average.
     button_sizer = wx.BoxSizer( wx.VERTICAL )
     button_panel.SetSizer( button_sizer )
 
-    self.fCreateButton = wx.Button( button_panel, -1, label = 'Create' )
+    self.fCreateButton = wx.Button( button_panel, -1, label = 'C&reate' )
     #create_button.SetToolTipString( 'Create/calculate a dataset' )
     self.fCreateButton.Bind( wx.EVT_BUTTON, self._OnCreate )
     self.fCreateButton.Enable( self.fShape[ 0 ] > 0 )
+    #self.fCreateButton.SetForegroundColour( wx.Colour( 0, 0, 255 ) )
+    #self.fCreateButton.SetDefault()
 
     #button_sizer.AddStretchSpacer()
     button_sizer.Add( self.fCreateButton, 0, wx.ALL | wx.EXPAND, 6 )
@@ -344,25 +372,36 @@ Called on the UI thread.
     shape_rev = sorted( self.fShape, reverse = True )
     avg_shape = []
 
+    have_one = False
     for i in range( len( shape_rev ) ):
       val = 1 if self.fAxisCheckBoxes[ i ].GetValue() else shape_rev[ i ]
       avg_shape.insert( 0, val )
+      have_one |= val == 1
     #end for
 
-    avg_name = self.fAvgNameField.GetValue()
-    if len( avg_name.replace( ' ', '' ) ) == 0:
-      avg_name = 'average'
-    creator = DataSetCreator(
-        self.fDataModel, self.fSrcDataSetName,
-	avg_name, avg_shape
-	)
-    creator.Run()
-#    wx.MessageDialog(
-#        self,
-#	'Creating with shape = %s' % str( avg_shape ),
-#	'Create Dataset'
-#	).\
-#        ShowWindowModal()
+    if not have_one:
+      wx.MessageBox(
+	  'You must select at least one axis over which to calculate averages',
+	  'Create Average Dataset',
+	  wx.OK_DEFAULT | wx.ICON_EXCLAMATION
+          )
+
+    else:
+      #avg_name = self.fAvgNameField.GetValue()
+      avg_name = self.fAvgNameField.GetValue().replace( ' ', '_' ).lower()
+      if len( avg_name ) == 0:
+        avg_name = 'average'
+
+      factors = None
+      if self.fPinFactorsCheckBox.GetValue():
+        factors = self.fDataModel.LoadExtraDataSet( 'pin_factors' )
+
+      creator = DataSetCreator(
+          self.fDataModel, self.fSrcDataSetName,
+	  avg_name, avg_shape, factors
+	  )
+      creator.Run()
+    #end if-else
   #end _OnCreate
 
 #end DataSetCreatorBean
@@ -458,6 +497,8 @@ Must pass the 'data_model' parameter.
 
     close_button = wx.Button( self, label = '&Close' )
     close_button.Bind( wx.EVT_BUTTON, self._OnButton )
+    close_button.SetDefault()
+
     button_sizer.AddStretchSpacer()
     button_sizer.Add( close_button, 0, wx.ALL | wx.EXPAND, 6 );
     button_sizer.AddStretchSpacer()
@@ -472,7 +513,7 @@ Must pass the 'data_model' parameter.
     sizer.Layout()
 
     self.SetSizer( sizer )
-    self.SetTitle( 'Dataset Creator' )
+    self.SetTitle( 'Average Dataset Creator' )
     self.Fit()
     self.Center()
   #end _InitUI
