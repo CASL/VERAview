@@ -634,7 +634,8 @@ class VeraViewFrame( wx.Frame ):
     self.SetTitle( TITLE )
 
 #    self.Center()
-    self.SetPosition( ( 5, 40 ) )
+    pos = ( 5, 40 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
+    self.SetPosition( pos )
     self.SetSize( ( 640, 480 ) )
 
 #		-- Window Events

@@ -24,6 +24,10 @@ from data.datamodel import *
 
 #------------------------------------------------------------------------
 #	CLASS:		DataSetCreator					-
+# 3d assy (1, 1, nax, nass)
+# 2d pin (npiny, npinx, 1, nass)
+# 2d assy (1, 1, 1, nass)
+# 1d (1, 1, nax, nass)
 #------------------------------------------------------------------------
 class DataSetCreator( object ):
   """Task manager.
@@ -234,11 +238,12 @@ which to average.
     names_panel.SetSizer( names_sizer )
 
     self.fAvgNameField = wx.TextCtrl(
-        self, -1, 'average',
-	size = ( 240, -1 ), style = wx.TE_DONTWRAP
+        names_panel, -1, 'average',
+	size = ( 240, 24 )
+	#style = wx.TE_DONTWRAP
 	)
 
-    self.fPinFactorsCheckBox = wx.CheckBox( self, -1, '' )
+    self.fPinFactorsCheckBox = wx.CheckBox( names_panel, -1, '' )
     if self.fDataModel.HasExtraDataSet( 'core.pin_factors' ):
       self.fPinFactorsCheckBox.SetValue( True )
     else:
@@ -247,7 +252,7 @@ which to average.
 
     names_sizer.Add(
 	wx.StaticText(
-	    self, -1,
+	    names_panel, -1,
 	    label = 'Source Dataset:',
 	    style = wx.ALIGN_LEFT
 	    ),
@@ -255,7 +260,7 @@ which to average.
         )
     names_sizer.Add(
 	wx.TextCtrl(
-	    self, -1, self.fSrcDataSetName,
+	    names_panel, -1, self.fSrcDataSetName,
 	    size = ( 40, -1 ),
 	    style = wx.ALIGN_LEFT | wx.TE_READONLY
 	    ),
@@ -263,7 +268,7 @@ which to average.
         )
     names_sizer.Add(
 	wx.StaticText(
-	    self, -1,
+	    names_panel, -1,
 	    label = 'New Dataset:',
 	    style = wx.ALIGN_LEFT
 	    ),
@@ -275,7 +280,7 @@ which to average.
 	)
     names_sizer.Add(
 	wx.StaticText(
-	    self, -1,
+	    names_panel, -1,
 	    label = 'Use Pin Factors:',
 	    style = wx.ALIGN_LEFT
 	    ),
