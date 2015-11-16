@@ -229,7 +229,7 @@ which to average.
 """
     #axis_names = ( 'npiny', 'npinx', 'nax', 'nass' )
     axis_names_rev = ( 'nass', 'nax', 'npinx', 'npiny' )
-    shape_rev = sorted( self.fShape, reverse = True )
+    shape_rev = self.fShape[ ::-1 ]
 
 #		-- Create names panel
 #		--
@@ -374,7 +374,7 @@ Called on the UI thread.
 """
     ev.Skip()
 
-    shape_rev = sorted( self.fShape, reverse = True )
+    shape_rev = self.fShape[ ::-1 ]
     avg_shape = []
 
     have_one = False
