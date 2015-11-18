@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-11-18	leerw@ornl.gov				-
+#	  Added 'other' dataset category.
 #		2015-11-14	leerw@ornl.gov				-
 #	  Added more convenience methods to State and DataModel.
 #	  Added support for storing "core" as well as state-point-based
@@ -768,8 +770,8 @@ descending.
 			category
 			if category == None, dict of dataset name lists by
 			category
-			( 'axial', 'channel', 'detector', 'extra', 'pin',
-			  'scalar' )
+			( 'axial', 'channel', 'detector', 'extra', 'other',
+			  'pin', 'scalar' )
 """
     return \
         self.dataSetNames if category == None else \
@@ -973,7 +975,7 @@ the properties construct for this class soon.
   def HasDataSetCategory( self, category = None ):
     """Tests existence of datasets in category
 @param  category	one of 'axial', 'channel', 'detector', 'extra',
-			'pin', 'scalar'
+			'other', 'pin', 'scalar'
 @return			True if there are datasets, False otherwise
 """
     return  \
@@ -1769,12 +1771,13 @@ Fields:
   def FindDataSets( state_group, core ):
     """
 @return			dict of dataset name lists with keys
-			  'axial', 'channel', 'detector', 'pin', 'scalar',
-			  'time'
+			  'axial', 'channel', 'detector', 'other', 'pin',
+			  'scalar', 'time'
 """
     axial_ds_names = []
     channel_ds_names = []
     detector_ds_names = []
+    other_ds_names = []
     pin_ds_names = []
     scalar_ds_names = []
     time_ds_names = [ 'state' ]
@@ -1807,6 +1810,8 @@ Fields:
 	  channel_ds_names.append( k )
         elif k_shape == detector_shape:
 	  detector_ds_names.append( k )
+	elif len( k_shape ) == 4:
+	  other_ds_names.append( k )
 
 #			-- Special axial check
 #			--
@@ -1827,6 +1832,7 @@ Fields:
       'axial': axial_ds_names,
       'channel': channel_ds_names,
       'detector': detector_ds_names,
+      'other': other_ds_names,
       'pin': pin_ds_names,
       'scalar': scalar_ds_names,
       'time': time_ds_names

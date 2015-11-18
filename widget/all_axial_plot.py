@@ -31,7 +31,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, time, traceback
 import numpy as np
-#import pdb  # pdb.set_trace()
+import pdb  # pdb.set_trace()
 
 try:
   import matplotlib
@@ -182,6 +182,9 @@ calls self.ax.grid() and can be called by subclasses.
           elif bottom_ds_name == None:
 	    bottom_ds_name = self._GetDataSetName( k )
       #end for
+      if bottom_ds_name == None:
+        bottom_ds_name = top_ds_name
+	top_ds_name = None
 
 #			-- Configure axes
 #			--

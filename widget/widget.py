@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2015-11-18	leerw@ornl.gov				-
+#	  Added GetAllow4DDataSets().
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().  Renamed _UpdateState() to
 #	  UpdateState() since now called by Animator.
@@ -296,6 +298,18 @@ The default implementation returns None.
   def FireStateChange( self, **kwargs ):
     self.container.FireStateChange( **kwargs )
   #end FireStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetAllow4DDataSets()				-
+  #----------------------------------------------------------------------
+  def GetAllow4DDataSets( self ):
+    """Accessor specifying if the widget can visualize any dataset with a
+4-tuple shape.  Extensions must override as necessary.
+@return			None
+"""
+    return  None
+  #end GetAllow4DDataSets
 
 
   #----------------------------------------------------------------------

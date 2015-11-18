@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2015-11-18	leerw@ornl.gov				-
+# 	  Adding 'other' datasets to the dataset menu if the widget
+#	  GetAllow4DDataSets() returns True.
 #		2015-08-31	leerw@ornl.gov				-
 #	  Fixed _OnSaveAnimated() and SaveWidgetAnimatedImage().
 #		2015-08-29	leerw@ornl.gov				-
@@ -304,7 +307,8 @@ Must be called on the UI thread.
 #		--
     data_model = State.GetDataModel( self.state )
     dataset_type = self.widget.GetDataSetType()
-    if dataset_type != None and dataset_type in data_model.dataSetNames:
+    #if dataset_type != None and dataset_type in data_model.dataSetNames:
+    if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
       #dataset_names = data_model.dataSetNames[ dataset_type ]
       dataset_names = data_model.GetDataSetNames( dataset_type )
       self.dataSetMenu = wx.Menu()
@@ -313,6 +317,16 @@ Must be called on the UI thread.
         self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
 	self.dataSetMenu.AppendItem( item )
       #end for
+
+#			-- Other 4-tuple shapes?
+      if self.widget.GetAllow4DDataSets() and \
+          data_model.HasDataSetCategory( 'other' ):
+	self.dataSetMenu.AppendSeparator()
+	for name in data_model.GetDataSetNames( 'other' ):
+	  item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+	  self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+	  self.dataSetMenu.AppendItem( item )
+      #end if
 
       menu_im = wx.Image(
             os.path.join( Config.GetResDir(), 'data_icon_16x16.png' ),

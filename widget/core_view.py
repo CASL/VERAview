@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-11-18	leerw@ornl.gov				-
+#	  Relaxing to allow any axial and assembly dimensions.
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
@@ -806,6 +808,17 @@ The config and data attributes are good to go.
 
     return  result
   #end FindPin
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetAllow4DDataSets()				-
+  #----------------------------------------------------------------------
+  def GetAllow4DDataSets( self ):
+    """
+@return			True
+"""
+    return  True
+  #end GetAllow4DDataSets
 
 
   #----------------------------------------------------------------------
