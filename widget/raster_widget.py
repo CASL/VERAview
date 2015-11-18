@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2015-11-18	leerw@ornl.gov				-
+# 	  Added GetData().
 #		2015-08-20	leerw@ornl.gov				-
 #	  Added workaround for MacOS DCOverlay bug in _OnMouseMotion().
 #		2015-06-17	leerw@ornl.gov				-
@@ -401,6 +403,17 @@ _CreateRasterImage().
 """
     return  self.axialValue
   #end GetAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.GetData()				-
+  #----------------------------------------------------------------------
+  def GetData( self ):
+    """
+@return			data.DataModel reference or None
+"""
+    return  self.data
+  #end GetData
 
 
   #----------------------------------------------------------------------

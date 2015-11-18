@@ -124,10 +124,15 @@ Properties:
     if (force or (state_ndx not in self.avgValues)) and \
 	self.pinDataSet in data.states[ state_ndx ].group:
       ds_values = data.states[ state_ndx ].group[ self.pinDataSet ].value
-      avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
+#      avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
+      t_nax = min( data.core.nax, ds_values.shape[ 2 ] )
+      t_nass = min( data.core.nass, ds_values.shape[ 3 ] )
+      avg_values = np.zeros( shape = ( t_nax, t_nass ) )
 
-      for ax in range( data.core.nax ):  # pp_powers.shape( 2 )
-        for assy in range( data.core.nass ):  # pp_powers.shape( 3 )
+#      for ax in range( data.core.nax ):  # pp_powers.shape( 2 )
+#        for assy in range( data.core.nass ):  # pp_powers.shape( 3 )
+      for ax in range( t_nax ):  # pp_powers.shape( 2 )
+        for assy in range( t_nass ):  # pp_powers.shape( 3 )
           if data.core.pinVolumesSum > 0.0:
 	    avg_values[ ax, assy ] = \
 	        np.sum( ds_values[ :, :, ax, assy ] ) / data.core.pinVolumesSum
@@ -265,6 +270,14 @@ If neither are specified, a default 'scale' value of 24 is used.
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
+#			-- Limit axial level and assy ndx
+#			--
+      if ds_value != None:
+        axial_level = min( axial_level, ds_value.shape[ 2 ] - 1 )
+        assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
+
+#			-- Create image
+#			--
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
@@ -299,9 +312,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  #end if writing column label
 
 	  value = 0.0
-	  if ds_value != None:
-	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+#	  if ds_value != None:
+#	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+#	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if ds_value != None and \
+	      pin_row < ds_value.shape[ 0 ] and \
+	      pin_col < ds_value.shape[ 1 ]:
 	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -342,7 +360,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  assy_ndx + 1,
 	  self.data.core.axialMeshCenters[ axial_level ],
 	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-#	  self.data.states[ state_ndx ].exposure
 	  )
       title_size = pil_font.getsize( title_str )
       title_x = max(
@@ -488,6 +505,14 @@ If neither are specified, a default 'scale' value of 4 is used.
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
+#			-- Limit axial level and assy ndx
+#			--
+      if ds_value != None:
+        axial_level = min( axial_level, ds_value.shape[ 2 ] - 1 )
+        #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
+
+#			-- Create image
+#			--
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
@@ -528,6 +553,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #end if writing column label
 
 	  assy_ndx = core_data_row[ assy_col ] - 1
+	  if ds_value != None:
+            assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
 	  if assy_ndx >= 0:
 	    pin_y = assy_y + 1
@@ -535,9 +562,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      pin_x = assy_x + 1
 	      for pin_col in range( self.data.core.npin ):
 		value = 0.0
-	        if ds_value != None:
-		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+#	        if ds_value != None:
+#		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+#		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	        if ds_value != None and \
+		    pin_row < ds_value.shape[ 0 ] and \
+		    pin_col < ds_value.shape[ 1 ]:
 		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
@@ -587,7 +619,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       title_str = title_fmt % ( \
 	  self.data.core.axialMeshCenters[ axial_level ],
 	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-#	  self.data.states[ state_ndx ].exposure
 	  )
       title_size = pil_font.getsize( title_str )
       title_x = max(
@@ -1023,11 +1054,18 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       pin_value = 0.0
       if ds_name in self.data.states[ state_ndx ].group:
         ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
-	pin_value = ds_value[
-	    pin_addr[ 1 ], pin_addr[ 0 ],
-	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-	    ]
-#	    self.axialBean.axialLevel, self.assemblyIndex
+#	pin_value = ds_value[
+#	    pin_addr[ 1 ], pin_addr[ 0 ],
+#	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+#	    ]
+	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
+	    pin_addr[ 0 ] < ds_value.shape[ 1 ]:
+	  pin_value = ds_value[
+	      pin_addr[ 1 ], pin_addr[ 0 ],
+	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
+	      ]
+      #end if ds_name
 
       if pin_value > 0:
 	pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
@@ -1054,11 +1092,18 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       pin_value = 0.0
       if ds_name in self.data.states[ state_ndx ].group:
         ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
-	pin_value = ds_value[
-	    pin_addr[ 1 ], pin_addr[ 0 ],
-	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-	    ]
-#	    self.axialBean.axialLevel, self.assemblyIndex
+#	pin_value = ds_value[
+#	    pin_addr[ 1 ], pin_addr[ 0 ],
+#	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+#	    ]
+	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
+	    pin_addr[ 0 ] < ds_value.shape[ 1 ]:
+	  pin_value = ds_value[
+	      pin_addr[ 1 ], pin_addr[ 0 ],
+	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
+	      ]
+      #end if ds_name
 
       if pin_value > 0.0:
 	self.FireStateChange( pin_colrow = pin_addr )

@@ -217,6 +217,14 @@ If neither are specified, a default 'scale' value of 24 is used.
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
+#			-- Limit axial level and assy ndx
+#			--
+      if ds_value != None:
+        axial_level = min( axial_level, ds_value.shape[ 2 ] - 1 )
+        assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
+
+#			-- Create image
+#			--
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
@@ -224,7 +232,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			-- Loop on rows
 #			--
       pin_y = assy_region[ 1 ]
-#      for pin_row in range( self.data.core.npin ):
       for pin_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
 
 #				-- Row label
@@ -255,9 +262,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  #end if writing column label
 
 	  value = 0.0
-	  if ds_value != None:
-	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+#	  if ds_value != None:
+#	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+#	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if ds_value != None and \
+	      pin_row < ds_value.shape[ 0 ] and \
+	      pin_col < ds_value.shape[ 1 ]:
 	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -316,7 +328,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  assy_ndx + 1,
 	  self.data.core.axialMeshCenters[ axial_level ],
 	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-#	  self.data.states[ state_ndx ].exposure
 	  )
       title_size = pil_font.getsize( title_str )
       title_x = max(
@@ -365,10 +376,17 @@ If neither are specified, a default 'scale' value of 24 is used.
 
     if valid:
       ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
-      ds_value = ds[
-          cell_info[ 2 ], cell_info[ 1 ],
-	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-	  ]
+#      ds_value = ds[
+#          cell_info[ 2 ], cell_info[ 1 ],
+#	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+#	  ]
+      ds_value = 0.0
+      if cell_info[ 2 ] < ds.shape[ 0 ] and cell_info[ 1 ] < ds.shape[ 1 ]:
+        ds_value = ds[
+            cell_info[ 2 ], cell_info[ 1 ],
+	    min( self.axialValue[ 1 ], ds.shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], ds.shape[ 3 ] - 1 )
+	    ]
 
       if ds_value > 0.0:
         show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
@@ -602,9 +620,18 @@ attributes/properties that aren't already set in _LoadDataModel():
 
     if valid:
       ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
-      ds_value = ds[ \
-          pin_addr[ 1 ], pin_addr[ 0 ], self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
-	  ]
+#      ds_value = ds[
+#          pin_addr[ 1 ], pin_addr[ 0 ],
+#          self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
+#	  ]
+      ds_value = 0.0
+      if pin_addr[ 1 ] < ds.shape[ 0 ] and pin_addr[ 0 ] < ds.shape[ 1 ]:
+        ds_value = ds[
+            pin_addr[ 1 ], pin_addr[ 0 ],
+	    min( self.axialValue[ 1 ], ds.shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], ds.shape[ 3 ] - 1 )
+	    ]
+
       if ds_value > 0.0:
         self.FireStateChange( pin_colrow = pin_addr )
     #end if valid
