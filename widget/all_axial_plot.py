@@ -31,7 +31,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, time, traceback
 import numpy as np
-import pdb  # pdb.set_trace()
+#import pdb  # pdb.set_trace()
 
 try:
   import matplotlib
@@ -242,16 +242,20 @@ calls self.ax.grid() and can be called by subclasses.
 	if ds_name in self.data.GetDataSetNames( 'detector' ):
 	  axial_values = self.data.core.detectorMeshCenters
 	  plot_type = '.'
+	elif self.dataSetValues[ k ].size != self.data.core.axialMeshCenters.size:
+	  axial_values = None
 	else:
 	  axial_values = self.data.core.axialMeshCenters
 	  plot_type = '-'
 
-	plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
-	cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
-	cur_axis.plot(
-	    self.dataSetValues[ k ] * scale, axial_values, plot_mode,
-	    label = legend_label, linewidth = 2
-	    )
+	if axial_values != None:
+	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+	  cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
+	  cur_axis.plot(
+	      self.dataSetValues[ k ] * scale, axial_values, plot_mode,
+	      label = legend_label, linewidth = 2
+	      )
+	#end if axial_values != None:
 
 	count += 1
       #end for
@@ -570,6 +574,18 @@ to be passed to UpdateState().  Assume self.data is valid.
 	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
 	      self.dataSetValues[ k ] = ds[ :, self.detectorIndex[ 0 ] ]
               self.dataSetTypes.add( 'detector' )
+
+	  elif ds_name in self.data.GetDataSetNames( 'other' ):
+	    if self.pinColRow[ 0 ] < ds.shape[ 0 ] and \
+	        self.pinColRow[ 1 ] < ds.shape[ 1 ]:
+	      assy_ndx = min( self.assemblyIndex[ 0 ], ds.shape[ 3 ] - 1 )
+	      new_values = []
+	      for i in range( min( self.data.core.nax, ds.shape[ 2 ] ) ):
+	        new_values.append(
+		    ds[ self.pinColRow[ 1 ], self.pinColRow[ 0 ], i, assy_ndx ]
+		    )
+	      self.dataSetValues[ k ] = np.array( new_values )
+              self.dataSetTypes.add( 'other' )
 
 	  elif ds_name in self.data.GetDataSetNames( 'pin' ):
 	    valid = self.data.IsValid(
