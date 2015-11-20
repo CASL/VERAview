@@ -232,7 +232,7 @@ calls self.ax.grid() and can be called by subclasses.
 #			--
       count = 0
       for k in self.dataSetValues:
-	ds_name = self._GetDataSetName( k )
+	ds_name = self.data.GetDataSetDisplayName( self._GetDataSetName( k ) )
 	rec = self.dataSetSelections[ k ]
 	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
 	legend_label = ds_name
@@ -547,15 +547,22 @@ to be passed to UpdateState().  Assume self.data is valid.
 #      elif self.data.core.detectorMeshCenters != None:
 #        self.refAxisValues = self.data.core.detectorMeshCenters.tolist()
 
-      state_group = self.data.states[ self.stateIndex ].group
+#      state_group = self.data.states[ self.stateIndex ].group
+      state_group = self.data.GetState( self.stateIndex ).GetGroup()
+      ex_state_group = self.data.GetExtraState( self.stateIndex ).GetGroup()
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
-        if ds_rec[ 'visible' ] and ds_name != None and ds_name in state_group:
-	  ds = state_group[ ds_name ]
+#        if ds_rec[ 'visible' ] and ds_name != None and ds_name in state_group:
+#	  ds = state_group[ ds_name ]
+        if ds_rec[ 'visible' ] and ds_name != None:
+	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
 
-	  if ds_name in self.data.GetDataSetNames( 'channel' ):
+	  if dset == None:
+	    pass
+
+	  elif ds_name in self.data.GetDataSetNames( 'channel' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
 		channel_colrow = self.channelColRow
@@ -564,7 +571,7 @@ to be passed to UpdateState().  Assume self.data is valid.
 	      new_values = []
 	      for i in range( self.data.core.nax ):
 	        new_values.append(
-		    ds[ self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+		    dset[ self.channelColRow[ 1 ], self.channelColRow[ 0 ],
 		        i, self.assemblyIndex[ 0 ] ]
 		    )
               self.dataSetValues[ k ] = np.array( new_values )
@@ -572,17 +579,18 @@ to be passed to UpdateState().  Assume self.data is valid.
 
 	  elif ds_name in self.data.GetDataSetNames( 'detector' ):
 	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
-	      self.dataSetValues[ k ] = ds[ :, self.detectorIndex[ 0 ] ]
+	      self.dataSetValues[ k ] = dset[ :, self.detectorIndex[ 0 ] ]
               self.dataSetTypes.add( 'detector' )
 
-	  elif ds_name in self.data.GetDataSetNames( 'other' ):
-	    if self.pinColRow[ 0 ] < ds.shape[ 0 ] and \
-	        self.pinColRow[ 1 ] < ds.shape[ 1 ]:
-	      assy_ndx = min( self.assemblyIndex[ 0 ], ds.shape[ 3 ] - 1 )
+	  elif ds_name in self.data.GetDataSetNames( 'extra' ) or \
+	      ds_name in self.data.GetDataSetNames( 'other' ):
+	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
+	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
+	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
 	      new_values = []
-	      for i in range( min( self.data.core.nax, ds.shape[ 2 ] ) ):
+	      for i in range( min( self.data.core.nax, dset.shape[ 2 ] ) ):
 	        new_values.append(
-		    ds[ self.pinColRow[ 1 ], self.pinColRow[ 0 ], i, assy_ndx ]
+		    dset[ self.pinColRow[ 1 ], self.pinColRow[ 0 ], i, assy_ndx ]
 		    )
 	      self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'other' )
@@ -600,7 +608,7 @@ to be passed to UpdateState().  Assume self.data is valid.
 		#    self.pinColRow[ 0 ], self.pinColRow[ 1 ]
 		#    )
 	        new_values.append(
-		    ds[ self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		    dset[ self.pinColRow[ 1 ], self.pinColRow[ 0 ],
 		        i, self.assemblyIndex[ 0 ] ]
 		    )
 	      self.dataSetValues[ k ] = np.array( new_values )

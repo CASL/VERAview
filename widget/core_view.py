@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-11-19	leerw@ornl.gov				-
+#	  Adding support for 'extra' datasets.
 #		2015-11-18	leerw@ornl.gov				-
 #	  Relaxing to allow any axial and assembly dimensions.
 #		2015-08-31	leerw@ornl.gov				-
@@ -123,10 +125,44 @@ Properties:
   #	METHOD:		Core2DView._CalcAvgValues()			-
   #----------------------------------------------------------------------
   def _CalcAvgValues( self, data, state_ndx, force = False ):
+    dset = None
+    if force or (state_ndx not in self.avgValues):
+      dset = data.GetStateDataSet( state_ndx, self.pinDataSet )
+
+    if dset != None:
+      ds_values = dset.value
+      t_nax = min( data.core.nax, ds_values.shape[ 2 ] )
+      t_nass = min( data.core.nass, ds_values.shape[ 3 ] )
+      avg_values = np.zeros( shape = ( t_nax, t_nass ) )
+
+      for ax in range( t_nax ):  # pp_powers.shape( 2 )
+        for assy in range( t_nass ):  # pp_powers.shape( 3 )
+          if data.core.pinVolumesSum > 0.0:
+	    avg_values[ ax, assy ] = \
+	        np.sum( ds_values[ :, :, ax, assy ] ) / \
+		data.core.pinVolumesSum
+          else:
+	    avg_values[ ax, assy ] = np.mean( ds_values[ :, :, ax, assy ] )
+        #end for assy
+      #end for ax
+
+      self.avgValues[ state_ndx ] = avg_values
+    #end if
+  #end _CalcAvgValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CalcAvgValues_0()			-
+  #----------------------------------------------------------------------
+  def _CalcAvgValues_0( self, data, state_ndx, force = False ):
     if (force or (state_ndx not in self.avgValues)) and \
 	self.pinDataSet in data.states[ state_ndx ].group:
-      ds_values = data.states[ state_ndx ].group[ self.pinDataSet ].value
-#      avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
+
+      dset = data.GetStateDataSet( state_ndx, self.pinDataSet )
+      ds_values = dset.value if dset != None else None
+
+#      ds_values = data.states[ state_ndx ].group[ self.pinDataSet ].value
+##      avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
       t_nax = min( data.core.nax, ds_values.shape[ 2 ] )
       t_nass = min( data.core.nass, ds_values.shape[ 3 ] )
       avg_values = np.zeros( shape = ( t_nax, t_nass ) )
@@ -145,7 +181,7 @@ Properties:
 
       self.avgValues[ state_ndx ] = avg_values
     #end if
-  #end _CalcAvgValues
+  #end _CalcAvgValues_0
 
 
   #----------------------------------------------------------------------
@@ -261,22 +297,24 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_wd = self.config[ 'pinWidth' ]
 
       title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.pinDataSet, self.state.timeDataSet )
+          ( self.data.GetDataSetDisplayName( self.pinDataSet ),
+	    self.state.timeDataSet )
       #title_fmt = '%s: Assembly %%d, Axial %%.3f, Exposure %%.3f' % self.pinDataSet
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-	  if self.pinDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
+#	  if self.pinDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
 #			-- Limit axial level and assy ndx
 #			--
-      if ds_value != None:
-        axial_level = min( axial_level, ds_value.shape[ 2 ] - 1 )
-        assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
+      if dset != None:
+        axial_level = min( axial_level, dset.shape[ 2 ] - 1 )
+        #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
 #			-- Create image
 #			--
@@ -317,10 +355,10 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if ds_value != None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-	  if ds_value != None and \
-	      pin_row < ds_value.shape[ 0 ] and \
-	      pin_col < ds_value.shape[ 1 ]:
-	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if dset != None and \
+	      pin_row < dset.shape[ 0 ] and \
+	      pin_col < dset.shape[ 1 ]:
+	    value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
@@ -497,20 +535,22 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_wd = self.config[ 'pinWidth' ]
 
       title_fmt = '%s: Axial %%.3f, %s %%.3g' % \
-          ( self.pinDataSet, self.state.timeDataSet )
+          ( self.data.GetDataSetDisplayName( self.pinDataSet ),
+	    self.state.timeDataSet )
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999 ) )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-	  if self.pinDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
+#	  if self.pinDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
 #			-- Limit axial level and assy ndx
 #			--
-      if ds_value != None:
-        axial_level = min( axial_level, ds_value.shape[ 2 ] - 1 )
+      if dset != None:
+        axial_level = min( axial_level, dset.shape[ 2 ] - 1 )
         #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
 #			-- Create image
@@ -555,10 +595,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #end if writing column label
 
 	  assy_ndx = core_data_row[ assy_col ] - 1
-	  if ds_value != None:
-            assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
-	  if assy_ndx >= 0:
+	  #if assy_ndx >= 0:
+	  if dset != None and assy_ndx >= 0 and assy_ndx < dset.shape[ 3 ]:
 	    pin_y = assy_y + 1
 	    for pin_row in range( self.data.core.npin ):
 	      pin_x = assy_x + 1
@@ -567,10 +606,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	        if ds_value != None:
 #		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-	        if ds_value != None and \
-		    pin_row < ds_value.shape[ 0 ] and \
-		    pin_col < ds_value.shape[ 1 ]:
-		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	        if pin_row < dset.shape[ 0 ] and \
+		    pin_col < dset.shape[ 1 ]:
+		  value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(
@@ -698,6 +736,36 @@ The config and data attributes are good to go.
 """
     tip_str = ''
 
+    if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0 and \
+        self.stateIndex in self.avgValues:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      avg_value = 0.0
+      assy_ndx = cell_info[ 0 ]
+      if dset != None:
+        ax = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 )
+	assy_ndx = min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
+        avg_value = self.avgValues[ self.stateIndex ][ ax, assy_ndx ]
+
+      show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+      tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
+          ( assy_ndx + 1, show_assy_addr,
+	    'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
+	    self.data.GetDataSetDisplayName( self.pinDataSet ), avg_value )
+    #end if
+
+    return  tip_str
+  #end _CreateToolTipText
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateToolTipText_0()		-
+  #----------------------------------------------------------------------
+  def _CreateToolTipText_0( self, cell_info ):
+    """Create a tool tip.
+@param  cell_info	tuple returned from FindCell()
+"""
+    tip_str = ''
+
     if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0:
       if self.stateIndex in self.avgValues:
         avg_value = self.avgValues[ self.stateIndex ][ self.axialValue[ 1 ], cell_info[ 0 ] ]
@@ -711,7 +779,7 @@ The config and data attributes are good to go.
 	    self.pinDataSet, avg_value )
 
     return  tip_str
-  #end _CreateToolTipText
+  #end _CreateToolTipText_0
 
 
   #----------------------------------------------------------------------
@@ -1065,8 +1133,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       state_ndx = self.stateIndex
       ds_name = self.pinDataSet
       pin_value = 0.0
-      if ds_name in self.data.states[ state_ndx ].group:
-        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
+#      if ds_name in self.data.states[ state_ndx ].group:
+#        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset != None:
+	ds_value = dset.value
 #	pin_value = ds_value[
 #	    pin_addr[ 1 ], pin_addr[ 0 ],
 #	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
@@ -1078,7 +1149,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
 	      min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
 	      ]
-      #end if ds_name
+      #end if
 
       if pin_value > 0:
 	pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
@@ -1103,8 +1174,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       state_ndx = self.stateIndex
       ds_name = self.pinDataSet
       pin_value = 0.0
-      if ds_name in self.data.states[ state_ndx ].group:
-        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
+#      if ds_name in self.data.states[ state_ndx ].group:
+#        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset != None:
+        ds_value = dset.value
 #	pin_value = ds_value[
 #	    pin_addr[ 1 ], pin_addr[ 0 ],
 #	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]

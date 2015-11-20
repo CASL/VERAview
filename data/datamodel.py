@@ -762,6 +762,16 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetDisplayName()		-
+  #----------------------------------------------------------------------
+  def GetDataSetDisplayName( self, ds_name ):
+    """Removes any 'extra:' prefix.
+"""
+    return  ds_name[ 6 : ] if ds_name.startswith( 'extra:' ) else ds_name
+  #end GetDataSetDisplayName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetNames()			-
   #----------------------------------------------------------------------
   def GetDataSetNames( self, category = None ):
@@ -923,6 +933,27 @@ the properties construct for this class soon.
 	if self.states != None and ndx >= 0 and ndx < len( self.states ) else \
 	None
   #end GetState
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetStateDataSet()			-
+  #----------------------------------------------------------------------
+  def GetStateDataSet( self, state_ndx, ds_name ):
+    """Retrieves a normal or extra dataset.
+@param  state_ndx	0-based state point index
+@param  ds_name		dataset name, where a prefix of 'extra:' means it's an
+			extra dataset
+@return			h5py.Dataset object if found or None
+"""
+    if ds_name.startswith( 'extra:' ):
+      st = self.GetExtraState( state_ndx )
+      use_name = ds_name[ 6 : ]
+    else:
+      st = self.GetState( state_ndx )
+      use_name = ds_name
+
+    return  st.GetDataSet( use_name ) if st != None else None
+  #end GetStateDataSet
 
 
   #----------------------------------------------------------------------
@@ -1251,9 +1282,26 @@ to be 'core', and the dataset is not associated with a state point.
     self.h5ExtraFilePath = base + '.extra' + ext
     if os.path.exists( self.h5ExtraFilePath ):
       self.h5ExtraFile = h5py.File( self.h5ExtraFilePath, 'r+' )  # 'a': r/w or creates
+      self.ReadExtraDataSets()
+#      self.dataSetNames[ 'extra' ], self.extraStates = \
+#          ExtraState.ReadAll( self.h5ExtraFile )
+  #end Read
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ReadExtraDataSets()			-
+  #----------------------------------------------------------------------
+  def ReadExtraDataSets( self ):
+    """
+"""
+    if self.h5ExtraFile == None:
+      self.dataSetNames[ 'extra' ] = []
+      self.extraStates = None
+
+    else:
       self.dataSetNames[ 'extra' ], self.extraStates = \
           ExtraState.ReadAll( self.h5ExtraFile )
-  #end Read
+  #end ReadExtraDataSets
 
 
   #----------------------------------------------------------------------
@@ -1261,16 +1309,24 @@ to be 'core', and the dataset is not associated with a state point.
   #----------------------------------------------------------------------
   def _ReadDataSetRange( self, ds_name ):
     """Scans the data for the range.  Could be very time consuming.
-@param  ds_name		dataset name
+@param  ds_name		dataset name, where a prefix of 'extra:' means it's
+			an extra dataset
 """
     range_min = sys.float_info.min
     range_max = sys.float_info.max
 
-    if self.states != None:
+    if ds_name.startswith( 'extra:' ):
+      use_states = self.GetExtraStates()
+      use_name = ds_name[ 6 : ]
+    else:
+      use_states = self.GetStates()
+      use_name = ds_name
+
+    if use_states != None:
       vmin = vmax = float( 'nan' )
-      for st in self.states:
-	if ds_name in st.group:
-	  cur_ds = st.group[ ds_name ].value
+      for st in use_states:
+	if st.HasDataSet( use_name ):
+	  cur_ds = st.GetDataSet( use_name ).value
 	  cur_max = np.amax( cur_ds )
 	  if math.isnan( vmax ) or cur_max > vmax:
 	    vmax = cur_max

@@ -872,6 +872,7 @@ Must be called from the UI thread.
     else:
       dialog = DataSetManagerDialog( self, data_model = data_model )
       dialog.ShowModal()
+      data_model.ReadExtraDataSets()
       dialog.Destroy()
     #end if-else
   #end _OnManageDataSets

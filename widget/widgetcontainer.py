@@ -319,13 +319,18 @@ Must be called on the UI thread.
       #end for
 
 #			-- Other 4-tuple shapes?
-      if self.widget.GetAllow4DDataSets() and \
-          data_model.HasDataSetCategory( 'other' ):
-	self.dataSetMenu.AppendSeparator()
-	for name in data_model.GetDataSetNames( 'other' ):
-	  item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
-	  self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	  self.dataSetMenu.AppendItem( item )
+      if self.widget.GetAllow4DDataSets():
+        if data_model.HasDataSetCategory( 'other' ):
+	  self.dataSetMenu.AppendSeparator()
+	  for name in data_model.GetDataSetNames( 'other' ):
+	    item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+	    self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+	    self.dataSetMenu.AppendItem( item )
+        #end if
+
+        item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
+	self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
+	self.dataSetMenu.AppendItem( item )
       #end if
 
       menu_im = wx.Image(
@@ -498,6 +503,47 @@ Must be called on the UI thread.
 #
 #    self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
 #  #end _OnDataSetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnDataSetMenuExtraItem()			-
+  #----------------------------------------------------------------------
+  def _OnDataSetMenuExtraItem( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    data_model = State.GetDataModel( self.state )
+    if data_model != None:
+      matching_ds_names = []
+      extra_ds_names = data_model.GetDataSetNames( 'extra' )
+      if extra_ds_names != None and len( extra_ds_names ) > 0:
+	st0 = data_model.GetExtraState()
+        for name in extra_ds_names:
+	  dset = st0.GetDataSet( name )
+	  if len( dset.shape ) == 4:
+	    matching_ds_names.append( name )
+      #end if
+
+      if len( matching_ds_names ) == 0:
+        wx.MessageBox(
+	    'No matching extra datasets',
+	    'Cannot animate the widget, data missing:\n' + str( ex ),
+	    'Save Animated Image', wx.OK_DEFAULT, self
+	    )
+      else:
+        dialog = wx.SingleChoiceDialog(
+	    self, 'Select', 'Select Extra Dataset',
+	    matching_ds_names
+	    )
+        status = dialog.ShowModal()
+	if status == wx.ID_OK:
+	  name = dialog.GetStringSelection()
+	  if name != None:
+	    self.widget.SetDataSet( 'extra:' + dialog.GetStringSelection() )
+      #end if-else
+    #end if data_model exists
+  #end _OnDataSetMenuExtraItem
 
 
   #----------------------------------------------------------------------

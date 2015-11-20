@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2015-11-19	leerw@ornl.gov				-
+#	  Adding support for 'extra' datasets.
 #		2015-11-18	leerw@ornl.gov				-
 #	  Relaxing to allow any axial and assembly dimensions.
 #		2015-08-31	leerw@ornl.gov				-
@@ -209,21 +211,23 @@ If neither are specified, a default 'scale' value of 24 is used.
       value_font = self.config[ 'valueFont' ]
 
       title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.pinDataSet, self.state.timeDataSet )
+          ( self.data.GetDataSetDisplayName( self.pinDataSet ),
+	    self.state.timeDataSet )
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-	  if self.pinDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
+#	  if self.pinDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      #ds_value = dset.value if dset != None else None
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
 #			-- Limit axial level and assy ndx
 #			--
-      if ds_value != None:
-        axial_level = min( axial_level, ds_value.shape[ 2 ] - 1 )
-        assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
+      if dset != None and assy_ndx < dset.shape[ 3 ]:
+        axial_level = min( axial_level, dset.shape[ 2 ] - 1 )
 
 #			-- Create image
 #			--
@@ -267,10 +271,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if ds_value != None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-	  if ds_value != None and \
-	      pin_row < ds_value.shape[ 0 ] and \
-	      pin_col < ds_value.shape[ 1 ]:
-	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if pin_row < dset.shape[ 0 ] and pin_col < dset.shape[ 1 ]:
+	    value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(
@@ -371,30 +373,36 @@ If neither are specified, a default 'scale' value of 24 is used.
     valid = self.data.IsValid(
         assembly_index = self.assemblyIndex,
 	axial_level = self.axialValue[ 1 ],
-	dataset_name = self.pinDataSet,
+	#dataset_name = self.pinDataSet,
 	pin_colrow = cell_info[ 1 : 3 ],
 	state_index = self.stateIndex
 	)
 
     if valid:
-      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
+#      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
 #      ds_value = ds[
 #          cell_info[ 2 ], cell_info[ 1 ],
 #	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 #	  ]
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       ds_value = 0.0
-      if cell_info[ 2 ] < ds.shape[ 0 ] and cell_info[ 1 ] < ds.shape[ 1 ]:
-        ds_value = ds[
+      if dset != None and \
+          cell_info[ 2 ] < dset.shape[ 0 ] and \
+	  cell_info[ 1 ] < dset.shape[ 1 ]:
+        ds_value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
-	    min( self.axialValue[ 1 ], ds.shape[ 2 ] - 1 ),
-	    min( self.assemblyIndex[ 0 ], ds.shape[ 3 ] - 1 )
+	    min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
 	    ]
 
       if ds_value > 0.0:
+	ds_name = \
+	    self.pinDataSet[ 6 : ] if self.pinDataSet.startswith( 'extra:' ) \
+	    else self.pinDataSet
         show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Pin: %s\n%s: %g' % \
-	    ( str( show_pin_addr ), self.pinDataSet, ds_value )
+	    ( str( show_pin_addr ), ds_name, ds_value )
     #end if valid
 
     return  tip_str
@@ -632,17 +640,19 @@ attributes/properties that aren't already set in _LoadDataModel():
 	  )
 
     if valid:
-      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
+#      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
 #      ds_value = ds[
 #          pin_addr[ 1 ], pin_addr[ 0 ],
 #          self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
 #	  ]
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       ds_value = 0.0
-      if pin_addr[ 1 ] < ds.shape[ 0 ] and pin_addr[ 0 ] < ds.shape[ 1 ]:
-        ds_value = ds[
+      if dset != None and \
+          pin_addr[ 1 ] < dset.shape[ 0 ] and pin_addr[ 0 ] < dset.shape[ 1 ]:
+        ds_value = dset[
             pin_addr[ 1 ], pin_addr[ 0 ],
-	    min( self.axialValue[ 1 ], ds.shape[ 2 ] - 1 ),
-	    min( self.assemblyIndex[ 0 ], ds.shape[ 3 ] - 1 )
+	    min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
 	    ]
 
       if ds_value > 0.0:

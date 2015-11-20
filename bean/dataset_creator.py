@@ -117,7 +117,7 @@ Must be called in the UI thread.
 	    self.fAvgShape, self.fFactors, self.fWeights
 	    )
 
-	avg_name = self.fSrcDataSetName + '.' + self.fAvgDataSetName
+	#avg_name = self.fSrcDataSetName + '.' + self.fAvgDataSetName
 	self.fDataModel.StoreExtraDataSet(
 	    ds_name = self.fAvgDataSetName,
 	    data = avg_data,
