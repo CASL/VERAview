@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2015-11-20	leerw@ornl.gov				-
+#	  Added graceful handling of extra and other datasets.
+#		2015-11-19	leerw@ornl.gov				-
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().
 #		2015-08-20	leerw@ornl.gov				-
@@ -220,7 +223,8 @@ calls self.ax.grid() and can be called by subclasses.
 	    ( self.detectorIndex[ 0 ] + 1,
 	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
 
-      if 'pin' in self.dataSetTypes: # and self.detectorIndex[ 0 ] >= 0
+      #if 'pin' in self.dataSetTypes: # and self.detectorIndex[ 0 ] >= 0
+      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
         pin_rc = ( self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1 )
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Pin %s' % str( pin_rc )
@@ -242,17 +246,25 @@ calls self.ax.grid() and can be called by subclasses.
 	if ds_name in self.data.GetDataSetNames( 'detector' ):
 	  axial_values = self.data.core.detectorMeshCenters
 	  plot_type = '.'
-	elif self.dataSetValues[ k ].size != self.data.core.axialMeshCenters.size:
-	  axial_values = None
+#	elif self.dataSetValues[ k ].size != self.data.core.axialMeshCenters.size:
+#	  axial_values = None
 	else:
 	  axial_values = self.data.core.axialMeshCenters
 	  plot_type = '-'
 
 	if axial_values != None:
+	  if self.dataSetValues[ k ].size == axial_values.size:
+	    cur_values = self.dataSetValues[ k ]
+	  else:
+	    cur_values = np.ndarray( axial_values.shape, dtype = np.float64 )
+	    cur_values.fill( 0.0 )
+	    cur_values[ 0 : self.dataSetValues[ k ].shape[ 0 ] ] = \
+	        self.dataSetValues[ k ]
+
 	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	  cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
 	  cur_axis.plot(
-	      self.dataSetValues[ k ] * scale, axial_values, plot_mode,
+	      cur_values * scale, axial_values, plot_mode,
 	      label = legend_label, linewidth = 2
 	      )
 	#end if axial_values != None:
@@ -548,21 +560,19 @@ to be passed to UpdateState().  Assume self.data is valid.
 #        self.refAxisValues = self.data.core.detectorMeshCenters.tolist()
 
 #      state_group = self.data.states[ self.stateIndex ].group
-      state_group = self.data.GetState( self.stateIndex ).GetGroup()
-      ex_state_group = self.data.GetExtraState( self.stateIndex ).GetGroup()
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
+	ds_display_name = self.data.GetDataSetDisplayName( ds_name )
 #        if ds_rec[ 'visible' ] and ds_name != None and ds_name in state_group:
 #	  ds = state_group[ ds_name ]
         if ds_rec[ 'visible' ] and ds_name != None:
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-
 	  if dset == None:
 	    pass
 
-	  elif ds_name in self.data.GetDataSetNames( 'channel' ):
+	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
 		channel_colrow = self.channelColRow
@@ -577,13 +587,13 @@ to be passed to UpdateState().  Assume self.data is valid.
               self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'channel' )
 
-	  elif ds_name in self.data.GetDataSetNames( 'detector' ):
+	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
 	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
 	      self.dataSetValues[ k ] = dset[ :, self.detectorIndex[ 0 ] ]
               self.dataSetTypes.add( 'detector' )
 
-	  elif ds_name in self.data.GetDataSetNames( 'extra' ) or \
-	      ds_name in self.data.GetDataSetNames( 'other' ):
+	  elif ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
+	      ds_display_name in self.data.GetDataSetNames( 'other' ):
 	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
 	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
 	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
@@ -595,7 +605,7 @@ to be passed to UpdateState().  Assume self.data is valid.
 	      self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'other' )
 
-	  elif ds_name in self.data.GetDataSetNames( 'pin' ):
+	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
 		pin_colrow = self.pinColRow

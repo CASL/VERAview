@@ -192,6 +192,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     print >> sys.stderr, \
         '[Assembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
     im = None
+    dset = None
 
     tuple_valid = DataModel.IsValidObj(
 	self.data,
@@ -220,14 +221,16 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset != None else None
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
 #			-- Limit axial level and assy ndx
 #			--
-      if dset != None and assy_ndx < dset.shape[ 3 ]:
-        axial_level = min( axial_level, dset.shape[ 2 ] - 1 )
+      #assy_ndx = min( assy_ndx, dset_shape[ 3 ] - 1 )
+    if dset != None and assy_ndx < dset_shape[ 3 ]:
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
 #			-- Create image
 #			--
@@ -266,14 +269,16 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
 	  #end if writing column label
+          print >> sys.stderr, '[XX.2.2.2]'
 
 	  value = 0.0
 #	  if ds_value != None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-	  if pin_row < dset.shape[ 0 ] and pin_col < dset.shape[ 1 ]:
+	  if pin_row < dset_shape[ 0 ] and pin_col < dset_shape[ 1 ]:
 	    value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 
+          print >> sys.stderr, '[XX.2.2.3]'
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -385,14 +390,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 #	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_value = 0.0
-      if dset != None and \
-          cell_info[ 2 ] < dset.shape[ 0 ] and \
-	  cell_info[ 1 ] < dset.shape[ 1 ]:
+      if cell_info[ 2 ] < dset_shape[ 0 ] and \
+	  cell_info[ 1 ] < dset_shape[ 1 ]:
         ds_value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
-	    min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
-	    min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
+	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
       if ds_value > 0.0:
@@ -646,13 +651,13 @@ attributes/properties that aren't already set in _LoadDataModel():
 #          self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
 #	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_value = 0.0
-      if dset != None and \
-          pin_addr[ 1 ] < dset.shape[ 0 ] and pin_addr[ 0 ] < dset.shape[ 1 ]:
+      if pin_addr[ 1 ] < dset_shape[ 0 ] and pin_addr[ 0 ] < dset_shape[ 1 ]:
         ds_value = dset[
             pin_addr[ 1 ], pin_addr[ 0 ],
-	    min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
-	    min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
+	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
       if ds_value > 0.0:

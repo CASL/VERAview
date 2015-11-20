@@ -57,7 +57,7 @@
 #	  Added popup on assembly.
 #		2015-01-06	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, traceback
+import math, os, sys, threading, time, timeit, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -307,13 +307,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
 #			-- Limit axial level and assy ndx
 #			--
-      if dset != None:
-        axial_level = min( axial_level, dset.shape[ 2 ] - 1 )
+      #if dset != None:
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
         #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
 #			-- Create image
@@ -323,7 +324,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       im_draw = PIL.ImageDraw.Draw( im )
 
       pin_y = assy_region[ 1 ]
-      for pin_row in range( self.data.core.npin ):
+#      for pin_row in range( self.data.core.npin ):
+      for pin_row in range( min( self.data.core.npin, dset_shape[ 0 ] ) ):
 #				-- Row label
 #				--
 	if self.showLabels:
@@ -338,7 +340,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 #				-- Loop on col
 #				--
 	pin_x = assy_region[ 0 ]
-	for pin_col in range( self.data.core.npin ):
+#	for pin_col in range( self.data.core.npin ):
+	for pin_col in range( min( self.data.core.npin, dset_shape[ 1 ] ) ):
 #					-- Column label
 #					--
 	  if pin_row == 0 and self.showLabels:
@@ -351,15 +354,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-	  value = 0.0
-#	  if ds_value != None:
-#	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
-#	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-	  if dset != None and \
-	      pin_row < dset.shape[ 0 ] and \
-	      pin_col < dset.shape[ 1 ]:
-	    value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
-
+##	  value = 0.0
+##	  if ds_value != None:
+##	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
+##	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+#	  if dset != None and \
+#	      pin_row < dset.shape[ 0 ] and \
+#	      pin_col < dset.shape[ 1 ]:
+	  value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -544,13 +546,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
 #			-- Limit axial level and assy ndx
 #			--
       if dset != None:
-        axial_level = min( axial_level, dset.shape[ 2 ] - 1 )
+        axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
         #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
 #			-- Create image
@@ -597,19 +600,17 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  assy_ndx = core_data_row[ assy_col ] - 1
 
 	  #if assy_ndx >= 0:
-	  if dset != None and assy_ndx >= 0 and assy_ndx < dset.shape[ 3 ]:
+	  #if dset != None and assy_ndx >= 0 and assy_ndx < dset.shape[ 3 ]:
+	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pin_y = assy_y + 1
-	    for pin_row in range( self.data.core.npin ):
+	    for pin_row in range( min( self.data.core.npin, dset_shape[ 0 ] ) ):
 	      pin_x = assy_x + 1
-	      for pin_col in range( self.data.core.npin ):
-		value = 0.0
+	      for pin_col in range( min( self.data.core.npin, dset_shape[ 1 ] ) ):
+#		value = 0.0
 #	        if ds_value != None:
 #		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-	        if pin_row < dset.shape[ 0 ] and \
-		    pin_col < dset.shape[ 1 ]:
-		  value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
-
+		value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
@@ -742,8 +743,9 @@ The config and data attributes are good to go.
       avg_value = 0.0
       assy_ndx = cell_info[ 0 ]
       if dset != None:
-        ax = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 )
-	assy_ndx = min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
+	dset_shape = dset.shape
+        ax = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+	assy_ndx = min( cell_info[ 0 ], dset_shape[ 3 ] - 1 )
         avg_value = self.avgValues[ self.stateIndex ][ ax, assy_ndx ]
 
       show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
