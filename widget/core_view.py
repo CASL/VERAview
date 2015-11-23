@@ -107,6 +107,7 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
+    self.avgDataSet = None
     self.avgValues = {}
 
 #    self.menuDef = \
@@ -120,6 +121,10 @@ Properties:
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     super( Core2DView, self ).__init__( container, id )
+
+    self.menuDef.insert(
+        0, ( 'Select Average Dataset...', self._OnSelectAverageDataSet )
+	)
   #end __init__
 
 
@@ -151,39 +156,6 @@ Properties:
       self.avgValues[ state_ndx ] = avg_values
     #end if
   #end _CalcAvgValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CalcAvgValues_0()			-
-  #----------------------------------------------------------------------
-  def _CalcAvgValues_0( self, data, state_ndx, force = False ):
-    if (force or (state_ndx not in self.avgValues)) and \
-	self.pinDataSet in data.states[ state_ndx ].group:
-
-      dset = data.GetStateDataSet( state_ndx, self.pinDataSet )
-      ds_values = dset.value if dset != None else None
-
-#      ds_values = data.states[ state_ndx ].group[ self.pinDataSet ].value
-##      avg_values = np.zeros( shape = ( data.core.nax, data.core.nass ) )
-      t_nax = min( data.core.nax, ds_values.shape[ 2 ] )
-      t_nass = min( data.core.nass, ds_values.shape[ 3 ] )
-      avg_values = np.zeros( shape = ( t_nax, t_nass ) )
-
-#      for ax in range( data.core.nax ):  # pp_powers.shape( 2 )
-#        for assy in range( data.core.nass ):  # pp_powers.shape( 3 )
-      for ax in range( t_nax ):  # pp_powers.shape( 2 )
-        for assy in range( t_nass ):  # pp_powers.shape( 3 )
-          if data.core.pinVolumesSum > 0.0:
-	    avg_values[ ax, assy ] = \
-	        np.sum( ds_values[ :, :, ax, assy ] ) / data.core.pinVolumesSum
-          else:
-	    avg_values[ ax, assy ] = np.mean( ds_values[ :, :, ax, assy ] )
-        #end for assy
-      #end for ax
-
-      self.avgValues[ state_ndx ] = avg_values
-    #end if
-  #end _CalcAvgValues_0
 
 
   #----------------------------------------------------------------------
@@ -738,6 +710,37 @@ The config and data attributes are good to go.
 """
     tip_str = ''
 
+    if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      assy_ndx = cell_info[ 0 ]
+      if dset != None and assy_ndx < dset.shape[ 3 ]:
+        show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+        tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+
+	avg_values = self.avgValues.get( self.stateIndex )
+	if avg_values != None:
+          ax = min( self.axialValue[ 1 ], avg_values.shape[ 0 ] - 1 )
+	  assy_ndx = min( assy_ndx, avg_values.shape[ 1 ] - 1 )
+	  avg_value = avg_values[ ax, assy_ndx ]
+	  tip_str += '\nAvg %s: %.3g' % \
+	    ( self.data.GetDataSetDisplayName( self.avgDataSet ), avg_value )
+	#end if we have avg value
+      #end if assy_ndx in range
+    #end if cell_info
+
+    return  tip_str
+  #end _CreateToolTipText
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateToolTipText_0()		-
+  #----------------------------------------------------------------------
+  def _CreateToolTipText_0( self, cell_info ):
+    """Create a tool tip.
+@param  cell_info	tuple returned from FindCell()
+"""
+    tip_str = ''
+
     if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0 and \
         self.stateIndex in self.avgValues:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
@@ -755,31 +758,6 @@ The config and data attributes are good to go.
 	      'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
 	      self.data.GetDataSetDisplayName( self.pinDataSet ), avg_value )
     #end if
-
-    return  tip_str
-  #end _CreateToolTipText
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateToolTipText_0()		-
-  #----------------------------------------------------------------------
-  def _CreateToolTipText_0( self, cell_info ):
-    """Create a tool tip.
-@param  cell_info	tuple returned from FindCell()
-"""
-    tip_str = ''
-
-    if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0:
-      if self.stateIndex in self.avgValues:
-        avg_value = self.avgValues[ self.stateIndex ][ self.axialValue[ 1 ], cell_info[ 0 ] ]
-      else:
-        avg_value = 0.0
-
-      show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-      tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
-          ( cell_info[ 0 ] + 1, show_assy_addr,
-	    'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
-	    self.pinDataSet, avg_value )
 
     return  tip_str
   #end _CreateToolTipText_0
@@ -1206,6 +1184,37 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnSelectAverageDataSet()		-
+  #----------------------------------------------------------------------
+  def _OnSelectAverageDataSet( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    if self.data != None:
+      matching_ds_names = self.data.GetExtra4DDataSets()
+
+      if len( matching_ds_names ) == 0:
+        wx.MessageBox(
+	    'No matching extra datasets',
+	    'Select Average Dataset', wx.OK_DEFAULT, self
+	    )
+      else:
+        dialog = wx.SingleChoiceDialog(
+	    self, 'Select', 'Select Average Dataset',
+	    matching_ds_names
+	    )
+        status = dialog.ShowModal()
+	if status == wx.ID_OK:
+	  name = dialog.GetStringSelection()
+	  if name != None:
+	    self.UpdateState( avg_dataset = 'extra:' + name )
+      #end if-else matching_ds_names
+    #end if self.data
+  #end _OnSelectAverageDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._OnUnzoom()				-
   #----------------------------------------------------------------------
   def _OnUnzoom( self, ev ):
@@ -1258,6 +1267,33 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._UpdateAvgValues()			-
+  #----------------------------------------------------------------------
+  def _UpdateAvgValues( self, state_ndx, force = False ):
+    dset = None
+    if self.avgDataSet != None and \
+        (force or (state_ndx not in self.avgValues)):
+      dset = self.data.GetStateDataSet( state_ndx, self.avgDataSet )
+
+    if dset != None:
+      ds_values = dset.value
+
+      t_nax = min( self.data.core.nax, ds_values.shape[ 2 ] )
+      t_nass = min( self.data.core.nass, ds_values.shape[ 3 ] )
+      avg_values = np.zeros( shape = ( t_nax, t_nass ) )
+
+      for ax in range( t_nax ):  # pp_powers.shape( 2 )
+        for assy in range( t_nass ):  # pp_powers.shape( 3 )
+	  avg_values[ ax, assy ] = np.mean( ds_values[ :, :, ax, assy ] )
+        #end for assy
+      #end for ax
+
+      self.avgValues[ state_ndx ] = avg_values
+    #end if
+  #end _UpdateAvgValues
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._UpdateStateValues()			-
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
@@ -1272,6 +1308,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
+    if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
+      changed = True
+      self.avgDataSet = kwargs[ 'avg_dataset' ]
+      if self.avgDataSet == '':
+        self.avgDataSet = None
+      self.avgValues.clear()
+
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
       changed = True
       self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
@@ -1281,8 +1324,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       self.pinDataSet = kwargs[ 'pin_dataset' ]
       self.avgValues.clear()
 
-    if changed and self.config != None:
-      self._CalcAvgValues( self.data, self.stateIndex )
+    if (changed or resized) and self.config != None:
+      self._UpdateAvgValues( self.stateIndex )
+      #self._CalcAvgValues( self.data, self.stateIndex )
 
     if changed:
       kwargs[ 'changed' ] = True

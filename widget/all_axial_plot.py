@@ -117,7 +117,7 @@ Properties:
     self.detectorDataSet = 'detector_respose'
     self.detectorIndex = ( -1, -1, -1 )
 
-    self.menuDefs = [ ( 'Select Datasets', self._OnSelectDataSets ) ]
+    self.menuDef = [ ( 'Select Datasets', self._OnSelectDataSets ) ]
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
@@ -403,7 +403,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		GetMenuDef()					-
   #----------------------------------------------------------------------
   def GetMenuDef( self, data_model ):
-    return  self.menuDefs
+    return  self.menuDef
   #end GetMenuDef
 
 

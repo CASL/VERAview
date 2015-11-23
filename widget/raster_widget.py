@@ -500,7 +500,7 @@ Subclasses that override should call this implementation.
     self.bitmapCtrl = wx.StaticBitmap( self.bitmapPanel, bitmap = self.blankBitmap )
 
     self._InitEventHandlers()
-    self.CreatePopupMenu()
+    #self.CreatePopupMenu()
 
 #		-- Lay out
 #		--

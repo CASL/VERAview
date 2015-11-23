@@ -515,15 +515,16 @@ Must be called on the UI thread.
 
     data_model = State.GetDataModel( self.state )
     if data_model != None:
-      matching_ds_names = []
-      extra_ds_names = data_model.GetDataSetNames( 'extra' )
-      if extra_ds_names != None and len( extra_ds_names ) > 0:
-	st0 = data_model.GetExtraState()
-        for name in extra_ds_names:
-	  dset = st0.GetDataSet( name )
-	  if len( dset.shape ) == 4:
-	    matching_ds_names.append( name )
-      #end if
+      matching_ds_names = self.data.GetExtra4DDataSets()
+#      matching_ds_names = []
+#      extra_ds_names = data_model.GetDataSetNames( 'extra' )
+#      if extra_ds_names != None and len( extra_ds_names ) > 0:
+#	st0 = data_model.GetExtraState()
+#        for name in extra_ds_names:
+#	  dset = st0.GetDataSet( name )
+#	  if len( dset.shape ) == 4:
+#	    matching_ds_names.append( name )
+#      #end if
 
       if len( matching_ds_names ) == 0:
         wx.MessageBox(

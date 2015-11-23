@@ -796,18 +796,41 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetExtra4DDataSets()			-
+  #----------------------------------------------------------------------
+  def GetExtra4DDataSets( self ):
+    """Retrieves extra datasets that have a shape of length 4
+@return			list of names, possibly empty
+"""
+    names = []
+    extra_names = self.GetDataSetNames( 'extra' )
+    if extra_names != None and len( extra_names ) > 0:
+      st = self.GetExtraState()
+      if st != None:
+        for en in extra_names:
+	  dset = st.GetDataSet( en )
+	  if len( dset.shape ) == 4:
+	    names.append( en )
+      #end if st
+    #end if extra_names
+
+    return  names
+  #end GetExtra4DDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetExtraState()			-
   #----------------------------------------------------------------------
   def GetExtraState( self, ndx = 0 ):
-    """Retrieves a specific extra state point by index.
+    """Retrieves a specific state point by index.
 @param  ndx		0-based index
 @return			ExtraState object or None if extraStates not defined
 			or ndx out of range
 """
     return  \
 	self.extraStates[ ndx ]  \
-	if self.extraStates != None and \
-	    ndx >= 0 and ndx < len( self.extraStates ) else \
+	if self.extraStates != None and ndx >= 0 and \
+	    ndx < len( self.extraStates ) else \
 	None
   #end GetExtraState
 
@@ -950,7 +973,9 @@ the properties construct for this class soon.
 			extra dataset
 @return			h5py.Dataset object if found or None
 """
-    if ds_name.startswith( 'extra:' ):
+    if ds_name == None:
+      st = None
+    elif ds_name.startswith( 'extra:' ):
       st = self.GetExtraState( state_ndx )
       use_name = ds_name[ 6 : ]
     else:

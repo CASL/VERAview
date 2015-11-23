@@ -61,12 +61,7 @@ Attrs/properties:
 
     super( ChannelAssembly2DView, self ).__init__( container, id )
 
-    self.menuDef = \
-      [
-	( 'Hide Labels', self._OnToggleLabels ),
-	( 'Hide Legend', self._OnToggleLegend ),
-        ( 'Unzoom', self._OnUnzoom )
-      ]
+    self.menuDef.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
   #end __init__
 
 
@@ -218,10 +213,12 @@ If neither are specified, a default 'scale' value of 24 is used.
           ( self.channelDataSet, self.state.timeDataSet )
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
-	  if self.channelDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
+#	  if self.channelDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
+      ds_value = dset.value if dset != None else None
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -396,13 +393,15 @@ If neither are specified, a default 'scale' value of 24 is used.
 	)
 
     if valid:
-      ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
-      ds_value = ds[
-          cell_info[ 2 ], cell_info[ 1 ],
-	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-	  ]
+      #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
+      ds = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      if ds != None:
+        ds_value = ds[
+            cell_info[ 2 ], cell_info[ 1 ],
+	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+	    ]
 
-      if ds_value > 0.0:
+      #if ds_value > 0.0:
         show_chan_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Channel: %s\n%s: %g' % \
@@ -521,13 +520,13 @@ Subclasses should override as needed.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.GetMenuDef()			-
   #----------------------------------------------------------------------
-  def GetMenuDef( self, data_model ):
-    """
-"""
-    menu_def = super( ChannelAssembly2DView, self ).GetMenuDef( data_model )
-    menu_def.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
-    return  menu_def
-  #end GetMenuDef
+#  def GetMenuDef( self, data_model ):
+#    """
+#"""
+#    menu_def = super( ChannelAssembly2DView, self ).GetMenuDef( data_model )
+#    menu_def.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
+#    return  menu_def
+#  #end GetMenuDef
 
 
   #----------------------------------------------------------------------
@@ -646,11 +645,14 @@ attributes/properties that aren't already set in _LoadDataModel():
 	  )
 
     if valid:
-      ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
-      ds_value = ds[ \
-          chan_addr[ 1 ], chan_addr[ 0 ], self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
-	  ]
-      if ds_value > 0.0:
+      #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
+      ds = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      if ds != None:
+        ds_value = ds[
+	    chan_addr[ 1 ], chan_addr[ 0 ],
+	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+	    ]
+      #if ds_value > 0.0:
         self.FireStateChange( channel_colrow = chan_addr )
     #end if valid
   #end _OnClick
