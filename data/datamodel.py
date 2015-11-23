@@ -639,6 +639,8 @@ are initialized.
       self.h5ExtraFile.flush()
     #end if file doesn't exist
 
+    names, self.extraStates = ExtraState.ReadAll( self.h5ExtraFile )
+
     return  self.h5ExtraFile
   #end _CreateExtraH5File
 

@@ -742,17 +742,17 @@ The config and data attributes are good to go.
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       avg_value = 0.0
       assy_ndx = cell_info[ 0 ]
-      if dset != None:
+      if dset != None and assy_ndx < dset.shape[ 3 ]:
 	dset_shape = dset.shape
         ax = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
-	assy_ndx = min( cell_info[ 0 ], dset_shape[ 3 ] - 1 )
+	#assy_ndx = min( cell_info[ 0 ], dset_shape[ 3 ] - 1 )
         avg_value = self.avgValues[ self.stateIndex ][ ax, assy_ndx ]
 
-      show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-      tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
-          ( assy_ndx + 1, show_assy_addr,
-	    'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
-	    self.data.GetDataSetDisplayName( self.pinDataSet ), avg_value )
+        show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+        tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
+            ( assy_ndx + 1, show_assy_addr,
+	      'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
+	      self.data.GetDataSetDisplayName( self.pinDataSet ), avg_value )
     #end if
 
     return  tip_str
@@ -1145,11 +1145,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 #	    ]
 	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
-	    pin_addr[ 0 ] < ds_value.shape[ 1 ]:
+	    pin_addr[ 0 ] < ds_value.shape[ 1 ] and \
+	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
 	  pin_value = ds_value[
 	      pin_addr[ 1 ], pin_addr[ 0 ],
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
-	      min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
+	      self.assemblyIndex[ 0 ]
+	      #min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
 	      ]
       #end if
 
@@ -1186,11 +1188,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 #	    ]
 	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
-	    pin_addr[ 0 ] < ds_value.shape[ 1 ]:
+	    pin_addr[ 0 ] < ds_value.shape[ 1 ] and \
+	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
 	  pin_value = ds_value[
 	      pin_addr[ 1 ], pin_addr[ 0 ],
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
-	      min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
+	      self.assemblyIndex[ 0 ]
+	      #min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
 	      ]
       #end if ds_name
 

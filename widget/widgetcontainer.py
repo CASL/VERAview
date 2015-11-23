@@ -528,7 +528,6 @@ Must be called on the UI thread.
       if len( matching_ds_names ) == 0:
         wx.MessageBox(
 	    'No matching extra datasets',
-	    'Cannot animate the widget, data missing:\n' + str( ex ),
 	    'Save Animated Image', wx.OK_DEFAULT, self
 	    )
       else:

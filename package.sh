@@ -3,7 +3,7 @@
 pushd ..
 
 #17
-name=veraview-build-averages.zip
+name=veraview-build-any4d.zip
 
 [ -f ${name} ] && unlink ${name}
 zip -r ${name} \

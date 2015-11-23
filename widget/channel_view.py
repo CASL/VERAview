@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2015-11-23	leerw@ornl.gov				-
+#	  Using new DataModel methods for dataset access.
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
@@ -191,16 +193,21 @@ If neither are specified, a default 'scale' value of 4 is used.
       pil_font = self.config[ 'pilFont' ]
 
       title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.channelDataSet, self.state.timeDataSet )
+          ( self.data.GetDataSetDisplayName( self.channelDataSet ),
+            self.state.timeDataSet )
       #title_fmt = '%s: Assembly %%d, Axial %%.3f, Exposure %%.3f' % self.channelDataSet
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
-	  if self.channelDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
+#	  if self.channelDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
@@ -237,10 +244,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        )
 	  #end if writing column label
 
-	  value = 0.0
-	  if ds_value != None:
-	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
-	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
+#	  value = 0.0
+#	  if ds_value != None:
+#	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
+#	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
+	  value = dset[ chann_row, chann_col, axial_level, assy_ndx ]
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -438,14 +446,17 @@ If neither are specified, a default 'scale' value of 4 is used.
       pil_font = self.config[ 'pilFont' ]
 
       title_fmt = '%s: Axial %%.3f, %s %%.3g' % \
-          ( self.channelDataSet, self.state.timeDataSet )
+          ( self.data.GetDataSetDisplayName( self.channelDataSet ),
+            self.state.timeDataSet )
       #title_fmt = '%s: Axial %%.3f, Exposure %%.3f' % self.channelDataSet
       title_size = pil_font.getsize( title_fmt % ( 99, 99.999 ) )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
-	  if self.channelDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
+#	  if self.channelDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
+      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -489,16 +500,19 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #end if writing column label
 
 	  assy_ndx = core_data_row[ assy_col ] - 1
-
-	  if assy_ndx >= 0:
+	  #if assy_ndx >= 0:
+	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    chan_y = assy_y + 1
-	    for chan_row in range( self.data.core.npin + 1 ):
+	    #for chan_row in range( self.data.core.npin + 1 ):
+	    for chan_row in range( min( self.data.core.npin + 1, dset_shape[ 0 ] ) ):
 	      chan_x = assy_x + 1
-	      for chan_col in range( self.data.core.npin + 1 ):
-		value = 0.0
-	        if ds_value != None:
-		  #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
-		  value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
+	      #for chan_col in range( self.data.core.npin + 1 ):
+	      for chan_col in range( min( self.data.core.npin + 1, dset_shape[ 1 ] ) ):
+#		value = 0.0
+#	        if ds_value != None:
+#		  #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
+#		  value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
+		value = dset[ chan_row, chan_col, axial_level, assy_ndx ]
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
@@ -627,12 +641,16 @@ The config and data attributes are good to go.
     tip_str = ''
 
     if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0:
-      #xxxx must get this later
-      avg_value = 0.0
+      #xxxx must get this later, like Core2DView
+#      avg_value = 0.0
+#      show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+#      tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
+#          ( cell_info[ 0 ] + 1, show_assy_addr, 'Avg', \
+#	    self.channelDataSet, avg_value )
       show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-      tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
-          ( cell_info[ 0 ] + 1, show_assy_addr, 'Avg', \
-	    self.channelDataSet, avg_value )
+      tip_str = 'Assy: %d %s\n%s' % \
+          ( cell_info[ 0 ] + 1, show_assy_addr,
+	    self.data.GetDataSetDisplayName( self.channelDataSet ) )
     #end if
 
     return  tip_str
@@ -985,12 +1003,19 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       state_ndx = self.stateIndex
       ds_name = self.channelDataSet
       chan_value = 0.0
-      if ds_name in self.data.states[ state_ndx ].group:
-        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
-	chan_value = ds_value[
-	    chan_addr[ 1 ], chan_addr[ 0 ],
-	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-	    ]
+#      if ds_name in self.data.states[ state_ndx ].group:
+#        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset != None
+        ds_value = dset.value
+	if chan_addr[ 1 ] < ds_value.shape[ 0 ] and \
+	    chan_addr[ 0 ] < ds_value.shape[ 1 ] and \
+	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
+	  chan_value = ds_value[
+	      chan_addr[ 1 ], chan_addr[ 0 ],
+	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      self.assemblyIndex[ 0 ]
+	      ]
 #	    self.axialBean.axialLevel, self.assemblyIndex
 
       if chan_value > 0:
@@ -1013,12 +1038,19 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       state_ndx = self.stateIndex
       ds_name = self.channelDataSet
       chan_value = 0.0
-      if ds_name in self.data.states[ state_ndx ].group:
-        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
-	chan_value = ds_value[
-	    chan_addr[ 1 ], chan_addr[ 0 ],
-	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-	    ]
+#      if ds_name in self.data.states[ state_ndx ].group:
+#        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset != None:
+        ds_value = dset.value
+	if chan_addr[ 1 ] < ds_value.shape[ 0 ] and \
+	    chan_addr[ 0 ] < ds_value.shape[ 1 ] and \
+	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
+	  chan_value = ds_value[
+	      chan_addr[ 1 ], chan_addr[ 0 ],
+	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      self.assemblyIndex[ 0 ]
+	      ]
 #	    self.axialBean.axialLevel, self.assemblyIndex
 
       if chan_value > 0.0:
