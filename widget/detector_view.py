@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2015-11-23	leerw@ornl.gov				-
+#	  Migrating to new dataset retrieval scheme.
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().
 #		2015-06-18	leerw@ornl.gov				-
@@ -19,7 +21,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback
 import numpy as np
-import pdb  #pdb.set_trace()
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -180,10 +182,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       title_fmt = '%s: %s %%.3g' % ( self.detectorDataSet, self.state.timeDataSet )
       title_size = pil_font.getsize( title_fmt % 99.999 )
 
-      ds_value = \
-          self.data.states[ state_ndx ].group[ self.detectorDataSet ].value \
-	  if self.detectorDataSet in self.data.states[ state_ndx ].group \
-	  else None
+#      ds_value = \
+#          self.data.states[ state_ndx ].group[ self.detectorDataSet ].value \
+#	  if self.detectorDataSet in self.data.states[ state_ndx ].group \
+#	  else None
+      dset = self.data.GetStateDataSet( state_ndx, self.detectorDataSet )
+      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      ds_value = dset.value if dset != None else None
       ds_range = self.data.GetRange( self.detectorDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 

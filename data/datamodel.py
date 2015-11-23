@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-11-23	leerw@ornl.gov				-
+#	  Fixed bug where ExtraDataSet.ReadAll() must be called in
+#	  _CreateExtraH5File().
 #		2015-11-18	leerw@ornl.gov				-
 #	  Added 'other' dataset category.
 #		2015-11-14	leerw@ornl.gov				-

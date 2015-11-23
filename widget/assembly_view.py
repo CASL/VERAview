@@ -269,7 +269,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
 	  #end if writing column label
-          print >> sys.stderr, '[XX.2.2.2]'
 
 	  value = 0.0
 #	  if ds_value != None:
@@ -278,7 +277,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  if pin_row < dset_shape[ 0 ] and pin_col < dset_shape[ 1 ]:
 	    value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
 
-          print >> sys.stderr, '[XX.2.2.3]'
 	  if value > 0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255

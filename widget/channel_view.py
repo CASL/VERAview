@@ -1006,7 +1006,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #      if ds_name in self.data.states[ state_ndx ].group:
 #        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset != None
+      if dset != None:
         ds_value = dset.value
 	if chan_addr[ 1 ] < ds_value.shape[ 0 ] and \
 	    chan_addr[ 0 ] < ds_value.shape[ 1 ] and \

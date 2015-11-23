@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-11-23	leerw@ornl.gov				-
+#	  Fixed some bugs.
 #		2015-11-19	leerw@ornl.gov				-
 #	  Adding support for 'extra' datasets.
 #		2015-11-18	leerw@ornl.gov				-
@@ -552,9 +554,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Limit axial level and assy ndx
 #			--
-      if dset != None:
-        axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
-        #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
+      #if dset != None:
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
 #			-- Create image
 #			--
