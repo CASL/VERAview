@@ -515,7 +515,7 @@ Must be called on the UI thread.
 
     data_model = State.GetDataModel( self.state )
     if data_model != None:
-      matching_ds_names = self.data.GetExtra4DDataSets()
+      matching_ds_names = data_model.GetExtra4DDataSets()
 #      matching_ds_names = []
 #      extra_ds_names = data_model.GetDataSetNames( 'extra' )
 #      if extra_ds_names != None and len( extra_ds_names ) > 0:

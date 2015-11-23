@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2015-11-23	leerw@ornl.gov				-
+#	  Added self.bitmapThreadArgs = tpl + self.curSize to help
+#	  eliminate unnecessary threads.
 #		2015-11-18	leerw@ornl.gov				-
 # 	  Added GetData().
 #		2015-08-20	leerw@ornl.gov				-
@@ -10,9 +13,10 @@
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, traceback
+import math, os, sys, threading
 import numpy as np
 #import pdb  #pdb.set_trace()
+#import time, traceback
 
 try:
   import wx
@@ -52,6 +56,7 @@ Properties:
   def __init__( self, container, id = -1, **kwargs ):
     #x self.assemblyIndex = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
+    self.bitmapThreadArgs = None
     self.bitmaps = {}  # key is (row,col)
     self.bitmapsLock = threading.RLock()
     self.cellRange = None  # left, top, right+1, bottom+1, dx, dy
@@ -100,9 +105,10 @@ Paired to _BitmapThreadStart().
       cur_tuple = pil_im = None
     else:
       cur_tuple, pil_im = result.get()
-    print >> sys.stderr, \
-        '[RasterWidget._BitmapThreadFinish] cur_tuple=%s, pil_im=%s' % \
-	( str( cur_tuple ), pil_im != None )
+
+#    print >> sys.stderr, \
+#        '[RasterWidget._BitmapThreadFinish] %s cur_tuple=%s, pil_im=%s' % \
+#	( self.GetTitle(), str( cur_tuple ), pil_im != None )
 
     if cur_tuple != None:
 #			-- Create bitmap
@@ -121,9 +127,12 @@ Paired to _BitmapThreadStart().
 
         bmap = wx.BitmapFromImage( wx_im )
 
+#	with self.bitmapsLock:
+#	  self.bitmaps[ cur_tuple ] = bmap
 	self.bitmapsLock.acquire()
 	try:
 	  self.bitmaps[ cur_tuple ] = bmap
+	  self.bitmapThreadArgs = None
 	finally:
 	  self.bitmapsLock.release()
       #end else pil_im not None
@@ -872,14 +881,18 @@ Calls _UpdateStateValues().
         if tpl in self.bitmaps:
           self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
 	  must_create_image = False
+        elif (tpl + self.curSize) != self.bitmapThreadArgs:
+	  self.bitmapThreadArgs = tpl + self.curSize
+	else:
+	  must_create_image = False
       finally:
         self.bitmapsLock.release()
 
       if must_create_image:
         print >> sys.stderr, \
-	    '[RasterWidget.UpdateState] starting worker, tpl=%s' % \
-	    str( tpl )
-        wxlibdr.startWorker(
+	    '[RasterWidget.UpdateState] %s starting worker, args=%s' % \
+	    ( self.GetTitle(), str( tpl + self.curSize ) )
+	th = wxlibdr.startWorker(
 	    self._BitmapThreadFinish,
 	    self._BitmapThreadStart,
 	    wargs = [ tpl ]
