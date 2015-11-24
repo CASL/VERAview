@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-11-24	leerw@ornl.gov				-
+#	  After change to GridSizerBean, checking for more than 16
+#	  widget cells and prompting the user to confirm.
 #		2015-11-12	leerw@ornl.gov				-
 #	  Adding menu to create a pseudo dataset.
 #		2015-09-17	leerw@ornl.gov				-
@@ -892,14 +895,30 @@ Must be called from the UI thread.
     dialog.ShowModal( cur_size )
     new_size = dialog.GetResult()
     if new_size != None and new_size != cur_size:
+      proceed = True
+      cell_count = new_size[ 0 ] * new_size[ 1 ]
       widget_count = len( self.grid.GetChildren() )
-      if widget_count > (new_size[ 0 ] * new_size[ 1 ]):
+      if widget_count > cell_count:
 	message = \
 	    'That would be too few grids for all your widgets.\n' + \
-	    'Delete some widget first.'
+	    'Delete some widgets first.'
         wx.MessageDialog( self, message, 'Resize Grid' ).ShowWindowModal()
+	proceed = False
 
-      else:
+      elif cell_count > 16:
+	message = \
+	    'You have defined more than 16 widget windows!\n' + \
+	    'You must have a really big screen.  Are you sure?'
+        choice = wx.MessageDialog(
+	    self, message,
+	    'Resize Grid',
+	    style = wx.ICON_QUESTION | wx.YES_NO
+	    ).\
+	    ShowWindowModal()
+	proceed = choice == wx.ID_YES
+      #end if-else on widget_count
+
+      if proceed:
         grid_sizer.SetRows( new_size[ 0 ] )
         grid_sizer.SetCols( new_size[ 1 ] )
         #self.grid.FitWidgets()

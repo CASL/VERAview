@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		grid_sizer_bean.py				-
 #	HISTORY:							-
+#		2015-11-24	leerw@ornl.gov				-
+#	  Allowing 16 columns or rows.
 #		2015-02-14	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import math, os, sys, time, traceback
@@ -162,7 +164,7 @@ Properties:
 #		-- Graphic
 #		--
     self.fGridSizerGraphic = GridSizerGraphic( self, -1 )
-    self.fGridSizerGraphic.SetMinSize( wx.Size( 200, 200 ) )
+    self.fGridSizerGraphic.SetMinSize( wx.Size( 320, 320 ) )
     self.fGridSizerGraphic.Bind( EVT_GRID_SIZER, self._OnSizer )
 
     sizer = wx.BoxSizer( wx.VERTICAL )
@@ -317,11 +319,11 @@ Properties:
 #		-- Components
 #		--
     rows_label = wx.StaticText( self, -1, 'Rows: ' )
-    self.fRowSpinner = wx.SpinCtrl( self, -1, min = 1, max = 5, initial = 1 )
+    self.fRowSpinner = wx.SpinCtrl( self, -1, min = 1, max = 16, initial = 1 )
     self.fRowSpinner.Bind( wx.EVT_SPINCTRL, self._OnSpinner )
 
     cols_label = wx.StaticText( self, -1, 'Cols: ' )
-    self.fColSpinner = wx.SpinCtrl( self, -1, min = 1, max = 5, initial = 1 )
+    self.fColSpinner = wx.SpinCtrl( self, -1, min = 1, max = 16, initial = 1 )
     self.fColSpinner.Bind( wx.EVT_SPINCTRL, self._OnSpinner )
 
     sizer = wx.BoxSizer( wx.HORIZONTAL )
@@ -424,7 +426,7 @@ Properties:
   def __init__( self, container, id = -1 ):
     super( GridSizerGraphic, self ).__init__( container, id )
 
-    self.fMaxValues = ( 5, 5 )
+    self.fMaxValues = ( 16, 16 )
     self.fValue = ( 1, 1 )
     self.fRectSize = 0
     self._InitUI()
