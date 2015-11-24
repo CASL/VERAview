@@ -327,7 +327,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if self.config exists
 
-    return  im
+    #return  im
+    return  im if im != None else self.emptyPilImage
   #end _CreateAssyImage
 
 
@@ -577,7 +578,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if self.config exists
 
-    return  im
+    #return  im
+    return  im if im != None else self.emptyPilImage
   #end _CreateCoreImage
 
 

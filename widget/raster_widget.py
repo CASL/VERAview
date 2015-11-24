@@ -81,6 +81,7 @@ Properties:
     self.bitmapCtrl = None
     self.bitmapPanel = None
     self.blankBitmap = self.GetBitmap( 'loading' )
+    self.emptyPilImage = PIL.Image.new( "RGBA", ( 16, 16 ) )
 
     self.overlay = None
     self.pilFontPath = \
@@ -303,6 +304,14 @@ specified, a default scale value of 8 is used.
 """
     return  {}
   #end _CreateDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #     METHOD:         RasterWidget._CreateEmptyPilImage()		-
+  #----------------------------------------------------------------------
+  def _CreateEmptyPilImage( self, size = ( 16, 16 ) ):
+    return  PIL.Image.new( "RGBA", size )
+  #end _CreateEmptyPilImage
 
 
   #----------------------------------------------------------------------

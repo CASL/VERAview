@@ -350,7 +350,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       del im_draw
     #end if self.config exists
 
-    return  im
+    #return  im
+    return  im if im != None else self.emptyPilImage
   #end _CreateRasterImage
 
 
