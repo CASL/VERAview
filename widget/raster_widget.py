@@ -380,6 +380,17 @@ This implementation returns None and must be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateStateBitmapArgs()		-
+  #----------------------------------------------------------------------
+#  def _CreateStateBitmapArgs( self ):
+#    """Concatenates the results of _CreateRasterImage(), curSize, and
+#cellRange.
+#"""
+#    return  self._CreateStateTuple() + self.curSize + self.cellRange
+#  #end _CreateStateBitmapArgs
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateStateTuple()		-
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
@@ -886,6 +897,8 @@ Calls _UpdateStateValues().
 
     if changed and self.config != None:
       tpl = self._CreateStateTuple()
+      bitmap_args = tpl + self.curSize + tuple( self.cellRange )
+#    return  self._CreateStateTuple() + self.curSize + self.cellRange
 
       must_create_image = True
       self.bitmapsLock.acquire()
@@ -893,10 +906,12 @@ Calls _UpdateStateValues().
         if tpl in self.bitmaps:
           self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
 	  must_create_image = False
-        elif (tpl + self.curSize) != self.bitmapThreadArgs:
-	  self.bitmapThreadArgs = tpl + self.curSize
-	else:
+        #elif (tpl + self.curSize) != self.bitmapThreadArgs:
+	  #self.bitmapThreadArgs = tpl + self.curSize
+        elif bitmap_args == self.bitmapThreadArgs:
 	  must_create_image = False
+        else:
+	  self.bitmapThreadArgs = bitmap_args
       finally:
         self.bitmapsLock.release()
 
