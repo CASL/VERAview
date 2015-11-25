@@ -218,7 +218,13 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if self.channelDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
-      ds_value = dset.value if dset != None else None
+      #ds_value = dset.value if dset != None else None
+      if dset == None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -262,11 +268,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-	  value = 0.0
-	  if ds_value != None:
-	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
-	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
-	  if value > 0:
+	  #value = 0.0
+	  #if ds_value != None:
+	  if chan_row < dset_shape[ 0 ] and chan_col < dset_shape[ 1 ]:
+	    value = dset_array[ chan_row, chan_col, axial_level, assy_ndx ]
+	  else:
+	    value = 0.0
+
+	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -394,19 +403,20 @@ If neither are specified, a default 'scale' value of 24 is used.
 	)
 
     if valid:
+      value = 0.0
       #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
-      ds = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      if ds != None:
-        ds_value = ds[
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+      if dset != None:
+        value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	    ]
 
-      #if ds_value > 0.0:
+      if value > 0.0:
         show_chan_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Channel: %s\n%s: %g' % \
-	    ( str( show_chan_addr ), self.channelDataSet, ds_value )
+	    ( str( show_chan_addr ), self.channelDataSet, value )
     #end if valid
 
     return  tip_str
@@ -647,14 +657,14 @@ attributes/properties that aren't already set in _LoadDataModel():
 
     if valid:
       #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
-      ds = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      if ds != None:
-        ds_value = ds[
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+      if dset != None:
+        value = dset[
 	    chan_addr[ 1 ], chan_addr[ 0 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	    ]
-      #if ds_value > 0.0:
-        self.FireStateChange( channel_colrow = chan_addr )
+        if value > 0.0:
+          self.FireStateChange( channel_colrow = chan_addr )
     #end if valid
   #end _OnClick
 

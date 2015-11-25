@@ -192,7 +192,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     print >> sys.stderr, \
         '[Assembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
     im = None
-    dset = None
+    dset_array = None
 
     tuple_valid = DataModel.IsValidObj(
 	self.data,
@@ -221,15 +221,20 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset != None else None
+      if dset == None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-#			-- Limit axial level and assy ndx
+#			-- Must be valid assy ndx
 #			--
-      #assy_ndx = min( assy_ndx, dset_shape[ 3 ] - 1 )
-    if dset != None and assy_ndx < dset_shape[ 3 ]:
+    if dset_array != None and assy_ndx < dset_shape[ 3 ]:
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
 #			-- Create image
@@ -242,7 +247,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			--
       pin_y = assy_region[ 1 ]
       for pin_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-
 #				-- Row label
 #				--
 	if self.showLabels:
@@ -253,7 +257,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
 	      )
-
 #				-- Loop on col
 #				--
 	pin_x = assy_region[ 0 ]
@@ -270,14 +273,15 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-	  value = 0.0
 #	  if ds_value != None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
 	  if pin_row < dset_shape[ 0 ] and pin_col < dset_shape[ 1 ]:
-	    value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
+	    value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
+	  else:
+	    value = 0.0
 
-	  if value > 0:
+	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -390,23 +394,22 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
-      ds_value = 0.0
-      if cell_info[ 2 ] < dset_shape[ 0 ] and \
-	  cell_info[ 1 ] < dset_shape[ 1 ]:
-        ds_value = dset[
+      value = 0.0
+      if cell_info[ 2 ] < dset_shape[ 0 ] and cell_info[ 1 ] < dset_shape[ 1 ]:
+        value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
 	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
 	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      if ds_value > 0.0:
+      if value > 0.0:
 	ds_name = \
 	    self.pinDataSet[ 6 : ] if self.pinDataSet.startswith( 'extra:' ) \
 	    else self.pinDataSet
         show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Pin: %s\n%s: %g' % \
-	    ( str( show_pin_addr ), ds_name, ds_value )
+	    ( str( show_pin_addr ), ds_name, value )
     #end if valid
 
     return  tip_str
@@ -651,15 +654,15 @@ attributes/properties that aren't already set in _LoadDataModel():
 #	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
-      ds_value = 0.0
+      value = 0.0
       if pin_addr[ 1 ] < dset_shape[ 0 ] and pin_addr[ 0 ] < dset_shape[ 1 ]:
-        ds_value = dset[
+        value = dset[
             pin_addr[ 1 ], pin_addr[ 0 ],
 	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
 	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      if ds_value > 0.0:
+      if value > 0.0:
         self.FireStateChange( pin_colrow = pin_addr )
     #end if valid
   #end _OnClick

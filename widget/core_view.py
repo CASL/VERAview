@@ -137,19 +137,19 @@ Properties:
       dset = data.GetStateDataSet( state_ndx, self.pinDataSet )
 
     if dset != None:
-      ds_values = dset.value
-      t_nax = min( data.core.nax, ds_values.shape[ 2 ] )
-      t_nass = min( data.core.nass, ds_values.shape[ 3 ] )
+      dset_array = dset.value
+      t_nax = min( data.core.nax, dset_array.shape[ 2 ] )
+      t_nass = min( data.core.nass, dset_array.shape[ 3 ] )
       avg_values = np.zeros( shape = ( t_nax, t_nass ) )
 
       for ax in range( t_nax ):  # pp_powers.shape( 2 )
         for assy in range( t_nass ):  # pp_powers.shape( 3 )
           if data.core.pinVolumesSum > 0.0:
 	    avg_values[ ax, assy ] = \
-	        np.sum( ds_values[ :, :, ax, assy ] ) / \
+	        np.sum( dset_array[ :, :, ax, assy ] ) / \
 		data.core.pinVolumesSum
           else:
-	    avg_values[ ax, assy ] = np.mean( ds_values[ :, :, ax, assy ] )
+	    avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
         #end for assy
       #end for ax
 
@@ -281,15 +281,22 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      if dset == None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+	cur_nxpin = cur_nypin = 0
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
+        cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
+        cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-#			-- Limit axial level and assy ndx
+#			-- Limit axial level
 #			--
-      #if dset != None:
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
-        #assy_ndx = min( assy_ndx, ds_value.shape[ 3 ] - 1 )
 
 #			-- Create image
 #			--
@@ -299,7 +306,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       pin_y = assy_region[ 1 ]
 #      for pin_row in range( self.data.core.npin ):
-      for pin_row in range( min( self.data.core.npin, dset_shape[ 0 ] ) ):
+      for pin_row in range( cur_nypin ):
 #				-- Row label
 #				--
 	if self.showLabels:
@@ -315,7 +322,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #				--
 	pin_x = assy_region[ 0 ]
 #	for pin_col in range( self.data.core.npin ):
-	for pin_col in range( min( self.data.core.npin, dset_shape[ 1 ] ) ):
+	for pin_col in range( cur_nxpin ):
 #					-- Column label
 #					--
 	  if pin_row == 0 and self.showLabels:
@@ -335,7 +342,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if dset != None and \
 #	      pin_row < dset.shape[ 0 ] and \
 #	      pin_col < dset.shape[ 1 ]:
-	  value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
+	  value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -493,6 +500,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, axial_level )
 """
+    start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     axial_level = tuple_in[ 1 ]
     print >> sys.stderr, \
@@ -521,13 +529,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #ds_value = dset.value if dset != None else None
+      if dset == None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+	cur_nxpin = cur_nypin = 0
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
+        #cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
+        #cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-#			-- Limit axial level and assy ndx
+#			-- Limit axial level
 #			--
-      #if dset != None:
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
 #			-- Create image
@@ -577,14 +594,17 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #if dset != None and assy_ndx >= 0 and assy_ndx < dset.shape[ 3 ]:
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pin_y = assy_y + 1
-	    for pin_row in range( min( self.data.core.npin, dset_shape[ 0 ] ) ):
+	    cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
+	    cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
+
+	    for pin_row in range( cur_nypin ):
 	      pin_x = assy_x + 1
-	      for pin_col in range( min( self.data.core.npin, dset_shape[ 1 ] ) ):
+	      for pin_col in range( cur_nxpin ):
 #		value = 0.0
 #	        if ds_value != None:
 #		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-		value = dset[ pin_row, pin_col, axial_level, assy_ndx ]
+		value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
@@ -647,6 +667,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       del im_draw
     #end if self.config exists
+    elapsed_time = timeit.default_timer() - start_time
+    print >> sys.stderr, '\n[Core2DView._CreateCoreImage] time=%.3fs' % elapsed_time
 
     #return  im
     return  im if im != None else self.emptyPilImage
@@ -732,37 +754,6 @@ The config and data attributes are good to go.
 
     return  tip_str
   #end _CreateToolTipText
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateToolTipText_0()		-
-  #----------------------------------------------------------------------
-  def _CreateToolTipText_0( self, cell_info ):
-    """Create a tool tip.
-@param  cell_info	tuple returned from FindCell()
-"""
-    tip_str = ''
-
-    if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0 and \
-        self.stateIndex in self.avgValues:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      avg_value = 0.0
-      assy_ndx = cell_info[ 0 ]
-      if dset != None and assy_ndx < dset.shape[ 3 ]:
-	dset_shape = dset.shape
-        ax = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
-	#assy_ndx = min( cell_info[ 0 ], dset_shape[ 3 ] - 1 )
-        avg_value = self.avgValues[ self.stateIndex ][ ax, assy_ndx ]
-
-        show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-        tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
-            ( assy_ndx + 1, show_assy_addr,
-	      'Avg' if self.data.core.pinVolumesSum > 0.0 else 'Mean',
-	      self.data.GetDataSetDisplayName( self.pinDataSet ), avg_value )
-    #end if
-
-    return  tip_str
-  #end _CreateToolTipText_0
 
 
   #----------------------------------------------------------------------
@@ -1175,7 +1166,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      pin_addr[ 1 ], pin_addr[ 0 ],
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
 	      self.assemblyIndex[ 0 ]
-	      #min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
 	      ]
       #end if ds_name
 
@@ -1278,15 +1268,15 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       dset = self.data.GetStateDataSet( state_ndx, self.avgDataSet )
 
     if dset != None:
-      ds_values = dset.value
+      dset_array = dset.value
 
-      t_nax = min( self.data.core.nax, ds_values.shape[ 2 ] )
-      t_nass = min( self.data.core.nass, ds_values.shape[ 3 ] )
+      t_nax = min( self.data.core.nax, dset_array.shape[ 2 ] )
+      t_nass = min( self.data.core.nass, dset_array.shape[ 3 ] )
       avg_values = np.zeros( shape = ( t_nax, t_nass ) )
 
       for ax in range( t_nax ):  # pp_powers.shape( 2 )
         for assy in range( t_nass ):  # pp_powers.shape( 3 )
-	  avg_values[ ax, assy ] = np.mean( ds_values[ :, :, ax, assy ] )
+	  avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
         #end for assy
       #end for ax
 

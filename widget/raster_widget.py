@@ -571,8 +571,11 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
 
       self.axialValue = self.state.axialValue
       self.stateIndex = self.state.stateIndex
-      self._LoadDataModelValues()
 
+      with self.bitmapsLock:
+        self.bitmapThreadArgs = None
+
+      self._LoadDataModelValues()
       wx.CallAfter( self._LoadDataModelUI )
     #end if
   #end _LoadDataModel

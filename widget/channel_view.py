@@ -203,7 +203,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  if self.channelDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #ds_value = dset.value if dset != None else None
+      if dset == None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -248,7 +255,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  if ds_value != None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 #	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
-	  value = dset[ chann_row, chann_col, axial_level, assy_ndx ]
+	  value = dset_array[ chann_row, chann_col, axial_level, assy_ndx ]
 	  if value > 0.0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -457,7 +464,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  if self.channelDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      #ds_value = dset.value if dset != None else None
+      if dset == None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -504,16 +518,19 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #if assy_ndx >= 0:
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    chan_y = assy_y + 1
+	    cur_nypin = min( self.data.core.npin + 1, dset_shape[ 0 ] )
+	    cur_nxpin = min( self.data.core.npin + 1, dset_shape[ 1 ] )
+
 	    #for chan_row in range( self.data.core.npin + 1 ):
-	    for chan_row in range( min( self.data.core.npin + 1, dset_shape[ 0 ] ) ):
+	    for chan_row in range( cur_nypin ):
 	      chan_x = assy_x + 1
 	      #for chan_col in range( self.data.core.npin + 1 ):
-	      for chan_col in range( min( self.data.core.npin + 1, dset_shape[ 1 ] ) ):
+	      for chan_col in range( cur_nxpin ):
 #		value = 0.0
 #	        if ds_value != None:
 #		  #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 #		  value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
-		value = dset[ chan_row, chan_col, axial_level, assy_ndx ]
+		value = dset_array[ chan_row, chan_col, axial_level, assy_ndx ]
 		if value > 0.0:
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
@@ -1009,13 +1026,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset != None:
-        ds_value = dset.value
-	if chan_addr[ 1 ] < ds_value.shape[ 0 ] and \
-	    chan_addr[ 0 ] < ds_value.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
-	  chan_value = ds_value[
+        dset_array = dset.value
+	if chan_addr[ 1 ] < dset_array.shape[ 0 ] and \
+	    chan_addr[ 0 ] < dset_array.shape[ 1 ] and \
+	    self.assemblyIndex[ 0 ] < dset_array.shape[ 3 ]:
+	  chan_value = dset_array[
 	      chan_addr[ 1 ], chan_addr[ 0 ],
-	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      min( self.axialValue[ 1 ], dset_array.shape[ 2 ] - 1 ),
 	      self.assemblyIndex[ 0 ]
 	      ]
 #	    self.axialBean.axialLevel, self.assemblyIndex
@@ -1044,13 +1061,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset != None:
-        ds_value = dset.value
-	if chan_addr[ 1 ] < ds_value.shape[ 0 ] and \
-	    chan_addr[ 0 ] < ds_value.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
-	  chan_value = ds_value[
+        dset_array = dset.value
+	if chan_addr[ 1 ] < dset_array.shape[ 0 ] and \
+	    chan_addr[ 0 ] < dset_array.shape[ 1 ] and \
+	    self.assemblyIndex[ 0 ] < dset_array.shape[ 3 ]:
+	  chan_value = dset_array[
 	      chan_addr[ 1 ], chan_addr[ 0 ],
-	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      min( self.axialValue[ 1 ], dset_array.shape[ 2 ] - 1 ),
 	      self.assemblyIndex[ 0 ]
 	      ]
 #	    self.axialBean.axialLevel, self.assemblyIndex

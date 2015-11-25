@@ -552,8 +552,7 @@ to be passed to UpdateState().  Assume self.data is valid.
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
 
-    if self.data != None and \
-        self.data.IsValid( state_index = self.stateIndex ):
+    if self.data != None and self.data.IsValid( state_index = self.stateIndex ):
 #      if self.data.core.axialMeshCenters != None:
 #        self.refAxisValues = self.data.core.axialMeshCenters.tolist()
 #      elif self.data.core.detectorMeshCenters != None:
@@ -569,7 +568,8 @@ to be passed to UpdateState().  Assume self.data is valid.
 #	  ds = state_group[ ds_name ]
         if ds_rec[ 'visible' ] and ds_name != None:
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-	  if dset == None:
+	  dset_array = dset.value if dset != None else None
+	  if dset_array == None:
 	    pass
 
 	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
@@ -581,15 +581,17 @@ to be passed to UpdateState().  Assume self.data is valid.
 	      new_values = []
 	      for i in range( self.data.core.nax ):
 	        new_values.append(
-		    dset[ self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-		        i, self.assemblyIndex[ 0 ] ]
+		    dset_array[
+		        self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+		        i, self.assemblyIndex[ 0 ]
+			]
 		    )
               self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'channel' )
 
 	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
 	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
-	      self.dataSetValues[ k ] = dset[ :, self.detectorIndex[ 0 ] ]
+	      self.dataSetValues[ k ] = dset_array[ :, self.detectorIndex[ 0 ] ]
               self.dataSetTypes.add( 'detector' )
 
 	  elif ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
@@ -600,7 +602,10 @@ to be passed to UpdateState().  Assume self.data is valid.
 	      new_values = []
 	      for i in range( min( self.data.core.nax, dset.shape[ 2 ] ) ):
 	        new_values.append(
-		    dset[ self.pinColRow[ 1 ], self.pinColRow[ 0 ], i, assy_ndx ]
+		    dset_array[
+		        self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+			i, assy_ndx
+			]
 		    )
 	      self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'other' )
@@ -618,8 +623,10 @@ to be passed to UpdateState().  Assume self.data is valid.
 		#    self.pinColRow[ 0 ], self.pinColRow[ 1 ]
 		#    )
 	        new_values.append(
-		    dset[ self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-		        i, self.assemblyIndex[ 0 ] ]
+		    dset_array[
+		        self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		        i, self.assemblyIndex[ 0 ]
+			]
 		    )
 	      self.dataSetValues[ k ] = np.array( new_values )
               self.dataSetTypes.add( 'pin' )
