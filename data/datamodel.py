@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2015-11-28	leerw@ornl.gov				-
+#	  Added DataModel.IsNoDataValue().
 #		2015-11-23	leerw@ornl.gov				-
 #	  Fixed bug where ExtraDataSet.ReadAll() must be called in
 #	  _CreateExtraH5File().
@@ -1066,6 +1068,23 @@ the properties construct for this class soon.
 
     return  exists
   #end HasExtraDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsNoDataValue()			-
+  #----------------------------------------------------------------------
+  def IsNoDataValue( self, ds_name, value ):
+    """Determine if the value is a "no data" value.  Eventually, this should
+be some sort of lookup based on the dataset name, or perhaps a check
+for NaN.  For now, we just assume 0.0 is "no data".
+
+@param  ds_name		dataset name
+@param  value		value to check
+@return			True if "no data", False otherwise
+"""
+    #return  value <= 0.0 if ds_range[ 0 ] >= 0.0 else math.isnan( value )
+    return  value == 0.0
+  #end IsNoDataValue
 
 
   #----------------------------------------------------------------------

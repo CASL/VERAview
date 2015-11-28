@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2015-11-28	leerw@ornl.gov				-
+#	  Calling DataModel.IsNoDataValue() instead of checking for
+#	  gt value to draw.
 #		2015-11-23	leerw@ornl.gov				-
 #	  Fixed some bugs.
 #		2015-11-19	leerw@ornl.gov				-
@@ -61,7 +64,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, timeit, traceback
 import numpy as np
-import pdb  #pdb.set_trace()
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -343,7 +346,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	      pin_row < dset.shape[ 0 ] and \
 #	      pin_col < dset.shape[ 1 ]:
 	  value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-	  if value > 0.0:
+#	  if value > 0.0:
+	  if not self.data.IsNoDataValue( self.pinDataSet, value ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -605,7 +609,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
 		value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-		if value > 0.0:
+		#if value > 0.0:
+	        if not self.data.IsNoDataValue( self.pinDataSet, value ):
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
 	              )
@@ -1127,7 +1132,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      ]
       #end if
 
-      if pin_value > 0:
+      #if pin_value > 0.0:
+      if not self.data.IsNoDataValue( ds_name, pin_value ):
 	pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
         tip_str = 'Pin: %s\n%s: %g' % ( str( pin_rc ), ds_name, pin_value )
     #end if pin found
@@ -1169,7 +1175,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      ]
       #end if ds_name
 
-      if pin_value > 0.0:
+      #if pin_value > 0.0:
+      if not self.data.IsNoDataValue( ds_name, pin_value ):
 	self.FireStateChange( pin_colrow = pin_addr )
     #end if pin_addr changed
   #end _OnMouseUpAssy

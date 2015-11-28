@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2015-11-28	leerw@ornl.gov				-
+#	  Calling DataModel.IsNoDataValue() instead of checking for
+#	  gt value to draw.
 #		2015-11-19	leerw@ornl.gov				-
 #	  Adding support for 'extra' datasets.
 #		2015-11-18	leerw@ornl.gov				-
@@ -38,7 +41,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback
 import numpy as np
-import pdb  #pdb.set_trace()
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -281,7 +284,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  else:
 	    value = 0.0
 
-	  if value > 0.0:
+	  #if value > 0.0:
+	  if not self.data.IsNoDataValue( self.pinDataSet, value ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -402,7 +406,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      if value > 0.0:
+      #if value > 0.0:
+      if not self.data.IsNoDataValue( self.pinDataSet, value ):
 	ds_name = \
 	    self.pinDataSet[ 6 : ] if self.pinDataSet.startswith( 'extra:' ) \
 	    else self.pinDataSet
@@ -662,7 +667,8 @@ attributes/properties that aren't already set in _LoadDataModel():
 	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      if value > 0.0:
+      #if value > 0.0:
+      if not self.data.IsNoDataValue( self.pinDataSet, value ):
         self.FireStateChange( pin_colrow = pin_addr )
     #end if valid
   #end _OnClick

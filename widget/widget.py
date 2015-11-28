@@ -627,11 +627,16 @@ Subclasses should override as this implementation returns None
   #	METHOD:		GetColorTuple()					-
   #----------------------------------------------------------------------
   @staticmethod
-  def GetColorTuple( value, max_value, alpha = 255 ):
+  def GetColorTuple( value, max_value, alpha = 255, debug = False ):
     """
 http://www.particleincell.com/blog/2014/colormap/
 @return			( red, green, blue, alpha )
 """
+    if debug:
+      print >> sys.stderr, \
+      '[Widget.GetColorTuple] value=%f, max_value=%f' % \
+      ( value, max_value )
+
     f = float( value ) / max_value  if max_value != 0.0  else 0.0
     a = (1.0 - f) / 0.25
     x = int( math.floor( a ) )
@@ -661,6 +666,11 @@ http://www.particleincell.com/blog/2014/colormap/
       red = 0
       green = 0
       blue = 100
+
+    if debug:
+      print >> sys.stderr, \
+      '[Widget.GetColorTuple] f=%f, a=%f, x=%f, y=%f, rgb=(%d,%d,%d)' % \
+      ( f, a, x, y, red, green, blue )
 
     return  ( red, green, blue, alpha )
   #end GetColorTuple

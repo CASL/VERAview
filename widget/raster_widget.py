@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2015-11-28	leerw@ornl.gov				-
+#	  Added 'dataRange' to returned config rec in _CreateBaseDrawConfig().
 #		2015-11-23	leerw@ornl.gov				-
 #	  Added self.bitmapThreadArgs = tpl + self.curSize to help
 #	  eliminate unnecessary threads.
@@ -238,6 +240,7 @@ called from subclass _CreateDrawConfig() methods.
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys:
     clientSize      (if size specified)
+    dataRange
     fontSize
     labelFont
     labelSize
@@ -275,6 +278,7 @@ called from subclass _CreateDrawConfig() methods.
 
     config = \
       {
+      'dataRange': ds_range,
       'fontSize': font_size,
       'labelFont': label_font,
       'labelSize': label_size,

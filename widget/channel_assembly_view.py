@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2015-11-28	leerw@ornl.gov				-
+#	  Calling DataModel.IsNoDataValue() instead of checking for
+#	  gt value to draw.
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
@@ -275,7 +278,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  else:
 	    value = 0.0
 
-	  if value > 0.0:
+	  #if value > 0.0:
+	  if not self.data.IsNoDataValue( self.channelDataSet, value ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -412,7 +416,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	    ]
 
-      if value > 0.0:
+      #if value > 0.0:
+      if not self.data.IsNoDataValue( self.channelDataSet, value ):
         show_chan_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Channel: %s\n%s: %g' % \
@@ -663,7 +668,8 @@ attributes/properties that aren't already set in _LoadDataModel():
 	    chan_addr[ 1 ], chan_addr[ 0 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 	    ]
-        if value > 0.0:
+        #if value > 0.0:
+        if not self.data.IsNoDataValue( self.channelDataSet, value ):
           self.FireStateChange( channel_colrow = chan_addr )
     #end if valid
   #end _OnClick

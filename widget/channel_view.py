@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2015-11-28	leerw@ornl.gov				-
+#	  Calling DataModel.IsNoDataValue() instead of checking for
+#	  gt value to draw.
 #		2015-11-23	leerw@ornl.gov				-
 #	  Using new DataModel methods for dataset access.
 #		2015-08-31	leerw@ornl.gov				-
@@ -256,7 +259,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 #	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
 	  value = dset_array[ chann_row, chann_col, axial_level, assy_ndx ]
-	  if value > 0.0:
+	  #if value > 0.0:
+	  if not self.data.IsNoDataValue( self.channelDataSet, value ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -531,7 +535,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #		  #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 #		  value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
 		value = dset_array[ chan_row, chan_col, axial_level, assy_ndx ]
-		if value > 0.0:
+		#if value > 0.0:
+	        if not self.data.IsNoDataValue( self.channelDataSet, value ):
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
 	              )
@@ -1037,7 +1042,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      ]
 #	    self.axialBean.axialLevel, self.assemblyIndex
 
-      if chan_value > 0:
+      #if chan_value > 0.0:
+      if not self.data.IsNoDataValue( ds_name, chan_value ):
 	chan_rc = ( chan_addr[ 0 ] + 1, chan_addr[ 1 ] + 1 )
         tip_str = 'Channel: %s\n%s: %g' % ( str( chan_rc ), ds_name, chan_value )
     #end if pin found
@@ -1072,7 +1078,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      ]
 #	    self.axialBean.axialLevel, self.assemblyIndex
 
-      if chan_value > 0.0:
+      #if chan_value > 0.0:
+      if not self.data.IsNoDataValue( ds_name, chan_value ):
 	self.FireStateChange( channel_colrow = chan_addr )
     #end if chan_addr changed
   #end _OnMouseUpAssy
