@@ -76,6 +76,12 @@ class DataUtils( object ):
   #----------------------------------------------------------------------
   @staticmethod
   def FormatFloat3( value, size = 3 ):
+    if value < 0.0:
+      neg_flag = True
+      value = abs( value )
+    else:
+      neg_flag = False
+
     size = max( 1, size )
     fexp = math.log( value ) / math.log( 10 )
     exp = int( fexp )
@@ -95,6 +101,9 @@ class DataUtils( object ):
     result = ('%%%dg' % size) % value
     if result.startswith( '0.' ):
       result = result[ : -1 ]
+
+    if neg_flag:
+      result = '-' + result
     return  result
   #end FormatFloat3
 
