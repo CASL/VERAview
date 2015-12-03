@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		legend.py					-
 #	HISTORY:							-
+#		2015-12-03	leerw@ornl.gov				-
+#	  Allowing for negative numbers in the legend.
 #		2014-12-18	leerw@ornl.gov				-
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-29	leerw@ornl.gov				-
@@ -65,7 +67,7 @@ class Legend( object ):
         os.path.join( Config.GetRootDir(), 'res/Arial Narrow.ttf' ),
 	font_size
 	)
-    text_size = font.getsize( '9.99e+99' )
+    text_size = font.getsize( ' -9.99e+99' )
     block_size = text_size[ 1 ] + (text_size[ 1 ] >> 1)
     im_wd = (border << 1) + text_size[ 0 ] + text_gap + block_size
     im_ht = (border << 1) + (block_size * len( colors ))
