@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2015-12-03	leerw@ornl.gov				-
+#	  Using self._CreateValueDisplay().
 #		2015-11-28	leerw@ornl.gov				-
 #	  Calling DataModel.IsNoDataValue() instead of checking for
 #	  gt value to draw.
@@ -169,6 +171,10 @@ If neither are specified, a default 'scale' value of 24 is used.
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
 	if value_font_size >= 6 else None
+#    value_font_smaller_size = value_font_size - (value_font_size / 6)
+#    value_font_smaller = \
+#        PIL.ImageFont.truetype( self.valueFontPath, value_font_smaller_size ) \
+#	if value_font_size >= 4 else None
 
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
@@ -177,6 +183,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     config[ 'pinWidth' ] = pin_wd
     config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
+#    config[ 'valueFontSmaller' ] = value_font_smaller
 
     return  config
   #end _CreateDrawConfig
@@ -213,6 +220,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_gap = self.config[ 'pinGap' ]
       pin_wd = self.config[ 'pinWidth' ]
       value_font = self.config[ 'valueFont' ]
+#      value_font_smaller = self.config[ 'valueFontSmaller' ]
 
       title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
           ( self.data.GetDataSetDisplayName( self.pinDataSet ),
@@ -299,11 +307,15 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 
 	    if value_font != None:
-	      value_str = DataUtils.FormatFloat2( value )
-	      e_ndx = value_str.lower().find( 'e' )
-	      if e_ndx > 1:
-	        value_str = value_str[ : e_ndx ]
-	      value_size = value_font.getsize( value_str )
+#	      value_precision = 2 if value < 0.0 else 3
+#	      value_str = DataUtils.FormatFloat2( value, value_precision )
+#	      e_ndx = value_str.lower().find( 'e' )
+#	      if e_ndx > 1:
+#	        value_str = value_str[ : e_ndx ]
+#	      value_size = value_font.getsize( value_str )
+
+	      value_str, value_size = \
+	          self._CreateValueDisplay( value, 3, value_font, pin_wd )
 	      #if value_size[ 0 ] <= pin_wd:
 	      if True:
 		value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)

@@ -52,7 +52,8 @@ class DataUtils( object ):
       exp -= 1
 
     basis = math.pow( 10.0, exp )
-    shift = math.pow( 10.0, size - 1 )
+    shift_exp = size - 2 if neg_flag else size - 1
+    shift = math.pow( 10.0, shift_exp )
 
     ivalue = int( value / basis * shift * 10.0 )
     ones = ivalue % 10
@@ -61,7 +62,7 @@ class DataUtils( object ):
       ivalue += 1
 
     value = ivalue / shift * basis
-    result = ('%%%dg' % size) % value
+    result = ('%%.%dg' % size) % value
     if result.startswith( '0.' ):
       result = result[ 1 : ]
 
@@ -89,7 +90,8 @@ class DataUtils( object ):
       exp -= 1
 
     basis = math.pow( 10.0, exp )
-    shift = math.pow( 10.0, size - 1 )
+    shift_exp = size - 2 if neg_flag else size - 1
+    shift = math.pow( 10.0, shift_exp )
 
     ivalue = int( value / basis * shift * 10.0 )
     ones = ivalue % 10
@@ -98,7 +100,7 @@ class DataUtils( object ):
       ivalue += 1
 
     value = ivalue / shift * basis
-    result = ('%%%dg' % size) % value
+    result = ('%%.%dg' % size) % value
     if result.startswith( '0.' ):
       result = result[ : -1 ]
 

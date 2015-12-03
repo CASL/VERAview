@@ -690,6 +690,19 @@ http://www.particleincell.com/blog/2014/colormap/
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetContrastRedColor()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetContrastRedColor( r, g, b, alpha = 255 ):
+    if Widget.GetColorLuminance( r, g, b ) < 0.5:
+      color = ( 255, 0, 0, alpha )
+    else:
+      color = ( 100, 0, 0, alpha )
+    return  color
+  #end GetContrastRedColor
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetDarkerColor()				-
   #----------------------------------------------------------------------
   @staticmethod
