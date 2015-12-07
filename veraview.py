@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-12-07	leerw@ornl.gov				-
+#	  Back to original icons.
 #		2015-11-24	leerw@ornl.gov				-
 #	  After change to GridSizerBean, checking for more than 16
 #	  widget cells and prompting the user to confirm.
@@ -74,20 +76,20 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 16)'
+TITLE = 'VERAView (Build 17)'
 
 TOOLBAR_ITEMS = \
   [
     {
-    'widget': 'Core 2D View', 'icon': 'Core2DView.32.png', 'type': 'pin'
+    'widget': 'Core 2D View', 'icon': 'Core2DView.0.32.png', 'type': 'pin'
 #'core_both_32x32.png'
     },
     {
-    'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.32.png', 'type': 'pin'
+    'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.0.32.png', 'type': 'pin'
 #'assy_both_32x32.png'
     },
     {
-    'widget': 'Channel Core 2D View', 'icon': 'Channel2DView.32.png', 'type': 'channel'
+    'widget': 'Channel Core 2D View', 'icon': 'Channel2DView.0.32.png', 'type': 'channel'
 #'channel_32x32.png'
     },
     {
@@ -95,7 +97,7 @@ TOOLBAR_ITEMS = \
 #'channel_both_32x32.png'
     },
     {
-    'widget': 'Detector 2D View', 'icon': 'Detector2DView.32.png', 'type': 'detector'
+    'widget': 'Detector 2D View', 'icon': 'Detector2DView.0.32.png', 'type': 'detector'
 #'detector_32x32.png'
     },
 #    {
