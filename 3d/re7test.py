@@ -46,6 +46,9 @@ confused with too rich interaction.
 import os, sys, time
 os.environ[ 'ETS_TOOLKIT' ] = 'wx'
 
+sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
+from data.datamodel import *
+
 try:
   #import wxversion
   #wxversion.ensureMinimal( '3.0' )
@@ -127,13 +130,18 @@ def get_big_matrix(det_dat, core_map):
 
 def get_cut_matrix(det_dat, core_map, mesh_factor):
     #size_assm = len(det_dat[0][0][0]);
-    size_z = len(det_dat[0][0])
-    size_y = len(det_dat[0])
-    size_x = len(det_dat) 
-    size_macro_full = len(core_map)
-    #print size_macro_full
-    size_macro = (len(core_map) + 1) / 2
-    #print size_macro
+    npinx = det_dat.shape[ 1 ]
+    npiny = det_dat.shape[ 0 ]
+    nax = det_dat.shape[ 2 ]
+    nassy = core_map.shape[ 0 ]
+    nassx = core_map.shape[ 1 ]
+    #data_model.ExtractSymmetryExtent() # left, top, right + 1, bottom + 1, dx, dy
+
+    size_z = nax  # len(det_dat[0][0])
+    size_y = npinx  # len(det_dat[0])
+    size_x = npiny  # len(det_dat) 
+    size_macro_full = nassx  # len(core_map)
+    size_macro = (nassx + 1) / 2  # (len(core_map) + 1) / 2
     size_x_macro = size_x * size_macro
     size_y_macro = size_y * size_macro
 
@@ -287,22 +295,78 @@ def get_mesh_factor(ax_mesh, ppinch):
         mesh_factor[i] = int((ax_mesh[i + 1] - ax_mesh[0])/ppinch)
     return mesh_factor
 
+
+
+def create_cut_matrix( data_model, ds_name, state_ndx ):
+    core = data_model.GetCore()
+    dset = data_model.GetStateDataSet( state_ndx, ds_name )
+    dset_value = dset.value
+    assy_range = data_model.ExtractSymmetryExtent() # left, top, right + 1, bottom + 1, dx, dy
+
+#xxx  create Z for each axial cm,
+#    ax_mesh = core.axialMesh
+#    apitch = core.apitch if core.apitch > 0.0 else 1.0
+#    mesh_factors = np.ndarray( ( core.nax - 1 ), np.float64 )
+#    mesh_factors.fill( 0.0 )
+#    for i in range( core.nax - 1 ):
+#      mesh_factors[ i ] = \
+#          int( (ax_mesh.value[ i + 1 ] - ax_mesh.value[ 0 ]) / apitch )
+
+    matrix = np.ndarray(
+	( core.nax,
+	  core.npiny * assy_range[ 4 ], core.npinx * assy_range[ 5 ] ),
+	np.float64
+	)
+    matrix.fill( 0.0 )
+    
+    pin_y = 0
+    for assy_y in range( assy_range[ 4 ] ):
+
+      pin_x = 0
+      for assy_x in range( assy_range[ 5 ] ):
+        assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
+	if assy_ndx >= 0:
+	  for z in range( core.nax ):
+	    for y in range( core.npiny ):
+	      for x in range( core.npinx ):
+	        matrix[ z, pin_y + y, pin_x + x ] = dset_value[ y, x, z, assy_ndx ]
+	      #end for x
+	    #end for y
+	  #end for z
+	#end if assy_ndx
+
+        pin_x += core.npinx
+      #end for assy_x
+
+      pin_y += core.npiny
+    #end for assy_y
+
+    return  matrix.tolist()
+#end create_cut_matrix
+
+
+
 ################################################################################
 # Create some data
 #x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]
 #myh5 = h5py.File("beavrs_cy1.h5")
-myh5 = h5py.File("/Users/re7x/study/casl/andrew/beavrs.h5")
-det_dat = myh5["/STATE_0001/pin_powers"].value
-core_map = myh5["/CORE/core_map"].value
-ax_mesh = myh5["/CORE/axial_mesh"].value
-mesh_factor = get_mesh_factor(ax_mesh, 1.26)
+if True:
+  myh5 = h5py.File("/Users/re7x/study/casl/andrew/beavrs.h5")
+  det_dat = myh5["/STATE_0001/pin_powers"].value
+  core_map = myh5["/CORE/core_map"].value
+  ax_mesh = myh5["/CORE/axial_mesh"].value
+  mesh_factor = get_mesh_factor(ax_mesh, 1.26)
 #print ax_mesh
 #data = np.sin(3*x)/x + 0.05*z**2 + np.cos(3*y)
-data = get_cut_matrix(det_dat, core_map, mesh_factor)
+  data = get_cut_matrix(det_dat, core_map, mesh_factor)
 #x data2 = get_big_matrix(det_dat, core_map)
 #print core_map
 #data2 = get_matrix(17, 17, 48, det_dat)
 #data = get_matrix(17, 17, 48, det_dat)
+
+else:
+  data_model = DataModel( '/Users/re7x/study/casl/andrew/beavrs.h5' )
+  data = create_cut_matrix( data_model, 'pin_powers', 0 )
 
 
 ################################################################################

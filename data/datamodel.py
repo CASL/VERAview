@@ -226,12 +226,13 @@ Properties:
 coreSym, npiny, npinx, nax, and nass.
 @return			np.ndarray with shape ( npiny, npinx, nax, nass ) or
 			None if any of the properties are 0
+@deprecated  Use Averager.CreateCorePinFactors()
 """
     factors = None
     if self.IsNonZero():
       factors = np.ndarray(
           ( self.npiny, self.npinx, self.nax, self.nass ),
-	  nd.float32
+	  np.float32
 	  )
       factors.fill( 1.0 )
       factors[ 0, :, :, : ] = 1.0 / self.coreSym

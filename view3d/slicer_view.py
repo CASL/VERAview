@@ -65,7 +65,6 @@ class Slicer3DView( wx.Panel ):
     """Builds this wxPython component.
 """
     sizer = wx.BoxSizer( wx.VERTICAL )
-
     self.SetMinSize( ( 320, 320 ) )
   #end _InitUI
 
