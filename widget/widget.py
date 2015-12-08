@@ -431,10 +431,10 @@ Subclasses should override as this implementation returns None
   def HandleStateChange( self, reason ):
     """Note value difference checks must occur in UpdateState()
 """
-    ct = threading.current_thread()
-    print >> sys.stderr, \
-        '[Widget.HandleStateChange] reason=%d, thread=%s/%d' % \
-        ( reason, ct.name, -1 if ct.ident == None else ct.ident )
+#    ct = threading.current_thread()
+#    print >> sys.stderr, \
+#        '[Widget.HandleStateChange] reason=%d, thread=%s/%d' % \
+#        ( reason, ct.name, -1 if ct.ident == None else ct.ident )
 
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:

@@ -32,6 +32,17 @@ confused with too rich interaction.
 # Copyright (c) 2009, Enthought, Inc.
 # License: BSD Style.
 
+#------------------------------------------------------------------------
+#	Update after changing data in a file
+#source.base_file_name = filename
+## Force re-read.
+#source.reader.modified()
+#source.update()
+## Propagate changes in the pipeline.
+#source.data_changed = True
+#------------------------------------------------------------------------
+
+
 import os, sys, time
 os.environ[ 'ETS_TOOLKIT' ] = 'wx'
 
@@ -288,7 +299,7 @@ mesh_factor = get_mesh_factor(ax_mesh, 1.26)
 #print ax_mesh
 #data = np.sin(3*x)/x + 0.05*z**2 + np.cos(3*y)
 data = get_cut_matrix(det_dat, core_map, mesh_factor)
-data2 = get_big_matrix(det_dat, core_map)
+#x data2 = get_big_matrix(det_dat, core_map)
 #print core_map
 #data2 = get_matrix(17, 17, 48, det_dat)
 #data = get_matrix(17, 17, 48, det_dat)
@@ -301,7 +312,7 @@ class VolumeSlicer(HasTraits):
     
     data = Array()  #not necessary?
     # The 4 views displayed
-    #sceneReal = Instance(MlabSceneModel, ())
+    #x sceneReal = Instance(MlabSceneModel, ())
     scene3d = Instance(MlabSceneModel, ())
     sceneCut = Instance(MlabSceneModel, ())
     scene_x = Instance(MlabSceneModel, ())
@@ -526,12 +537,12 @@ class VolumeSlicer(HasTraits):
                             height=250, width=300),
                        show_labels=False,
                   )
-#                  Group(
-#                       Item('sceneReal',
-#                            editor=SceneEditor(scene_class=MayaviScene),
-#                            height=250, width=300),
-#                       show_labels=False,
-#                  )
+#x                  Group(
+#x                       Item('sceneReal',
+#x                            editor=SceneEditor(scene_class=MayaviScene),
+#x                            height=250, width=300),
+#x                       show_labels=False,
+#x                  )
                   
                 ),
                 resizable=True,
@@ -542,12 +553,21 @@ class VolumeSlicer(HasTraits):
 
 class MainWindow( wx.Frame ):
 
-
   def __init__( self, data ):
     super( MainWindow, self ).__init__( None, -1, 'Mayavi in Wx' )
     self.vs = VolumeSlicer( data = data )
+
+    self.panel = wx.Panel( self, -1 )
+    panel_sizer = wx.BoxSizer( wx.VERTICAL )
+    self.panel.SetSizer( panel_sizer )
+
     self.control = \
-        self.vs.edit_traits( parent = self, kind = 'subpanel' ).control
+        self.vs.edit_traits( parent = self.panel, kind = 'subpanel' ).control
+    panel_sizer.Add( self.control, 1, wx.ALL | wx.EXPAND, 2 )
+    panel_sizer.Layout()
+
+#    self.control = \
+#        self.vs.edit_traits( parent = self, kind = 'subpanel' ).control
     #self.vs.configure_traits()
     #self.Show()
     self.Fit()
