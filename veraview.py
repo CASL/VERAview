@@ -466,9 +466,6 @@ class VeraViewFrame( wx.Frame ):
     if (reason & STATE_CHANGE_axialValue) > 0:
       if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
         self.axialBean.axialLevel = self.state.axialValue[ 1 ]
-#    if (reason & STATE_CHANGE_axialLevel) > 0:
-#      if self.state.axialLevel != self.axialBean.axialLevel:
-#        self.axialBean.axialLevel = self.state.axialLevel
 
     if (reason & STATE_CHANGE_stateIndex) > 0:
       if self.state.stateIndex != self.exposureBean.stateIndex:
@@ -614,7 +611,7 @@ class VeraViewFrame( wx.Frame ):
 #		-- Grid
 #		--
     self.grid = VeraViewGrid( inside_panel, -1 )
-    self.grid.SetListener( self )
+#    self.grid.SetListener( self )
 
 #		-- Exposure slider
 #		--
@@ -645,6 +642,7 @@ class VeraViewFrame( wx.Frame ):
 
 #		-- Window Events
 #		--
+    self.state.AddListener( self )
     self.Bind( wx.EVT_CLOSE, self.OnCloseFrame )
   #end _InitUI
 
@@ -802,9 +800,9 @@ Must be called from the UI thread.
     ev.Skip()
     axial_value = self.state.dataModel.CreateAxialValue( core_ndx = ev.value )
     reason = self.state.Change( self.eventLocks, axial_value = axial_value )
-#    reason = self.state.Change( self.eventLocks, axial_level = ev.value )
     if reason != STATE_CHANGE_noop:
-      self.grid.FireStateChange( reason )
+      self.state.FireStateChange( reason )
+      #self.grid.FireStateChange( reason )
   #end _OnAxial
 
 
@@ -851,7 +849,8 @@ Must be called from the UI thread.
     ev.Skip()
     reason = self.state.Change( self.eventLocks, state_index = ev.value )
     if reason != STATE_CHANGE_noop:
-      self.grid.FireStateChange( reason )
+      self.state.FireStateChange( reason )
+      #self.grid.FireStateChange( reason )
   #end _OnExposure
 
 
@@ -997,7 +996,8 @@ Must be called from the UI thread.
     if item != None:
       title = item.GetText()
       reason = self.state.Change( self.eventLocks, time_dataset = title )
-      self.grid.FireStateChange( reason )
+      self.state.FireStateChange( reason )
+      #self.grid.FireStateChange( reason )
     #end if
   #end _OnTimeDataSet
 
@@ -1312,19 +1312,19 @@ class VeraViewGrid( wx.Panel ):
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewGrid.FireStateChange()			-
   #----------------------------------------------------------------------
-  def FireStateChange( self, reason ):
-    if reason != STATE_CHANGE_noop:
-      for child in self.GetChildren():
-        if isinstance( child, WidgetContainer ):
-	  try:
-	    child.HandleStateChange( reason )
-          except Exception, ex:
-	    print >> sys.stderr, '[VeraViewGrid.FireStateChanged]', str( ex )
-      #end for
-
-      self.listener.HandleStateChange( reason )
-    #end if
-  #end FireStateChange
+#  def FireStateChange( self, reason ):
+#    if reason != STATE_CHANGE_noop:
+#      for child in self.GetChildren():
+#        if isinstance( child, WidgetContainer ):
+#	  try:
+#	    child.HandleStateChange( reason )
+#          except Exception, ex:
+#	    print >> sys.stderr, '[VeraViewGrid.FireStateChanged]', str( ex )
+#      #end for
+#
+#      self.listener.HandleStateChange( reason )
+#    #end if
+#  #end FireStateChange
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2015-12-08	leerw@ornl.gov				-
+# 	  State changes managed by the State object.
 #		2015-11-18	leerw@ornl.gov				-
 # 	  Adding 'other' datasets to the dataset menu if the widget
 #	  GetAllow4DDataSets() returns True.
@@ -183,10 +185,8 @@ Must be called on the UI thread.
   def FireStateChange( self, **kwargs ):
     reason = self.state.Change( self.eventLocks, **kwargs )
     if reason != STATE_CHANGE_noop:
-      self.GetParent().FireStateChange( reason )
-
-    #if self.isEventLocked:
-      #self.GetParent().FireStateChange( **kwargs )
+      self.state.FireStateChange( reason )
+      #self.GetParent().FireStateChange( reason )
   #end FireStateChange
 
 
@@ -454,6 +454,7 @@ Must be called on the UI thread.
     #self.SetTitle( self.widget.GetTitle() )
     vbox.Layout()
 
+    self.state.AddListener( self )
     self.widget.SetState( self.state )
   #end _InitUI
 
@@ -486,6 +487,9 @@ Must be called on the UI thread.
   def _OnClose( self, ev ):
     """
 """
+    if self.state != None and self.widget != None:
+      self.state.RemoveListener( self )
+
     self.Destroy()
   #end _OnClose
 

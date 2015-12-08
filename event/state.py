@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2015-12-08	leerw@ornl.gov				-
+#	  Managing events and changes on the State object.
 #		2015-06-15	leerw@ornl.gov				-
 #	  Refactoring.  Added State.CreateUpdateArgs().
 #		2015-05-25	leerw@ornl.gov				-
@@ -87,6 +89,7 @@ All indices are 0-based.
   dataModel			DataModel object
   detectorDataSet		str name
   detectorIndex			( int index, int column, int row )
+  listeners			list of objects to notify on change events
   pinColRow			( int column, int row )
   pinDataSet			str name
   scalarDataSet			str name
@@ -110,6 +113,7 @@ All indices are 0-based.
     self.dataModel = None
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
+    self.listeners = []
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = 'pin_powers'
     self.scalarDataSet = 'keff'
@@ -160,10 +164,27 @@ All indices are 0-based.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		AddListener()					-
+  #----------------------------------------------------------------------
+  def AddListener( self, listener ):
+    """Adds the listener if not already added.  Listeners must implement
+a HandleStateChange( self, reason ) method.
+"""
+    if listener not in self.listeners:
+      self.listeners.append( listener )
+  #end AddListener
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Change()					-
   #----------------------------------------------------------------------
   def Change( self, locks, **kwargs ):
-    """
+    """Applies the property changes specified in kwargs that are allowed
+by locks.
+@param  locks		dictionary of True/False values for each of the
+			STATE_CHANGE_xxx indexes
+@param  kwargs		name, value pairs with which to update this
+
 Keys passed and the corresponding state bit are:
   assembly_index	STATE_CHANGE_assemblyIndex
   axial_value		STATE_CHANGE_axialValue
@@ -177,7 +198,7 @@ Keys passed and the corresponding state bit are:
   state_index		STATE_CHANGE_stateIndex
   scalar_dataset	STATE_CHANGE_scalarDataSet
   time_dataset		STATE_CHANGE_timeDataSet
-@return		reason
+@return			change reason mask
 """
     reason = STATE_CHANGE_noop
 
@@ -309,6 +330,25 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		FireStateChange()				-
+  #----------------------------------------------------------------------
+  def FireStateChange( self, reason ):
+    """Notifies all listeners of the change if not noop.
+@param  reason		reason mask
+"""
+    if reason != STATE_CHANGE_noop:
+      for listener in self.listeners:
+	try:
+          listener.HandleStateChange( reason )
+          #listener.HandleStateChange( reason, self )
+	except Exception, ex:
+	  print >> sys.stderr, '[State.FireStateChange] ' + str( ex )
+      #end for listeners
+    #end if not noop
+  #end FireStateChange
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetDataModel()					-
   #----------------------------------------------------------------------
   def GetDataModel( self ):
@@ -359,6 +399,17 @@ Keys passed and the corresponding state bit are:
       self.stateIndex = -1
       self.timeDataSet = 'state'
   #end Load
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RemoveListener()				-
+  #----------------------------------------------------------------------
+  def RemoveListener( self, listener ):
+    """Removes the listener.
+"""
+    if listener in self.listeners:
+      self.listeners.remove( listener )
+  #end RemoveListener
 
 
   #----------------------------------------------------------------------
