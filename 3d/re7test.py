@@ -669,6 +669,12 @@ class MainWindow( wx.Frame ):
   def _OnButton( self, name, ev ):
     ipw3d = getattr( self.vs, 'ipw_3d_%s' % name )
     ipw3d.ipw.slice_position = 0
+
+    if name == 'x':
+      sd = self.vs.data_src3d.trait_get( 'scalar_data' )[ 'scalar_data' ]
+      sd[ 0, :, : ] = 0.0
+      self.vs.data_src3d.update()
+      self.vs.data_src3d.data_changed = True
   #end _OnButton
 
 #end MainWindow
