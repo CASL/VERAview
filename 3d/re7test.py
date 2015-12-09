@@ -43,7 +43,7 @@ confused with too rich interaction.
 #------------------------------------------------------------------------
 
 
-import os, sys, time
+import bisect, functools, os, sys, time
 os.environ[ 'ETS_TOOLKIT' ] = 'wx'
 
 sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
@@ -149,7 +149,7 @@ def get_cut_matrix(det_dat, core_map, mesh_factor):
     #print len(matrix[0][0])
     #print  len(matrix[0])
     #print len(matrix) 
-    
+
     matrix = [[[0 for x in range(size_x_macro)] for y in range(size_y_macro)] for z in range(size_z_2)]
     for i in range(size_macro - 1, size_macro_full):
         for j in range(size_macro - 1, size_macro_full):
@@ -298,50 +298,55 @@ def get_mesh_factor(ax_mesh, ppinch):
 
 
 def create_cut_matrix( data_model, ds_name, state_ndx ):
-    core = data_model.GetCore()
-    dset = data_model.GetStateDataSet( state_ndx, ds_name )
-    dset_value = dset.value
-    assy_range = data_model.ExtractSymmetryExtent() # left, top, right + 1, bottom + 1, dx, dy
+  core = data_model.GetCore()
+  dset = data_model.GetStateDataSet( state_ndx, ds_name )
+  dset_value = dset.value
+  assy_range = data_model.ExtractSymmetryExtent() # left, top, right + 1, bottom + 1, dx, dy
 
-#xxx  create Z for each axial cm,
-#    ax_mesh = core.axialMesh
-#    apitch = core.apitch if core.apitch > 0.0 else 1.0
-#    mesh_factors = np.ndarray( ( core.nax - 1 ), np.float64 )
-#    mesh_factors.fill( 0.0 )
-#    for i in range( core.nax - 1 ):
-#      mesh_factors[ i ] = \
-#          int( (ax_mesh.value[ i + 1 ] - ax_mesh.value[ 0 ]) / apitch )
+  ax_mesh = core.axialMesh
+  #ppinch = core.apitch if core.apitch > 0 else 1.0
+  ppinch = 1.26
+  mesh_factors = [
+      int( (ax_mesh[ i + 1 ] - ax_mesh[ 0 ]) / ppinch )
+      for i in range( len( ax_mesh ) - 1 )
+      ]
+  z_size = mesh_factors[ -1 ]
 
-    matrix = np.ndarray(
-	( core.nax,
-	  core.npiny * assy_range[ 4 ], core.npinx * assy_range[ 5 ] ),
+  matrix = np.ndarray(
+#yx	( z_size, core.npiny * assy_range[ 4 ], core.npinx * assy_range[ 5 ] ),
+	( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
 	np.float64
 	)
-    matrix.fill( 0.0 )
+  matrix.fill( 0.0 )
     
-    pin_y = 0
-    for assy_y in range( assy_range[ 4 ] ):
+  pin_y = 0
+  #for assy_y in range( assy_range[ 1 ], assy_range[ 3 ] ):
+  for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
+    pin_x = 0
+    for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
+      assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
+      if assy_ndx >= 0:
+	for z in range( z_size ):
+	  ax_level = min( bisect.bisect_left( mesh_factors, z ), len( mesh_factors ) - 1 )
+	  for y in range( core.npiny ):
+	    for x in range( core.npinx ):
+	      matrix[ z, pin_x + x, pin_y + y ] = \
+	          dset_value[ y, x, ax_level, assy_ndx ]
+#yx	      matrix[ z, pin_y + y, pin_x + x ] = \
+#yx	          dset_value[ y, x, ax_level, assy_ndx ]
+	    #end for x
+	  #end for y
+	#end for z
+      #end if assy_ndx
 
-      pin_x = 0
-      for assy_x in range( assy_range[ 5 ] ):
-        assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
-	if assy_ndx >= 0:
-	  for z in range( core.nax ):
-	    for y in range( core.npiny ):
-	      for x in range( core.npinx ):
-	        matrix[ z, pin_y + y, pin_x + x ] = dset_value[ y, x, z, assy_ndx ]
-	      #end for x
-	    #end for y
-	  #end for z
-	#end if assy_ndx
+      pin_x += core.npinx
+    #end for assy_x
 
-        pin_x += core.npinx
-      #end for assy_x
+    pin_y += core.npiny
+  #end for assy_y
 
-      pin_y += core.npiny
-    #end for assy_y
-
-    return  matrix.tolist()
+  #return  matrix.tolist()
+  return  matrix
 #end create_cut_matrix
 
 
@@ -350,7 +355,7 @@ def create_cut_matrix( data_model, ds_name, state_ndx ):
 # Create some data
 #x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]
 #myh5 = h5py.File("beavrs_cy1.h5")
-if True:
+if False:
   myh5 = h5py.File("/Users/re7x/study/casl/andrew/beavrs.h5")
   det_dat = myh5["/STATE_0001/pin_powers"].value
   core_map = myh5["/CORE/core_map"].value
@@ -374,7 +379,7 @@ else:
 class VolumeSlicer(HasTraits):
     # The data to plot
     
-    data = Array()  #not necessary?
+    #data = Array()  #not necessary?
     # The 4 views displayed
     #x sceneReal = Instance(MlabSceneModel, ())
     scene3d = Instance(MlabSceneModel, ())
@@ -490,7 +495,9 @@ class VolumeSlicer(HasTraits):
                         figure=self.scene3d.mayavi_scene,
                         )
         
-        self.scene3d.mlab.view(40, 50)
+        ##self.scene3d.mlab.view(40, 50)
+        #self.scene3d.mlab.view(10, 60)
+        self.scene3d.mlab.view(10, 70)
         
         # Interaction properties can only be changed after the scene
         # has been created, and thus the interactor exists
@@ -561,6 +568,9 @@ class VolumeSlicer(HasTraits):
         scene.scene.interactor.interactor_style = \
                                  tvtk.InteractorStyleImage()
         scene.scene.background = (0, 0, 0)
+	if axis_name == 'x':
+	  scene.scene.parallel_projection = True
+	  scene.scene.camera.parallel_scale = 0.4 * np.mean( self.data.shape )
 
 
     @on_trait_change('scene_x.activated')
@@ -595,10 +605,10 @@ class VolumeSlicer(HasTraits):
                   Group(
                        Item('scene3d',
                             editor=SceneEditor(scene_class=MayaviScene),
-                            height=250, width=300),
+                            height=300, width=300),  # 250, 300
                        Item('sceneCut',
                             editor=SceneEditor(scene_class=MayaviScene),
-                            height=250, width=300),
+                            height=200, width=300),  # 250, 300
                        show_labels=False,
                   )
 #x                  Group(
@@ -621,21 +631,45 @@ class MainWindow( wx.Frame ):
     super( MainWindow, self ).__init__( None, -1, 'Mayavi in Wx' )
     self.vs = VolumeSlicer( data = data )
 
-    self.panel = wx.Panel( self, -1 )
-    panel_sizer = wx.BoxSizer( wx.VERTICAL )
-    self.panel.SetSizer( panel_sizer )
+    button_panel = wx.Panel( self, -1 )
+    button_panel_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    button_panel.SetSizer( button_panel_sizer )
+    for name in ( 'x', 'y', 'z' ):
+      button = wx.Button( button_panel, -1, name.upper() )
+      button.Bind(
+          wx.EVT_BUTTON,
+	  functools.partial( self._OnButton, name )
+	  )
+      button_panel_sizer.Add( button, 1, wx.ALL, 2 )
+
+    self.vizpanel = wx.Panel( self, -1 )
+    vizpanel_sizer = wx.BoxSizer( wx.VERTICAL )
+    #noworky self.vizpanel.SetMinSize( ( 700, 750 ) )
+    self.vizpanel.SetSizer( vizpanel_sizer )
 
     self.control = \
-        self.vs.edit_traits( parent = self.panel, kind = 'subpanel' ).control
-    panel_sizer.Add( self.control, 1, wx.ALL | wx.EXPAND, 2 )
-    panel_sizer.Layout()
+        self.vs.edit_traits( parent = self.vizpanel, kind = 'subpanel' ).control
+    vizpanel_sizer.Add( self.control, 1, wx.ALL | wx.EXPAND, 2 )
+    vizpanel_sizer.Layout()
 
+#standalone
 #    self.control = \
 #        self.vs.edit_traits( parent = self, kind = 'subpanel' ).control
     #self.vs.configure_traits()
-    #self.Show()
-    self.Fit()
+
+    sizer = wx.BoxSizer( wx.VERTICAL )
+    sizer.Add( button_panel, 0, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 1 )
+    sizer.Add( self.vizpanel, 1, wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 1 )
+    self.SetSizer( sizer )
+    #self.Fit()
+    self.SetSize( ( 725, 750 ) )
   #end __init__
+
+
+  def _OnButton( self, name, ev ):
+    ipw3d = getattr( self.vs, 'ipw_3d_%s' % name )
+    ipw3d.ipw.slice_position = 0
+  #end _OnButton
 
 #end MainWindow
 
