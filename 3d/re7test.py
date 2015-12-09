@@ -671,10 +671,16 @@ class MainWindow( wx.Frame ):
     ipw3d.ipw.slice_position = 0
 
     if name == 'x':
-      sd = self.vs.data_src3d.trait_get( 'scalar_data' )[ 'scalar_data' ]
-      sd[ 0, :, : ] = 0.0
+      sd = self.vs.data_src3d.scalar_data
+      new_data = np.ndarray( sd.shape, np.float64 )
+      new_data.fill( 0.01 )
+      self.vs.data_src3d.scalar_data = new_data
       self.vs.data_src3d.update()
       self.vs.data_src3d.data_changed = True
+      self.vs.data_src3d.render()
+
+      #self.vs.ipw_x.data_changed = True
+      #self.vs.ipw_x.render()
   #end _OnButton
 
 #end MainWindow
