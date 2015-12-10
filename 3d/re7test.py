@@ -379,7 +379,10 @@ else:
 class VolumeSlicer(HasTraits):
     # The data to plot
     
+    ## position = Array( shape = ( 3, ) )
+
     #data = Array()  #not necessary?
+
     # The 4 views displayed
     #x sceneReal = Instance(MlabSceneModel, ())
     scene3d = Instance(MlabSceneModel, ())
@@ -389,9 +392,12 @@ class VolumeSlicer(HasTraits):
     scene_z = Instance(MlabSceneModel, ())
 
     # The data source
+    # this must exist for reference to
+    #   self.data_src3d to invoke _data_src3d_default()
     data_src3d = Instance(Source)
 
     # The image plane widgets of the 3D scene
+    # these must exist for default mechanism to work
     ipw_3d_x = Instance(PipelineBase)
     ipw_3d_y = Instance(PipelineBase)
     ipw_3d_z = Instance(PipelineBase)
@@ -402,7 +408,8 @@ class VolumeSlicer(HasTraits):
     #---------------------------------------------------------------------------
     def __init__(self, **traits):
         super(VolumeSlicer, self).__init__(**traits)
-        # Force the creation of the image_plane_widgets:
+        # Force the creation of the image_plane_widgets
+	# xxx these call _ipw_3d_?_default()
         self.ipw_3d_x
         self.ipw_3d_y
         self.ipw_3d_z
@@ -412,14 +419,20 @@ class VolumeSlicer(HasTraits):
     # Default values
     #---------------------------------------------------------------------------
     def _data_src3d_default(self):
+	# called once, in first make_ipw_3d() call from _ipw_3d_x_default()
         return mlab.pipeline.scalar_field(self.data,
                             figure=self.scene3d.mayavi_scene)
 
     def make_ipw_3d(self, axis_name):
         ipw = mlab.pipeline.image_plane_widget(self.data_src3d,
                         figure=self.scene3d.mayavi_scene,
-                        plane_orientation='%s_axes' % axis_name)
+                        plane_orientation='%s_axes' % axis_name,
+			name = 'Cut %s' % axis_name)
+	ipw.module_manager.scalar_lut_manager.data_range = self.data_range
         return ipw
+
+##    def _position_default( self ):
+ ##     return  0.5 * np.array( self.data_src3d.shape )
 
     def _ipw_3d_x_default(self):
         return self.make_ipw_3d('x')
@@ -512,10 +525,14 @@ class VolumeSlicer(HasTraits):
         self.scene3d.scene.interactor.interactor_style = \
                                  tvtk.InteractorStyleTerrain()
 
+	## refer to Examples/mayavi-4.2.0/mayavi/interactive/volume_slicer_advanced.py
+        ## self.update_position()
+
 
     
 
     def make_side_view(self, axis_name):
+	print >> sys.stderr, '[X.4 make_side_view] axis_name=', axis_name
         scene = getattr(self, 'scene_%s' % axis_name)
 
         # To avoid copying the data, we take a reference to the
@@ -530,6 +547,7 @@ class VolumeSlicer(HasTraits):
         ipw = mlab.pipeline.image_plane_widget(
                             outline,
                             plane_orientation='%s_axes' % axis_name)
+	ipw.module_manager.scalar_lut_manager.data_range = self.data_range
         setattr(self, 'ipw_%s' % axis_name, ipw)
 
         # Synchronize positions between the corresponding image plane
@@ -570,7 +588,8 @@ class VolumeSlicer(HasTraits):
         scene.scene.background = (0, 0, 0)
 	if axis_name == 'x':
 	  scene.scene.parallel_projection = True
-	  scene.scene.camera.parallel_scale = 0.4 * np.mean( self.data.shape )
+	  scene.scene.camera.parallel_scale = \
+	      0.4 * np.mean( self.data_src3d.scalar_data.shape )
 
 
     @on_trait_change('scene_x.activated')
@@ -627,9 +646,13 @@ class VolumeSlicer(HasTraits):
 
 class MainWindow( wx.Frame ):
 
-  def __init__( self, data ):
+  def __init__( self, data_model, data ):
     super( MainWindow, self ).__init__( None, -1, 'Mayavi in Wx' )
-    self.vs = VolumeSlicer( data = data )
+    self.dataModel = data_model
+    self.stateIndex = 0
+    drange = data_model.GetRange( 'pin_powers' )
+    self.dataRange = np.array( [ drange[ 0 ], drange[ 1 ] ], dtype = np.float64 )
+    self.vs = VolumeSlicer( data = data, data_range = self.dataRange )
 
     button_panel = wx.Panel( self, -1 )
     button_panel_sizer = wx.BoxSizer( wx.HORIZONTAL )
@@ -666,27 +689,98 @@ class MainWindow( wx.Frame ):
   #end __init__
 
 
-  def _OnButton( self, name, ev ):
+  def _OnButton( self, ax, ev ):
+    # z->x, x->y, y->z
+    name = \
+        'x' if ax == 'z' else \
+	'y' if ax == 'x' else \
+	'z'
     ipw3d = getattr( self.vs, 'ipw_3d_%s' % name )
     ipw3d.ipw.slice_position = 0
 
-    if name == 'x':
+    ipw = getattr( self.vs, 'ipw_%s' % name )
+
+    if ax == 'z':
+      # self.vs.data_src3d.mlab_source.dataset,
+      # self.vs.data_src3d.mlab_source.scalars,
+      self.vs.scene3d.scene.disable_render = True
+      new_state_ndx = self.stateIndex + 1
+      if new_state_ndx >= len( self.dataModel.GetStates() ):
+        new_state_ndx = 0
+
+      if new_state_ndx != self.stateIndex:
+        self.stateIndex = new_state_ndx
+        self.vs.data = create_cut_matrix( self.dataModel, 'pin_powers', self.stateIndex )
+        self.vs.data_src3d.scalar_data = self.vs.data
+      else:
+        self.vs.data_src3d.scalar_data *= 0.1
+
+      print >> sys.stderr, self.vs.data_src3d.scalar_data
+      #self.vs.data_src3d.mlab_source.scalars = data
+      #self.vs.data_src3d.mlab_source.update()
+      self.vs.data_src3d.scalar_name = 'pin_powers %d' % self.stateIndex
+      self.vs.data_src3d.update()
+      self.vs.data_src3d.data_changed = True
+
+      for n in ( 'x', 'y', 'z' ):
+        getattr( self.vs, 'ipw_3d_%s' % n ).module_manager.scalar_lut_manager.data_range = self.vs.data_range
+        getattr( self.vs, 'ipw_%s' % n ).module_manager.scalar_lut_manager.data_range = self.vs.data_range
+      #end for
+
+      #self.vs.ipw_3d_x.update_data()
+      #self.vs.ipw_3d_y.update_data()
+      #self.vs.ipw_3d_z.update_data()
+
+      self.vs.scene3d.scene.disable_render = False
+      self.vs.scene3d.render()
+
+      #self.vs.ipw_x.data_changed = True
+      #self.vs.ipw_x.pipeline_changed = True
+      #self.vs.ipw_x.module_manager.update()
+      # module_manager.scalar_lut_manager
+      #  .data_range np.ndarray [ lo, hi ]
+      #  .lut_mode (blue-red)
+      #  .lut
+      #    .table  list of 4-tuples (rgba?)
+      #      .to_array() returns np.ndarray( dtype = uint8 )
+      #    assign .table from np.ndarray
+      #  .load_lut_from_file()
+      #  .load_lut_from_list()
+
+      #ipw3d.mlab_source.scalars = data
+      #ipw3d.mlab_source.update()
+      #ipw3d.mlab_source.data_changed = True
+      #ipw3d.pipeline_changed = True
+      #ipw.update_data()
+      #ipw.data_changed = true
+      #ipw.pipeline_changed = true
+
+    elif False:
       sd = self.vs.data_src3d.scalar_data
       new_data = np.ndarray( sd.shape, np.float64 )
       new_data.fill( 0.01 )
+      new_data[ 0 : 5, 0 : 5, 0 : 5 ] = sd[ 0 : 5, 0 : 5, 0 : 5 ]
+      #new_data = np.copy( sd )
+      #new_data[ :, :, : ] /= 2.0
       self.vs.data_src3d.scalar_data = new_data
       self.vs.data_src3d.update()
       self.vs.data_src3d.data_changed = True
       self.vs.data_src3d.render()
 
-      #self.vs.ipw_x.data_changed = True
-      #self.vs.ipw_x.render()
+#      #self.vs.ipw_x.data_changed = True
+#      #self.vs.ipw_x.render()
+#      self.vs.ipw_3d_x.mlab_source.scalars = new_data
+#      self.vs.ipw_3d_x.mlab_source.update()
+#      self.vs.ipw_3d_x.mlab_source.data_changed = True
+#      #self.vs.ipw_3d_x.data_changed = True
+#      self.vs.ipw_3d_x.render()
+#      self.vs.scene_x.render()
   #end _OnButton
 
 #end MainWindow
 
 
 app = wx.App()
-frame = MainWindow( data )
+frame = MainWindow( data_model, data )
 frame.Show()
 app.MainLoop()
