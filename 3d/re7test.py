@@ -428,6 +428,7 @@ class VolumeSlicer(HasTraits):
                         figure=self.scene3d.mayavi_scene,
                         plane_orientation='%s_axes' % axis_name,
 			name = 'Cut %s' % axis_name)
+	ipw.module_manager.scalar_lut_manager.use_default_range = False
 	ipw.module_manager.scalar_lut_manager.data_range = self.data_range
         return ipw
 
@@ -547,6 +548,7 @@ class VolumeSlicer(HasTraits):
         ipw = mlab.pipeline.image_plane_widget(
                             outline,
                             plane_orientation='%s_axes' % axis_name)
+	ipw.module_manager.scalar_lut_manager.use_default_range = False
 	ipw.module_manager.scalar_lut_manager.data_range = self.data_range
         setattr(self, 'ipw_%s' % axis_name, ipw)
 
@@ -651,7 +653,8 @@ class MainWindow( wx.Frame ):
     self.dataModel = data_model
     self.stateIndex = 0
     drange = data_model.GetRange( 'pin_powers' )
-    self.dataRange = np.array( [ drange[ 0 ], drange[ 1 ] ], dtype = np.float64 )
+    #self.dataRange = np.array( [ drange[ 0 ], drange[ 1 ] ], dtype = np.float64 )
+    self.dataRange = list( drange )
     self.vs = VolumeSlicer( data = data, data_range = self.dataRange )
 
     button_panel = wx.Panel( self, -1 )
@@ -723,8 +726,13 @@ class MainWindow( wx.Frame ):
       self.vs.data_src3d.data_changed = True
 
       for n in ( 'x', 'y', 'z' ):
-        getattr( self.vs, 'ipw_3d_%s' % n ).module_manager.scalar_lut_manager.data_range = self.vs.data_range
-        getattr( self.vs, 'ipw_%s' % n ).module_manager.scalar_lut_manager.data_range = self.vs.data_range
+	cur_ipw_3d = getattr( self.vs, 'ipw_3d_%s' % n )
+	cur_ipw_3d.module_manager.scalar_lut_manager.scalar_lut_manager.data_range = self.vs.data_range
+	cur_ipw_3d.module_manager.scalar_lut_manager.use_default_range = False
+
+	cur_ipw = getattr( self.vs, 'ipw_%s' % n )
+	cur_ipw.module_manager.scalar_lut_manager.scalar_lut_manager.data_range = self.vs.data_range
+	cur_ipw.module_manager.scalar_lut_manager.use_default_range = False
       #end for
 
       #self.vs.ipw_3d_x.update_data()
@@ -734,6 +742,8 @@ class MainWindow( wx.Frame ):
       self.vs.scene3d.scene.disable_render = False
       self.vs.scene3d.render()
 
+# http://stackoverflow.com/questions/30097205/updating-data-of-an-image-plane-widget
+      #self.vs.data_src3d.image_data and .outputs
       #self.vs.ipw_x.data_changed = True
       #self.vs.ipw_x.pipeline_changed = True
       #self.vs.ipw_x.module_manager.update()
