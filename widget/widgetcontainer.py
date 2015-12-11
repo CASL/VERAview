@@ -490,6 +490,7 @@ Must be called on the UI thread.
     if self.state != None and self.widget != None:
       self.state.RemoveListener( self )
 
+    self.Close()
     self.Destroy()
   #end _OnClose
 
