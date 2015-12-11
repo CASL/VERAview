@@ -4,7 +4,7 @@
 #	HISTORY:							-
 #		2015-12-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys
+import bisect, math, os, sys
 import numpy as np
 
 try:
@@ -50,7 +50,7 @@ class Slicer3DFrame( wx.Frame ):
 
     self.widgetContainer = \
         WidgetContainer( self, 'view3d.slicer_view.Slicer3DView', self.state )
-    self.SetSize( ( 600, 640 ) )
+    self.SetSize( ( 700, 750 ) )
     self.SetTitle( 'VERAView 3D View' )
 
     #self.state.AddListener( self )
@@ -91,6 +91,7 @@ class Slicer3DView( Widget ):
     self.data = None
 
     self.menuDef = None
+    self.meshLevels = None
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
@@ -100,6 +101,68 @@ class Slicer3DView( Widget ):
 
     super( Slicer3DView, self ).__init__( container, id )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._Create3DMatrix()			-
+  #----------------------------------------------------------------------
+  def _Create3DMatrix( self ):
+    matrix = None
+
+    if self.data != None:
+      core = self.data.GetCore()
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset_value = dset.value
+
+      # left, top, right + 1, bottom + 1, dx, dy
+      assy_range = self.data.ExtractSymmetryExtent()
+
+      ax_mesh = core.axialMesh
+      #ppinch = core.apitch if core.apitch > 0 else 1.0
+      ppinch = 1.26
+      self.meshLevels = [
+	  int( (ax_mesh[ i + 1 ] - ax_mesh[ 0 ]) / ppinch )
+	  for i in range( len( ax_mesh ) - 1 )
+          ]
+      z_size = self.meshLevels[ -1 ]
+
+      # z, x, y
+      matrix = np.ndarray(
+	( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
+	np.float64
+	)
+      matrix.fill( 0.0 )
+    
+      pin_y = 0
+      #for assy_y in range( assy_range[ 1 ], assy_range[ 3 ] ):
+      for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
+        pin_x = 0
+        for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
+          assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
+          if assy_ndx >= 0:
+	    for z in range( z_size ):
+	      ax_level = min(
+	          bisect.bisect_left( self.meshLevels, z ),
+		  len( self.meshLevels ) - 1
+		  )
+	      for y in range( core.npiny ):
+	        for x in range( core.npinx ):
+	          matrix[ z, pin_x + x, pin_y + y ] = \
+	              dset_value[ y, x, ax_level, assy_ndx ]
+	        #end for x
+	      #end for y
+	    #end for z
+          #end if assy_ndx
+
+          pin_x += core.npinx
+        #end for assy_x
+
+        pin_y += core.npiny
+      #end for assy_y
+    #end if self.data != None
+
+    return  matrix
+  #end _Create3DMatrix
 
 
   #----------------------------------------------------------------------
@@ -159,7 +222,7 @@ class Slicer3DView( Widget ):
     _data = np.ndarray( ( 20, 20, 20 ), dtype = np.float64 )
     _data.fill( 1.0 )
 
-    self.viz = VolumeSlicer( data = _data, data_range = [ 0.0, 5.0 ] )
+    self.viz = VolumeSlicer( data = _data, dataRange = [ 0.0, 5.0 ] )
     self.vizcontrol = \
         self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
 
@@ -184,6 +247,8 @@ class Slicer3DView( Widget ):
       self.pinColRow = self.state.pinColRow
       self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
+
+      self._UpdateData()
     #end if
   #end _LoadDataModel
 
@@ -202,7 +267,10 @@ class Slicer3DView( Widget ):
   #	METHOD:		Slicer3DView._UpdateData()			-
   #----------------------------------------------------------------------
   def _UpdateData( self ):
-    pass
+    matrix = self._Create3DMatrix()
+    if matrix != None:
+      drange = self.data.GetRange( self.pinDataSet )
+      self.viz.SetScalarData( matrix, drange )
   #end _UpdateData
 
 
@@ -211,6 +279,10 @@ class Slicer3DView( Widget ):
   #----------------------------------------------------------------------
   def _UpdateSlicePositions( self ):
     pass
+    #xxx convert from pinColRow and axialIndex to slice positions
+#    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
+#      ipw_3d = getattr( self, 'ipw3d%s' % uaxis )
+#      ipw_3d.ipw.slice_position = position[ cur_ndx ]
   #end _UpdateSlicePositions
 
 
@@ -338,6 +410,8 @@ class VolumeSlicer( HasTraits ):
   def __init__( self, **traits ):
     super( VolumeSlicer, self ).__init__( **traits )
 
+    #self.dataRange = [ 0.0, 10.0 ]
+
 #		-- Force creation of image_plane_widgets for now
 #		--
     self.ipw3dX
@@ -361,7 +435,8 @@ class VolumeSlicer( HasTraits ):
 	figure = self.scene3d.mayavi_scene,
 	name = 'Cut %s' % axis,
 	plane_orientation = '%s_axes' % axis,
-	vmin = self.data_range[ 0 ], vmax = self.data_range[ 1 ]
+	vmin = self.dataRange[ 0 ],
+	vmax = self.dataRange[ 1 ]
         )
     return  ipw
   #end _create_3d_ipw
@@ -384,8 +459,8 @@ class VolumeSlicer( HasTraits ):
     ipw = mlab.pipeline.image_plane_widget(
 	outline,
 	plane_orientation = '%s_axes' % axis,
-	vmin = self.data_range[ 0 ],
-	vmax = self.data_range[ 1 ]
+	vmin = self.dataRange[ 0 ],
+	vmax = self.dataRange[ 1 ]
         )
 
     setattr( self, 'ipw%s' % uaxis, ipw )
@@ -398,6 +473,7 @@ class VolumeSlicer( HasTraits ):
 
     def move_view( obj, ev ):
       position = obj.GetCurrentCursorPosition()
+      #xxx compute pinRowCol or axialIndex
       print >> sys.stderr, \
           '[move_view] axis=' + axis + ', position=' + str( position )
       for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
@@ -405,8 +481,6 @@ class VolumeSlicer( HasTraits ):
 	  ipw_3d = getattr( self, 'ipw3d%s' % uaxis )
 	  ipw_3d.ipw.slice_position = position[ cur_ndx ]
     #end move_view
-
-
 
     ipw.ipw.add_observer( 'InteractionEvent', move_view )
     ipw.ipw.add_observer( 'StartInteractionEvent', move_view )
@@ -546,5 +620,23 @@ class VolumeSlicer( HasTraits ):
 """
     return  self._create_3d_ipw( 'z' )
   #end _ipw3dZ_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.SetScalarData()			-
+  #----------------------------------------------------------------------
+  def SetScalarData( self, data, data_range ):
+    self.dataRange = data_range
+
+    self.dataSource.scalar_data = data
+    self.dataSource.update()
+    self.dataSource.data_changed = True
+
+    for ipw in ( self.ipw3dX, self.ipw3dY, self.ipw3dZ, self.ipwX, self.ipwY, self.ipwZ ):
+      #ipw.set( vmin = data_range[ 0 ], vmax = data_range[ 1 ] )
+      ipw.module_manager.scalar_lut_manager.data_range = data_range
+      ipw.update_data()
+    #end for
+  #end SetScalarData
 
 #end VolumeSlicer

@@ -468,7 +468,8 @@ class VolumeSlicer(HasTraits):
     @on_trait_change('sceneCut.activated')
     def display_sceneCut(self):
         #outline = mlab.points3d(data2, scale_mode = "none")
-        scene = getattr(self, 'scene_%s' % 'y')
+        #scene = getattr(self, 'scene_%s' % 'y')
+        scene = self.sceneCut
 
         # To avoid copying the data, we take a reference to the
         # raw VTK dataset, and pass it on to mlab. Mlab will create
@@ -477,12 +478,17 @@ class VolumeSlicer(HasTraits):
         # added on the figure we are interested in.
         outline = mlab.pipeline.outline(
                             self.data_src3d.mlab_source.dataset,
-                            figure=self.scene3d.mayavi_scene,
+                            figure=self.sceneCut.mayavi_scene,
+                            #figure=self.scene3d.mayavi_scene,
                             )
         ipw = mlab.pipeline.image_plane_widget(
                             outline,
-                            plane_orientation='%s_axes' % 'y')
-        setattr(self, 'ipw_%s' % 'y', ipw)
+                            plane_orientation='y_axes',
+			    vmin = self.data_range[ 0 ],
+			    vmax = self.data_range[ 1 ]
+			    )
+        #setattr(self, 'ipw_%s' % 'y', ipw)
+	self.ipw_cut = ipw
 
         # Synchronize positions between the corresponding image plane
         # widgets on different views.
@@ -494,10 +500,10 @@ class VolumeSlicer(HasTraits):
         # Center the image plane widget
 
         # Position the view for the scene
-        views = dict(x=( 0, 90),
-                     y=(90, 90),
-                     z=( 0,  0),
-                     )
+#        views = dict(x=( 0, 90),
+#                     y=(90, 90),
+#                     z=( 0,  0),
+#                     )
         # 2D interaction: only pan and zoom
         scene.scene.interactor.interactor_style = \
                                  tvtk.InteractorStyleImage()
@@ -532,8 +538,6 @@ class VolumeSlicer(HasTraits):
 	## refer to Examples/mayavi-4.2.0/mayavi/interactive/volume_slicer_advanced.py
         ## self.update_position()
 
-
-    
 
     def make_side_view(self, axis_name):
 	print >> sys.stderr, '[X.4 make_side_view] axis_name=', axis_name
@@ -730,6 +734,20 @@ class MainWindow( wx.Frame ):
       self.vs.data_src3d.scalar_name = 'pin_powers %d' % self.stateIndex
       self.vs.data_src3d.update()
       self.vs.data_src3d.data_changed = True
+ 
+#x      remove_list = list( self.vs.scene3d.actor_list )
+#x      for a in remove_list:
+#x        #if isinstance( a, ImagePlaneWidget ):
+#x	if str( type( a ) ).find( 'ImagePlaneWidget' ) >= 0:
+#x	  self.vs.scene3d.remove_actor( a )
+#x      self.vs.ipw_3d_x = self.vs.make_ipw_3d( 'x' )
+#x      self.vs.ipw_3d_y = self.vs.make_ipw_3d( 'y' )
+#x      self.vs.ipw_3d_z = self.vs.make_ipw_3d( 'z' )
+#x      self.vs.display_scene3d()
+
+#     self.scene3d.actor_list
+#       includes 3x tvtk.tvtk_classes.image_plane_widget.ImagePlaneWidget
+#     self.scene3d.remove_actors()
 
 #      self.vs.ipw_3d_x = self.vs.make_ipw_3d( 'x' )
 #      self.vs.ipw_3d_y = self.vs.make_ipw_3d( 'y' )
