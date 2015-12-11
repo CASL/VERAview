@@ -124,10 +124,10 @@ Paired to _BitmapThreadStart().
       else:
         wx_im = wx.EmptyImage( *pil_im.size )
 
-        pil_im_data_str = pil_im.convert( 'RGB' ).tostring()
+        pil_im_data_str = pil_im.convert( 'RGB' ).tobytes()
         wx_im.SetData( pil_im_data_str )
 
-        pil_im_data_str = pil_im.convert( 'RGBA' ).tostring()
+        pil_im_data_str = pil_im.convert( 'RGBA' ).tobytes()
         wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
 
         bmap = wx.BitmapFromImage( wx_im )
@@ -357,10 +357,10 @@ specified, a default scale value of 8 is used.
     pil_im = self._CreateRasterImage( self._CreateStateTuple() )
 #    wx_im = wx.EmptyImage( *pil_im.size )
 
-#    pil_im_data_str = pil_im.convert( 'RGB' ).tostring()
+#    pil_im_data_str = pil_im.convert( 'RGB' ).tobytes()
 #    wx_im.SetData( pil_im_data_str )
 
-#    pil_im_data_str = pil_im.convert( 'RGBA' ).tostring()
+#    pil_im_data_str = pil_im.convert( 'RGBA' ).tobytes()
 #    wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
 #    #return  wx_im
 
