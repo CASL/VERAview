@@ -427,9 +427,12 @@ class VolumeSlicer(HasTraits):
         ipw = mlab.pipeline.image_plane_widget(self.data_src3d,
                         figure=self.scene3d.mayavi_scene,
                         plane_orientation='%s_axes' % axis_name,
-			name = 'Cut %s' % axis_name)
-	ipw.module_manager.scalar_lut_manager.use_default_range = False
-	ipw.module_manager.scalar_lut_manager.data_range = self.data_range
+			name = 'Cut %s' % axis_name,
+			vmin = self.data_range[ 0 ],
+			vmax = self.data_range[ 1 ]
+			)
+	#ipw.module_manager.scalar_lut_manager.use_default_range = False
+	#ipw.module_manager.scalar_lut_manager.data_range = self.data_range
         return ipw
 
 ##    def _position_default( self ):
@@ -505,9 +508,9 @@ class VolumeSlicer(HasTraits):
     def display_scene3d(self):
         #outline = mlab.points3d(data2, scale_mode = "none")
         
-        outline = mlab.pipeline.outline(self.data_src3d,
-                        figure=self.scene3d.mayavi_scene,
-                        )
+#        outline = mlab.pipeline.outline(self.data_src3d,
+#                        figure=self.scene3d.mayavi_scene,
+#                        )
         
         ##self.scene3d.mlab.view(40, 50)
         #self.scene3d.mlab.view(10, 60)
@@ -547,9 +550,12 @@ class VolumeSlicer(HasTraits):
                             )
         ipw = mlab.pipeline.image_plane_widget(
                             outline,
-                            plane_orientation='%s_axes' % axis_name)
-	ipw.module_manager.scalar_lut_manager.use_default_range = False
-	ipw.module_manager.scalar_lut_manager.data_range = self.data_range
+                            plane_orientation='%s_axes' % axis_name,
+			    vmin = self.data_range[ 0 ],
+			    vmax = self.data_range[ 1 ]
+			    )
+	#ipw.module_manager.scalar_lut_manager.use_default_range = False
+	#ipw.module_manager.scalar_lut_manager.data_range = self.data_range
         setattr(self, 'ipw_%s' % axis_name, ipw)
 
         # Synchronize positions between the corresponding image plane
@@ -706,7 +712,7 @@ class MainWindow( wx.Frame ):
     if ax == 'z':
       # self.vs.data_src3d.mlab_source.dataset,
       # self.vs.data_src3d.mlab_source.scalars,
-      self.vs.scene3d.scene.disable_render = True
+      # self.vs.scene3d.scene.disable_render = True
       new_state_ndx = self.stateIndex + 1
       if new_state_ndx >= len( self.dataModel.GetStates() ):
         new_state_ndx = 0
@@ -718,29 +724,33 @@ class MainWindow( wx.Frame ):
       else:
         self.vs.data_src3d.scalar_data *= 0.1
 
-      print >> sys.stderr, self.vs.data_src3d.scalar_data
+      #print >> sys.stderr, self.vs.data_src3d.scalar_data
       #self.vs.data_src3d.mlab_source.scalars = data
       #self.vs.data_src3d.mlab_source.update()
       self.vs.data_src3d.scalar_name = 'pin_powers %d' % self.stateIndex
       self.vs.data_src3d.update()
       self.vs.data_src3d.data_changed = True
 
-      for n in ( 'x', 'y', 'z' ):
-	cur_ipw_3d = getattr( self.vs, 'ipw_3d_%s' % n )
-	cur_ipw_3d.module_manager.scalar_lut_manager.scalar_lut_manager.data_range = self.vs.data_range
-	cur_ipw_3d.module_manager.scalar_lut_manager.use_default_range = False
+#      self.vs.ipw_3d_x = self.vs.make_ipw_3d( 'x' )
+#      self.vs.ipw_3d_y = self.vs.make_ipw_3d( 'y' )
+#      self.vs.ipw_3d_z = self.vs.make_ipw_3d( 'z' )
 
-	cur_ipw = getattr( self.vs, 'ipw_%s' % n )
-	cur_ipw.module_manager.scalar_lut_manager.scalar_lut_manager.data_range = self.vs.data_range
-	cur_ipw.module_manager.scalar_lut_manager.use_default_range = False
-      #end for
+#      for n in ( 'x', 'y', 'z' ):
+#	cur_ipw_3d = getattr( self.vs, 'ipw_3d_%s' % n )
+#	cur_ipw_3d.module_manager.scalar_lut_manager.data_range = self.vs.data_range
+#	cur_ipw_3d.module_manager.scalar_lut_manager.use_default_range = False
+#
+#	cur_ipw = getattr( self.vs, 'ipw_%s' % n )
+#	cur_ipw.module_manager.scalar_lut_manager.data_range = self.vs.data_range
+#	cur_ipw.module_manager.scalar_lut_manager.use_default_range = False
+#      #end for
 
       #self.vs.ipw_3d_x.update_data()
       #self.vs.ipw_3d_y.update_data()
       #self.vs.ipw_3d_z.update_data()
 
-      self.vs.scene3d.scene.disable_render = False
-      self.vs.scene3d.render()
+      # self.vs.scene3d.scene.disable_render = False
+      # self.vs.scene3d.render()
 
 # http://stackoverflow.com/questions/30097205/updating-data-of-an-image-plane-widget
       #self.vs.data_src3d.image_data and .outputs
