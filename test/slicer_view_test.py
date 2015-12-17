@@ -124,6 +124,7 @@ class SlicerViewTestFrame( wx.Frame ):
 
     self.app = app
     self.data = data_model
+    self.vizFrame = None
 
     self._InitUI()
   #end __init__
@@ -150,12 +151,16 @@ class SlicerViewTestFrame( wx.Frame ):
     button = wx.Button( self, label = "Initialize 3D Environment" )
     button.Bind( wx.EVT_BUTTON, self._OnInit )
     sizer.AddStretchSpacer()
-    sizer.Add( button, 1, wx.ALL | wx.EXPAND, 10 )
+    sizer.Add( button, 1, wx.ALL | wx.EXPAND, 4 )
     #sizer.AddSpacer( 10 )
 
     button = wx.Button( self, label = "Show 3D Viz" )
     button.Bind( wx.EVT_BUTTON, self._OnShow )
-    sizer.Add( button, 1, wx.ALL | wx.EXPAND, 10 )
+    sizer.Add( button, 1, wx.ALL | wx.EXPAND, 4 )
+
+    button = wx.Button( self, label = "Cycle State Point" )
+    button.Bind( wx.EVT_BUTTON, self._OnCycleStatePoint )
+    sizer.Add( button, 1, wx.ALL | wx.EXPAND, 4 )
     sizer.AddStretchSpacer()
 
 #		-- Window Events
@@ -169,6 +174,38 @@ class SlicerViewTestFrame( wx.Frame ):
     self.SetTitle( 'Slicer3DViewer Test' )
     self.Center()
   #end _InitUI
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SlicerViewTestFrame._OnCloseVizFrame()		-
+  #----------------------------------------------------------------------
+  def _OnCloseVizFrame( self, ev ):
+    ev.Skip()
+    self.vizFrame = None
+  #end _OnCloseVizFrame
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SlicerViewTestFrame._OnCycleStatePoint()	-
+  #----------------------------------------------------------------------
+  def _OnCycleStatePoint( self, ev ):
+    ev.Skip()
+    if self.vizFrame != None:
+      state = self.vizFrame.widgetContainer.state
+      data = State.GetDataModel( state ) if state != None else None
+      if data != None:
+#	ndx = state.stateIndex + 1
+#	if ndx > len( data.GetStates() ):
+#	  ndx = 0
+	ndx = state.stateIndex - 1
+	if ndx < 0:
+	  ndx = len( data.GetStates() ) - 1
+        state.stateIndex = ndx
+	self.vizFrame.widgetContainer.\
+	    HandleStateChange( STATE_CHANGE_stateIndex )
+      #end if data exists
+    #end if vizFrame exists
+  #end _OnCycleStatePoint
 
 
   #----------------------------------------------------------------------
@@ -204,8 +241,9 @@ class SlicerViewTestFrame( wx.Frame ):
           'Class "%s" not found in module "%s"' % ( module_path, class_name )
 	  )
 
-    frame = cls( None, -1, state )
-    frame.Show()
+    self.vizFrame = cls( None, -1, state )
+    self.vizFrame.Bind( wx.EVT_CLOSE, self._OnCloseVizFrame )
+    self.vizFrame.Show()
   #end _OnShow
 
 

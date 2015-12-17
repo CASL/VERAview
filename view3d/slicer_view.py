@@ -4,8 +4,9 @@
 #	HISTORY:							-
 #		2015-12-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, math, os, sys
+import bisect, functools, math, os, sys
 import numpy as np
+import pdb
 
 try:
   import wx
@@ -174,6 +175,14 @@ class Slicer3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView.GetDataModel()			-
+  #----------------------------------------------------------------------
+  def GetDataModel( self ):
+    return  self.data
+  #end GetDataModel
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.GetDataSetType()			-
   #----------------------------------------------------------------------
   def GetDataSetType( self ):
@@ -217,11 +226,17 @@ class Slicer3DView( Widget ):
     """Builds this wxPython component.
 """
 
-#		-- Create components
+#		-- Getting started cheat data
 #		--
-    _data = np.ndarray( ( 20, 20, 20 ), dtype = np.float64 )
+    #self.data = DataModel( '/Users/re7x/study/casl/andrew/L1_ALL_STATES.h5' )
+    #self.pinDataSet = 'pin_powers'
+    #self.stateIndex = 0
+    #_data = self._Create3DMatrix()
+    _data = np.ndarray( ( 26, 17, 17 ), dtype = np.float64 )
     _data.fill( 1.0 )
 
+#		-- Create components
+#		--
     self.viz = VolumeSlicer( data = _data, dataRange = [ 0.0, 5.0 ] )
     self.vizcontrol = \
         self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
@@ -361,6 +376,8 @@ class VolumeSlicer( HasTraits ):
   sceneY = Instance( MlabSceneModel, () )
   sceneZ = Instance( MlabSceneModel, () )
 
+  # accessible as VolumeSlicer.__view_traits__[ 'view' ]
+  # type traitsui.view_elements.ViewElements
   view = View(
       HGroup(
           Group(
@@ -418,9 +435,13 @@ class VolumeSlicer( HasTraits ):
     self.ipw3dY
     self.ipw3dZ
 
-    self.ipwX = None
-    self.ipwY = None
-    self.ipwZ = None
+    #self.ipwX = None
+    #self.ipwY = None
+    #self.ipwZ = None
+
+    #self.outlineX = None
+    #self.outlineY = None
+    #self.outlineZ = None
   #end __init__
 
 
@@ -445,7 +466,7 @@ class VolumeSlicer( HasTraits ):
   #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer._create_side_view()		-
   #----------------------------------------------------------------------
-  def _create_side_view( self, axis ):
+  def _create_side_view( self, axis, pos = None ):
     """
 """
     uaxis = axis.upper()
@@ -455,9 +476,13 @@ class VolumeSlicer( HasTraits ):
 	self.dataSource.mlab_source.dataset,
 	figure = scene.mayavi_scene
         )
+    setattr( self, 'outline%s' % uaxis, outline )
 
+    # added figure
     ipw = mlab.pipeline.image_plane_widget(
-	outline,
+	outline,  #self.dataSource,
+	figure = scene.mayavi_scene,
+	name = 'Side %s' % axis,
 	plane_orientation = '%s_axes' % axis,
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
@@ -478,16 +503,27 @@ class VolumeSlicer( HasTraits ):
           '[move_view] axis=' + axis + ', position=' + str( position )
       for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
 	if cur_axis != axis:
-	  ipw_3d = getattr( self, 'ipw3d%s' % uaxis )
+	  ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
 	  ipw_3d.ipw.slice_position = position[ cur_ndx ]
     #end move_view
 
-    ipw.ipw.add_observer( 'InteractionEvent', move_view )
-    ipw.ipw.add_observer( 'StartInteractionEvent', move_view )
+    #ipw.ipw.add_observer( 'InteractionEvent', move_view )
+    #ipw.ipw.add_observer( 'StartInteractionEvent', move_view )
+    ipw.ipw.add_observer(
+        'InteractionEvent',
+        functools.partial( self._on_view_change, axis )
+        )
+    ipw.ipw.add_observer(
+        'StartInteractionEvent',
+        functools.partial( self._on_view_change, axis )
+        )
 
-    ipw.ipw.slice_position = 0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
+    ipw.ipw.slice_position = \
+        pos if pos != None else \
+        0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
 
-    scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
+    if pos == None:
+      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
 
     scene.scene.background = ( 0, 0, 0 )
     scene.scene.interactor.interactor_style = \
@@ -495,8 +531,56 @@ class VolumeSlicer( HasTraits ):
     if axis == 'x':
       scene.scene.parallel_projection = True
       scene.scene.camera.parallel_scale = \
-          0.4 * np.mean( self.dataSource.scalar_data.shape )
+          0.35 * np.mean( self.dataSource.scalar_data.shape )
+   
+    return  ipw
   #end _create_side_view
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.create_view()			-
+  #----------------------------------------------------------------------
+  def create_view( self ):
+    view = View(
+        HGroup(
+          Group(
+	      Item(
+		  'sceneY',
+		  editor = SceneEditor( scene_class = Scene ),
+		  height = 250, width = 300
+	          ),
+	      Item(
+		  'sceneZ',
+		  editor = SceneEditor( scene_class = Scene ),
+		  height = 250, width = 300
+	          ),
+	      Item(
+		  'sceneX',
+		  editor = SceneEditor( scene_class = Scene ),
+		  height = 250, width = 300
+	          ),
+	      show_labels = False
+	      ),
+          Group(
+	      Item(
+		  'scene3d',
+		  editor = SceneEditor( scene_class = MayaviScene ),
+		  height = 300, width = 300
+	          ),
+	      Item(
+		  'sceneCut',
+		  editor = SceneEditor( scene_class = MayaviScene ),
+		  height = 200, width = 300
+	          ),
+	      show_labels = False
+	      )
+          ),
+        resizable = True,
+        title = 'Volume Slicer'
+        )
+
+    return  view
+  #end create_view
 
 
   #----------------------------------------------------------------------
@@ -550,7 +634,9 @@ class VolumeSlicer( HasTraits ):
 
     self.ipwCut = mlab.pipeline.image_plane_widget(
 	outline,
-	plane_orientation = 'y_axes'
+	plane_orientation = 'y_axes',
+        vmin = self.dataRange[ 0 ],
+        vmax = self.dataRange[ 1 ]
         )
 
     self.sceneCut.scene.background = ( 0, 0, 0 )
@@ -623,6 +709,65 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._on_view_change()                  -
+  #----------------------------------------------------------------------
+  def _on_view_change( self, axis, obj, ev ):
+    position = obj.GetCurrentCursorPosition()
+    #xxx compute pinRowCol or axialIndex
+    print >> sys.stderr, \
+        '[_on_view_change] axis=' + axis + ', position=' + str( position )
+    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
+      if cur_axis != axis:
+        ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
+	ipw_3d.ipw.slice_position = position[ cur_ndx ]
+  #end _on_view_change
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._remove_actors()                   -
+  #----------------------------------------------------------------------
+  def _remove_actors( self, scene, *preserve_list ):
+    """Removes any ImagePlaneWidgets from scene.actor_list
+@param  scene           MlabSceneModel from which to remove actors
+@param  preserve_list   actor type matches for things not to remove
+"""
+    i = len( scene.actor_list ) - 1
+    while i >= 0:
+      type_name = str( type( scene.actor_list[ i ] ) )
+      remove_flag = True
+      for p in preserve_list:
+        if type_name.find( p ) >= 0:
+          remove_flag = False
+          break
+      #end for p
+
+      if remove_flag:
+        scene.remove_actor( scene.actor_list[ i ] )
+        #del scene.actor_list[ i ]
+
+      i -= 1
+    #end while
+  #end _remove_actors
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._remove_ipws()                     -
+  #----------------------------------------------------------------------
+  def _remove_ipws( self, scene ):
+    """Removes any ImagePlaneWidgets from scene.actor_list
+@param  scene           MlabSceneModel from which to remove ImagePlaneWidgets
+"""
+    i = len( scene.actor_list ) - 1
+    while i > 0:
+      type_name = str( type( scene.actor_list[ i ] ) )
+      if type_name.find( 'ImagePlaneWidget' ) >= 0:
+        del scene.actor_list[ i ]
+      i -= 1
+    #end while
+  #end _remove_ipws
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer.SetScalarData()			-
   #----------------------------------------------------------------------
   def SetScalarData( self, data, data_range ):
@@ -632,11 +777,84 @@ class VolumeSlicer( HasTraits ):
     self.dataSource.update()
     self.dataSource.data_changed = True
 
-    for ipw in ( self.ipw3dX, self.ipw3dY, self.ipw3dZ, self.ipwX, self.ipwY, self.ipwZ ):
-      #ipw.set( vmin = data_range[ 0 ], vmax = data_range[ 1 ] )
+#               -- Replace existing 3D image plane widgets
+#               --
+    #xxx save and restore scene3d camera position/view
+    #self._remove_actors( self.scene3d, 'ScalarBarWidget' )
+    self._remove_actors( self.scene3d )
+
+    pdb.set_trace()
+    for axis in self.AXIS_INDEX:
+    #for axis in ( 'x' ):
+      uaxis = axis.upper()
+      ipw = getattr( self, 'ipw%s' % uaxis )
+      pos = ipw.ipw.slice_position
+
+      ipw3d = self._create_3d_ipw( axis )
+      ipw3d.ipw.interaction = 0
+      ipw3d.ipw.slice_position = pos
+      setattr( self, 'ipw3d%s' % uaxis, ipw3d )
+
+#1      self._remove_actors( getattr( self, 'scene%s' % uaxis ) )
+#1      ipw = self._create_side_view( axis, pos )
+      #setattr( self, 'ipw%s' % uaxis, ipw )  done in _create_side_view()
+      ipw.ipw.sync_trait( 'slice_position', ipw3d.ipw )  # ditto
       ipw.module_manager.scalar_lut_manager.data_range = data_range
       ipw.update_data()
+      #nada ipw.module_manager.update()
+      #nada getattr( self, 'outline%s' % uaxis ).update_data()
     #end for
   #end SetScalarData
+
+
+#		-- Static Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.create_view()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def create_view():
+    view = View(
+        HGroup(
+          Group(
+	      Item(
+		  'sceneY',
+		  editor = SceneEditor( scene_class = Scene ),
+		  height = 250, width = 300
+	          ),
+	      Item(
+		  'sceneZ',
+		  editor = SceneEditor( scene_class = Scene ),
+		  height = 250, width = 300
+	          ),
+	      Item(
+		  'sceneX',
+		  editor = SceneEditor( scene_class = Scene ),
+		  height = 250, width = 300
+	          ),
+	      show_labels = False
+	      ),
+          Group(
+	      Item(
+		  'scene3d',
+		  editor = SceneEditor( scene_class = MayaviScene ),
+		  height = 300, width = 300
+	          ),
+	      Item(
+		  'sceneCut',
+		  editor = SceneEditor( scene_class = MayaviScene ),
+		  height = 200, width = 300
+	          ),
+	      show_labels = False
+	      )
+          ),
+        resizable = True,
+        title = 'Volume Slicer'
+        )
+
+    return  view
+  #end create_view
 
 #end VolumeSlicer
