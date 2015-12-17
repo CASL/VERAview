@@ -768,6 +768,138 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._replace_side_view()		-
+  #----------------------------------------------------------------------
+  def _replace_side_view( self, axis, pos = None ):
+    """
+"""
+    uaxis = axis.upper()
+    scene = getattr( self, 'scene%s' % uaxis )
+
+    outline = mlab.pipeline.outline(
+	self.dataSource.mlab_source.dataset,
+	figure = scene.mayavi_scene
+        )
+    setattr( self, 'outline%s' % uaxis, outline )
+
+    # added figure
+    ipw = mlab.pipeline.image_plane_widget(
+	outline,  #self.dataSource,
+	figure = scene.mayavi_scene,
+	name = 'Side %s' % axis,
+	plane_orientation = '%s_axes' % axis,
+	vmin = self.dataRange[ 0 ],
+	vmax = self.dataRange[ 1 ]
+        )
+    setattr( self, 'ipw%s' % uaxis, ipw )
+
+    ipw.ipw.sync_trait(
+        'slice_position',
+	getattr( self, 'ipw3d%s' % uaxis ).ipw
+	)
+    ipw.ipw.left_button_action = 0
+
+    ipw.ipw.add_observer(
+        'InteractionEvent',
+        functools.partial( self._on_view_change, axis )
+        )
+    ipw.ipw.add_observer(
+        'StartInteractionEvent',
+        functools.partial( self._on_view_change, axis )
+        )
+
+    ipw.ipw.slice_position = \
+        pos if pos != None else \
+        0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
+
+    if pos == None:
+      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
+   
+    return  ipw
+  #end _replace_side_view
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._replace_side_view_1()		-
+  #----------------------------------------------------------------------
+  def _replace_side_view_1( self, axis, pos = None ):
+    """
+"""
+    uaxis = axis.upper()
+    scene = getattr( self, 'scene%s' % uaxis )
+    outline = getattr( self, 'outline%s' % uaxis )
+
+    #self._remove_actors( scene )
+#1    mmgr = outline.module_manager
+#1    for i in range( len( mmgr.children ) - 1, -1 , -1 ):
+#1      mmgr.remove_child( mmgr.children[ i ] )
+
+#1    outline = mlab.pipeline.outline(
+#1	self.dataSource.mlab_source.dataset,
+#1	figure = scene.mayavi_scene
+#1        )
+#1    setattr( self, 'outline%s' % uaxis, outline )
+
+    outline.update_data()
+    outline.update_pipeline()
+    outline.data_changed = True
+    outline.pipeline_changed = True
+
+    # added figure
+#1    ipw = mlab.pipeline.image_plane_widget(
+#1	outline,  #self.dataSource,
+#1	figure = scene.mayavi_scene,
+#1	name = 'Side %s' % axis,
+#1	plane_orientation = '%s_axes' % axis,
+#1	vmin = self.dataRange[ 0 ],
+#1	vmax = self.dataRange[ 1 ]
+#1        )
+#1    setattr( self, 'ipw%s' % uaxis, ipw )
+
+#1    ipw.ipw.sync_trait(
+#1        'slice_position',
+#1	getattr( self, 'ipw3d%s' % uaxis ).ipw
+#1	)
+#1    ipw.ipw.left_button_action = 0
+
+#1    ipw.ipw.add_observer(
+#1        'InteractionEvent',
+#1        functools.partial( self._on_view_change, axis )
+#1        )
+#1    ipw.ipw.add_observer(
+#1        'StartInteractionEvent',
+#1        functools.partial( self._on_view_change, axis )
+#1        )
+
+#1    ipw.ipw.slice_position = \
+#1        pos if pos != None else \
+#1        0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
+
+#1    if pos == None:
+#1      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
+
+#1    scene.scene.background = ( 0, 0, 0 )
+#1    scene.scene.interactor.interactor_style = \
+#1        tvtk.InteractorStyleImage()
+#1    if axis == 'x':
+#1      scene.scene.parallel_projection = True
+#1      scene.scene.camera.parallel_scale = \
+#1          0.35 * np.mean( self.dataSource.scalar_data.shape )
+
+    ipw = getattr( self, 'ipw%s' % uaxis )
+    ipw.update_data()
+    ipw.update_pipeline()
+    ipw.data_changed = True
+    ipw.pipeline_changed = True
+    # ipw.parent.parent.scalar_data = self.dataSource.scalar_data  noworky
+
+    outline.module_manager.update()
+   
+    return  ipw
+  #end _replace_side_view_1
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer.SetScalarData()			-
   #----------------------------------------------------------------------
   def SetScalarData( self, data, data_range ):
@@ -776,6 +908,7 @@ class VolumeSlicer( HasTraits ):
     self.dataSource.scalar_data = data
     self.dataSource.update()
     self.dataSource.data_changed = True
+    self.dataSource.update_image_data = True
 
 #               -- Replace existing 3D image plane widgets
 #               --
@@ -798,11 +931,12 @@ class VolumeSlicer( HasTraits ):
 #1      self._remove_actors( getattr( self, 'scene%s' % uaxis ) )
 #1      ipw = self._create_side_view( axis, pos )
       #setattr( self, 'ipw%s' % uaxis, ipw )  done in _create_side_view()
-      ipw.ipw.sync_trait( 'slice_position', ipw3d.ipw )  # ditto
-      ipw.module_manager.scalar_lut_manager.data_range = data_range
-      ipw.update_data()
+#2      ipw.ipw.sync_trait( 'slice_position', ipw3d.ipw )  # ditto
+#2      ipw.module_manager.scalar_lut_manager.data_range = data_range
+#2      ipw.update_data()
       #nada ipw.module_manager.update()
       #nada getattr( self, 'outline%s' % uaxis ).update_data()
+      self._replace_side_view_1( axis, pos )
     #end for
   #end SetScalarData
 
