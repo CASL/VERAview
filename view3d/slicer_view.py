@@ -237,7 +237,7 @@ class Slicer3DView( Widget ):
 
 #		-- Create components
 #		--
-    self.viz = VolumeSlicer( data = _data, dataRange = [ 0.0, 5.0 ] )
+    self.viz = VolumeSlicer( matrix = _data, dataRange = [ 0.0, 5.0 ] )
     self.vizcontrol = \
         self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
 
@@ -363,12 +363,19 @@ class VolumeSlicer( HasTraits ):
 #			-- Must exist for reference to self.dataSource to
 #			-- invoke _dataSource_default()
   dataSource = Instance( Source )
+  dataSourceX = Instance( Source )
+  dataSourceY = Instance( Source )
+  dataSourceZ = Instance( Source )
 
 #			-- Must exist for references to
 #			-- invoke _ipw3d{XYZ}_default()()
   ipw3dX = Instance( PipelineBase )
   ipw3dY = Instance( PipelineBase )
   ipw3dZ = Instance( PipelineBase )
+
+  #ipwX = Instance( PipelineBase )
+  #ipwY = Instance( PipelineBase )
+  #ipwZ = Instance( PipelineBase )
 
   scene3d = Instance( MlabSceneModel, () )
   sceneCut = Instance( MlabSceneModel, () )
@@ -435,9 +442,9 @@ class VolumeSlicer( HasTraits ):
     self.ipw3dY
     self.ipw3dZ
 
-    #self.ipwX = None
-    #self.ipwY = None
-    #self.ipwZ = None
+    #self.ipwX
+    #self.ipwY
+    #self.ipwZ
 
     #self.outlineX = None
     #self.outlineY = None
@@ -446,69 +453,66 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._create_3d_ipw()			-
+  #	METHOD:		VolumeSlicer.create_3d_ipw()			-
   #----------------------------------------------------------------------
-  def _create_3d_ipw( self, axis ):
+  def create_3d_ipw( self, axis ):
     """
 """
     ipw = mlab.pipeline.image_plane_widget(
 	self.dataSource,
 	figure = self.scene3d.mayavi_scene,
-	name = 'Cut %s' % axis,
-	plane_orientation = '%s_axes' % axis,
+	name = 'Cut ' + axis,
+	plane_orientation = axis + '_axes',
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
         )
     return  ipw
-  #end _create_3d_ipw
+  #end create_3d_ipw
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._create_side_view()		-
+  #	METHOD:		VolumeSlicer.create_data_source()		-
   #----------------------------------------------------------------------
-  def _create_side_view( self, axis, pos = None ):
+  def create_data_source( self, uaxis ):
+    """Magically called when self.dataSource first referenced
+"""
+    field = mlab.pipeline.scalar_field(
+        self.matrix,
+	figure = getattr( self, 'scene' + uaxis ).mayavi_scene
+	)
+    return  field
+  #end create_data_source
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.create_side_view()			-
+  #----------------------------------------------------------------------
+  def create_side_view( self, axis, pos = None ):
     """
 """
     uaxis = axis.upper()
-    scene = getattr( self, 'scene%s' % uaxis )
+    scene = getattr( self, 'scene' + uaxis )
+    data_source = getattr( self, 'dataSource' + uaxis )
 
     outline = mlab.pipeline.outline(
-	self.dataSource.mlab_source.dataset,
+	#self.dataSource.mlab_source.dataset,
+	data_source,
 	figure = scene.mayavi_scene
         )
-    setattr( self, 'outline%s' % uaxis, outline )
+    setattr( self, 'outline' + uaxis, outline )
 
     # added figure
     ipw = mlab.pipeline.image_plane_widget(
-	outline,  #self.dataSource,
+	outline,  # self.dataSource.mlab_source.dataset
 	figure = scene.mayavi_scene,
-	name = 'Side %s' % axis,
-	plane_orientation = '%s_axes' % axis,
+	name = 'Side ' + axis,
+	plane_orientation = axis + '_axes',
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
         )
+    setattr( self, 'ipw' + uaxis, ipw )
 
-    setattr( self, 'ipw%s' % uaxis, ipw )
-
-    ipw.ipw.sync_trait(
-        'slice_position',
-	getattr( self, 'ipw3d%s' % uaxis ).ipw
-	)
     ipw.ipw.left_button_action = 0
-
-    def move_view( obj, ev ):
-      position = obj.GetCurrentCursorPosition()
-      #xxx compute pinRowCol or axialIndex
-      print >> sys.stderr, \
-          '[move_view] axis=' + axis + ', position=' + str( position )
-      for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
-	if cur_axis != axis:
-	  ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
-	  ipw_3d.ipw.slice_position = position[ cur_ndx ]
-    #end move_view
-
-    #ipw.ipw.add_observer( 'InteractionEvent', move_view )
-    #ipw.ipw.add_observer( 'StartInteractionEvent', move_view )
     ipw.ipw.add_observer(
         'InteractionEvent',
         functools.partial( self._on_view_change, axis )
@@ -520,21 +524,21 @@ class VolumeSlicer( HasTraits ):
 
     ipw.ipw.slice_position = \
         pos if pos != None else \
-        0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
+        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
 
-    if pos == None:
-      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
+    ipw.ipw.sync_trait(
+        'slice_position',
+	getattr( self, 'ipw3d' + uaxis ).ipw
+	)
 
-    scene.scene.background = ( 0, 0, 0 )
-    scene.scene.interactor.interactor_style = \
-        tvtk.InteractorStyleImage()
     if axis == 'x':
       scene.scene.parallel_projection = True
       scene.scene.camera.parallel_scale = \
-          0.35 * np.mean( self.dataSource.scalar_data.shape )
+          0.5 * np.mean( data_source.scalar_data.shape )
+          #0.35 * np.mean( self.dataSource.scalar_data.shape )
    
     return  ipw
-  #end _create_side_view
+  #end create_side_view
 
 
   #----------------------------------------------------------------------
@@ -589,12 +593,43 @@ class VolumeSlicer( HasTraits ):
   def _dataSource_default( self ):
     """Magically called when self.dataSource first referenced
 """
-    field = mlab.pipeline.scalar_field(
-        self.data,
-	figure = self.scene3d.mayavi_scene
-	)
-    return  field
+#    field = mlab.pipeline.scalar_field(
+#        self.matrix,
+#	figure = self.scene3d.mayavi_scene
+#	)
+#    return  field
+    return  self.create_data_source( '3d' )
   #end _dataSource_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._dataSourceX_default()		-
+  #----------------------------------------------------------------------
+  def _dataSourceX_default( self ):
+    """Magically called when self.dataSource first referenced
+"""
+    return  self.create_data_source( 'X' )
+  #end _dataSourceX_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._dataSourceY_default()		-
+  #----------------------------------------------------------------------
+  def _dataSourceY_default( self ):
+    """Magically called when self.dataSource first referenced
+"""
+    return  self.create_data_source( 'Y' )
+  #end _dataSourceY_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._dataSourceZ_default()		-
+  #----------------------------------------------------------------------
+  def _dataSourceZ_default( self ):
+    """Magically called when self.dataSource first referenced
+"""
+    return  self.create_data_source( 'Z' )
+  #end _dataSourceZ_default
 
 
   #----------------------------------------------------------------------
@@ -652,7 +687,8 @@ class VolumeSlicer( HasTraits ):
   def display_sceneX( self ):
     """
 """
-    return  self._create_side_view( 'x' )
+    return  self.display_side_view( 'x' )
+    #return  self.create_side_view( 'x' )
   #end display_sceneX
 
 
@@ -663,7 +699,8 @@ class VolumeSlicer( HasTraits ):
   def display_sceneY( self ):
     """
 """
-    return  self._create_side_view( 'y' )
+    return  self.display_side_view( 'y' )
+    #return  self.create_side_view( 'y' )
   #end display_sceneY
 
 
@@ -674,8 +711,55 @@ class VolumeSlicer( HasTraits ):
   def display_sceneZ( self ):
     """
 """
-    return  self._create_side_view( 'z' )
+    return  self.display_side_view( 'z' )
+    #return  self.create_side_view( 'z' )
   #end display_sceneZ
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.display_side_view()		-
+  #----------------------------------------------------------------------
+  def display_side_view( self, axis ):
+    """
+"""
+    self.create_side_view( axis )
+    uaxis = axis.upper()
+    scene = getattr( self, 'scene' + uaxis )
+    #outline = getattr( self, 'outline' + uaxis )
+    ipw = getattr( self, 'ipw' + uaxis )
+
+#    ipw.ipw.left_button_action = 0
+#    ipw.ipw.add_observer(
+#        'InteractionEvent',
+#        functools.partial( self._on_view_change, axis )
+#        )
+#    ipw.ipw.add_observer(
+#        'StartInteractionEvent',
+#        functools.partial( self._on_view_change, axis )
+#        )
+#
+#    ipw.ipw.slice_position = \
+#        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
+#        #pos if pos != None else \
+#
+#    ipw.ipw.sync_trait(
+#        'slice_position',
+#	getattr( self, 'ipw3d' + uaxis ).ipw
+#	)
+
+    scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
+
+    scene.scene.background = ( 0, 0, 0 )
+    scene.scene.interactor.interactor_style = \
+        tvtk.InteractorStyleImage()
+#    if axis == 'x':
+#      scene.scene.parallel_projection = True
+#      scene.scene.camera.parallel_scale = \
+#          0.5 * np.mean( self.dataSourceX.scalar_data.shape )
+#          #0.35 * np.mean( self.dataSource.scalar_data.shape )
+   
+    return  ipw
+  #end display_side_view
 
 
   #----------------------------------------------------------------------
@@ -684,7 +768,7 @@ class VolumeSlicer( HasTraits ):
   def _ipw3dX_default( self ):
     """Magically called when self.ipw3dX first referenced
 """
-    return  self._create_3d_ipw( 'x' )
+    return  self.create_3d_ipw( 'x' )
   #end _ipw3dX_default
 
 
@@ -694,7 +778,7 @@ class VolumeSlicer( HasTraits ):
   def _ipw3dY_default( self ):
     """Magically called when self.ipw3dY first referenced
 """
-    return  self._create_3d_ipw( 'y' )
+    return  self.create_3d_ipw( 'y' )
   #end _ipw3dY_default
 
 
@@ -704,8 +788,38 @@ class VolumeSlicer( HasTraits ):
   def _ipw3dZ_default( self ):
     """Magically called when self.ipw3dZ first referenced
 """
-    return  self._create_3d_ipw( 'z' )
+    return  self.create_3d_ipw( 'z' )
   #end _ipw3dZ_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._ipwX_default()			-
+  #----------------------------------------------------------------------
+  def _ipwX_default( self ):
+    """Magically called when self.ipwX first referenced
+"""
+    return  self.create_side_view( 'x' )
+  #end _ipwX_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._ipwY_default()			-
+  #----------------------------------------------------------------------
+  def _ipwY_default( self ):
+    """Magically called when self.ipwY first referenced
+"""
+    return  self.create_side_view( 'y' )
+  #end _ipwY_default
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._ipwZ_default()			-
+  #----------------------------------------------------------------------
+  def _ipwZ_default( self ):
+    """Magically called when self.ipwZ first referenced
+"""
+    return  self.create_side_view( 'z' )
+  #end _ipwZ_default
 
 
   #----------------------------------------------------------------------
@@ -810,7 +924,7 @@ class VolumeSlicer( HasTraits ):
 
     ipw.ipw.slice_position = \
         pos if pos != None else \
-        0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
+        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
 
     if pos == None:
       scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
@@ -873,7 +987,7 @@ class VolumeSlicer( HasTraits ):
 
 #1    ipw.ipw.slice_position = \
 #1        pos if pos != None else \
-#1        0.5 * self.data.shape[ self.AXIS_INDEX[ axis ] ]
+#1        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
 
 #1    if pos == None:
 #1      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
@@ -893,7 +1007,7 @@ class VolumeSlicer( HasTraits ):
     ipw.pipeline_changed = True
     # ipw.parent.parent.scalar_data = self.dataSource.scalar_data  noworky
 
-    outline.module_manager.update()
+    scene.mlab.show()
    
     return  ipw
   #end _replace_side_view_1
@@ -902,13 +1016,19 @@ class VolumeSlicer( HasTraits ):
   #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer.SetScalarData()			-
   #----------------------------------------------------------------------
-  def SetScalarData( self, data, data_range ):
+  def SetScalarData( self, matrix, data_range ):
     self.dataRange = data_range
 
-    self.dataSource.scalar_data = data
-    self.dataSource.update()
-    self.dataSource.data_changed = True
-    self.dataSource.update_image_data = True
+    #self.dataSource.scalar_data = matrix
+    #self.dataSource.update()
+    #self.dataSource.data_changed = True
+    #self.dataSource.update_image_data = True
+
+    for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceY ):
+      d.scalar_data = matrix
+      d.update()
+      d.data_changed = True
+      d.update_image_data = True
 
 #               -- Replace existing 3D image plane widgets
 #               --
@@ -916,27 +1036,27 @@ class VolumeSlicer( HasTraits ):
     #self._remove_actors( self.scene3d, 'ScalarBarWidget' )
     self._remove_actors( self.scene3d )
 
-    pdb.set_trace()
+    #pdb.set_trace()
     for axis in self.AXIS_INDEX:
-    #for axis in ( 'x' ):
       uaxis = axis.upper()
-      ipw = getattr( self, 'ipw%s' % uaxis )
+      ipw = getattr( self, 'ipw' + uaxis )
       pos = ipw.ipw.slice_position
 
-      ipw3d = self._create_3d_ipw( axis )
+      ipw3d = self.create_3d_ipw( axis )
       ipw3d.ipw.interaction = 0
       ipw3d.ipw.slice_position = pos
-      setattr( self, 'ipw3d%s' % uaxis, ipw3d )
+      setattr( self, 'ipw3d' + uaxis, ipw3d )
 
-#1      self._remove_actors( getattr( self, 'scene%s' % uaxis ) )
-#1      ipw = self._create_side_view( axis, pos )
-      #setattr( self, 'ipw%s' % uaxis, ipw )  done in _create_side_view()
+      self._remove_actors( getattr( self, 'scene' + uaxis ) )
+      ipw = self.create_side_view( axis, pos )
+
+      #setattr( self, 'ipw%s' % uaxis, ipw )  done in create_side_view()
 #2      ipw.ipw.sync_trait( 'slice_position', ipw3d.ipw )  # ditto
 #2      ipw.module_manager.scalar_lut_manager.data_range = data_range
 #2      ipw.update_data()
       #nada ipw.module_manager.update()
       #nada getattr( self, 'outline%s' % uaxis ).update_data()
-      self._replace_side_view_1( axis, pos )
+#3      self._replace_side_view_1( axis, pos )
     #end for
   #end SetScalarData
 
