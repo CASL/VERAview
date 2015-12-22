@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2015-12-22	leerw@ornl.gov				-
+#	  Using Legend2 for a continuous legend.
 #		2015-11-18	leerw@ornl.gov				-
 #	  Added GetAllow4DDataSets().
 #		2015-08-31	leerw@ornl.gov				-
@@ -40,6 +42,7 @@ except Exception:
 
 from event.state import *
 from legend import *
+from legend2 import *
 
 
 BMAP_NAME_green = 'led_green_16x16'
@@ -230,6 +233,18 @@ Must be called from the UI thread.
     """For now this is linear only.
 @param  value_range	( min, max )
 """
+    legend = Legend2( Widget.GetColorTuple, value_range, 10, font_size )
+    return  legend.image
+  #end _CreateLegendPilImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateLegendPilImage_0()			-
+  #----------------------------------------------------------------------
+  def _CreateLegendPilImage_0( self, value_range, font_size = 16 ):
+    """For now this is linear only.
+@param  value_range	( min, max )
+"""
     count = 10
     value_delta = value_range[ 1 ] - value_range[ 0 ]
     value_incr = value_delta / count
@@ -238,17 +253,20 @@ Must be called from the UI thread.
     values = []
 
     cur_value = value_range[ 1 ]
+    values.append( cur_value )
     for i in range( count ):
+      cur_value -= value_incr
+
       values.append( cur_value )
       colors.append(
           Widget.GetColorTuple( cur_value - value_range[ 0 ], value_delta, 255 )
 	  )
-      cur_value -= value_incr
+#      cur_value -= value_incr
     #end for
 
     legend = Legend( values, colors, font_size )
     return  legend.image
-  #end _CreateLegendPilImage
+  #end _CreateLegendPilImage_0
 
 
   #----------------------------------------------------------------------
