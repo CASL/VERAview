@@ -112,25 +112,37 @@ class Legend2( object ):
 	fill = None, outline = pen_color
         )
 
-#		-- Draw contour values and lines
+#		-- Pre-step, format values
 #		--
+    labels = []
     cur_value = value_range[ 1 ]
     cur_value_incr = value_delta / value_count
-    tick_y = y
     for i in range( value_count ):
+      labels.append( DataUtils.FormatFloat1( cur_value ) )
+      cur_value -= cur_value_incr
+
+    DataUtils.NormalizeValueLabels( labels )
+
+#		-- Draw contour values and lines
+#		--
+    #cur_value = value_range[ 1 ]
+    #cur_value_incr = value_delta / value_count
+    tick_y = y
+    #for i in range( value_count ):
+    for label_str in labels:
       im_draw.line(
           [ x - text_gap, tick_y, x, tick_y ],
 	  fill = pen_color, width = 1
 	  )
 
-      label_str = DataUtils.FormatFloat1( cur_value )
+      #label_str = DataUtils.FormatFloat1( cur_value )
       label_size = font.getsize( label_str )
       im_draw.text(
           ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
 	  label_str, fill = pen_color, font = font
           )
 
-      cur_value -= cur_value_incr
+      #cur_value -= cur_value_incr
       y += block_size
       tick_y += block_size
     #end for blocks
