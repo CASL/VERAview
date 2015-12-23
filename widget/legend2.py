@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		legend.py					-
+#	NAME:		legend2.py					-
 #	HISTORY:							-
 #		2015-12-22	leerw@ornl.gov				-
-#	  Showing max and min values.
+#	  A continuous legend display as per Shane Stimpson's request.
 #		2015-12-03	leerw@ornl.gov				-
 #	  Allowing for negative numbers in the legend.
 #		2014-12-18	leerw@ornl.gov				-
@@ -32,9 +32,9 @@ from data.utils import DataUtils
 
 
 #------------------------------------------------------------------------
-#	CLASS:		Legend						-
+#	CLASS:		Legend2						-
 #------------------------------------------------------------------------
-class Legend( object ):
+class Legend2( object ):
   """Legend PIL image generator
 """
 
@@ -46,32 +46,27 @@ class Legend( object ):
   #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
-  def __init__( self, values, colors, font_size = 16 ):
-    self.image = self._CreateImage( values, colors, font_size )
+  def __init__( self, get_color, value_range, value_count, font_size = 16 ):
+    self.image = \
+        self._CreateImage( get_color, value_range, value_count, font_size )
   #end __init__
 
 
   #----------------------------------------------------------------------
   #	METHOD:		_CreateImage()					-
   #----------------------------------------------------------------------
-  def _CreateImage( self, values, colors, font_size ):
+  def _CreateImage( self, get_color, value_range, value_count, font_size ):
     """Generate the PIL image.
-@param  values		list of values in descending order, the first being
-			the max value, and the last being the min value,
-			preferably having a length of one more than 'colors'
-@param  colors		list of ( red, green, blue, alpha ) tuples, one
-			per contour value
+@param  get_color	function( value, max_value, alpha )
+@param  value_range	value range ( min, max )
+@param  value_count	number of values to display on bar, max to min
+@param  font_size	size of font for drawing
 @return			PIL.Image instance
 """
-    print >> sys.stderr, '[Legend._CreateImage] enter'
+    print >> sys.stderr, '[Legend2._CreateImage] enter'
 
-#		-- Assert on list lengths
-#		--
-#    if len( values ) != len( colors ) + 1:
-#      raise Exception( 'Mismatch between legend values and colors' )
+    value_count = max( 2, value_count )
 
-#		-- One more value than color
-#		--
     border = 2
     text_gap = 8  # line drawn from text to color block
     pen_color = ( 0, 0, 0, 255 )
@@ -83,10 +78,11 @@ class Legend( object ):
 	font_size
 	)
     text_size = font.getsize( ' -9.99e+99' )
-    block_size = text_size[ 1 ] + (text_size[ 1 ] >> 1)
+    #block_size = text_size[ 1 ] + (text_size[ 1 ] >> 1)
+    block_size = text_size[ 1 ] << 1
     im_wd = (border << 1) + text_size[ 0 ] + text_gap + block_size
-    #im_ht = (border << 1) + (block_size * len( colors ))
-    im_ht = (border << 1) + (block_size * len( colors )) + text_size[ 1 ]
+    color_band_ht = block_size * (value_count - 1)
+    im_ht = (border << 1) + color_band_ht + text_size[ 1 ]
 
     pil_im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
     im_draw = PIL.ImageDraw.Draw( pil_im )
@@ -96,33 +92,57 @@ class Legend( object ):
     #y = border
     #tick_y = y + (block_size >> 1)
     y = border + (text_size[ 1 ] >> 1)
-    tick_y = y
 
-#		-- Draw contour blocks and values
+#		-- Draw color band
 #		--
-    #for i in range( min( len( colors ), len( values ) - 1 ) ):
-    for i in range( len( colors ) ):
-      color = colors[ i ]
-      #value = values[ i ]
-
+    value_delta = value_range[ 1 ] - value_range[ 0 ]
+    cur_value_incr = value_delta / color_band_ht
+    cur_value = value_range[ 1 ]
+    for j in range( color_band_ht ):
+      color = get_color( cur_value - value_range[ 0 ], value_delta, 255 )
       im_draw.rectangle(
-	  [ x, y, x + block_size, y + block_size ],
-	  fill = color, outline = pen_color
+	  [ x, y + j, x + block_size, y + j ],
+	  fill = color, outline = color
           )
+      cur_value -= cur_value_incr
+    #end for
+
+    im_draw.rectangle(
+	[ x, y, x + block_size, y + color_band_ht ],
+	fill = None, outline = pen_color
+        )
+
+#		-- Pre-step, format values
+#		--
+    labels = []
+    cur_value = value_range[ 1 ]
+    cur_value_incr = value_delta / value_count
+    for i in range( value_count ):
+      labels.append( DataUtils.FormatFloat1( cur_value ) )
+      cur_value -= cur_value_incr
+
+    DataUtils.NormalizeValueLabels( labels )
+
+#		-- Draw contour values and lines
+#		--
+    #cur_value = value_range[ 1 ]
+    #cur_value_incr = value_delta / value_count
+    tick_y = y
+    #for i in range( value_count ):
+    for label_str in labels:
       im_draw.line(
           [ x - text_gap, tick_y, x, tick_y ],
 	  fill = pen_color, width = 1
 	  )
 
-      if i < len( values ):
-        label_str = DataUtils.FormatFloat1( values[ i ] )
-        label_size = font.getsize( label_str )
-        im_draw.text(
-	    ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
-	    label_str, fill = pen_color, font = font
-            )
-      #end if
+      #label_str = DataUtils.FormatFloat1( cur_value )
+      label_size = font.getsize( label_str )
+      im_draw.text(
+          ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
+	  label_str, fill = pen_color, font = font
+          )
 
+      #cur_value -= cur_value_incr
       y += block_size
       tick_y += block_size
     #end for blocks
@@ -133,17 +153,15 @@ class Legend( object ):
         [ x - text_gap, tick_y, x, tick_y ],
 	fill = pen_color, width = 1
 	)
-    if len( values ) > len( colors ):
-      label_str = DataUtils.FormatFloat1( values[ len( colors ) ] )
-      label_size = font.getsize( label_str )
-      im_draw.text(
-	    ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
-	    label_str, fill = pen_color, font = font
-            )
-    #end if
+    label_str = DataUtils.FormatFloat1( value_range[ 0 ] )
+    label_size = font.getsize( label_str )
+    im_draw.text(
+        ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
+	label_str, fill = pen_color, font = font
+        )
 
     del  im_draw
-    print >> sys.stderr, '[Legend._CreateImage] exit'
+    print >> sys.stderr, '[Legend2._CreateImage] exit'
 
     return  pil_im
   #end _CreateImage
@@ -196,25 +214,6 @@ class Legend( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DeriveBaseFactor()				-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def DeriveBaseFactor( min_value, max_value, count ):
-    base_exp = math.floor( math.log( max_value ) / math.log( 10 ) )
-    base = math.pow( 10, base_exp )
-    factor = max_value / base
-    factor_tenth = int( 10.0 * factor ) % 10
-    if factor_tenth > 7:
-      base_factor = math.ceil( max_value / base )
-    elif factor_tenth > 3:
-      base_factor = math.floor( max_value / base ) + 0.5
-    else:
-      base_factor = math.floor( max_value / base )
-    return  base_factor * base
-  #end DeriveBaseFactor
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		main()						-
   #----------------------------------------------------------------------
   @staticmethod
@@ -246,8 +245,8 @@ class Legend( object ):
       #end while
   #end main
 
-#end Legend
+#end Legend2
 
 
 if __name__ == '__main__':
-  Legend.main()
+  Legend2.main()
