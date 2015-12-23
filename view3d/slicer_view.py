@@ -515,11 +515,11 @@ class VolumeSlicer( HasTraits ):
     ipw.ipw.left_button_action = 0
     ipw.ipw.add_observer(
         'InteractionEvent',
-        functools.partial( self._on_view_change, axis )
+        functools.partial( self.on_view_change, axis )
         )
     ipw.ipw.add_observer(
         'StartInteractionEvent',
-        functools.partial( self._on_view_change, axis )
+        functools.partial( self.on_view_change, axis )
         )
 
     ipw.ipw.slice_position = \
@@ -731,11 +731,11 @@ class VolumeSlicer( HasTraits ):
 #    ipw.ipw.left_button_action = 0
 #    ipw.ipw.add_observer(
 #        'InteractionEvent',
-#        functools.partial( self._on_view_change, axis )
+#        functools.partial( self.on_view_change, axis )
 #        )
 #    ipw.ipw.add_observer(
 #        'StartInteractionEvent',
-#        functools.partial( self._on_view_change, axis )
+#        functools.partial( self.on_view_change, axis )
 #        )
 #
 #    ipw.ipw.slice_position = \
@@ -823,24 +823,24 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._on_view_change()                  -
+  #	METHOD:		VolumeSlicer.on_view_change()			-
   #----------------------------------------------------------------------
-  def _on_view_change( self, axis, obj, ev ):
+  def on_view_change( self, axis, obj, ev ):
     position = obj.GetCurrentCursorPosition()
     #xxx compute pinRowCol or axialIndex
     print >> sys.stderr, \
-        '[_on_view_change] axis=' + axis + ', position=' + str( position )
+        '[on_view_change] axis=' + axis + ', position=' + str( position )
     for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
       if cur_axis != axis:
         ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
 	ipw_3d.ipw.slice_position = position[ cur_ndx ]
-  #end _on_view_change
+  #end on_view_change
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._remove_actors()                   -
+  #	METHOD:		VolumeSlicer.remove_actors()			-
   #----------------------------------------------------------------------
-  def _remove_actors( self, scene, *preserve_list ):
+  def remove_actors( self, scene, *preserve_list ):
     """Removes any ImagePlaneWidgets from scene.actor_list
 @param  scene           MlabSceneModel from which to remove actors
 @param  preserve_list   actor type matches for things not to remove
@@ -861,13 +861,13 @@ class VolumeSlicer( HasTraits ):
 
       i -= 1
     #end while
-  #end _remove_actors
+  #end remove_actors
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._remove_ipws()                     -
+  #	METHOD:		VolumeSlicer.remove_ipws()                      -
   #----------------------------------------------------------------------
-  def _remove_ipws( self, scene ):
+  def remove_ipws( self, scene ):
     """Removes any ImagePlaneWidgets from scene.actor_list
 @param  scene           MlabSceneModel from which to remove ImagePlaneWidgets
 """
@@ -878,13 +878,13 @@ class VolumeSlicer( HasTraits ):
         del scene.actor_list[ i ]
       i -= 1
     #end while
-  #end _remove_ipws
+  #end remove_ipws
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._replace_side_view()		-
+  #	METHOD:		VolumeSlicer.replace_side_view()		-
   #----------------------------------------------------------------------
-  def _replace_side_view( self, axis, pos = None ):
+  def replace_side_view( self, axis, pos = None ):
     """
 """
     uaxis = axis.upper()
@@ -915,11 +915,11 @@ class VolumeSlicer( HasTraits ):
 
     ipw.ipw.add_observer(
         'InteractionEvent',
-        functools.partial( self._on_view_change, axis )
+        functools.partial( self.on_view_change, axis )
         )
     ipw.ipw.add_observer(
         'StartInteractionEvent',
-        functools.partial( self._on_view_change, axis )
+        functools.partial( self.on_view_change, axis )
         )
 
     ipw.ipw.slice_position = \
@@ -930,20 +930,20 @@ class VolumeSlicer( HasTraits ):
       scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
    
     return  ipw
-  #end _replace_side_view
+  #end replace_side_view
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._replace_side_view_1()		-
+  #	METHOD:		VolumeSlicer.replace_side_view_1()		-
   #----------------------------------------------------------------------
-  def _replace_side_view_1( self, axis, pos = None ):
+  def replace_side_view_1( self, axis, pos = None ):
     """
 """
     uaxis = axis.upper()
     scene = getattr( self, 'scene%s' % uaxis )
     outline = getattr( self, 'outline%s' % uaxis )
 
-    #self._remove_actors( scene )
+    #self.remove_actors( scene )
 #1    mmgr = outline.module_manager
 #1    for i in range( len( mmgr.children ) - 1, -1 , -1 ):
 #1      mmgr.remove_child( mmgr.children[ i ] )
@@ -978,11 +978,11 @@ class VolumeSlicer( HasTraits ):
 
 #1    ipw.ipw.add_observer(
 #1        'InteractionEvent',
-#1        functools.partial( self._on_view_change, axis )
+#1        functools.partial( self.on_view_change, axis )
 #1        )
 #1    ipw.ipw.add_observer(
 #1        'StartInteractionEvent',
-#1        functools.partial( self._on_view_change, axis )
+#1        functools.partial( self.on_view_change, axis )
 #1        )
 
 #1    ipw.ipw.slice_position = \
@@ -1010,7 +1010,7 @@ class VolumeSlicer( HasTraits ):
     scene.mlab.show()
    
     return  ipw
-  #end _replace_side_view_1
+  #end replace_side_view_1
 
 
   #----------------------------------------------------------------------
@@ -1033,8 +1033,8 @@ class VolumeSlicer( HasTraits ):
 #               -- Replace existing 3D image plane widgets
 #               --
     #xxx save and restore scene3d camera position/view
-    #self._remove_actors( self.scene3d, 'ScalarBarWidget' )
-    self._remove_actors( self.scene3d )
+    #self.remove_actors( self.scene3d, 'ScalarBarWidget' )
+    self.remove_actors( self.scene3d )
 
     #pdb.set_trace()
     for axis in self.AXIS_INDEX:
@@ -1047,7 +1047,7 @@ class VolumeSlicer( HasTraits ):
       ipw3d.ipw.slice_position = pos
       setattr( self, 'ipw3d' + uaxis, ipw3d )
 
-      self._remove_actors( getattr( self, 'scene' + uaxis ) )
+      self.remove_actors( getattr( self, 'scene' + uaxis ) )
       ipw = self.create_side_view( axis, pos )
 
       #setattr( self, 'ipw%s' % uaxis, ipw )  done in create_side_view()
@@ -1056,59 +1056,12 @@ class VolumeSlicer( HasTraits ):
 #2      ipw.update_data()
       #nada ipw.module_manager.update()
       #nada getattr( self, 'outline%s' % uaxis ).update_data()
-#3      self._replace_side_view_1( axis, pos )
+#3      self.replace_side_view_1( axis, pos )
     #end for
   #end SetScalarData
 
 
 #		-- Static Methods
 #		--
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.create_view()			-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def create_view():
-    view = View(
-        HGroup(
-          Group(
-	      Item(
-		  'sceneY',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      Item(
-		  'sceneZ',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      Item(
-		  'sceneX',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      show_labels = False
-	      ),
-          Group(
-	      Item(
-		  'scene3d',
-		  editor = SceneEditor( scene_class = MayaviScene ),
-		  height = 300, width = 300
-	          ),
-	      Item(
-		  'sceneCut',
-		  editor = SceneEditor( scene_class = MayaviScene ),
-		  height = 200, width = 300
-	          ),
-	      show_labels = False
-	      )
-          ),
-        resizable = True,
-        title = 'Volume Slicer'
-        )
-
-    return  view
-  #end create_view
 
 #end VolumeSlicer

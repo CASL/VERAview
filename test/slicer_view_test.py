@@ -213,7 +213,20 @@ class SlicerViewTestFrame( wx.Frame ):
   #----------------------------------------------------------------------
   def _OnInit( self, ev ):
     ev.Skip()
-    Environment3D.Load()
+
+    def feedback( loaded, errors ):
+      msg = 'Loaded' if loaded else 'Not Loaded'
+      if errors != None and len( errors ) > 0:
+        msg += ':' + os.linesep.join( errors )
+      wx.MessageBox(
+	  msg, 'Load',
+	  wx.OK_DEFAULT
+          )
+      #print >> sys.stderr, '** ' + msg
+    #end feedback
+
+    #Environment3D.LoadAndCall( feedback )
+    Environment3D.LoadAndCall( feedback )
   #end _OnInit
 
 
@@ -223,6 +236,25 @@ class SlicerViewTestFrame( wx.Frame ):
   def _OnShow( self, ev ):
     ev.Skip()
 
+    def check_and_show( loaded, errors ):
+      if errors != None and len( errors ) > 0:
+        msg = \
+	    'Error loading 3D environment:' + os.linesep + \
+	    os.linesep.join( errors )
+        wx.MessageBox( msg, 'Load', wx.ICON_ERROR | wx.OK_DEFAULT )
+
+      elif loaded:
+        self._OnShowImpl()
+    #end check_and_show
+
+    Environment3D.LoadAndCall( check_and_show )
+  #end _OnShow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SlicerViewTestFrame._OnShowImpl()		-
+  #----------------------------------------------------------------------
+  def _OnShowImpl( self ):
     state = State()
     state.Load( self.data )
 
@@ -244,7 +276,7 @@ class SlicerViewTestFrame( wx.Frame ):
     self.vizFrame = cls( None, -1, state )
     self.vizFrame.Bind( wx.EVT_CLOSE, self._OnCloseVizFrame )
     self.vizFrame.Show()
-  #end _OnShow
+  #end _OnShowImpl
 
 
   #----------------------------------------------------------------------

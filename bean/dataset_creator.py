@@ -151,7 +151,7 @@ Must be called in the UI thread.
         msg = \
 	    'Averages not calculated:' + os.linesep + \
 	    os.linesep.join( messages )
-        wx.MessageBox( msg, 'Calculating Averages', wx.OK_DEFAULT )
+        wx.MessageBox( msg, 'Calculating Averages', wx.ICON_ERROR | wx.OK_DEFAULT )
         #wx.MessageDialog( self, msg, 'Calculating Averages' ).ShowWindowModal()
       #end if
     #end if
