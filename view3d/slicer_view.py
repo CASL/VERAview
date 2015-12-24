@@ -115,6 +115,10 @@ class Slicer3DView( Widget ):
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_value = dset.value
 
+      print >> sys.stderr, \
+          '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
+	  ( os.linesep, self.pinDataSet, self.stateIndex, os.linesep )
+
       # left, top, right + 1, bottom + 1, dx, dy
       assy_range = self.data.ExtractSymmetryExtent()
 
@@ -522,6 +526,7 @@ class VolumeSlicer( HasTraits ):
         functools.partial( self.on_view_change, axis )
         )
 
+    print >> sys.stderr, '[create_side_view] uaxis=%s, pos=%s' % ( uaxis, pos )
     ipw.ipw.slice_position = \
         pos if pos != None else \
         0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
@@ -536,6 +541,8 @@ class VolumeSlicer( HasTraits ):
       scene.scene.camera.parallel_scale = \
           0.5 * np.mean( data_source.scalar_data.shape )
           #0.35 * np.mean( self.dataSource.scalar_data.shape )
+      print >> sys.stderr, '[create_side_view] xaxis scale=%f' % \
+          scene.scene.camera.parallel_scale
    
     return  ipw
   #end create_side_view
@@ -722,41 +729,17 @@ class VolumeSlicer( HasTraits ):
   def display_side_view( self, axis ):
     """
 """
-    self.create_side_view( axis )
+    ipw = self.create_side_view( axis )
     uaxis = axis.upper()
     scene = getattr( self, 'scene' + uaxis )
     #outline = getattr( self, 'outline' + uaxis )
-    ipw = getattr( self, 'ipw' + uaxis )
-
-#    ipw.ipw.left_button_action = 0
-#    ipw.ipw.add_observer(
-#        'InteractionEvent',
-#        functools.partial( self.on_view_change, axis )
-#        )
-#    ipw.ipw.add_observer(
-#        'StartInteractionEvent',
-#        functools.partial( self.on_view_change, axis )
-#        )
-#
-#    ipw.ipw.slice_position = \
-#        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
-#        #pos if pos != None else \
-#
-#    ipw.ipw.sync_trait(
-#        'slice_position',
-#	getattr( self, 'ipw3d' + uaxis ).ipw
-#	)
+    #ipw = getattr( self, 'ipw' + uaxis )
 
     scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
 
     scene.scene.background = ( 0, 0, 0 )
     scene.scene.interactor.interactor_style = \
         tvtk.InteractorStyleImage()
-#    if axis == 'x':
-#      scene.scene.parallel_projection = True
-#      scene.scene.camera.parallel_scale = \
-#          0.5 * np.mean( self.dataSourceX.scalar_data.shape )
-#          #0.35 * np.mean( self.dataSource.scalar_data.shape )
    
     return  ipw
   #end display_side_view
@@ -845,6 +828,7 @@ class VolumeSlicer( HasTraits ):
 @param  scene           MlabSceneModel from which to remove actors
 @param  preserve_list   actor type matches for things not to remove
 """
+    removed_flag = False
     i = len( scene.actor_list ) - 1
     while i >= 0:
       type_name = str( type( scene.actor_list[ i ] ) )
@@ -857,10 +841,13 @@ class VolumeSlicer( HasTraits ):
 
       if remove_flag:
         scene.remove_actor( scene.actor_list[ i ] )
-        #del scene.actor_list[ i ]
+	removed_flag = True
 
       i -= 1
     #end while
+
+    if remove_flag:
+      scene.actor_removed = True
   #end remove_actors
 
 
@@ -882,147 +869,10 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.replace_side_view()		-
-  #----------------------------------------------------------------------
-  def replace_side_view( self, axis, pos = None ):
-    """
-"""
-    uaxis = axis.upper()
-    scene = getattr( self, 'scene%s' % uaxis )
-
-    outline = mlab.pipeline.outline(
-	self.dataSource.mlab_source.dataset,
-	figure = scene.mayavi_scene
-        )
-    setattr( self, 'outline%s' % uaxis, outline )
-
-    # added figure
-    ipw = mlab.pipeline.image_plane_widget(
-	outline,  #self.dataSource,
-	figure = scene.mayavi_scene,
-	name = 'Side %s' % axis,
-	plane_orientation = '%s_axes' % axis,
-	vmin = self.dataRange[ 0 ],
-	vmax = self.dataRange[ 1 ]
-        )
-    setattr( self, 'ipw%s' % uaxis, ipw )
-
-    ipw.ipw.sync_trait(
-        'slice_position',
-	getattr( self, 'ipw3d%s' % uaxis ).ipw
-	)
-    ipw.ipw.left_button_action = 0
-
-    ipw.ipw.add_observer(
-        'InteractionEvent',
-        functools.partial( self.on_view_change, axis )
-        )
-    ipw.ipw.add_observer(
-        'StartInteractionEvent',
-        functools.partial( self.on_view_change, axis )
-        )
-
-    ipw.ipw.slice_position = \
-        pos if pos != None else \
-        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
-
-    if pos == None:
-      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
-   
-    return  ipw
-  #end replace_side_view
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.replace_side_view_1()		-
-  #----------------------------------------------------------------------
-  def replace_side_view_1( self, axis, pos = None ):
-    """
-"""
-    uaxis = axis.upper()
-    scene = getattr( self, 'scene%s' % uaxis )
-    outline = getattr( self, 'outline%s' % uaxis )
-
-    #self.remove_actors( scene )
-#1    mmgr = outline.module_manager
-#1    for i in range( len( mmgr.children ) - 1, -1 , -1 ):
-#1      mmgr.remove_child( mmgr.children[ i ] )
-
-#1    outline = mlab.pipeline.outline(
-#1	self.dataSource.mlab_source.dataset,
-#1	figure = scene.mayavi_scene
-#1        )
-#1    setattr( self, 'outline%s' % uaxis, outline )
-
-    outline.update_data()
-    outline.update_pipeline()
-    outline.data_changed = True
-    outline.pipeline_changed = True
-
-    # added figure
-#1    ipw = mlab.pipeline.image_plane_widget(
-#1	outline,  #self.dataSource,
-#1	figure = scene.mayavi_scene,
-#1	name = 'Side %s' % axis,
-#1	plane_orientation = '%s_axes' % axis,
-#1	vmin = self.dataRange[ 0 ],
-#1	vmax = self.dataRange[ 1 ]
-#1        )
-#1    setattr( self, 'ipw%s' % uaxis, ipw )
-
-#1    ipw.ipw.sync_trait(
-#1        'slice_position',
-#1	getattr( self, 'ipw3d%s' % uaxis ).ipw
-#1	)
-#1    ipw.ipw.left_button_action = 0
-
-#1    ipw.ipw.add_observer(
-#1        'InteractionEvent',
-#1        functools.partial( self.on_view_change, axis )
-#1        )
-#1    ipw.ipw.add_observer(
-#1        'StartInteractionEvent',
-#1        functools.partial( self.on_view_change, axis )
-#1        )
-
-#1    ipw.ipw.slice_position = \
-#1        pos if pos != None else \
-#1        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
-
-#1    if pos == None:
-#1      scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
-
-#1    scene.scene.background = ( 0, 0, 0 )
-#1    scene.scene.interactor.interactor_style = \
-#1        tvtk.InteractorStyleImage()
-#1    if axis == 'x':
-#1      scene.scene.parallel_projection = True
-#1      scene.scene.camera.parallel_scale = \
-#1          0.35 * np.mean( self.dataSource.scalar_data.shape )
-
-    ipw = getattr( self, 'ipw%s' % uaxis )
-    ipw.update_data()
-    ipw.update_pipeline()
-    ipw.data_changed = True
-    ipw.pipeline_changed = True
-    # ipw.parent.parent.scalar_data = self.dataSource.scalar_data  noworky
-
-    scene.mlab.show()
-   
-    return  ipw
-  #end replace_side_view_1
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer.SetScalarData()			-
   #----------------------------------------------------------------------
   def SetScalarData( self, matrix, data_range ):
     self.dataRange = data_range
-
-    #self.dataSource.scalar_data = matrix
-    #self.dataSource.update()
-    #self.dataSource.data_changed = True
-    #self.dataSource.update_image_data = True
 
     for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceY ):
       d.scalar_data = matrix
@@ -1034,30 +884,38 @@ class VolumeSlicer( HasTraits ):
 #               --
     #xxx save and restore scene3d camera position/view
     #self.remove_actors( self.scene3d, 'ScalarBarWidget' )
+    scene3d_view = self.scene3d.mlab.view()
     self.remove_actors( self.scene3d )
+    print >> sys.stderr, '[SetScalarData] scene3d_view=', str( scene3d_view )
 
-    #pdb.set_trace()
     for axis in self.AXIS_INDEX:
       uaxis = axis.upper()
       ipw = getattr( self, 'ipw' + uaxis )
       pos = ipw.ipw.slice_position
+
+      scene = getattr( self, 'scene' + uaxis )
+      scene_view = scene.mlab.view()
+      print >> sys.stderr, \
+          '[SetScalarData] uaxis=%s, pos=%s, scene_view=%s' % \
+	  ( uaxis, pos, str( scene_view ) )
 
       ipw3d = self.create_3d_ipw( axis )
       ipw3d.ipw.interaction = 0
       ipw3d.ipw.slice_position = pos
       setattr( self, 'ipw3d' + uaxis, ipw3d )
 
-      self.remove_actors( getattr( self, 'scene' + uaxis ) )
+      self.remove_actors( scene )
       ipw = self.create_side_view( axis, pos )
-
-      #setattr( self, 'ipw%s' % uaxis, ipw )  done in create_side_view()
-#2      ipw.ipw.sync_trait( 'slice_position', ipw3d.ipw )  # ditto
-#2      ipw.module_manager.scalar_lut_manager.data_range = data_range
-#2      ipw.update_data()
-      #nada ipw.module_manager.update()
-      #nada getattr( self, 'outline%s' % uaxis ).update_data()
-#3      self.replace_side_view_1( axis, pos )
+      print >> sys.stderr, \
+          '[SetScalarData] uaxis=%s, restoring view=%s' % \
+	  ( uaxis, str( scene_view ) )
+      scene.mlab.view( *scene_view )
     #end for
+
+    print >> sys.stderr, \
+        '[SetScalarData] restoring scene3d view=%s' % \
+	str( scene3d_view )
+    self.scene3d.mlab.view( *scene3d_view )
   #end SetScalarData
 
 
