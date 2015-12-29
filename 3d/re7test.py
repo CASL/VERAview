@@ -370,7 +370,8 @@ if False:
 #data = get_matrix(17, 17, 48, det_dat)
 
 else:
-  data_model = DataModel( '/Users/re7x/study/casl/andrew/beavrs.h5' )
+  #data_model = DataModel( '/Users/re7x/study/casl/andrew/beavrs.h5' )
+  data_model = DataModel( '/Users/re7x/study/casl/andrew/L1_ALL_STATES.h5' )
   data = create_cut_matrix( data_model, 'pin_powers', 0 )
 
 
@@ -602,6 +603,10 @@ class VolumeSlicer(HasTraits):
 	  scene.scene.parallel_projection = True
 	  scene.scene.camera.parallel_scale = \
 	      0.4 * np.mean( self.data_src3d.scalar_data.shape )
+	  print >> sys.stderr, \
+	      '[make_side_view] scalar_data.shape=%s, parallel_scale=%f' % \
+	      ( str( self.data_src3d.scalar_data.shape ),
+	        scene.scene.camera.parallel_scale )
 
 
     @on_trait_change('scene_x.activated')

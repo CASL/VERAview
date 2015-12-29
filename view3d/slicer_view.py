@@ -3,6 +3,7 @@
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
 #		2015-12-29	leerw@ornl.gov				-
+#	  Creating VolumeSlicer after data first defined.
 #		2015-12-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import bisect, functools, math, os, sys
@@ -182,6 +183,22 @@ class Slicer3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateViz()			-
+  #----------------------------------------------------------------------
+  def _CreateViz( self, matrix, drange ):
+    """Builds this wxPython component.
+"""
+#		-- Create components
+#		--
+    self.viz = VolumeSlicer( matrix = matrix, dataRange = drange )
+    self.vizcontrol = \
+        self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
+
+    self.GetSizer().Add( self.vizcontrol, 0, wx.ALL | wx.EXPAND )
+  #end _CreateViz
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.GetAllow4DataSets()		-
   #----------------------------------------------------------------------
   def GetAllow4DataSets( self ):
@@ -243,23 +260,19 @@ class Slicer3DView( Widget ):
 
 #		-- Getting started cheat data
 #		--
-    #self.data = DataModel( '/Users/re7x/study/casl/andrew/L1_ALL_STATES.h5' )
-    #self.pinDataSet = 'pin_powers'
-    #self.stateIndex = 0
-    #_data = self._Create3DMatrix()
-    _data = np.ndarray( ( 26, 17, 17 ), dtype = np.float64 )
-    _data.fill( 1.0 )
+#    _data = np.ndarray( ( 26, 17, 17 ), dtype = np.float64 )
+#    _data.fill( 1.0 )
 
 #		-- Create components
 #		--
-    self.viz = VolumeSlicer( matrix = _data, dataRange = [ 0.0, 5.0 ] )
-    self.vizcontrol = \
-        self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
+#    self.viz = VolumeSlicer( matrix = _data, dataRange = [ 0.0, 5.0 ] )
+#    self.vizcontrol = \
+#        self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
 
 #		-- Lay out
 #		--
     sizer = wx.BoxSizer( wx.VERTICAL )
-    sizer.Add( self.vizcontrol, 0, wx.ALL | wx.EXPAND )
+#    sizer.Add( self.vizcontrol, 0, wx.ALL | wx.EXPAND )
 
     self.SetAutoLayout( True )
     self.SetSizer( sizer )
@@ -300,7 +313,11 @@ class Slicer3DView( Widget ):
     matrix = self._Create3DMatrix()
     if matrix != None:
       drange = self.data.GetRange( self.pinDataSet )
-      self.viz.SetScalarData( matrix, drange )
+
+      if self.viz == None:
+        self._CreateViz( matrix, drange )
+      else:
+        self.viz.SetScalarData( matrix, drange )
   #end _UpdateData
 
 
@@ -519,8 +536,8 @@ class VolumeSlicer( HasTraits ):
     # added figure
     ipw = mlab.pipeline.image_plane_widget(
 	outline,  # self.dataSource.mlab_source.dataset
-	figure = scene.mayavi_scene,
-	name = 'Side ' + axis,
+	#figure = scene.mayavi_scene,
+	#name = 'Side ' + axis,
 	plane_orientation = axis + '_axes',
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
@@ -547,13 +564,13 @@ class VolumeSlicer( HasTraits ):
 	getattr( self, 'ipw3d' + uaxis ).ipw
 	)
 
-    if axis == 'x':
-      scene.scene.parallel_projection = True
-      scene.scene.camera.parallel_scale = \
-          0.5 * np.mean( data_source.scalar_data.shape )
-          #0.35 * np.mean( self.dataSource.scalar_data.shape )
-      print >> sys.stderr, '[create_side_view] xaxis scale=%f' % \
-          scene.scene.camera.parallel_scale
+#    if axis == 'x':
+#      scene.scene.parallel_projection = True
+#      scene.scene.camera.parallel_scale = \
+#          0.5 * np.mean( data_source.scalar_data.shape )
+#          #0.35 * np.mean( self.dataSource.scalar_data.shape )
+#      print >> sys.stderr, '[create_side_view] xaxis scale=%f' % \
+#          scene.scene.camera.parallel_scale
    
     return  ipw
   #end create_side_view
@@ -751,6 +768,14 @@ class VolumeSlicer( HasTraits ):
     scene.scene.background = ( 0, 0, 0 )
     scene.scene.interactor.interactor_style = \
         tvtk.InteractorStyleImage()
+
+    if axis == 'x':
+      scene.scene.parallel_projection = True
+      scene.scene.camera.parallel_scale = \
+          0.4 * np.mean( self.dataSourceX.scalar_data.shape )
+#          #0.35 * np.mean( self.dataSource.scalar_data.shape )
+      print >> sys.stderr, '[create_side_view] xaxis scale=%f' % \
+          scene.scene.camera.parallel_scale
    
     return  ipw
   #end display_side_view
@@ -791,6 +816,7 @@ class VolumeSlicer( HasTraits ):
   #----------------------------------------------------------------------
   def _ipwX_default( self ):
     """Magically called when self.ipwX first referenced
+Not called.
 """
     return  self.create_side_view( 'x' )
   #end _ipwX_default
@@ -801,6 +827,7 @@ class VolumeSlicer( HasTraits ):
   #----------------------------------------------------------------------
   def _ipwY_default( self ):
     """Magically called when self.ipwY first referenced
+Not called.
 """
     return  self.create_side_view( 'y' )
   #end _ipwY_default
@@ -811,6 +838,7 @@ class VolumeSlicer( HasTraits ):
   #----------------------------------------------------------------------
   def _ipwZ_default( self ):
     """Magically called when self.ipwZ first referenced
+Not called.
 """
     return  self.create_side_view( 'z' )
   #end _ipwZ_default
@@ -885,7 +913,21 @@ class VolumeSlicer( HasTraits ):
   def SetScalarData( self, matrix, data_range ):
     self.dataRange = data_range
 
-    for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceY ):
+    for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceZ ):
+      d.scalar_data = matrix
+      d.update()
+      d.data_changed = True
+      d.update_image_data = True
+  #end SetScalarData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.SetScalarData_1()			-
+  #----------------------------------------------------------------------
+  def SetScalarData_1( self, matrix, data_range ):
+    self.dataRange = data_range
+
+    for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceZ ):
       d.scalar_data = matrix
       d.update()
       d.data_changed = True
@@ -899,35 +941,48 @@ class VolumeSlicer( HasTraits ):
     self.remove_actors( self.scene3d )
     print >> sys.stderr, '[SetScalarData] scene3d_view=', str( scene3d_view )
 
+    pos = {}
     for axis in self.AXIS_INDEX:
       uaxis = axis.upper()
       ipw = getattr( self, 'ipw' + uaxis )
-      pos = ipw.ipw.slice_position
+      #x pos = ipw.ipw.slice_position
+      pos[ axis ] = ipw.ipw.slice_position
 
       scene = getattr( self, 'scene' + uaxis )
       scene_view = scene.mlab.view()
+      para_scale = scene.scene.camera.parallel_scale  if axis == 'x' else  None
       print >> sys.stderr, \
-          '[SetScalarData] uaxis=%s, pos=%s, scene_view=%s' % \
-	  ( uaxis, pos, str( scene_view ) )
+          '[SetScalarData] uaxis=%s, pos=%s, scene_view=%s, para_scale=%s' % \
+	  ( uaxis, pos, str( scene_view ), str( para_scale) )
 
       ipw3d = self.create_3d_ipw( axis )
       ipw3d.ipw.interaction = 0
-      ipw3d.ipw.slice_position = pos
+      #x ipw3d.ipw.slice_position = pos
       setattr( self, 'ipw3d' + uaxis, ipw3d )
 
       self.remove_actors( scene )
-      ipw = self.create_side_view( axis, pos )
+      #x ipw = self.create_side_view( axis, pos )
+      ipw = self.create_side_view( axis, pos[ axis ] )
       print >> sys.stderr, \
           '[SetScalarData] uaxis=%s, restoring view=%s' % \
 	  ( uaxis, str( scene_view ) )
       scene.mlab.view( *scene_view )
+      if para_scale != None:
+        scene.scene.parallel_projection = True
+        scene.scene.camera.parallel_projection = True
+        scene.scene.camera.parallel_scale = para_scale
     #end for
+
+    for axis in self.AXIS_INDEX:
+      uaxis = axis.upper()
+      getattr( self, 'ipw3d' + uaxis ).ipw.slice_position = pos[ axis ]
+      getattr( self, 'ipw' + uaxis ).ipw.slice_position = pos[ axis ]
 
     print >> sys.stderr, \
         '[SetScalarData] restoring scene3d view=%s' % \
 	str( scene3d_view )
     self.scene3d.mlab.view( *scene3d_view )
-  #end SetScalarData
+  #end SetScalarData_1
 
 
 #		-- Static Methods
