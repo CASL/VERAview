@@ -2,6 +2,7 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2015-12-29	leerw@ornl.gov				-
 #		2015-12-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import bisect, functools, math, os, sys
@@ -54,17 +55,27 @@ class Slicer3DFrame( wx.Frame ):
     self.SetSize( ( 700, 750 ) )
     self.SetTitle( 'VERAView 3D View' )
 
-    #self.state.AddListener( self )
-    self.widgetContainer.Bind( wx.EVT_CLOSE, self._OnCloseFrame )
-    self.Bind( wx.EVT_CLOSE, self._OnCloseFrame )
+    #not needed self.state.AddListener( self )
+    self.widgetContainer.Bind(
+        wx.EVT_CLOSE,
+	functools.partial( self._OnCloseFrame, False )
+	)
+    self.Bind(
+        wx.EVT_CLOSE,
+	functools.partial( self._OnCloseFrame, True )
+	)
   #end __init__
 
 
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DFrame._OnCloseFrame()			-
   #----------------------------------------------------------------------
-  def _OnCloseFrame( self, ev ):
+  def _OnCloseFrame( self, remove_listener, ev ):
     #self.widgetContainer.Destroy()
+
+    if remove_listener:
+      self.widgetContainer._OnClose( ev )
+
     self.Destroy()
   #end _OnCloseFrame
 

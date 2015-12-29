@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2015-12-29	leerw@ornl.gov				-
+#	  Added View menu with creation of Slicer3DFrame.
 #		2015-12-07	leerw@ornl.gov				-
 #	  Back to original icons.
 #		2015-11-24	leerw@ornl.gov				-
@@ -66,6 +68,8 @@ from data.config import Config
 from data.datamodel import *
 
 from event.state import *
+
+from view3d.env3d import *
 
 from widget.image_ops import *
 from widget.widgetcontainer import *
@@ -546,11 +550,19 @@ class VeraViewFrame( wx.Frame ):
     self.Bind( wx.EVT_MENU, self._OnGridResize, grid_item )
     edit_menu.AppendItem( grid_item )
 
+#		-- View Menu
+#		--
+    view_menu = wx.Menu()
+    view3d_item = wx.MenuItem( view_menu, wx.ID_ANY, '3D Volume Slicer' )
+    self.Bind( wx.EVT_MENU, self._OnView3D, view3d_item )
+    view_menu.AppendItem( view3d_item )
+
 #		-- Menu Bar
 #		--
     mbar = wx.MenuBar()
     mbar.Append( file_menu, '&File' )
     mbar.Append( edit_menu, '&Edit' )
+    mbar.Append( view_menu, '&View' )
 #    mbar.Append( self.windowMenu, '&Window' )
     self.SetMenuBar( mbar )
 
@@ -986,23 +998,6 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnTimeDataSet()			-
-  #----------------------------------------------------------------------
-  def _OnTimeDataSet( self, ev ):
-    ev.Skip()
-    menu = ev.GetEventObject()
-    item = menu.FindItemById( ev.GetId() )
-
-    if item != None:
-      title = item.GetText()
-      reason = self.state.Change( self.eventLocks, time_dataset = title )
-      self.state.FireStateChange( reason )
-      #self.grid.FireStateChange( reason )
-    #end if
-  #end _OnTimeDataSet
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
@@ -1034,6 +1029,83 @@ Must be called on the UI event thread.
 #	break
 #    #end for
 #  #end _OnSaveWindow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnTimeDataSet()			-
+  #----------------------------------------------------------------------
+  def _OnTimeDataSet( self, ev ):
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+
+    if item != None:
+      title = item.GetText()
+      reason = self.state.Change( self.eventLocks, time_dataset = title )
+      self.state.FireStateChange( reason )
+      #self.grid.FireStateChange( reason )
+    #end if
+  #end _OnTimeDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnView3D()			-
+  #----------------------------------------------------------------------
+  def _OnView3D( self, ev ):
+    #ev.Skip( False )
+
+    def check_and_show_volume_slicer( loaded, errors ):
+      if errors != None and len( errors ) > 0:
+        msg = \
+	    'Error loading 3D envrionment:' + os.linesep + \
+	    os.linesep.join( errors )
+        wx.MessageBox(
+	    msg, 'View 3D Volume Slicer',
+	    wx.ICON_ERROR | wx.OK_DEFAULT
+	    )
+
+      elif loaded:
+        self._OnView3DImpl()
+    #end check_and_show
+
+    Environment3D.LoadAndCall( check_and_show_volume_slicer )
+  #end _OnView3D
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnView3DImpl()			-
+  #----------------------------------------------------------------------
+  def _OnView3DImpl( self ):
+    object_classpath = 'view3d.slicer_view.Slicer3DFrame'
+    module_path, class_name = object_classpath.rsplit( '.', 1 )
+
+    error = None
+    module = None
+    cls = None
+
+    try:
+      module = __import__( module_path, fromlist = [ class_name ] )
+    except ImportError:
+      error = 'Error importing "%s"' % object_classpath
+
+    if error == None:
+      try:
+        cls = getattr( module, class_name )
+      except AttributeError:
+        error = 'Class "%s" not found in module "%s"' % \
+	    ( module_path, class_name )
+
+    if error != None:
+      wx.MessageBox(
+	  error, 'View 3D Volume Slicer',
+	  wx.ICON_ERROR | wx.OK_DEFAULT
+	  )
+
+    else:
+      viz_frame = cls( self, -1, self.state )
+      #viz_frame.bind( wx.EVT_CLOSE, self._OnCloseChildFrame )
+      viz_frame.Show()
+  #end _OnView3DImpl
 
 
   #----------------------------------------------------------------------
