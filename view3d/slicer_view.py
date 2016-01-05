@@ -102,6 +102,7 @@ class Slicer3DView( Widget ):
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
+    self.cellRange = None  # left, top, right + 1, bottom + 1, dx, dy
     #self.curSize = None
     self.data = None
 
@@ -130,7 +131,7 @@ class Slicer3DView( Widget ):
   def _Create3DMatrix( self ):
     matrix = None
 
-    if self.data != None:
+    if self.data != None and self.cellRange != None:
       core = self.data.GetCore()
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_value = dset.value
@@ -140,7 +141,7 @@ class Slicer3DView( Widget ):
 	  ( os.linesep, self.pinDataSet, self.stateIndex, os.linesep )
 
       # left, top, right + 1, bottom + 1, dx, dy
-      assy_range = self.data.ExtractSymmetryExtent()
+      #assy_range = self.data.ExtractSymmetryExtent()
 
       ax_mesh = core.axialMesh
       #ppinch = core.apitch if core.apitch > 0 else 1.0
@@ -151,18 +152,22 @@ class Slicer3DView( Widget ):
           ]
       z_size = self.meshLevels[ -1 ]
 
-      # z, x, y
+      # z, x, y(bottom up)
       matrix = np.ndarray(
-	( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
+	#( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
+	( z_size,
+	  core.npinx * self.cellRange[ -2 ],
+	  core.npiny * self.cellRange[ -1 ] ),
 	np.float64
 	)
       matrix.fill( 0.0 )
     
       pin_y = 0
-      #for assy_y in range( assy_range[ 1 ], assy_range[ 3 ] ):
-      for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
+      #for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
+      for assy_y in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
         pin_x = 0
-        for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
+        #for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
+        for assy_x in range( self.cellRange[ 0 ], self.cellRange[ 2 ] ):
           assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
           if assy_ndx >= 0:
 	    for z in range( z_size ):
@@ -170,11 +175,14 @@ class Slicer3DView( Widget ):
 	          bisect.bisect_left( self.meshLevels, z ),
 		  len( self.meshLevels ) - 1
 		  )
-	      for y in range( core.npiny ):
+	      #for y in range( core.npiny ):
+	      pin_y2 = 0
+	      for y in range( core.npiny - 1, -1, -1 ):
 	        for x in range( core.npinx ):
-	          matrix[ z, pin_x + x, pin_y + y ] = \
+	          matrix[ z, pin_x + x, pin_y + pin_y2 ] = \
 	              dset_value[ y, x, ax_level, assy_ndx ]
 	        #end for x
+	        pin_y2 += 1
 	      #end for y
 	    #end for z
           #end if assy_ndx
@@ -235,7 +243,7 @@ class Slicer3DView( Widget ):
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     locks = set([
-        STATE_CHANGE_axialValue,
+        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
         STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
         STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
         ])
@@ -304,6 +312,7 @@ class Slicer3DView( Widget ):
     if self.data != None and self.data.HasData():
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
+      self.cellRange = self.data.ExtractSymmetryExtent()
       self.pinColRow = self.state.pinColRow
       self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
@@ -351,6 +360,8 @@ class Slicer3DView( Widget ):
         self._CreateViz( matrix, drange )
       else:
         self.viz.SetScalarData( matrix, drange )
+
+      self._UpdateSlicePositions()
   #end _UpdateData
 
 
@@ -360,11 +371,24 @@ class Slicer3DView( Widget ):
   def _UpdateSlicePositions( self ):
     core = self.data.GetCore()
 
-    x = core.npinx * self.assemblyIndex[ 1 ] + self.pinColRow[ 0 ]
-    y = core.npiny * self.assemblyIndex[ 2 ] + self.pinColRow[ 1 ]
-    z = self.axialValue[ 1 ]
+#	-- Data matrix is z, x, y(reversed)
+#	--
+    z = self.meshLevels[ self.axialValue[ 1 ] ]
 
-    pos = { 'x': x, 'y': y, 'z': z }
+    assy_col = self.assemblyIndex[ 1 ] - self.cellRange[ 0 ]
+    x = core.npinx * assy_col + self.pinColRow[ 0 ]
+
+    assy_row = self.assemblyIndex[ 2 ] - self.cellRange[ 1 ]
+    #y = core.npiny * assy_row + self.pinColRow[ 1 ]
+        #(core.npiny * self.cellRange[ -1 ] - 1) -
+        #core.npiny * assy_row + self.pinColRow[ 1 ]
+    y = core.npiny * (self.cellRange[ -1 ] - assy_row) - 1 - self.pinColRow[ 1 ]
+
+    pos = {}
+    pos[ self.viz.AXIS_INDEX[ 'x' ] ] = z
+    pos[ self.viz.AXIS_INDEX[ 'y' ] ] = x
+    pos[ self.viz.AXIS_INDEX[ 'z' ] ] = y
+
     self.viz.UpdateView( pos )
   #end _UpdateSlicePositions
 
@@ -1031,12 +1055,14 @@ Not called.
   def UpdateView( self, position ):
     #position = obj.GetCurrentCursorPosition()
     #xxx compute pinRowCol or axialIndex
-    pdb.set_trace()
     print >> sys.stderr, \
         '[UpdateView] position=' + str( position )
     for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
       ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
       ipw_3d.ipw.slice_position = position[ cur_ndx ]
+
+    #self.class_trait_view().trait_set( title = 'Hello World' )
+    #mlab.title( 'Hello World 2' )
   #end UpdateView
 
 
