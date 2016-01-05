@@ -982,6 +982,17 @@ Not called.
       d.update()
       d.data_changed = True
       d.update_image_data = True
+    #end for
+
+    pdb.set_trace()
+    for axis in self.AXIS_INDEX:
+      uaxis = axis.upper()
+      ipw = getattr( self, 'ipw' + uaxis )
+      ipw.module_manager.scalar_lut_manager.data_range = data_range
+
+      ipw = getattr( self, 'ipw3d' + uaxis )
+      ipw.module_manager.scalar_lut_manager.data_range = data_range
+    #end for
   #end SetScalarData
 
 
