@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-01-05	leerw@ornl.gov				-
 #		2015-12-08	leerw@ornl.gov				-
 # 	  State changes managed by the State object.
 #		2015-11-18	leerw@ornl.gov				-
@@ -216,6 +217,7 @@ Must be called on the UI thread.
 #    dsize = wx.DisplaySize()
 #    wd = min( dsize[ 0 ], 1280 )
 #    ht = min( dsize[ 1 ], 800 )
+    data_model = State.GetDataModel( self.state )
 
 #		-- Instantiate Widget
 #		--
@@ -263,6 +265,25 @@ Must be called on the UI thread.
         self.led, 0,
 	wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 2
 	)
+
+#		-- Widget-defined toolbar buttons
+#		--
+    tool_button_defs = self.widget.GetToolButtonDefs( data_model )
+    if tool_button_defs != None:
+      for icon, tip, handler in tool_button_defs:
+        tool_im = wx.Image(
+	    os.path.join( Config.GetResDir(), icon ),
+	    wx.BITMAP_TYPE_PNG
+	    )
+        tool_button = wx.BitmapButton( control_panel, -1, tool_im.ConvertToBitmap() )
+        tool_button.SetToolTip( wx.ToolTip( tip ) )
+        tool_button.Bind( wx.EVT_BUTTON, handler )
+	cp_sizer.Add(
+	    tool_button, 0,
+	    wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
+	    )
+      #end for
+    #end if tool_button_defs
 
 #		-- Events menu
 #		--
@@ -313,7 +334,6 @@ Must be called on the UI thread.
 
 #		-- Dataset menu button
 #		--
-    data_model = State.GetDataModel( self.state )
     dataset_type = self.widget.GetDataSetType()
     #if dataset_type != None and dataset_type in data_model.dataSetNames:
     if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):

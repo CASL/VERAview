@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-01-05	leerw@ornl.gov				-
+#	  Added GetToolButtonDefs().
 #		2015-12-22	leerw@ornl.gov				-
 #	  Using Legend2 for a continuous legend.
 #		2015-11-18	leerw@ornl.gov				-
@@ -440,6 +442,20 @@ Subclasses should override as this implementation returns None
   def GetTitle( self ):
     return  'unnamed'
   #end GetTitle
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetToolButtonDefs()				-
+  #----------------------------------------------------------------------
+  def GetToolButtonDefs( self, data_model ):
+    """List of (icon, tip, handler) triples from which to build tool bar
+buttons.
+Returning None means no tool buttons, which is the default implemented here.
+@param  data_model	loaded data model, might be None
+@return			[ ( label, handler ), ... ]
+"""
+    return  None
+  #end GetToolButtonDefs
 
 
   #----------------------------------------------------------------------

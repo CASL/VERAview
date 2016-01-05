@@ -2,6 +2,7 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-01-05	leerw@ornl.gov				-
 #		2015-12-29	leerw@ornl.gov				-
 #	  Creating VolumeSlicer after data first defined.
 #		2015-12-08	leerw@ornl.gov				-
@@ -99,6 +100,7 @@ class Slicer3DView( Widget ):
   #	METHOD:		Slicer3DView.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
+    self.assemblyIndex = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
     #self.curSize = None
     self.data = None
@@ -108,6 +110,12 @@ class Slicer3DView( Widget ):
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
+
+    self.toolButtonDefs = \
+      [
+        ( 'sync_in_16x16.png', 'Sync From Other Widgets', self._OnSyncFrom ),
+        ( 'sync_out_16x16.png', 'Sync To Other Widgets', self._OnSyncTo )
+      ]
 
     self.viz = None
     self.vizcontrol = None
@@ -252,6 +260,14 @@ class Slicer3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView.GetToolButtonDefs()		-
+  #----------------------------------------------------------------------
+  def GetToolButtonDefs( self, data_model ):
+    return  self.toolButtonDefs
+  #end GetToolButtonDefs
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
@@ -286,6 +302,7 @@ class Slicer3DView( Widget ):
   def _LoadDataModel( self ):
     self.data = State.GetDataModel( self.state )
     if self.data != None and self.data.HasData():
+      self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
       self.pinColRow = self.state.pinColRow
       self.pinDataSet = self.state.pinDataSet
@@ -294,6 +311,22 @@ class Slicer3DView( Widget ):
       self._UpdateData()
     #end if
   #end _LoadDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._OnSyncFrom()			-
+  #----------------------------------------------------------------------
+  def _OnSyncFrom( self, ev ):
+    pass
+  #end _OnSyncFrom
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._OnSyncTo()			-
+  #----------------------------------------------------------------------
+  def _OnSyncTo( self, ev ):
+    pass
+  #end _OnSyncTo
 
 
   #----------------------------------------------------------------------
@@ -325,11 +358,14 @@ class Slicer3DView( Widget ):
   #	METHOD:		Slicer3DView._UpdateSlicePositions()		-
   #----------------------------------------------------------------------
   def _UpdateSlicePositions( self ):
-    pass
-    #xxx convert from pinColRow and axialIndex to slice positions
-#    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
-#      ipw_3d = getattr( self, 'ipw3d%s' % uaxis )
-#      ipw_3d.ipw.slice_position = position[ cur_ndx ]
+    core = self.data.GetCore()
+
+    x = core.npinx * self.assemblyIndex[ 1 ] + self.pinColRow[ 0 ]
+    y = core.npiny * self.assemblyIndex[ 2 ] + self.pinColRow[ 1 ]
+    z = self.axialValue[ 1 ]
+
+    pos = { 'x': x, 'y': y, 'z': z }
+    self.viz.UpdateView( pos )
   #end _UpdateSlicePositions
 
 
@@ -343,6 +379,10 @@ class Slicer3DView( Widget ):
       #kwargs = self._UpdateStateValues( **kwargs )
       position_changed = kwargs.get( 'position_changed', False )
       data_changed = kwargs.get( 'data_changed', False )
+
+      if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+        position_changed = True
+	self.assemblyIndex = kwargs[ 'assembly_index' ]
 
       if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
         position_changed = True
@@ -983,6 +1023,21 @@ Not called.
 	str( scene3d_view )
     self.scene3d.mlab.view( *scene3d_view )
   #end SetScalarData_1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.UpdateView()			-
+  #----------------------------------------------------------------------
+  def UpdateView( self, position ):
+    #position = obj.GetCurrentCursorPosition()
+    #xxx compute pinRowCol or axialIndex
+    pdb.set_trace()
+    print >> sys.stderr, \
+        '[UpdateView] position=' + str( position )
+    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
+      ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
+      ipw_3d.ipw.slice_position = position[ cur_ndx ]
+  #end UpdateView
 
 
 #		-- Static Methods
