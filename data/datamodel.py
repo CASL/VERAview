@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-01-06	leerw@ornl.gov				-
+#	  Added DataModel.createAssemblyIndex().
 #		2015-11-28	leerw@ornl.gov				-
 #	  Added DataModel.IsNoDataValue().
 #		2015-11-23	leerw@ornl.gov				-
@@ -560,6 +562,22 @@ passed, the read() method must be called.
       self.h5File.close()
     self.Clear()
   #end Close
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateAssemblyIndex()			-
+  #----------------------------------------------------------------------
+  def CreateAssemblyIndex( self, col, row ):
+    """Creates tuple from the column and row indexes.
+@param  col		0-based column index
+@param  row		0-based row index
+@return			0-based ( assy_ndx, col, row )
+"""
+    return \
+        ( self.core.coreMap[ row, col ], col, row ) \
+	if self.core != None else \
+	( -1, -1, -1 )
+  #end CreateAssemblyIndex
 
 
   #----------------------------------------------------------------------

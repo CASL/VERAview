@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-01-06	leerw@ornl.gov				-
+#	  Tying events to slice position changes.
 #		2016-01-05	leerw@ornl.gov				-
 #		2015-12-29	leerw@ornl.gov				-
 #	  Creating VolumeSlicer after data first defined.
@@ -126,6 +128,56 @@ class Slicer3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView.CalcDataState()			-
+  #----------------------------------------------------------------------
+  def CalcDataState( self, slice_position ):
+    """Calculates axialValue (axial_cm, core_ndx, detector_ndx ),
+assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
+@param  slice_position	[ z, x, y ]
+@return			dict with 'axial_value', 'assembly_ndex', and
+			'pin_colrow' keys, or None if no data
+"""
+    rec = None
+
+    if self.data != None and self.meshLevels != None:
+      slice_z, slice_x, slice_y = slice_position
+      core = self.data.GetCore()
+
+      if slice_z >= 0:
+        ax_level = min(
+	    bisect.bisect_left( self.meshLevels, slice_z ),
+	    len( self.meshLevels ) - 1
+            )
+        axial_value = self.data.CreateAxialValue( core_ndx = ax_level )
+      else:
+        axial_value = ( -1, -1, -1 )
+
+      if slice_x >= 0 and slice_y >= 0:
+        assy_col = int( slice_x / core.npinx )
+        assy_row = core.nassy - 1 - int( slice_y / core.npiny )
+	assembly_index = self.data.CreateAssemblyIndex( assy_col, assy_row )
+
+	pin_col = int( slice_x ) % core.npinx
+	pin_row = core.npiny - (int( slice_y ) % core.npiny)
+	pin_colrow = ( pin_col, pin_row )
+      else:
+        assembly_index = ( -1, -1, -1 )
+        pin_colrow = ( -1, -1 )
+      #end if-else
+
+      rec = \
+        {
+        'assembly_index': assembly_index,
+        'axial_value': axial_value,
+        'pin_colrow': pin_colrow
+        }
+    #end if data defined
+
+    return  rec
+  #end CalcDataState
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._Create3DMatrix()			-
   #----------------------------------------------------------------------
   def _Create3DMatrix( self ):
@@ -207,6 +259,7 @@ class Slicer3DView( Widget ):
 #		-- Create components
 #		--
     self.viz = VolumeSlicer( matrix = matrix, dataRange = drange )
+    self.viz.SetSlicePositionListener( self._OnSlicePosition )
     self.vizcontrol = \
         self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
 
@@ -320,6 +373,18 @@ class Slicer3DView( Widget ):
       self._UpdateData()
     #end if
   #end _LoadDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._OnSlicePosition()			-
+  #----------------------------------------------------------------------
+  def _OnSlicePosition( self, position ):
+    rec = self.CalcDataState( position )
+    #print >> sys.stderr, '[Slicer3DView._OnSlicePosition]', str( rec )
+
+    if rec != None:
+      self.FireStateChange( **rec )
+  #end _OnSlicePosition
 
 
   #----------------------------------------------------------------------
@@ -545,6 +610,9 @@ class VolumeSlicer( HasTraits ):
     #self.outlineX = None
     #self.outlineY = None
     #self.outlineZ = None
+
+    self.slicePosition = [ -1, -1, -1 ]
+    self.slicePositionListener = None
   #end __init__
 
 
@@ -611,11 +679,11 @@ class VolumeSlicer( HasTraits ):
     ipw.ipw.left_button_action = 0
     ipw.ipw.add_observer(
         'InteractionEvent',
-        functools.partial( self.on_view_change, axis )
+        functools.partial( self.on_slice_change, axis )
         )
     ipw.ipw.add_observer(
         'StartInteractionEvent',
-        functools.partial( self.on_view_change, axis )
+        functools.partial( self.on_slice_change, axis )
         )
 
     print >> sys.stderr, '[create_side_view] uaxis=%s, pos=%s' % ( uaxis, pos )
@@ -909,18 +977,19 @@ Not called.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.on_view_change()			-
+  #	METHOD:		VolumeSlicer.on_slice_change()			-
   #----------------------------------------------------------------------
-  def on_view_change( self, axis, obj, ev ):
+  def on_slice_change( self, axis, obj, ev ):
+    self.slicePosition = \
     position = obj.GetCurrentCursorPosition()
-    #xxx compute pinRowCol or axialIndex
-    print >> sys.stderr, \
-        '[on_view_change] axis=' + axis + ', position=' + str( position )
     for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
       if cur_axis != axis:
         ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
 	ipw_3d.ipw.slice_position = position[ cur_ndx ]
-  #end on_view_change
+
+    if self.slicePositionListener != None:
+      self.slicePositionListener( position )
+  #end on_slice_change
 
 
   #----------------------------------------------------------------------
@@ -972,6 +1041,22 @@ Not called.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.GetSlicePosition()			-
+  #----------------------------------------------------------------------
+  def GetSlicePosition( self ):
+    return  self.curPosition
+  #end GetSlicePosition
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.GetSlicePositionListener()		-
+  #----------------------------------------------------------------------
+  def GetSlicePositionListener( self ):
+    return  self.slicePositionListener
+  #end GetSlicePositionListener
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer.SetScalarData()			-
   #----------------------------------------------------------------------
   def SetScalarData( self, matrix, data_range ):
@@ -984,7 +1069,6 @@ Not called.
       d.update_image_data = True
     #end for
 
-    pdb.set_trace()
     for axis in self.AXIS_INDEX:
       uaxis = axis.upper()
       ipw = getattr( self, 'ipw' + uaxis )
@@ -1058,6 +1142,17 @@ Not called.
 	str( scene3d_view )
     self.scene3d.mlab.view( *scene3d_view )
   #end SetScalarData_1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer.SetSlicePositionListener()		-
+  #----------------------------------------------------------------------
+  def SetSlicePositionListener( self, listener ):
+    """
+@param  listener	func( slice_position ), can be None
+"""
+    self.slicePositionListener = listener
+  #end SetSlicePositionListener
 
 
   #----------------------------------------------------------------------

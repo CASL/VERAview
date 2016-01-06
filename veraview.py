@@ -810,7 +810,9 @@ Must be called from the UI thread.
     """Handles events from the axial slider.  Called on the UI thread.
 """
     ev.Skip()
-    axial_value = self.state.dataModel.CreateAxialValue( core_ndx = ev.value )
+    #axial_value = self.state.dataModel.CreateAxialValue( core_ndx = ev.value )
+    axial_value = \
+        self.state.GetDataModel().CreateAxialValue( core_ndx = ev.value )
     reason = self.state.Change( self.eventLocks, axial_value = axial_value )
     if reason != STATE_CHANGE_noop:
       self.state.FireStateChange( reason )
