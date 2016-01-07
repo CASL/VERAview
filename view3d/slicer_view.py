@@ -108,7 +108,8 @@ class Slicer3DView( Widget ):
     #self.curSize = None
     self.data = None
 
-    self.menuDef = None
+    self.autoSync = True
+    self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
@@ -259,6 +260,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 #		-- Create components
 #		--
     self.viz = VolumeSlicer( matrix = matrix, dataRange = drange )
+    #Do this to automatically fire state changes on slice position changes
     self.viz.SetSlicePositionListener( self._OnSlicePosition )
     self.vizcontrol = \
         self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
@@ -376,14 +378,52 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._OnAutoSync()			-
+  #----------------------------------------------------------------------
+  def _OnAutoSync( self, ev ):
+    ev.Skip()
+
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item != None:
+      if item.GetText().startswith( 'Enable' ):
+        item.SetText( item.GetText().replace( 'Enable', 'Disable' ) )
+	self.autoSync = True
+      else:
+        item.SetText( item.GetText().replace( 'Disable', 'Enable' ) )
+	self.autoSync = False
+    #end if
+  #end _OnAutoSync
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._OnSlicePosition()			-
   #----------------------------------------------------------------------
   def _OnSlicePosition( self, position ):
+    """Used if automagically firing state changes
+"""
     rec = self.CalcDataState( position )
     #print >> sys.stderr, '[Slicer3DView._OnSlicePosition]', str( rec )
 
     if rec != None:
-      self.FireStateChange( **rec )
+      if rec[ 'assembly_index' ] != self.assemblyIndex:
+        self.assemblyIndex = rec[ 'assembly_index' ]
+      else:
+        del rec[ 'assembly_index' ]
+
+      if rec[ 'axial_value' ] != self.axialValue:
+        self.axialValue = self.data.NormalizeAxialValue( rec[ 'axial_value' ] )
+      else:
+        del rec[ 'axial_value' ]
+
+      if rec[ 'pin_colrow' ] != self.pinColRow:
+        self.pinColRow = self.data.NormalizePinColRow( rec[ 'pin_colrow' ] )
+      else:
+        del rec[ 'pin_colrow' ]
+
+      if self.autoSync and len( rec ) > 0:
+        self.FireStateChange( **rec )
+    #end if rec != None
   #end _OnSlicePosition
 
 
@@ -391,7 +431,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #	METHOD:		Slicer3DView._OnSyncFrom()			-
   #----------------------------------------------------------------------
   def _OnSyncFrom( self, ev ):
-    pass
+    self._UpdateSlicePositions()
   #end _OnSyncFrom
 
 
@@ -399,7 +439,18 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #	METHOD:		Slicer3DView._OnSyncTo()			-
   #----------------------------------------------------------------------
   def _OnSyncTo( self, ev ):
-    pass
+    if self.viz != None:
+#      rec = self.CalcDataState( self.viz.GetSlicePosition() )
+#      if rec != None:
+#        self.FireStateChange( **rec )
+      rec = \
+        {
+	'assembly_index': self.assemblyIndex,
+	'axial_value': self.axialValue,
+	'pin_colrow': self.pinColRow
+	}
+      self.FireStateChange( **rec )
+    #end if rec != None
   #end _OnSyncTo
 
 
@@ -462,6 +513,8 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #	METHOD:		Slicer3DView.UpdateState()			-
   #----------------------------------------------------------------------
   def UpdateState( self, **kwargs ):
+    """
+"""
     self._BusyBegin()
 
     try:
@@ -489,11 +542,11 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         data_changed = True
         self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
 
-      if position_changed:
-        self._UpdateSlicePositions()
-
-      elif data_changed:
+      if data_changed:
         self._UpdateData()
+
+      elif position_changed and self.autoSync:
+        self._UpdateSlicePositions()
     #end try
 
     finally:
@@ -1044,7 +1097,7 @@ Not called.
   #	METHOD:		VolumeSlicer.GetSlicePosition()			-
   #----------------------------------------------------------------------
   def GetSlicePosition( self ):
-    return  self.curPosition
+    return  self.slicePosition
   #end GetSlicePosition
 
 
