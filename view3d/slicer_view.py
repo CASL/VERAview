@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-01-07	leerw@ornl.gov				-
+#	  Added autoSync field and widget menu item.  Seems to be working.
 #		2016-01-06	leerw@ornl.gov				-
 #	  Tying events to slice position changes.
 #		2016-01-05	leerw@ornl.gov				-

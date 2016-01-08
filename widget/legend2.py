@@ -78,11 +78,12 @@ class Legend2( object ):
 	font_size
 	)
     text_size = font.getsize( ' -9.99e+99' )
-    #block_size = text_size[ 1 ] + (text_size[ 1 ] >> 1)
     block_size = text_size[ 1 ] << 1
     im_wd = (border << 1) + text_size[ 0 ] + text_gap + block_size
-    color_band_ht = block_size * (value_count - 1)
-    im_ht = (border << 1) + color_band_ht + text_size[ 1 ]
+    #xbug color_band_ht = block_size * (value_count - 1)
+    color_band_ht = block_size * value_count
+    #im_ht = (border << 1) + color_band_ht + text_size[ 1 ]
+    im_ht = (border << 1) + color_band_ht + block_size
 
     pil_im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
     im_draw = PIL.ImageDraw.Draw( pil_im )
@@ -120,6 +121,7 @@ class Legend2( object ):
     for i in range( value_count ):
       labels.append( DataUtils.FormatFloat1( cur_value ) )
       cur_value -= cur_value_incr
+    labels.append( DataUtils.FormatFloat1( cur_value ) )
 
     DataUtils.NormalizeValueLabels( labels )
 
@@ -149,16 +151,16 @@ class Legend2( object ):
 
 #		-- Write minimum value
 #		--
-    im_draw.line(
-        [ x - text_gap, tick_y, x, tick_y ],
-	fill = pen_color, width = 1
-	)
-    label_str = DataUtils.FormatFloat1( value_range[ 0 ] )
-    label_size = font.getsize( label_str )
-    im_draw.text(
-        ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
-	label_str, fill = pen_color, font = font
-        )
+#    im_draw.line(
+#        [ x - text_gap, tick_y, x, tick_y ],
+#	fill = pen_color, width = 1
+#	)
+#    label_str = DataUtils.FormatFloat1( value_range[ 0 ] )
+#    label_size = font.getsize( label_str )
+#    im_draw.text(
+#        ( x - text_gap - label_size[ 0 ], tick_y - (label_size[ 1 ] >> 1) ),
+#	label_str, fill = pen_color, font = font
+#        )
 
     del  im_draw
     print >> sys.stderr, '[Legend2._CreateImage] exit'
