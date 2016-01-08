@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-01-08	leerw@ornl.gov				-
+#	  Fixed calculation of assemblyIndex from/to slicePosition.
 #		2016-01-07	leerw@ornl.gov				-
 #	  Added autoSync field and widget menu item.  Seems to be working.
 #		2016-01-06	leerw@ornl.gov				-
@@ -106,7 +108,7 @@ class Slicer3DView( Widget ):
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
-    self.cellRange = None  # left, top, right + 1, bottom + 1, dx, dy
+    self.coreExtent = None  # left, top, right + 1, bottom + 1, dx, dy
     #self.curSize = None
     self.data = None
 
@@ -156,8 +158,10 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         axial_value = ( -1, -1, -1 )
 
       if slice_x >= 0 and slice_y >= 0:
-        assy_col = int( slice_x / core.npinx )
-        assy_row = core.nassy - 1 - int( slice_y / core.npiny )
+        #assy_col = int( slice_x / core.npinx )
+        #assy_row = core.nassy - 1 - int( slice_y / core.npiny )
+        assy_col = int( slice_x / core.npinx ) + self.coreExtent[ 0 ]
+        assy_row = self.coreExtent[ 3 ] - 1 - int( slice_y / core.npiny )
 	assembly_index = self.data.CreateAssemblyIndex( assy_col, assy_row )
 
 	pin_col = int( slice_x ) % core.npinx
@@ -186,7 +190,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   def _Create3DMatrix( self ):
     matrix = None
 
-    if self.data != None and self.cellRange != None:
+    if self.data != None and self.coreExtent != None:
       core = self.data.GetCore()
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_value = dset.value
@@ -211,18 +215,18 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       matrix = np.ndarray(
 	#( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
 	( z_size,
-	  core.npinx * self.cellRange[ -2 ],
-	  core.npiny * self.cellRange[ -1 ] ),
+	  core.npinx * self.coreExtent[ -2 ],
+	  core.npiny * self.coreExtent[ -1 ] ),
 	np.float64
 	)
       matrix.fill( 0.0 )
     
       pin_y = 0
       #for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
-      for assy_y in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+      for assy_y in range( self.coreExtent[ 3 ] - 1, self.coreExtent[ 1 ] - 1, -1 ):
         pin_x = 0
         #for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
-        for assy_x in range( self.cellRange[ 0 ], self.cellRange[ 2 ] ):
+        for assy_x in range( self.coreExtent[ 0 ], self.coreExtent[ 2 ] ):
           assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
           if assy_ndx >= 0:
 	    for z in range( z_size ):
@@ -369,7 +373,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     if self.data != None and self.data.HasData():
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
-      self.cellRange = self.data.ExtractSymmetryExtent()
+      self.coreExtent = self.data.ExtractSymmetryExtent()
       self.pinColRow = self.state.pinColRow
       self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
@@ -493,14 +497,16 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 #	--
     z = self.meshLevels[ self.axialValue[ 1 ] ]
 
-    assy_col = self.assemblyIndex[ 1 ] - self.cellRange[ 0 ]
+    assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
     x = core.npinx * assy_col + self.pinColRow[ 0 ]
 
-    assy_row = self.assemblyIndex[ 2 ] - self.cellRange[ 1 ]
-    #y = core.npiny * assy_row + self.pinColRow[ 1 ]
-        #(core.npiny * self.cellRange[ -1 ] - 1) -
-        #core.npiny * assy_row + self.pinColRow[ 1 ]
-    y = core.npiny * (self.cellRange[ -1 ] - assy_row) - 1 - self.pinColRow[ 1 ]
+    assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
+    #derive y =
+        #(core.npiny * self.coreExtent[ -1 ]) -
+        #core.npiny * assy_row - self.pinColRow[ 1 ]
+    y = \
+        core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
+	self.pinColRow[ 1 ]
 
     pos = {}
     pos[ self.viz.AXIS_INDEX[ 'x' ] ] = z
