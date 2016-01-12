@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-01-09	leerw@ornl.gov				-
+#	  Added IsExtra().
 #		2016-01-06	leerw@ornl.gov				-
 #	  Added DataModel.createAssemblyIndex().
 #		2015-11-28	leerw@ornl.gov				-
@@ -1625,6 +1627,18 @@ to be 'core', and the dataset is not associated with a state point.
 """
     return  ( pin_row, pin_col, axial_level, assy_ndx )
   #end GetPinIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsExtra()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsExtra( ds_name ):
+    """Checks for the 'extra:' prefix.
+@return			True if ds_name is an extra dataset, False otherwise
+"""
+    return  ds_name.startswith( 'extra:' )
+  #end IsExtra
 
 
   #----------------------------------------------------------------------

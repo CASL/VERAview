@@ -489,7 +489,15 @@ Returning None means no tool buttons, which is the default implemented here.
     else:
       update_args = self.state.CreateUpdateArgs( reason )
       if len( update_args ) > 0:
+#			-- Block extra if not supported
+	if 'pin_dataset' in update_args and \
+	    DataModel.IsExtra( update_args[ 'pin_dataset' ] ) and \
+	    not self.GetAllow4DDataSets():
+	  update_args = dict( update_args )
+	  del update_args[ 'pin_dataset' ]
+
         wx.CallAfter( self.UpdateState, **update_args )
+      #end if
     #end else not a data model load
   #end HandleStateChange
 

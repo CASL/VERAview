@@ -375,8 +375,19 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       self.axialValue = self.state.axialValue
       self.coreExtent = self.data.ExtractSymmetryExtent()
       self.pinColRow = self.state.pinColRow
-      self.pinDataSet = self.state.pinDataSet
+      #self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
+
+      if DataModel.IsExtra( self.state.pinDataSet ):
+        self.pinDataSet = 'pin_powers'
+        wx.MessageBox(
+	    'Extra datasets not supported in the 3D Volume Slicer.\n' +
+	    'Loading "pin_powers" instead.',
+	    'View 3D Volume Slicer',
+	    wx.ICON_INFORMATION | wx.OK_DEFAULT
+	    )
+      else:
+        self.pinDataSet = self.state.pinDataSet
 
       self._UpdateData()
     #end if
@@ -509,9 +520,9 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 	self.pinColRow[ 1 ]
 
     pos = {}
-    pos[ self.viz.AXIS_INDEX[ 'x' ] ] = z
-    pos[ self.viz.AXIS_INDEX[ 'y' ] ] = x
-    pos[ self.viz.AXIS_INDEX[ 'z' ] ] = y
+    pos[ self.viz.AXIS_INDEX[ 'x' ] ] = float( z )
+    pos[ self.viz.AXIS_INDEX[ 'y' ] ] = float( x )
+    pos[ self.viz.AXIS_INDEX[ 'z' ] ] = float( y )
 
     self.viz.UpdateView( pos )
   #end _UpdateSlicePositions
