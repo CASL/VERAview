@@ -4,7 +4,7 @@ pushd ..
 
 #17
 #name=veraview-build-20151125.zip
-name=veraview-build-20.zip
+name=veraview-build-22.zip
 
 [ -f ${name} ] && unlink ${name}
 zip -r ${name} \
@@ -18,7 +18,8 @@ zip -r ${name} \
     veraview/widget \
     veraview/veraview.py \
     veraview/veraview.run.bat \
-    veraview/veraview-linux.run.sh
+    veraview/veraview-linux.run.sh \
+    veraview/veraview-mac.run.sh
 
 #    veraview/test \
 
