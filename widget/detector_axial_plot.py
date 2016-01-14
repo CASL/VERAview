@@ -270,7 +270,7 @@ model.
 
     print >> sys.stderr, '[DetectorAxialPlot._LoadDataModel]'
 
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data != None and self.data.core != None and \
 	self.data.core.ndetax > 0 and self.data.core.detectorMap != None and \
         self.data.states != None and len( self.data.states ) > 0:

@@ -54,7 +54,7 @@ class AnimatorThreads( object ):
     if self.state == None:
       raise  Exception( 'widget state is missing' )
 
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data == None:
       raise  Exception( 'widget data model is missing' )
 
@@ -214,7 +214,7 @@ class Animator( object ):
     if self.state == None:
       raise  Exception( 'widget state is missing' )
 
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data == None:
       raise  Exception( 'widget data model is missing' )
 

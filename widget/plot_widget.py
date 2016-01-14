@@ -222,7 +222,7 @@ model.
 """
     print >> sys.stderr, '[PlotWidget._LoadDataModel]'
 
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data != None and self.data.HasData():
       update_args = self._LoadDataModelValues()
       wx.CallAfter( self.UpdateState, **update_args )

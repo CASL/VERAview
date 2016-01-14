@@ -463,14 +463,14 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataModel()					-
+  #	METHOD:		FindDataModel()					-
   #----------------------------------------------------------------------
   @staticmethod
-  def GetDataModel( state ):
+  def FindDataModel( state ):
     data_model = None
     if state != None and state.dataModel != None:
       data_model = state.dataModel
 
     return  data_model
-  #end GetDataModel
+  #end FindDataModel
 #end State

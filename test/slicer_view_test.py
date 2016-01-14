@@ -192,7 +192,7 @@ class SlicerViewTestFrame( wx.Frame ):
     ev.Skip()
     if self.vizFrame != None:
       state = self.vizFrame.widgetContainer.state
-      data = State.GetDataModel( state ) if state != None else None
+      data = State.FindDataModel( state ) if state != None else None
       if data != None:
 #	ndx = state.stateIndex + 1
 #	if ndx > len( data.GetStates() ):

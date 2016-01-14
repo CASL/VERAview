@@ -620,7 +620,7 @@ Sets attributes:
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     print >> sys.stderr, '[RasterWidget._LoadDataModel]'
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data != None and self.data.HasData():
       print >> sys.stderr, '[RasterWidget._LoadDataModel] we have data'
 

@@ -446,7 +446,7 @@ class VeraViewFrame( wx.Frame ):
 @return			DataModel object
 """
     #return  None if self.state == None else self.state.GetDataModel()
-    return  State.GetDataModel( self.state )
+    return  State.FindDataModel( self.state )
   #end GetDataModel
 
 
@@ -1070,7 +1070,7 @@ Must be called on the UI event thread.
         self._OnView3DImpl()
     #end check_and_show
 
-    if State.GetDataModel( self.state ) == None:
+    if State.FindDataModel( self.state ) == None:
       wx.MessageBox(
           'A VERAOutput file must be opened',
 	  'View 3D Volume Slicer',

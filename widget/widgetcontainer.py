@@ -217,7 +217,7 @@ Must be called on the UI thread.
 #    dsize = wx.DisplaySize()
 #    wd = min( dsize[ 0 ], 1280 )
 #    ht = min( dsize[ 1 ], 800 )
-    data_model = State.GetDataModel( self.state )
+    data_model = State.FindDataModel( self.state )
 
 #		-- Instantiate Widget
 #		--
@@ -546,7 +546,7 @@ Must be called on the UI thread.
 """
     ev.Skip()
 
-    data_model = State.GetDataModel( self.state )
+    data_model = State.FindDataModel( self.state )
     if data_model != None:
       matching_ds_names = data_model.GetExtra4DDataSets()
 #      matching_ds_names = []

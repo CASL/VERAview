@@ -203,7 +203,7 @@ model.
 #    if delay > 0:
 #      time.sleep( delay )
 
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data != None and self.data.states != None and len( self.data.states ) > 0:
       self.exposureValues = []
       for st in self.data.states:

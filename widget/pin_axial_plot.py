@@ -285,7 +285,7 @@ model.
 
     print >> sys.stderr, '[PinAxialPlot._LoadDataModel]'
 
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data != None and self.data.core != None and \
 	self.data.core.npin > 0 and self.data.core.nax > 0 and \
         self.data.states != None and len( self.data.states ) > 0:

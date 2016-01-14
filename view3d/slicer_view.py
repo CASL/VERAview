@@ -369,7 +369,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #	METHOD:		Slicer3DView._LoadDataModel()			-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
-    self.data = State.GetDataModel( self.state )
+    self.data = State.FindDataModel( self.state )
     if self.data != None and self.data.HasData():
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
