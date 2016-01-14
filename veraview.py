@@ -1070,7 +1070,14 @@ Must be called on the UI event thread.
         self._OnView3DImpl()
     #end check_and_show
 
-    Environment3D.LoadAndCall( check_and_show_volume_slicer )
+    if State.GetDataModel( self.state ) == None:
+      wx.MessageBox(
+          'A VERAOutput file must be opened',
+	  'View 3D Volume Slicer',
+	  wx.OK_DEFAULT
+	  )
+    else:
+      Environment3D.LoadAndCall( check_and_show_volume_slicer )
   #end _OnView3D
 
 
