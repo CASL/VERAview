@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2016-01-15	leerw@ornl.gov				-
+#	  Better way to find ImageMagick convert.
 #		2015-08-29	leerw@ornl.gov				-
 #	  Added test for ImageMagick.
 #		2015-04-11	leerw@ornl.gov				-
@@ -10,6 +12,7 @@
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import os, subprocess
+from distutils.spawn import find_executable
 #import h5py, os, sys, traceback
 #import numpy as np
 
@@ -76,16 +79,18 @@ Static properties (use accessors):
 @return			True or False
 """
     if Config.haveImageMagick_ == None:
-      proc = subprocess.Popen(
-          [ 'convert', '-h' ],
-	  shell = True, stdout = subprocess.PIPE
-	  )
-      line = proc.stdout.readline()
-      proc.stdout.readlines()
-      proc.wait()
-
-      Config.haveImageMagick_ = \
-        line != None and line.lower().find( 'version: imagemagick' ) == 0
+      path = find_executable( 'convert' )
+      Config.haveImageMagick_ = path != None
+#      proc = subprocess.Popen(
+#          [ 'convert', '-h' ],
+#	  shell = True, stdout = subprocess.PIPE
+#	  )
+#      line = proc.stdout.readline()
+#      proc.stdout.readlines()
+#      proc.wait()
+#
+#      Config.haveImageMagick_ = \
+#        line != None and line.lower().find( 'version: imagemagick' ) == 0
     #end if
 
     return  Config.haveImageMagick_

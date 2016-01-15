@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-01-15	leerw@ornl.gov				-
+#	  Working on the cut scene.
 #		2016-01-08	leerw@ornl.gov				-
 #	  Fixed calculation of assemblyIndex from/to slicePosition.
 #		2016-01-07	leerw@ornl.gov				-
@@ -58,6 +60,19 @@ class Slicer3DFrame( wx.Frame ):
     #self.state.Load( data_model )
     self.state = state
 
+#		-- File Menu
+#		--
+    file_menu = wx.Menu()
+    close_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Close\tCtrl+W' )
+    self.Bind( wx.EVT_MENU, self._OnClose, close_item )
+    file_menu.AppendItem( close_item )
+
+    mbar = wx.MenuBar()
+    mbar.Append( file_menu, '&File' )
+    self.SetMenuBar( mbar )
+
+#		-- Widget container
+#		--
     self.widgetContainer = \
         WidgetContainer( self, 'view3d.slicer_view.Slicer3DView', self.state )
     self.SetSize( ( 700, 750 ) )
@@ -76,13 +91,20 @@ class Slicer3DFrame( wx.Frame ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DFrame._OnClose()			-
+  #----------------------------------------------------------------------
+  def _OnClose( self, ev ):
+    self.Close()
+  #end _OnClose
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DFrame._OnCloseFrame()			-
   #----------------------------------------------------------------------
   def _OnCloseFrame( self, remove_listener, ev ):
     #self.widgetContainer.Destroy()
-
     if remove_listener:
-      self.widgetContainer._OnClose( ev )
+      self.widgetContainer.OnClose( ev )
 
     self.Destroy()
   #end _OnCloseFrame
@@ -596,6 +618,7 @@ class VolumeSlicer( HasTraits ):
 #			-- Must exist for reference to self.dataSource to
 #			-- invoke _dataSource_default()
   dataSource = Instance( Source )
+  dataSourceCut = Instance( Source )
   dataSourceX = Instance( Source )
   dataSourceY = Instance( Source )
   dataSourceZ = Instance( Source )
@@ -621,16 +644,19 @@ class VolumeSlicer( HasTraits ):
   view = View(
       HGroup(
           Group(
+	      # Z-Y axis (y_axes)
 	      Item(
 		  'sceneY',
 		  editor = SceneEditor( scene_class = Scene ),
 		  height = 250, width = 300
 	          ),
+	      # Z-X axis (z_axes)
 	      Item(
 		  'sceneZ',
 		  editor = SceneEditor( scene_class = Scene ),
 		  height = 250, width = 300
 	          ),
+	      # X-Y axis (x_axes)
 	      Item(
 		  'sceneX',
 		  editor = SceneEditor( scene_class = Scene ),
@@ -675,6 +701,7 @@ class VolumeSlicer( HasTraits ):
     self.ipw3dY
     self.ipw3dZ
 
+    #self.ipwCut
     #self.ipwX
     #self.ipwY
     #self.ipwZ
@@ -768,14 +795,6 @@ class VolumeSlicer( HasTraits ):
 	getattr( self, 'ipw3d' + uaxis ).ipw
 	)
 
-#    if axis == 'x':
-#      scene.scene.parallel_projection = True
-#      scene.scene.camera.parallel_scale = \
-#          0.5 * np.mean( data_source.scalar_data.shape )
-#          #0.35 * np.mean( self.dataSource.scalar_data.shape )
-#      print >> sys.stderr, '[create_side_view] xaxis scale=%f' % \
-#          scene.scene.camera.parallel_scale
-   
     return  ipw
   #end create_side_view
 
@@ -842,6 +861,16 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VolumeSlicer._dataSourceCut_default()		-
+  #----------------------------------------------------------------------
+  def _dataSourceCut_default( self ):
+    """Magically called when self.dataSource first referenced
+"""
+    return  self.create_data_source( 'Cut' )
+  #end _dataSourceCut_default
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer._dataSourceX_default()		-
   #----------------------------------------------------------------------
   def _dataSourceX_default( self ):
@@ -902,7 +931,7 @@ class VolumeSlicer( HasTraits ):
     """
 """
     outline = mlab.pipeline.outline(
-	self.dataSource.mlab_source.dataset,
+	self.dataSourceCut.mlab_source.dataset,
 	figure = self.sceneCut.mayavi_scene
         )
 
@@ -912,6 +941,12 @@ class VolumeSlicer( HasTraits ):
         vmin = self.dataRange[ 0 ],
         vmax = self.dataRange[ 1 ]
         )
+
+    #self.sceneCut.mlab.view( 10, 70 )
+    self.sceneCut.mlab.xlabel( 'Z' )
+    self.sceneCut.mlab.ylabel( 'X' )
+    self.sceneCut.mlab.zlabel( 'Y' )
+    #xxself.sceneCut.scene.isometric_view()
 
     self.sceneCut.scene.background = ( 0, 0, 0 )
     self.sceneCut.scene.interactor.interactor_style = \
@@ -927,7 +962,6 @@ class VolumeSlicer( HasTraits ):
     """
 """
     return  self.display_side_view( 'x' )
-    #return  self.create_side_view( 'x' )
   #end display_sceneX
 
 
@@ -939,7 +973,6 @@ class VolumeSlicer( HasTraits ):
     """
 """
     return  self.display_side_view( 'y' )
-    #return  self.create_side_view( 'y' )
   #end display_sceneY
 
 
@@ -951,7 +984,6 @@ class VolumeSlicer( HasTraits ):
     """
 """
     return  self.display_side_view( 'z' )
-    #return  self.create_side_view( 'z' )
   #end display_sceneZ
 
 
@@ -969,6 +1001,11 @@ class VolumeSlicer( HasTraits ):
 
     scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
 
+    if axis != 'x':
+      scene.mlab.xlabel( 'Z' )
+      scene.mlab.ylabel( 'X' )
+      scene.mlab.zlabel( 'Y' )
+
     scene.scene.background = ( 0, 0, 0 )
     scene.scene.interactor.interactor_style = \
         tvtk.InteractorStyleImage()
@@ -978,7 +1015,7 @@ class VolumeSlicer( HasTraits ):
       scene.scene.camera.parallel_scale = \
           0.4 * np.mean( self.dataSourceX.scalar_data.shape )
 #          #0.35 * np.mean( self.dataSource.scalar_data.shape )
-      print >> sys.stderr, '[create_side_view] xaxis scale=%f' % \
+      print >> sys.stderr, '[display_side_view] xaxis scale=%f' % \
           scene.scene.camera.parallel_scale
    
     return  ipw
@@ -1018,34 +1055,34 @@ class VolumeSlicer( HasTraits ):
   #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer._ipwX_default()			-
   #----------------------------------------------------------------------
-  def _ipwX_default( self ):
-    """Magically called when self.ipwX first referenced
-Not called.
-"""
-    return  self.create_side_view( 'x' )
-  #end _ipwX_default
+#  def _ipwX_default( self ):
+#    """Magically called when self.ipwX first referenced
+#Not called.
+#"""
+#    return  self.create_side_view( 'x' )
+#  #end _ipwX_default
 
 
   #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer._ipwY_default()			-
   #----------------------------------------------------------------------
-  def _ipwY_default( self ):
-    """Magically called when self.ipwY first referenced
-Not called.
-"""
-    return  self.create_side_view( 'y' )
-  #end _ipwY_default
+#  def _ipwY_default( self ):
+#    """Magically called when self.ipwY first referenced
+#Not called.
+#"""
+#    return  self.create_side_view( 'y' )
+#  #end _ipwY_default
 
 
   #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer._ipwZ_default()			-
   #----------------------------------------------------------------------
-  def _ipwZ_default( self ):
-    """Magically called when self.ipwZ first referenced
-Not called.
-"""
-    return  self.create_side_view( 'z' )
-  #end _ipwZ_default
+#  def _ipwZ_default( self ):
+#    """Magically called when self.ipwZ first referenced
+#Not called.
+#"""
+#    return  self.create_side_view( 'z' )
+#  #end _ipwZ_default
 
 
   #----------------------------------------------------------------------
@@ -1071,6 +1108,7 @@ Not called.
     """Removes any ImagePlaneWidgets from scene.actor_list
 @param  scene           MlabSceneModel from which to remove actors
 @param  preserve_list   actor type matches for things not to remove
+@deprecated  not needed, thankfully
 """
     removed_flag = False
     i = len( scene.actor_list ) - 1
@@ -1096,23 +1134,6 @@ Not called.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.remove_ipws()                      -
-  #----------------------------------------------------------------------
-  def remove_ipws( self, scene ):
-    """Removes any ImagePlaneWidgets from scene.actor_list
-@param  scene           MlabSceneModel from which to remove ImagePlaneWidgets
-"""
-    i = len( scene.actor_list ) - 1
-    while i > 0:
-      type_name = str( type( scene.actor_list[ i ] ) )
-      if type_name.find( 'ImagePlaneWidget' ) >= 0:
-        del scene.actor_list[ i ]
-      i -= 1
-    #end while
-  #end remove_ipws
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer.GetSlicePosition()			-
   #----------------------------------------------------------------------
   def GetSlicePosition( self ):
@@ -1134,86 +1155,29 @@ Not called.
   def SetScalarData( self, matrix, data_range ):
     self.dataRange = data_range
 
-    for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceZ ):
+    for d in (
+        self.dataSource, self.dataSourceCut,
+	self.dataSourceX, self.dataSourceY, self.dataSourceZ
+	):
       d.scalar_data = matrix
       d.update()
       d.data_changed = True
       d.update_image_data = True
     #end for
 
-    for axis in self.AXIS_INDEX:
-      uaxis = axis.upper()
+#    for axis in self.AXIS_INDEX:
+#      uaxis = axis.upper()
+#      ipw = getattr( self, 'ipw' + uaxis )
+#      ipw.module_manager.scalar_lut_manager.data_range = data_range
+#
+#      ipw = getattr( self, 'ipw3d' + uaxis )
+#      ipw.module_manager.scalar_lut_manager.data_range = data_range
+#    #end for
+    for uaxis in ( 'X', 'Y', 'Z', '3dX', '3dY', '3dZ', 'Cut' ):
       ipw = getattr( self, 'ipw' + uaxis )
-      ipw.module_manager.scalar_lut_manager.data_range = data_range
-
-      ipw = getattr( self, 'ipw3d' + uaxis )
       ipw.module_manager.scalar_lut_manager.data_range = data_range
     #end for
   #end SetScalarData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.SetScalarData_1()			-
-  #----------------------------------------------------------------------
-  def SetScalarData_1( self, matrix, data_range ):
-    self.dataRange = data_range
-
-    for d in ( self.dataSource, self.dataSourceX, self.dataSourceY, self.dataSourceZ ):
-      d.scalar_data = matrix
-      d.update()
-      d.data_changed = True
-      d.update_image_data = True
-
-#               -- Replace existing 3D image plane widgets
-#               --
-    #xxx save and restore scene3d camera position/view
-    #self.remove_actors( self.scene3d, 'ScalarBarWidget' )
-    scene3d_view = self.scene3d.mlab.view()
-    self.remove_actors( self.scene3d )
-    print >> sys.stderr, '[SetScalarData] scene3d_view=', str( scene3d_view )
-
-    pos = {}
-    for axis in self.AXIS_INDEX:
-      uaxis = axis.upper()
-      ipw = getattr( self, 'ipw' + uaxis )
-      #x pos = ipw.ipw.slice_position
-      pos[ axis ] = ipw.ipw.slice_position
-
-      scene = getattr( self, 'scene' + uaxis )
-      scene_view = scene.mlab.view()
-      para_scale = scene.scene.camera.parallel_scale  if axis == 'x' else  None
-      print >> sys.stderr, \
-          '[SetScalarData] uaxis=%s, pos=%s, scene_view=%s, para_scale=%s' % \
-	  ( uaxis, pos, str( scene_view ), str( para_scale) )
-
-      ipw3d = self.create_3d_ipw( axis )
-      ipw3d.ipw.interaction = 0
-      #x ipw3d.ipw.slice_position = pos
-      setattr( self, 'ipw3d' + uaxis, ipw3d )
-
-      self.remove_actors( scene )
-      #x ipw = self.create_side_view( axis, pos )
-      ipw = self.create_side_view( axis, pos[ axis ] )
-      print >> sys.stderr, \
-          '[SetScalarData] uaxis=%s, restoring view=%s' % \
-	  ( uaxis, str( scene_view ) )
-      scene.mlab.view( *scene_view )
-      if para_scale != None:
-        scene.scene.parallel_projection = True
-        scene.scene.camera.parallel_projection = True
-        scene.scene.camera.parallel_scale = para_scale
-    #end for
-
-    for axis in self.AXIS_INDEX:
-      uaxis = axis.upper()
-      getattr( self, 'ipw3d' + uaxis ).ipw.slice_position = pos[ axis ]
-      getattr( self, 'ipw' + uaxis ).ipw.slice_position = pos[ axis ]
-
-    print >> sys.stderr, \
-        '[SetScalarData] restoring scene3d view=%s' % \
-	str( scene3d_view )
-    self.scene3d.mlab.view( *scene3d_view )
-  #end SetScalarData_1
 
 
   #----------------------------------------------------------------------
@@ -1242,9 +1206,5 @@ Not called.
     #self.class_trait_view().trait_set( title = 'Hello World' )
     #mlab.title( 'Hello World 2' )
   #end UpdateView
-
-
-#		-- Static Methods
-#		--
 
 #end VolumeSlicer

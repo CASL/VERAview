@@ -80,7 +80,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 19)'
+TITLE = 'VERAView (Build 23)'
 
 TOOLBAR_ITEMS = \
   [
@@ -199,6 +199,9 @@ class VeraViewApp( wx.App ):
   #	METHOD:		VeraViewApp.OnEventLoopEnter()			-
   #----------------------------------------------------------------------
   def OnEventLoopEnter( self, *args, **kwargs ):
+    """It looks like this is called only once, so the firstLoop flag is
+unnecessary.
+"""
     print >> sys.stderr, '[VeraViewApp.OnEventLoopEnter]'
 
     if self.frame == None:

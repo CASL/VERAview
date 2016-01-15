@@ -463,7 +463,7 @@ Must be called on the UI thread.
         )
     close_button = wx.BitmapButton( control_panel, -1, close_im.ConvertToBitmap() )
     close_button.SetToolTip( wx.ToolTip( 'Close This Widget' ) )
-    close_button.Bind( wx.EVT_BUTTON, self._OnClose )
+    close_button.Bind( wx.EVT_BUTTON, self.OnClose )
     cp_sizer.Add(
         close_button, 0,
 	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
@@ -510,9 +510,9 @@ Must be called on the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnClose()					-
+  #	METHOD:		OnClose()					-
   #----------------------------------------------------------------------
-  def _OnClose( self, ev ):
+  def OnClose( self, ev ):
     """
 """
     if self.state != None and self.widget != None:
@@ -520,7 +520,7 @@ Must be called on the UI thread.
 
     self.Close()
     self.Destroy()
-  #end _OnClose
+  #end OnClose
 
 
   #----------------------------------------------------------------------
