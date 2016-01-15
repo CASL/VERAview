@@ -126,7 +126,6 @@ Must not be called on the UI thread.
 """
     try:
       #self.widget.Freeze()
-      pdb.set_trace()
       temp_dir = tempfile.mkdtemp( '.animations' )
 
       count = 0

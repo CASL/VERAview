@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-01-15	leerw@ornl.gov				-
+#	  Fixed bug in UpdateState() where _BusyEnd() was not called if
+#	  no state changes.
 #		2015-12-03	leerw@ornl.gov				-
 #	  Added _CreateValueString().
 #		2015-11-28	leerw@ornl.gov				-
@@ -939,6 +942,8 @@ Calls _UpdateStateValues().
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
+    end_busy = True
+
     if resized:
       self._ClearBitmaps()
       self._Configure()
@@ -947,7 +952,6 @@ Calls _UpdateStateValues().
     if changed and self.config != None:
       tpl = self._CreateStateTuple()
       bitmap_args = tpl + self.curSize + tuple( self.cellRange )
-#    return  self._CreateStateTuple() + self.curSize + self.cellRange
 
       must_create_image = True
       self.bitmapsLock.acquire()
@@ -965,6 +969,7 @@ Calls _UpdateStateValues().
         self.bitmapsLock.release()
 
       if must_create_image:
+	end_busy = False
         print >> sys.stderr, \
 	    '[RasterWidget.UpdateState] %s starting worker, args=%s' % \
 	    ( self.GetTitle(), str( tpl + self.curSize ) )
@@ -973,9 +978,12 @@ Calls _UpdateStateValues().
 	    self._BitmapThreadStart,
 	    wargs = [ tpl ]
 	    )
-      else:
-        self._BusyEnd()
+      #else:
+        #self._BusyEnd()
     #end if
+
+    if end_busy:
+      self._BusyEnd()
   #end UpdateState
 
 
