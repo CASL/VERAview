@@ -385,10 +385,10 @@ data_in.
 
 #	-- Determine flattened axes
 #	--
-    flat_indexes = filter(
-        lambda x: avg_shape[ x ] == 1,
-	range( len( avg_shape ) )
-	)
+#    flat_indexes = filter(
+#        lambda x: avg_shape[ x ] == 1,
+#	range( len( avg_shape ) )
+#	)
 
     indent = ''
     exec_str = ''

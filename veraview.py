@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-01-22	leerw@ornl.gov				-
+#	  Added Edit->Copy menu item.
 #		2015-12-29	leerw@ornl.gov				-
 #	  Added View menu with creation of Slicer3DFrame.
 #		2015-12-07	leerw@ornl.gov				-
@@ -536,6 +538,10 @@ class VeraViewFrame( wx.Frame ):
 #		-- Edit Menu
 #		--
     edit_menu = wx.Menu()
+    copy_item = wx.MenuItem( edit_menu, wx.ID_ANY, '&Copy\tCtrl+C' )
+    self.Bind( wx.EVT_MENU, self._OnCopy, copy_item )
+    edit_menu.AppendItem( copy_item )
+
     datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets...' )
     self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
     edit_menu.AppendItem( datasets_item )
@@ -858,6 +864,36 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnCopy()				-
+  #----------------------------------------------------------------------
+  def _OnCopy( self, ev ):
+    ev.Skip()
+
+    if not wx.TheClipboard.Open():
+      wx.MessageDialog(
+          self, 'Could not open the clipboard', 'Copy Data',
+	  style = wx.ICON_WARNING | wx.OK
+	  ).\
+	  ShowWindowModal()
+
+    else:
+      try:
+	wx.TheClipboard.SetData( wx.TextDataObject( "xxx" ) )
+
+      except Exception, ex:
+        wx.MessageDialog(
+            self, 'Could not open the clipboard', 'Copy Data',
+	    style = wx.ICON_WARNING | wx.OK
+	    ).\
+	    ShowWindowModal()
+
+      finally:
+	wx.TheClipboard.Close()
+    #end if-else
+  #end _OnCopy
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnExposure()			-
   #----------------------------------------------------------------------
   def _OnExposure( self, ev ):
@@ -869,7 +905,6 @@ Must be called from the UI thread.
       self.state.FireStateChange( reason )
       #self.grid.FireStateChange( reason )
   #end _OnExposure
-
 
 
   #----------------------------------------------------------------------
@@ -897,7 +932,6 @@ Must be called from the UI thread.
       dialog.Destroy()
     #end if-else
   #end _OnManageDataSets
-
 
 
   #----------------------------------------------------------------------

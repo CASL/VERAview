@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-01-22	leerw@ornl.gov				-
+#	  Adding clipboard copy.
 #		2016-01-15	leerw@ornl.gov				-
 #	  Fixed bug in UpdateState() where _BusyEnd() was not called if
 #	  no state changes.
@@ -76,6 +78,9 @@ Properties:
 
     self.menuDef = \
       [
+	( 'Copy Data', self._OnCopyData ),
+	( 'Copy Image', self._OnCopyImage ),
+	( '-', None ),
 	( 'Hide Labels', self._OnToggleLabels ),
 	( 'Hide Legend', self._OnToggleLegend ),
         ( 'Unzoom', self._OnUnzoom )
@@ -296,6 +301,17 @@ called from subclass _CreateDrawConfig() methods.
 
     return  config
   #end _CreateBaseDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateClipboardImage()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardImage( self ):
+    """Retrieves the currently-displayed bitmap.
+@return			bitmap or None
+"""
+    return  self.bitmapCtrl.GetBitmap() if self.bitmapCtrl != None else None
+  #end _CreateClipboardImage
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-01-22	leerw@ornl.gov				-
+#	  Adding clipboard copy.
 #		2016-01-05	leerw@ornl.gov				-
 #		2015-12-08	leerw@ornl.gov				-
 # 	  State changes managed by the State object.
@@ -434,9 +436,12 @@ Must be called on the UI thread.
     if widget_menu_def != None:
       self.widgetMenu.AppendSeparator()
       for label, handler in widget_menu_def:
-        item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
-        self.Bind( wx.EVT_MENU, handler, item )
-	self.widgetMenu.AppendItem( item )
+	if label == '-':
+          self.widgetMenu.AppendSeparator()
+	else:
+          item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
+          self.Bind( wx.EVT_MENU, handler, item )
+	  self.widgetMenu.AppendItem( item )
       #end for
     #end if widget_menu_def exists
 

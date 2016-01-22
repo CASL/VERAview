@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-01-22	leerw@ornl.gov				-
+#	  Adding clipboard copy.
 #		2015-11-28	leerw@ornl.gov				-
 #	  Calling DataModel.IsNoDataValue() instead of checking for
 #	  gt value to draw.
@@ -405,6 +407,31 @@ If neither are specified, a default 'scale' value of 24 is used.
     #return  im
     return  im if im != None else self.emptyPilImage
   #end _CreateAssyImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the currently-displayed bitmap.
+@return			bitmap or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+
+    if dset != None:
+      csv_text = DataModel.ToCSV( dset.value[ :, :, :, self.assemblyIndex[ 0 ] ] )
+
+    return  csv_text
+  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------
@@ -1083,6 +1110,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         self.FireStateChange( **state_args )
     #end if cell found
   #end _OnClick
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnCopy()					-
+  #----------------------------------------------------------------------
+  def _OnCopy( self, ev ):
+    """Method that should be implemented by subclasses for a clipboard
+copy operation.  This method just calls ev.Skip().
+"""
+    ev.Skip()
+  #end _OnCopy
 
 
   #----------------------------------------------------------------------

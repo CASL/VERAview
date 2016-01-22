@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-01-22	leerw@ornl.gov				-
+#	  Added DataModel.ToCSV().
 #		2016-01-09	leerw@ornl.gov				-
 #	  Added IsExtra().
 #		2016-01-06	leerw@ornl.gov				-
@@ -68,7 +70,7 @@
 #		2014-12-28	leerw@ornl.gov				-
 #		2014-10-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import h5py, json, math, os, sys, threading, traceback
+import cStringIO, h5py, json, math, os, sys, threading, traceback
 import numpy as np
 import pdb
 
@@ -1650,6 +1652,58 @@ to be 'core', and the dataset is not associated with a state point.
 """
     return  data != None and data.IsValid( **kwargs )
   #end IsValidObj
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ToCSV()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ToCSV( data ):
+    """Retrieves a normal or extra dataset.
+@param  data		numpy.ndarray containing data to dump
+@return			h5py.Dataset object if found or None
+"""
+    if data == None:
+      cvs_text = None
+
+    else:
+      output = cStringIO.StringIO()
+      try:
+        DataModel._WriteCSV( output, np.transpose( data ) )
+	csv_text = output.getvalue()
+      finally:
+        output.close()
+
+    return  csv_text
+  #end ToCSV
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._WriteCSV()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def _WriteCSV( fp, data, slice_name = '' ):
+    """Recursive routine
+@param  fp		file
+@param  data		numpy.ndarray containing data to dump
+"""
+    if len( data.shape ) <= 2:
+      if len( slice_name ) > 0:
+        fp.write( '# Slice: %s\n' % slice_name )
+      np.savetxt( fp, data, fmt = '%.7g', delimiter = ',' )
+
+    else:
+      ndx = 0
+      for data_slice in data:
+        if len( slice_name ) > 0:
+	  slice_name += ','
+        slice_name += str( ndx )
+        ndx += 1
+
+        DataModel._WriteCSV( fp, data_slice, slice_name )
+      #end for
+    #end if-else
+  #end _WriteCSV
 
 
   #----------------------------------------------------------------------

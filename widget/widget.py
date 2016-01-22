@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-01-22	leerw@ornl.gov				-
+#	  Adding clipboard copy.
 #		2016-01-05	leerw@ornl.gov				-
 #	  Added GetToolButtonDefs().
 #		2015-12-22	leerw@ornl.gov				-
@@ -236,6 +238,32 @@ Must be called from the UI thread.
 """
     return  False
   #end CreateAnimateImages
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateClipboardData()				-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self, ev ):
+    """Method that should be overridden by subclasses to create a text
+representation of the data displayed.  This implementation returns None.
+
+@return			text to copy to the clipboard
+"""
+    return  None
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateClipboardImage()				-
+  #----------------------------------------------------------------------
+  def _CreateClipboardImage( self ):
+    """Method that should be overridden by subclasses to create a bitmap
+ready for a clipboard copy.  This implementation returns None.
+
+@return			bitmap to copy to the clipboard
+"""
+    return  None
+  #end _CreateClipboardImage
 
 
   #----------------------------------------------------------------------
@@ -528,6 +556,76 @@ Returning None means no tool buttons, which is the default implemented here.
 """
     pass
   #end _LoadDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnCopyData()					-
+  #----------------------------------------------------------------------
+  def _OnCopyData( self, ev ):
+    """Handler for a Copy Data action.  Calls _CreateClipboardData() to get
+the data as text.  If the text is not None or empty, this method copies it to
+the clipboard.
+"""
+    ev.Skip()
+
+    data_text = self._CreateClipboardData()
+    if data_text != None and len( data_text ) > 0:
+      if not wx.TheClipboard.Open():
+        wx.MessageBox(
+	    'Could not open the clipboard', 'Copy Data',
+	    wx.ICON_WARNING | wx.OK_DEFAULT
+	    )
+
+      else:
+        try:
+	  wx.TheClipboard.SetData( wx.TextDataObject( data_text ) )
+
+	except Exception, ex:
+          wx.MessageBox(
+	      'Clipboard copy error', 'Copy Data',
+	      wx.ICON_WARNING | wx.OK_DEFAULT
+	      )
+
+	finally:
+	  wx.TheClipboard.Close()
+      #end if-else
+    #end if data exist
+  #end _OnCopyData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnCopyImage()					-
+  #----------------------------------------------------------------------
+  def _OnCopyImage( self, ev ):
+    """Handler for a Copy Image action.  Calls _CreateClipboardImage() to get
+the image as a bitmap.  If the bitmap is not None or empty, this method copies
+it to the clipboard.
+"""
+    ev.Skip()
+
+    bitmap = self._CreateClipboardImage()
+    if bitmap != None:
+      if not wx.TheClipboard.Open():
+        wx.MessageBox(
+	    'Could not open the clipboard', 'Copy Image',
+	    wx.ICON_WARNING | wx.OK_DEFAULT
+	    )
+
+      else:
+        try:
+	  wx.TheClipboard.SetData( wx.BitmapDataObject( bitmap ) )
+
+	except Exception, ex:
+          wx.MessageBox(
+	      'Clipboard copy error', 'Copy Image',
+	      wx.ICON_WARNING | wx.OK_DEFAULT
+	      )
+
+	finally:
+	  wx.TheClipboard.Close()
+      #end if-else
+    #end if data exist
+  #end _OnCopyImage
 
 
   #----------------------------------------------------------------------
