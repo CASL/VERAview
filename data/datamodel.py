@@ -1658,9 +1658,10 @@ to be 'core', and the dataset is not associated with a state point.
   #	METHOD:		DataModel.ToCSV()				-
   #----------------------------------------------------------------------
   @staticmethod
-  def ToCSV( data ):
+  def ToCSV( data, title = None ):
     """Retrieves a normal or extra dataset.
 @param  data		numpy.ndarray containing data to dump
+@param  title		optional title string or iterable of strings
 @return			h5py.Dataset object if found or None
 """
     if data == None:
@@ -1669,6 +1670,12 @@ to be 'core', and the dataset is not associated with a state point.
     else:
       output = cStringIO.StringIO()
       try:
+	if hasattr( title, '__iter__' ):
+	  for t in title:
+	    output.write( '# ' + str( t ) + '\n' )
+	elif title != None:
+          output.write( '# ' + str( title ) + '\n' )
+
         DataModel._WriteCSV( output, np.transpose( data ) )
 	csv_text = output.getvalue()
       finally:
@@ -1688,19 +1695,23 @@ to be 'core', and the dataset is not associated with a state point.
 @param  data		numpy.ndarray containing data to dump
 """
     if len( data.shape ) <= 2:
+      if len( data.shape ) == 2:
+        data = np.transpose( data )
+
       if len( slice_name ) > 0:
-        fp.write( '# Slice: %s\n' % slice_name )
+        fp.write( '## Slice: %s\n' % slice_name )
       np.savetxt( fp, data, fmt = '%.7g', delimiter = ',' )
 
     else:
       ndx = 0
       for data_slice in data:
-        if len( slice_name ) > 0:
-	  slice_name += ','
-        slice_name += str( ndx )
+	if len( slice_name ) > 0:
+	  new_slice_name = slice_name + ',' + str( ndx )
+	else:
+	  new_slice_name = str( ndx )
         ndx += 1
 
-        DataModel._WriteCSV( fp, data_slice, slice_name )
+        DataModel._WriteCSV( fp, data_slice, slice_name = new_slice_name )
       #end for
     #end if-else
   #end _WriteCSV

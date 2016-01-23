@@ -42,7 +42,7 @@
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, math, os, sys
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
   import wx

@@ -94,6 +94,68 @@ Attrs/properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the data for the current assembly selection.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+
+    if dset != None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+
+      if self.cellRange[ 0 ] <= dset_shape[ 1 ] and \
+          self.cellRange[ 1 ] <= dset_shape[ 0 ]:
+	pin_row_start = self.cellRange[ 1 ]
+	pin_row_end = min( self.cellRange[ 3 ], dset_shape[ 0 ] )
+	pin_row_size = pin_row_end - pin_row_start
+	pin_col_start = self.cellRange[ 0 ]
+	pin_col_end = min( self.cellRange[ 2 ], dset_shape[ 1 ] )
+	pin_col_size = pin_col_end - pin_col_start
+
+#        clip_data = \
+#	    np.ndarray( ( pin_row_size, pin_col_size ), dtype = np.float64 )
+#        clip_data.fill( 0.0 )
+
+	clip_data = dset_value[
+	    pin_row_start : pin_row_end,
+	    pin_col_start : pin_col_end,
+	    axial_level, self.assemblyIndex[ 0 ]
+	    ]
+
+        #clip_data = dset.value[ :, :, axial_level, self.assemblyIndex[ 0 ] ]
+        title = \
+'%s: Assembly=%d; Axial=%.3f; %s=%.3g; Col Range=[%d:%d]; Row Range=[%d:%d]' % \
+	    (
+	    self.pinDataSet,
+	    self.assemblyIndex[ 0 ] + 1,
+	    self.axialValue[ 0 ],
+	    #self.data.core.axialMeshCenters[ axial_level ],
+	    self.state.timeDataSet,
+	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet ),
+	    pin_col_start + 1, pin_col_end,
+	    pin_row_start + 1, pin_row_end
+            )
+        csv_text = DataModel.ToCSV( clip_data, title )
+      #end if data in range
+
+    return  csv_text
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._CreateDrawConfig()		-
   #----------------------------------------------------------------------
   def _CreateDrawConfig( self, **kwargs ):

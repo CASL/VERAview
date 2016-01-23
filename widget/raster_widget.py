@@ -350,9 +350,12 @@ specified, a default scale value of 8 is used.
 
       #for label, handler in self.menuDef:
       for label, handler in self.GetMenuDef( None ):
-        item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
-        self.Bind( wx.EVT_MENU, handler, item )
-        self.popupMenu.AppendItem( item )
+	if label == '-':
+	  self.popupMenu.AppendSeparator()
+	else:
+          item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
+          self.Bind( wx.EVT_MENU, handler, item )
+          self.popupMenu.AppendItem( item )
       #end for
 
       self._UpdateVisibilityMenuItems(
