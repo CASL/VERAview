@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-01-23	leerw@ornl.gov				-
+#	  Adding clipboard copy.
 #		2015-06-20	leerw@ornl.gov				-
 #	  Generalization of the all the plot widgets.
 #		2015-06-15	leerw@ornl.gov				-
@@ -19,9 +21,16 @@
 # 	  Added tooltip.
 #		2015-02-11	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, time, traceback
+import math, os, sys, tempfile, time, traceback
 import numpy as np
-import pdb  # pdb.set_trace()
+#import pdb  # pdb.set_trace()
+
+try:
+  import wx
+#  import wx.lib.delayedresult as wxlibdr
+#  from wx.lib.scrolledpanel import ScrolledPanel
+except Exception:
+  raise ImportError, 'The wxPython module is required for this component'
 
 try:
   import matplotlib
@@ -36,13 +45,6 @@ try:
   from matplotlib.figure import Figure
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
-
-try:
-  import wx
-#  import wx.lib.delayedresult as wxlibdr
-#  from wx.lib.scrolledpanel import ScrolledPanel
-except Exception:
-  raise ImportError, 'The wxPython module is required for this component'
 
 from event.state import *
 from legend import *
@@ -80,6 +82,7 @@ Properties:
     self.cursorLine = None  # axis line following the cursor
     self.data = None
     self.fig = None
+    self.popupMenu = None
 
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
     self.refAxisValues = []
@@ -88,6 +91,50 @@ Properties:
 
     super( PlotWidget, self ).__init__( container, id )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateClipboardImage()				-
+  #----------------------------------------------------------------------
+  def _CreateClipboardImage( self ):
+    """Retrieves the currently-displayed bitmap.
+@return			bitmap or None
+"""
+    bmap = None
+
+    fd, name = tempfile.mkstemp( '.png' )
+    try:
+      os.close( fd )
+      if self.CreatePrintImage( name ):
+        bmap = wx.Image( name, wx.BITMAP_TYPE_PNG ).ConvertToBitmap()
+    finally:
+      os.remove( name )
+
+    return  bmap
+  #end _CreateClipboardImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CreatePopupMenu()				-
+  #----------------------------------------------------------------------
+  def CreatePopupMenu( self ):
+    """Lazily creates.  Must be called from the UI thread.
+"""
+    if self.popupMenu == None:
+      self.popupMenu = wx.Menu()
+
+      for label, handler in self.menuDef:
+        if label == '-':
+	  self.popupMenu.AppendSeparator()
+        else:
+	  item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
+	  self.Bind( wx.EVT_MENU, handler, item )
+	  self.popupMenu.AppendItem( item )
+      #end for
+    #end if must create menu
+
+    return  self.popupMenu
+  #end CreatePopupMenu
 
 
   #----------------------------------------------------------------------
@@ -209,6 +256,7 @@ are axial values.
     self.canvas.mpl_connect( 'motion_notify_event', self._OnMplMouseMotion )
 
     self.Bind( wx.EVT_CLOSE, self._OnClose )
+    self.Bind( wx.EVT_CONTEXT_MENU, self._OnContextMenu )
     self.Bind( wx.EVT_SIZE, self._OnSize )
   #end _InitUI
 
@@ -250,6 +298,22 @@ to be passed to UpdateState().  Assume self.data is valid.
     if self.fig != None:
       self.fig.close()
   #end _OnClose
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnContextMenu()				-
+  #----------------------------------------------------------------------
+  def _OnContextMenu( self, ev ):
+    """
+"""
+    ev.GetEventObject().ReleaseMouse()
+
+    pos = ev.GetPosition()
+    pos = self.ScreenToClient( pos )
+
+    menu = self.CreatePopupMenu()
+    self.PopupMenu( menu, pos )
+  #end _OnContextMenu
 
 
   #----------------------------------------------------------------------

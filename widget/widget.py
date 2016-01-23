@@ -243,7 +243,7 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardData()				-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, ev ):
+  def _CreateClipboardData( self ):
     """Method that should be overridden by subclasses to create a text
 representation of the data displayed.  This implementation returns None.
 

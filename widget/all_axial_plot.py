@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2016-01-23	leerw@ornl.gov				-
+#	  Adding clipboard copy.
 #		2015-11-20	leerw@ornl.gov				-
 #	  Added graceful handling of extra and other datasets.
 #		2015-11-19	leerw@ornl.gov				-
@@ -37,6 +39,13 @@ import numpy as np
 #import pdb  # pdb.set_trace()
 
 try:
+  import wx
+#  import wx.lib.delayedresult as wxlibdr
+#  from wx.lib.scrolledpanel import ScrolledPanel
+except Exception:
+  raise ImportError, 'The wxPython module is required for this component'
+
+try:
   import matplotlib
   matplotlib.use( 'WXAgg' )
 #  import matplotlib.pyplot as plt
@@ -49,13 +58,6 @@ try:
   from matplotlib.figure import Figure
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
-
-try:
-  import wx
-#  import wx.lib.delayedresult as wxlibdr
-#  from wx.lib.scrolledpanel import ScrolledPanel
-except Exception:
-  raise ImportError, 'The wxPython module is required for this component'
 
 from bean.dataset_chooser import *
 from event.state import *
@@ -117,7 +119,13 @@ Properties:
     self.detectorDataSet = 'detector_respose'
     self.detectorIndex = ( -1, -1, -1 )
 
-    self.menuDef = [ ( 'Select Datasets', self._OnSelectDataSets ) ]
+    self.menuDef = \
+      [
+	( 'Copy Data', self._OnCopyData ),
+	( 'Copy Image', self._OnCopyImage ),
+	( '-', None ),
+        ( 'Select Datasets', self._OnSelectDataSets )
+      ]
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 

@@ -29,6 +29,13 @@ import numpy as np
 import pdb  # pdb.set_trace()
 
 try:
+  import wx
+#  import wx.lib.delayedresult as wxlibdr
+#  from wx.lib.scrolledpanel import ScrolledPanel
+except Exception:
+  raise ImportError, 'The wxPython module is required for this component'
+
+try:
   import matplotlib
   matplotlib.use( 'WXAgg' )
 #  import matplotlib.pyplot as plt
@@ -41,13 +48,6 @@ try:
   from matplotlib.figure import Figure
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
-
-try:
-  import wx
-#  import wx.lib.delayedresult as wxlibdr
-#  from wx.lib.scrolledpanel import ScrolledPanel
-except Exception:
-  raise ImportError, 'The wxPython module is required for this component'
 
 from event.state import *
 from legend import *
@@ -74,21 +74,15 @@ Properties:
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-
-#    self.ax = None
-#    self.canvas = None
-#    self.cursor = None
-#    self.data = None
-#    self.fig = None
+    self.menuDef = \
+      [
+	( 'Copy Data', self._OnCopyData ),
+	( 'Copy Image', self._OnCopyImage )
+      ]
 
     self.scalarDataSet = 'keff'
     self.scalarValues = []
-#    self.ly = None
-#    self.stateIndex = -1
     self.timeDataSet = 'state'
-#    self.timeLine = None
-#    self.timeValues = []
-#    self.titleFontSize = 16
 
     super( TimePlot, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
