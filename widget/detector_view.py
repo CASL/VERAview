@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2015-11-23	leerw@ornl.gov				-
 #	  Migrating to new dataset retrieval scheme.
 #		2015-08-31	leerw@ornl.gov				-

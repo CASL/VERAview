@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Added GetWidgetMenu() and GetWidgetMenuButton().
 #		2016-01-22	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2016-01-05	leerw@ornl.gov				-
@@ -199,6 +201,22 @@ Must be called on the UI thread.
   def GetState( self ):
     return  self.state
   #end GetState
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetWidgetMenu()					-
+  #----------------------------------------------------------------------
+  def GetWidgetMenu( self ):
+    return  self.widgetMenu
+  #end GetWidgetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetWidgetMenuButton()				-
+  #----------------------------------------------------------------------
+  def GetWidgetMenuButton( self ):
+    return  self.widgetMenuButton
+  #end GetWidgetMenuButton
 
 
   #----------------------------------------------------------------------

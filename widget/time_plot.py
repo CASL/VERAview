@@ -74,12 +74,6 @@ Properties:
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    self.menuDef = \
-      [
-	( 'Copy Data', self._OnCopyData ),
-	( 'Copy Image', self._OnCopyImage )
-      ]
-
     self.scalarDataSet = 'keff'
     self.scalarValues = []
     self.timeDataSet = 'state'

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2015-12-03	leerw@ornl.gov				-
 #	  Using self._CreateValueDisplay().
 #		2015-11-28	leerw@ornl.gov				-
@@ -65,8 +67,6 @@ Attrs/properties:
     self.showPins = True
 
     super( ChannelAssembly2DView, self ).__init__( container, id )
-
-    self.menuDef.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
   #end __init__
 
 
@@ -166,21 +166,68 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView._CreateMenuDef()		-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self, data_model ):
+    """
+"""
+    menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef( data_model )
+    #menu_def.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
+    other_def = \
+      [
+#	( '-', None ),
+        ( 'Hide Pins', self._OnTogglePins )
+      ]
+
+    hide_legend_ndx = -1
+    ndx = 0
+    for label, handler in menu_def:
+      if label == 'Hide Legend':
+        hide_legend_ndx = ndx + 1
+      ndx += 1
+    #end for
+
+    if hide_legend_ndx < 0:
+      result = menu_def + other_def
+    else:
+      result = \
+      menu_def[ : hide_legend_ndx ] + other_def + menu_def[ hide_legend_ndx : ]
+
+    return  result
+  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
   #     METHOD:         ChannelAssembly2DView.CreatePopupMenu()		-
   #----------------------------------------------------------------------
   def CreatePopupMenu( self ):
     """Lazily creates.  Must be called from the UI thread.
 """
     super( ChannelAssembly2DView, self ).CreatePopupMenu()
-    if self.popupMenu != None:
+    if self.GetPopupMenu() != None:
       self._UpdateVisibilityMenuItems(
-          self.popupMenu,
+          self.GetPopupMenu(),
 	  'Pins', self.showPins
 	  )
     #end if must create menu
 
-    return  self.popupMenu
+    return  self.GetPopupMenu()
   #end CreatePopupMenu
+
+
+  #----------------------------------------------------------------------
+  #     METHOD:         ChannelAssembly2DView._CreatePopupMenu()	-
+  #----------------------------------------------------------------------
+  def _CreatePopupMenu( self ):
+    """Calls _UpdateVisibilityMenuItems().
+Must be called from the UI thread.
+"""
+    popup_menu = super( ChannelAssembly2DView, self )._CreatePopupMenu()
+    if popup_menu != None:
+      self._UpdateVisibilityMenuItems( popup_menu, 'Pins', self.showPins )
+
+    return  popup_menu
+  #end _CreatePopupMenu
 
 
   #----------------------------------------------------------------------
@@ -704,9 +751,9 @@ attributes/properties that aren't already set in _LoadDataModel():
 #		-- Change Toggle Pins for Other Menu
 #		--
     other_menu = \
-        self.popupMenu \
-	if menu == self.container.widgetMenu else \
-	self.container.widgetMenu
+        self.GetPopupMenu() \
+	if menu == self.container.GetWidgetMenu() else \
+	self.container.GetWidgetMenu()
     if other_menu != None:
       self._UpdateVisibilityMenuItems(
           other_menu,

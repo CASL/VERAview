@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2015-11-28	leerw@ornl.gov				-
 #	  Calling DataModel.IsNoDataValue() instead of checking for
 #	  gt value to draw.

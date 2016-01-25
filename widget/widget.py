@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the widget menu messiness with _CreateMenuDef()
+#	  and menuDef defined here and GetPopupMenu() implemented here.
 #		2016-01-22	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2016-01-05	leerw@ornl.gov				-
@@ -96,6 +99,9 @@ class Widget( wx.Panel ):
     self.container = container
     self.multiDataSets = []  # should always be sorted ascending
     self.state = None
+
+    self.menuDef = None
+    self.popupMenu = None
 
     Widget.GetBitmap( BMAP_NAME_green )
     Widget.GetBitmap( BMAP_NAME_red )
@@ -310,6 +316,47 @@ ready for a clipboard copy.  This implementation returns None.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_CreateMenuDef()				-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self, data_model ):
+    """List of (label, handler) pairs to present in a menu.
+This implementation creates the Copy Data and Copy Image items, so
+subclasses must override this calling super._CreateMenuDef() to insert
+or append items.
+@param  data_model	loaded data model, might be None
+@return			[ ( label, handler ), ... ]
+"""
+    return \
+      [
+	( 'Copy Data', self._OnCopyData ),
+        ( 'Copy Image', self._OnCopyImage )
+      ]
+  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
+  #     METHOD:         _CreatePopupMenu()				-
+  #----------------------------------------------------------------------
+  def _CreatePopupMenu( self ):
+    """Populates self.popupMenu from self.GetMenuDef().
+Must be called from the UI thread.
+"""
+    popup_menu = wx.Menu()
+
+    for label, handler in self.GetMenuDef( None ):
+      if label == '-':
+        popup_menu.AppendSeparator()
+      else:
+        item = wx.MenuItem( popup_menu, wx.ID_ANY, label )
+        self.Bind( wx.EVT_MENU, handler, item )
+        popup_menu.AppendItem( item )
+    #end for
+
+    return  popup_menu
+  #end _CreatePopupMenu
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		CreatePrintImage()				-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
@@ -435,11 +482,14 @@ Subclasses should override as this implementation returns None
   #----------------------------------------------------------------------
   def GetMenuDef( self, data_model ):
     """List of (label, handler) pairs to present in a menu.
-Returning None means no menu, which is the default implemented here.
+Lazily created here via a call to _CreateMenuDef(), which should be overridden 
+by subclasses.
 @param  data_model	loaded data model, might be None
 @return			[ ( label, handler ), ... ]
 """
-    return  None
+    if self.menuDef == None:
+      self.menuDef = self._CreateMenuDef( data_model )
+    return  self.menuDef
   #end GetMenuDef
 
 
@@ -454,6 +504,19 @@ Subclasses should override as this implementation returns None
 """
     return  None
   #end GetMultiDataSetType
+
+
+  #----------------------------------------------------------------------
+  #     METHOD:         GetPopupMenu()					-
+  #----------------------------------------------------------------------
+  def GetPopupMenu( self ):
+    """Lazily creates calling _CreatePopupMenu().
+Must be called from the UI thread.
+"""
+    if self.popupMenu == None:
+      self.popupMenu = self._CreatePopupMenu()
+    return  self.popupMenu
+  #end GetPopupMenu
 
 
   #----------------------------------------------------------------------
@@ -556,6 +619,20 @@ Returning None means no tool buttons, which is the default implemented here.
 """
     pass
   #end _LoadDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnContextMenu()				-
+  #----------------------------------------------------------------------
+  def _OnContextMenu( self, ev ):
+    """
+"""
+    pos = ev.GetPosition()
+    pos = self.ScreenToClient( pos )
+
+    menu = self.GetPopupMenu()
+    self.PopupMenu( menu, pos )
+  #end _OnContextMenu
 
 
   #----------------------------------------------------------------------

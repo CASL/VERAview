@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2016-01-22	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2016-01-15	leerw@ornl.gov				-
@@ -76,16 +78,17 @@ Properties:
     self.dragStartCell = None
     self.dragStartPosition = None
 
-    self.menuDef = \
-      [
-	( 'Copy Data', self._OnCopyData ),
-	( 'Copy Image', self._OnCopyImage ),
-	( '-', None ),
-	( 'Hide Labels', self._OnToggleLabels ),
-	( 'Hide Legend', self._OnToggleLegend ),
-        ( 'Unzoom', self._OnUnzoom )
-      ]
-    #x self.pinColRow = None
+#old way
+#    self.menuDef = \
+#      [
+#	( 'Copy Data', self._OnCopyData ),
+#	( 'Copy Image', self._OnCopyImage ),
+#	( '-', None ),
+#	( 'Hide Labels', self._OnToggleLabels ),
+#	( 'Hide Legend', self._OnToggleLegend ),
+#        ( 'Unzoom', self._OnUnzoom )
+#      ]
+
     self.showLabels = True
     self.showLegend = True
     self.stateIndex = -1
@@ -99,7 +102,6 @@ Properties:
     self.pilFontPath = \
         os.path.join( Config.GetRootDir(), 'res/Arial Black.ttf' )
 #        os.path.join( Config.GetRootDir(), 'res/Times New Roman Bold.ttf' )
-    self.popupMenu = None
     self.valueFontPath = \
         os.path.join( Config.GetRootDir(), 'res/Arial Narrow.ttf' )
 
@@ -120,8 +122,9 @@ Paired to _BitmapThreadStart().
       cur_tuple, pil_im = result.get()
 
 #    print >> sys.stderr, \
-#        '[RasterWidget._BitmapThreadFinish] %s cur_tuple=%s, pil_im=%s' % \
-#	( self.GetTitle(), str( cur_tuple ), pil_im != None )
+#        '[RasterWidget._BitmapThreadFinish] %s cur_tuple=%s/%s, pil_im=%s' % \
+#	( self.GetTitle(), str( cur_tuple ), self.IsTupleCurrent( cur_tuple ),
+#	  pil_im != None )
 
     if cur_tuple != None:
 #			-- Create bitmap
@@ -153,6 +156,7 @@ Paired to _BitmapThreadStart().
 #      if cur_pair[ 0 ] == self.stateIndex and cur_pair[ 1 ] == self.axialValue[ 1 ]:
       if self.IsTupleCurrent( cur_tuple ):
         self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
+        self.bitmapCtrl.Update()
     #end if cur_pair != None:
 
     self._BusyEnd()
@@ -340,33 +344,41 @@ specified, a default scale value of 8 is used.
 
 
   #----------------------------------------------------------------------
-  #     METHOD:         RasterWidget.CreatePopupMenu()			-
+  #	METHOD:		RasterWidget._CreateMenuDef()			-
   #----------------------------------------------------------------------
-  def CreatePopupMenu( self ):
-    """Lazily creates.  Must be called from the UI thread.
+  def _CreateMenuDef( self, data_model ):
+    """
 """
-    if self.popupMenu == None:
-      self.popupMenu = wx.Menu()
+    menu_def = super( RasterWidget, self )._CreateMenuDef( data_model )
+    raster_def = \
+      [
+	( '-', None ),
+	( 'Hide Labels', self._OnToggleLabels ),
+	( 'Hide Legend', self._OnToggleLegend ),
+        ( 'Unzoom', self._OnUnzoom )
+      ]
+    return  menu_def + raster_def
+  #end _CreateMenuDef
 
-      #for label, handler in self.menuDef:
-      for label, handler in self.GetMenuDef( None ):
-	if label == '-':
-	  self.popupMenu.AppendSeparator()
-	else:
-          item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
-          self.Bind( wx.EVT_MENU, handler, item )
-          self.popupMenu.AppendItem( item )
-      #end for
 
+  #----------------------------------------------------------------------
+  #     METHOD:         RasterWidget._CreatePopupMenu()			-
+  #----------------------------------------------------------------------
+  def _CreatePopupMenu( self ):
+    """Calls _UpdateVisibilityMenuItems().
+Must be called from the UI thread.
+"""
+    popup_menu = super( RasterWidget, self )._CreatePopupMenu()
+
+    if popup_menu != None:
       self._UpdateVisibilityMenuItems(
-          self.popupMenu,
-	  'Labels', self.showLabels,
-	  'Legend', self.showLegend
-	  )
-    #end if must create menu
+          popup_menu,
+          'Labels', self.showLabels,
+          'Legend', self.showLegend
+          )
 
-    return  self.popupMenu
-  #end CreatePopupMenu
+    return  popup_menu
+  #end _CreatePopupMenu
 
 
   #----------------------------------------------------------------------
@@ -532,16 +544,6 @@ Subclasses should override as needed.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget.GetMenuDef()			-
-  #----------------------------------------------------------------------
-  def GetMenuDef( self, data_model ):
-    """
-"""
-    return  self.menuDef
-  #end GetMenuDef
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.GetPrintScale()			-
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
@@ -600,7 +602,6 @@ Subclasses that override should call this implementation.
     self.bitmapCtrl = wx.StaticBitmap( self.bitmapPanel, bitmap = self.blankBitmap )
 
     self._InitEventHandlers()
-    #self.CreatePopupMenu()
 
 #		-- Lay out
 #		--
@@ -704,15 +705,15 @@ attributes/properties that aren't already set in _LoadDataModel():
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._OnContextMenu()			-
   #----------------------------------------------------------------------
-  def _OnContextMenu( self, ev ):
-    """
-"""
-    pos = ev.GetPosition()
-    pos = self.bitmapCtrl.ScreenToClient( pos )
-
-    menu = self.CreatePopupMenu()
-    self.bitmapCtrl.PopupMenu( menu, pos )
-  #end _OnContextMenu
+#  def _OnContextMenu( self, ev ):
+#    """
+#"""
+#    pos = ev.GetPosition()
+#    pos = self.bitmapCtrl.ScreenToClient( pos )
+#
+#    menu = self.GetPopupMenu()
+#    self.bitmapCtrl.PopupMenu( menu, pos )
+#  #end _OnContextMenu
 
 
   #----------------------------------------------------------------------
@@ -881,9 +882,9 @@ This implementation is a noop.
 #		-- Change Toggle Labels for Other Menu
 #		--
     other_menu = \
-        self.popupMenu \
-	if menu == self.container.widgetMenu else \
-	self.container.widgetMenu
+        self.GetPopupMenu() \
+	if menu == self.container.GetWidgetMenu() else \
+	self.container.GetWidgetMenu()
     if other_menu != None:
       self._UpdateVisibilityMenuItems(
           other_menu,
@@ -919,7 +920,7 @@ This implementation is a noop.
 #		-- Change Toggle Labels for Other Menu
 #		--
     other_menu = \
-        self.popupMenu \
+        self.GetPopupMenu() \
 	if menu == self.container.widgetMenu else \
 	self.container.widgetMenu
     if other_menu != None:

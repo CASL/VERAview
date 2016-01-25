@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2016-01-22	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2015-11-28	leerw@ornl.gov				-
@@ -115,21 +117,11 @@ Properties:
     self.avgDataSet = None
     self.avgValues = {}
 
-#    self.menuDef = \
-#      [
-#	( 'Hide Labels', self._OnToggleLabels ),
-#	( 'Hide Legend', self._OnToggleLegend ),
-#        ( 'Unzoom', self._OnUnzoom )
-#      ]
     self.mode = ''  # 'assy', 'core'
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     super( Core2DView, self ).__init__( container, id )
-
-    self.menuDef.insert(
-        0, ( 'Select Average Dataset...', self._OnSelectAverageDataSet )
-	)
   #end __init__
 
 
@@ -758,7 +750,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if self.config exists
     elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, '\n[Core2DView._CreateCoreImage] time=%.3fs' % elapsed_time
+    print >> sys.stderr, \
+        '\n[Core2DView._CreateCoreImage] time=%.3fs, im-None=%s' % \
+	( elapsed_time, im == None )
 
     #return  im
     return  im if im != None else self.emptyPilImage
@@ -779,6 +773,27 @@ If neither are specified, a default 'scale' value of 4 is used.
         self._CreateAssyDrawConfig( **kwargs ) if self.mode == 'assy' else \
 	self._CreateCoreDrawConfig( **kwargs )
   #end _CreateDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateMenuDef()			-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self, data_model ):
+    """
+"""
+#    menu_def.insert(
+#        0, ( 'Select Average Dataset...', self._OnSelectAverageDataSet )
+#	)
+#    return  menu_def
+
+    menu_def = super( Core2DView, self )._CreateMenuDef( data_model )
+    other_def = \
+      [
+        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
+	( '-', None )
+      ]
+    return  other_def + menu_def
+  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------

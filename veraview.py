@@ -121,7 +121,6 @@ TOOLBAR_ITEMS = \
 #    }
     {
     'widget': 'Time Plot', 'icon': 'TimePlot.32.png',
-#'exposure_plot_32x32.png'
     'type': 'scalar'
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     }
@@ -135,7 +134,7 @@ WIDGET_MAP = \
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
-  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
+#  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
   'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
   'Time Plot': 'widget.time_plot.TimePlot'
   }

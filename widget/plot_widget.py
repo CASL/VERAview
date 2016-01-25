@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2016-01-23	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2015-06-20	leerw@ornl.gov				-
@@ -82,7 +84,6 @@ Properties:
     self.cursorLine = None  # axis line following the cursor
     self.data = None
     self.fig = None
-    self.popupMenu = None
 
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
     self.refAxisValues = []
@@ -112,29 +113,6 @@ Properties:
 
     return  bmap
   #end _CreateClipboardImage
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CreatePopupMenu()				-
-  #----------------------------------------------------------------------
-  def CreatePopupMenu( self ):
-    """Lazily creates.  Must be called from the UI thread.
-"""
-    if self.popupMenu == None:
-      self.popupMenu = wx.Menu()
-
-      for label, handler in self.menuDef:
-        if label == '-':
-	  self.popupMenu.AppendSeparator()
-        else:
-	  item = wx.MenuItem( self.popupMenu, wx.ID_ANY, label )
-	  self.Bind( wx.EVT_MENU, handler, item )
-	  self.popupMenu.AppendItem( item )
-      #end for
-    #end if must create menu
-
-    return  self.popupMenu
-  #end CreatePopupMenu
 
 
   #----------------------------------------------------------------------
@@ -311,7 +289,7 @@ to be passed to UpdateState().  Assume self.data is valid.
     pos = ev.GetPosition()
     pos = self.ScreenToClient( pos )
 
-    menu = self.CreatePopupMenu()
+    menu = self.GetPopupMenu()
     self.PopupMenu( menu, pos )
   #end _OnContextMenu
 

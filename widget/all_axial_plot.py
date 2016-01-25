@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2016-01-23	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2015-11-20	leerw@ornl.gov				-
@@ -119,18 +121,35 @@ Properties:
     self.detectorDataSet = 'detector_respose'
     self.detectorIndex = ( -1, -1, -1 )
 
-    self.menuDef = \
-      [
-	( 'Copy Data', self._OnCopyData ),
-	( 'Copy Image', self._OnCopyImage ),
-	( '-', None ),
-        ( 'Select Datasets', self._OnSelectDataSets )
-      ]
+#Old Way
+#    self.menuDef = \
+#      [
+#	( 'Copy Data', self._OnCopyData ),
+#	( 'Copy Image', self._OnCopyImage ),
+#	( '-', None ),
+#        ( 'Select Datasets', self._OnSelectDataSets )
+#      ]
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     super( AllAxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateMenuDef()				-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self, data_model ):
+    """
+"""
+    menu_def = super( AllAxialPlot, self )._CreateMenuDef( data_model )
+    more_def = \
+      [
+	( '-', None ),
+        ( 'Select Datasets', self._OnSelectDataSets )
+      ]
+    return  menu_def + more_def
+  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
@@ -405,14 +424,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	])
     return  locks
   #end GetEventLockSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		GetMenuDef()					-
-  #----------------------------------------------------------------------
-  def GetMenuDef( self, data_model ):
-    return  self.menuDef
-  #end GetMenuDef
 
 
   #----------------------------------------------------------------------

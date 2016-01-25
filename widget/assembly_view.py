@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Cleaning up the menu mess.
 #		2015-12-03	leerw@ornl.gov				-
 #	  Using self._CreateValueDisplay().
 #		2015-11-28	leerw@ornl.gov				-
