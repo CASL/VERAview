@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plot.py					-
 #	HISTORY:							-
+#		2016-01-25	leerw@ornl.gov				-
+#	  Added _CreateClipboardData().
 #		2015-07-03	leerw@ornl.gov				-
 #	  Migrating to a PlotWidget extension.
 #		2015-06-15	leerw@ornl.gov				-
@@ -80,6 +82,32 @@ Properties:
 
     super( TimePlot, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateClipboardData()				-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    csv_text = None
+
+    if self.data != None and self.data.HasData() and \
+	self.state.timeDataSet != None and self.scalarDataSet != None and \
+	len( self.refAxisValues ) > 0 and len( self.scalarValues ) > 0:
+
+      csv_text = '%s,%s\n' % ( self.state.timeDataSet, self.scalarDataSet )
+      for i in range( len( self.refAxisValues ) ):
+	row = '%.7g' % self.refAxisValues[ i ]
+	if len( self.scalarValues ) > i:
+	  row += ',%.7g' % self.scalarValues[ i ]
+	csv_text += row + '\n'
+      #end for
+    #end if valid state
+
+    return  csv_text
+  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------

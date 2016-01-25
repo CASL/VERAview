@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
+#	  Added _CreateClipboardData().
 #		2016-01-23	leerw@ornl.gov				-
 #	  Adding clipboard copy.
 #		2015-11-20	leerw@ornl.gov				-
@@ -134,6 +135,146 @@ Properties:
 
     super( AllAxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateClipboardData()				-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    csv_text = None
+
+    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+      core = self.data.GetCore()
+
+      title = '%s=%.3g' % (
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+
+      title_set = set( [] )
+      axial_mesh_datasets = []
+      detector_mesh_datasets = []
+      detector_mesh_header = 'Detector Mesh Center'
+
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+
+        if ds_rec[ 'visible' ] and ds_name != None:
+	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+	  dset_array = dset.value if dset != None else None
+	  if dset_array == None:
+	    pass
+
+	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
+	    valid = self.data.IsValid(
+	        assembly_index = self.assemblyIndex,
+		channel_colrow = self.channelColRow
+	        )
+	    if valid:
+	      if 'channel' not in title_set:
+	        title_set.add( 'channel' )
+		title += '; Channel=(%d,%d)' % ( 
+		    self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1
+		    )
+	      values = dset_array[
+		  self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+		  :, self.assemblyIndex[ 0 ]
+	          ]
+	      axial_mesh_datasets.append( ( ds_display_name, values ) )
+
+	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
+	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
+	      if 'detector' not in title_set:
+	        title_set.add( 'detector' )
+		title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
+
+	      detector_mesh_datasets.append(
+		  ( ds_display_name, dset_array[ :, self.detectorIndex[ 0 ] ] )
+	          )
+
+	  elif ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
+	      ds_display_name in self.data.GetDataSetNames( 'other' ):
+	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
+	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
+	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
+	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
+	      values = dset_array[
+		  self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		  0 : temp_nax, assy_ndx
+	          ]
+	      axial_mesh_datasets.append( ( ds_display_name, values ) )
+
+	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
+	    valid = self.data.IsValid(
+	        assembly_index = self.assemblyIndex,
+		pin_colrow = self.pinColRow
+	        )
+	    if valid:
+	      if 'pin' not in title_set:
+	        title_set.add( 'pin' )
+		title += '; Pin=(%d,%d)' % ( 
+		    self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1
+		    )
+
+	      values = dset_array[
+		  self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		  :, self.assemblyIndex[ 0 ]
+	          ]
+	      axial_mesh_datasets.append( ( ds_display_name, values ) )
+	  #end if category match
+        #end if visible
+      #end for each dataset
+
+      csv_text = '#"%s"\n' % title
+
+      if len( axial_mesh_datasets ) > 0:
+        header = 'Axial Mesh Center'
+        for name, values in axial_mesh_datasets:
+	  header += ',' + name
+        csv_text += header + '\n'
+
+	for j in range( len( core.axialMeshCenters ) - 1, -1, -1 ):
+	  row = '%.7g' % core.axialMeshCenters[ j ]
+          for name, values in axial_mesh_datasets:
+	    if len( values ) > j:
+	      row += ',%.7g' % values[ j ]
+	    else:
+	      row += ',0'
+          #end for name, values
+
+          csv_text += row + '\n'
+	#end for j
+
+	csv_text += '\n'
+      #end if
+
+      if len( detector_mesh_datasets ) > 0:
+        header = 'Detector Mesh Center'
+        for name, values in detector_mesh_datasets:
+	  header += ',' + name
+        csv_text += header + '\n'
+
+	for j in range( len( core.detectorMeshCenters ) - 1, -1, -1 ):
+	  row = '%.7g' % core.detectorMeshCenters[ j ]
+          for name, values in detector_mesh_datasets:
+	    if len( values ) >= j:
+	      row += ',%.7g' % values[ j ]
+	    else:
+	      row += ',0'
+          #end for name, values
+
+          csv_text += row + '\n'
+	#end for j
+      #end if
+    #end if valid state
+
+    return  csv_text
+  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------
@@ -351,7 +492,7 @@ calls self.ax.grid() and can be called by subclasses.
 	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
-      if ndx >= 0:
+      if ndx >= 0 and len( self.dataSetValues[ k ] ) > ndx:
         values[ ds_name ] = self.dataSetValues[ k ][ ndx ]
     #end for
 
@@ -572,20 +713,12 @@ to be passed to UpdateState().  Assume self.data is valid.
     self.dataSetValues.clear()
 
     if self.data != None and self.data.IsValid( state_index = self.stateIndex ):
-#      if self.data.core.axialMeshCenters != None:
-#        self.refAxisValues = self.data.core.axialMeshCenters.tolist()
-#      elif self.data.core.detectorMeshCenters != None:
-#        self.refAxisValues = self.data.core.detectorMeshCenters.tolist()
-
-#      state_group = self.data.states[ self.stateIndex ].group
-
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
-	ds_display_name = self.data.GetDataSetDisplayName( ds_name )
-#        if ds_rec[ 'visible' ] and ds_name != None and ds_name in state_group:
-#	  ds = state_group[ ds_name ]
+
         if ds_rec[ 'visible' ] and ds_name != None:
+	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
 	  dset_array = dset.value if dset != None else None
 	  if dset_array == None:
@@ -597,15 +730,10 @@ to be passed to UpdateState().  Assume self.data is valid.
 		channel_colrow = self.channelColRow
 	        )
 	    if valid:
-	      new_values = []
-	      for i in range( self.data.core.nax ):
-	        new_values.append(
-		    dset_array[
-		        self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-		        i, self.assemblyIndex[ 0 ]
-			]
-		    )
-              self.dataSetValues[ k ] = np.array( new_values )
+              self.dataSetValues[ k ] = dset_array[
+	          self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+		  :, self.assemblyIndex[ 0 ]
+	          ]
               self.dataSetTypes.add( 'channel' )
 
 	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
@@ -618,15 +746,11 @@ to be passed to UpdateState().  Assume self.data is valid.
 	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
 	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
 	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
-	      new_values = []
-	      for i in range( min( self.data.core.nax, dset.shape[ 2 ] ) ):
-	        new_values.append(
-		    dset_array[
-		        self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-			i, assy_ndx
-			]
-		    )
-	      self.dataSetValues[ k ] = np.array( new_values )
+	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
+	      self.dataSetValues[ k ] = dset_array[
+	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+	          :, assy_ndx
+	          ]
               self.dataSetTypes.add( 'other' )
 
 	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
@@ -635,19 +759,10 @@ to be passed to UpdateState().  Assume self.data is valid.
 		pin_colrow = self.pinColRow
 	        )
 	    if valid:
-	      new_values = []
-	      for i in range( self.data.core.nax ):
-		#DataModel.GetPinIndex(
-		#    self.assemblyIndex[ 0 ], i,
-		#    self.pinColRow[ 0 ], self.pinColRow[ 1 ]
-		#    )
-	        new_values.append(
-		    dset_array[
-		        self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-		        i, self.assemblyIndex[ 0 ]
-			]
-		    )
-	      self.dataSetValues[ k ] = np.array( new_values )
+	      self.dataSetValues[ k ] = dset_array[
+	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		  :, self.assemblyIndex[ 0 ]
+	          ]
               self.dataSetTypes.add( 'pin' )
 	  #end if category match
         #end if visible

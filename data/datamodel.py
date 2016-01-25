@@ -429,16 +429,16 @@ coreSym, npiny, npinx, nax, and nass.
   #----------------------------------------------------------------------
   def ToJson( self ):
     obj = {}
-    obj[ 'apitch' ] = self.apitch.item()
+    obj[ 'apitch' ] = self.apitch
     if self.axialMesh != None:
       obj[ 'axialMesh' ] = self.axialMesh.tolist()
     if self.coreMap != None:
       obj[ 'coreMap' ] = self.coreMap.tolist()
-    obj[ 'coreSym' ] = self.coreSym.item()
+    obj[ 'coreSym' ] = self.coreSym
     if self.detectorMap != None:
       obj[ 'detectorMap' ] = self.detectorMap.tolist()
-    if self.detectorMesh != None:
-      obj[ 'detectorMesh' ] = self.detectorMesh.tolist()
+    if self.detectorMeshCenters != None:
+      obj[ 'detectorMeshCenters' ] = self.detectorMeshCenters.tolist()
     obj[ 'nass' ] = self.nass
     obj[ 'nassx' ] = self.nassx
     obj[ 'nassy' ] = self.nassy
@@ -448,8 +448,8 @@ coreSym, npiny, npinx, nax, and nass.
     obj[ 'npin' ] = self.npin
     if self.pinVolumes != None:
       obj[ 'pinVolumes' ] = self.pinVolumes.tolist()
-    obj[ 'ratedFlow' ] = self.ratedFlow.item()
-    obj[ 'ratedPower' ] = self.ratedPower.item()
+    obj[ 'ratedFlow' ] = self.ratedFlow
+    obj[ 'ratedPower' ] = self.ratedPower
 
     return  obj
   #end ToJson
