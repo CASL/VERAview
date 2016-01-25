@@ -405,7 +405,7 @@ If neither are specified, a default 'scale' value of 24 is used.
   #	METHOD:		Core2DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self ):
-    """Retrieves the data for the current assembly selection.
+    """Retrieves the data for the state and axial.
 @return			text or None
 """
     csv_text = None
@@ -453,7 +453,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	  #pin_col += self.core.npinx
 	  pin_col = pin_col_to
-	#end for assy rows
+	#end for assy cols
 
 	#pin_row += self.core.npiny
 	pin_row = pin_row_to

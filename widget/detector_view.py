@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
+#	  Added _CreateClipboardData().
 #		2015-11-23	leerw@ornl.gov				-
 #	  Migrating to new dataset retrieval scheme.
 #		2015-08-31	leerw@ornl.gov				-
@@ -23,7 +24,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback
 import numpy as np
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -69,6 +70,61 @@ Attrs/properties:
 
     super( Detector2DView, self ).__init__( container, id )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj( self.data, state_index = self.stateIndex )
+    if is_valid and \
+        self.data.core.detectorMeshCenters != None and \
+	len( self.data.core.detectorMeshCenters ) > 0:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.detectorDataSet )
+
+    if dset != None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+
+      csv_text = '#"%s: %s=%.3g"\n' % (
+	  self.detectorDataSet,
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+
+#		-- Header row
+#		--
+      row_text = 'Row,Axial Mesh Center'
+      for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+        row_text += ',' + self.data.core.coreLabels[ 0 ][ det_col ]
+      csv_text += row_text + '\n'
+
+      for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+        row_label = self.data.core.coreLabels[ 1 ][ det_row ]
+
+	for ax_ndx in \
+	    range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
+	  ax_value = self.data.core.detectorMeshCenters[ ax_ndx ]
+	  row_text = '%s,%.7g' % ( row_label, ax_value )
+	  for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+            det_ndx = self.data.core.detectorMap[ det_row, det_col ] - 1
+	    if det_ndx >= 0:
+	      row_text += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+	    else:
+	      row_text += ',0'
+	  #end for det cols
+
+	  csv_text += row_text + '\n'
+	#end for ax
+      #end for det rows
+
+    return  csv_text
+  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------
@@ -166,8 +222,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         '[Detector2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
     im = None
 
-    #tuple_valid = self.data.IsValid( state_index = state_ndx )
-    tuple_valid = DataModel.IsValidObj( self.data, stat_index = state_ndx )
+    tuple_valid = DataModel.IsValidObj( self.data, state_index = state_ndx )
     if self.config != None and tuple_valid and \
 	self.data.core.detectorMeshCenters != None and \
 	len( self.data.core.detectorMeshCenters ) > 0:

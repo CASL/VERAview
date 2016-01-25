@@ -127,10 +127,6 @@ Attrs/properties:
 	pin_col_end = min( self.cellRange[ 2 ], dset_shape[ 1 ] )
 	pin_col_size = pin_col_end - pin_col_start
 
-#        clip_data = \
-#	    np.ndarray( ( pin_row_size, pin_col_size ), dtype = np.float64 )
-#        clip_data.fill( 0.0 )
-
 	clip_data = dset_value[
 	    pin_row_start : pin_row_end,
 	    pin_col_start : pin_col_end,

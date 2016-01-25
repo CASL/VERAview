@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
+#	  Added _CreateClipboardData().
 #		2015-11-28	leerw@ornl.gov				-
 #	  Calling DataModel.IsNoDataValue() instead of checking for
 #	  gt value to draw.
@@ -343,6 +344,90 @@ If neither are specified, a default 'scale' value of 4 is used.
     #return  im
     return  im if im != None else self.emptyPilImage
   #end _CreateAssyImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the data for the current assembly selection.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+
+    if dset != None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+
+      clip_shape = (
+	  #self.core.npiny * self.cellRange[ -1 ],
+          #self.core.npinx * self.cellRange[ -2 ]
+	  dset_shape[ 0 ] * self.cellRange[ -1 ],
+          dset_shape[ 1 ] * self.cellRange[ -2 ]
+	  )
+      clip_data = np.ndarray( clip_shape, dtype = np.float64 )
+      clip_data.fill( 0.0 )
+
+      pin_row = 0
+      for assy_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+	#pin_row_to = pin_row + self.core.npiny
+	pin_row_to = pin_row + dset_shape[ 0 ]
+
+	pin_col = 0
+	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	  #pin_col_to = pin_col + self.core.npinx
+	  pin_col_to = pin_col + dset_shape[ 1 ]
+
+          assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
+#	  if assy_ndx < 0:
+#	    clip_data[ pin_row : pin_row_to, pin_col : pin_col_to ] = 0.0
+#	  else:
+	  if assy_ndx >= 0:
+	    clip_data[ pin_row : pin_row_to, pin_col : pin_col_to ] = \
+	        dset_value[ :, :, axial_level, assy_ndx ]
+
+	  #pin_col += self.core.npinx
+	  pin_col = pin_col_to
+	#end for assy rows
+
+	#pin_row += self.core.npiny
+	pin_row = pin_row_to
+      #end for assy rows
+
+      title1 = '"%s: Axial=%.3f; %s=%.3g"' % (
+	  self.channelDataSet,
+	  self.axialValue[ 0 ],
+	  #self.data.core.axialMeshCenters[ axial_level ],
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+      col_labels = [
+          self.data.core.coreLabels[ 0 ][ i ]
+	  for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+          ]
+      row_labels = [
+          self.data.core.coreLabels[ 1 ][ i ]
+	  for i in range( self.cellRange[ 1 ], self.cellRange[ 3 ] )
+	  ]
+      title2 = 'Cols=%s; Rows=%s' % (
+	  ':'.join( col_labels ),
+	  ':'.join( row_labels )
+          )
+      csv_text = DataModel.ToCSV( clip_data, ( title1, title2 ) )
+
+    return  csv_text
+  #end _CreateClipboardData
+
 
 
   #----------------------------------------------------------------------

@@ -1246,7 +1246,7 @@ Must be called from the UI thread.
       if 'dialog' in status:
 	dlg = status[ 'dialog' ]
 	#dlg.Lower()
-	#dlg.Hide()
+	dlg.Hide()
 	dlg.Destroy()
 
       if 'messages' in status and len( status[ 'messages' ] ) > 0:

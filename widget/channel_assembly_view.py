@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
+#	  Added _CreateClipboardData().
 #		2015-12-03	leerw@ornl.gov				-
 #	  Using self._CreateValueDisplay().
 #		2015-11-28	leerw@ornl.gov				-
@@ -68,6 +69,63 @@ Attrs/properties:
 
     super( ChannelAssembly2DView, self ).__init__( container, id )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView._CreateClipboardData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self ):
+    """Retrieves the data for the current assembly selection.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+
+    if dset != None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+
+      if self.cellRange[ 0 ] <= dset_shape[ 1 ] and \
+          self.cellRange[ 1 ] <= dset_shape[ 0 ]:
+	chan_row_start = self.cellRange[ 1 ]
+	chan_row_end = min( self.cellRange[ 3 ], dset_shape[ 0 ] )
+	chan_row_size = chan_row_end - chan_row_start
+	chan_col_start = self.cellRange[ 0 ]
+	chan_col_end = min( self.cellRange[ 2 ], dset_shape[ 1 ] )
+	chan_col_size = chan_col_end - chan_col_start
+
+	clip_data = dset_value[
+	    chan_row_start : chan_row_end,
+	    chan_col_start : chan_col_end,
+	    axial_level, self.assemblyIndex[ 0 ]
+	    ]
+
+        title = \
+'%s: Assembly=%d; Axial=%.3f; %s=%.3g; Col Range=[%d:%d]; Row Range=[%d:%d]' % \
+	    (
+	    self.channelDataSet,
+	    self.assemblyIndex[ 0 ] + 1,
+	    self.axialValue[ 0 ],
+	    #self.data.core.axialMeshCenters[ axial_level ],
+	    self.state.timeDataSet,
+	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet ),
+	    chan_col_start + 1, chan_col_end,
+	    chan_row_start + 1, chan_row_end
+            )
+        csv_text = DataModel.ToCSV( clip_data, title )
+      #end if data in range
+
+    return  csv_text
+  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------
