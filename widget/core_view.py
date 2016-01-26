@@ -474,7 +474,7 @@ If neither are specified, a default 'scale' value of 24 is used.
           self.data.core.coreLabels[ 1 ][ i ]
 	  for i in range( self.cellRange[ 1 ], self.cellRange[ 3 ] )
 	  ]
-      title2 = 'Cols=%s; Rows=%s' % (
+      title2 = '"Cols=%s; Rows=%s"' % (
 	  ':'.join( col_labels ),
 	  ':'.join( row_labels )
           )

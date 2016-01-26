@@ -91,7 +91,7 @@ Attrs/properties:
       dset_value = dset.value
       dset_shape = dset_value.shape
 
-      csv_text = '#"%s: %s=%.3g"\n' % (
+      csv_text = '"%s: %s=%.3g"\n' % (
 	  self.detectorDataSet,
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )

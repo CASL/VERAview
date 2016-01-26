@@ -284,7 +284,9 @@ to be passed to UpdateState().  Assume self.data is valid.
   def _OnContextMenu( self, ev ):
     """
 """
-    ev.GetEventObject().ReleaseMouse()
+    ev_obj = ev.GetEventObject()
+    if ev_obj.HasCapture():
+      ev_obj.ReleaseMouse()
 
     pos = ev.GetPosition()
     pos = self.ScreenToClient( pos )
@@ -371,9 +373,12 @@ to be passed to UpdateState().  Assume self.data is valid.
   #----------------------------------------------------------------------
   def _OnMplMouseRelease( self, ev ):
     """Handle click to set the state value.
-This noop version must be overridden by subclasses.
+This implementation checks for a right-click and calls Skip() to pass
+the event to the wxPython window.  Subclasses should call this method
+with super.
 """
-    pass
+    if ev.button == 3:
+      ev.guiEvent.Skip()
   #end _OnMplMouseRelease
 
 

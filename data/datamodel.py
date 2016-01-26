@@ -1672,9 +1672,11 @@ to be 'core', and the dataset is not associated with a state point.
       try:
 	if hasattr( title, '__iter__' ):
 	  for t in title:
-	    output.write( '# ' + str( t ) + '\n' )
+	    output.write( str( t ) + '\n' )
+	    #output.write( '# ' + str( t ) + '\n' )
 	elif title != None:
-          output.write( '# ' + str( title ) + '\n' )
+          output.write( str( title ) + '\n' )
+          #output.write( '# ' + str( title ) + '\n' )
 
         DataModel._WriteCSV( output, np.transpose( data ) )
 	csv_text = output.getvalue()

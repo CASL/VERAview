@@ -241,6 +241,8 @@ to be passed to UpdateState().  Assume self.data is valid.
   def _OnMplMouseRelease( self, ev ):
     """
 """
+    super( TimePlot, self )._OnMplMouseRelease( ev )
+
     button = ev.button or 1
     if button == 1 and self.cursor != None:
       state_ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )

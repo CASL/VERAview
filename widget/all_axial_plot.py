@@ -230,7 +230,8 @@ Properties:
         #end if visible
       #end for each dataset
 
-      csv_text = '#"%s"\n' % title
+      #csv_text = '#"%s"\n' % title
+      csv_text = '"%s"\n' % title
 
       if len( axial_mesh_datasets ) > 0:
         header = 'Axial Mesh Center'
@@ -655,6 +656,8 @@ to be passed to UpdateState().  Assume self.data is valid.
   def _OnMplMouseRelease( self, ev ):
     """
 """
+    super( AllAxialPlot, self )._OnMplMouseRelease( ev )
+
     button = ev.button or 1
     if button == 1 and self.cursor != None:
       axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
