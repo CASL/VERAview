@@ -1,11 +1,15 @@
 #!/bin/bash -a
 
-CanopyBinDir=$HOME/Library/Enthought/Canopy_64bit/User/bin
-#WxPythonLibDir=$HOME/Library/Enthought/Canopy_64bit/User/lib/wxPython/lib
+CanopyUserDir="$HOME/Library/Enthought/Canopy_64bit/User/bin"
 
-#export DYLD_LIBRARY_PATH=${WxPythonLibDir}:${DYLD_LIBRARY_PATH}
-export ETS_TOOLKIT=wx
-#export PYTHONHOME=${WxPythonLibDir}/python2.7/site-packages/wx-3.0-osx_cocoa:${PYTHONHOME}
+if [ -x "${CanopyUserDir}/python" ]; then
+  exec "${CanopyUserDir}/python" "$@"
 
+else
+  cat <<END >&2
+** Canopy installation not found **
 
-exec ${CanopyBinDir}/python "$@"
+Modify this script to set the CanopyUserDir environment variable to point
+to your Canopy User/bin directory.
+END
+fi

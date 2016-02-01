@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-02-01	leerw@ornl.gov				-
+#	  Starting derived datasets.
 #		2016-01-22	leerw@ornl.gov				-
 #	  Added DataModel.ToCSV().
 #		2016-01-09	leerw@ornl.gov				-
@@ -73,6 +75,8 @@
 import cStringIO, h5py, json, math, os, sys, threading, traceback
 import numpy as np
 import pdb
+
+from deriveddata import *
 
 
 COL_LABELS = \
@@ -468,6 +472,7 @@ Properties:
   core			Core
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'detector', 'extra', 'pin', 'scalar' )
+  derivedMgr		DerivedDataMgr instance
   extraStates		list of ExtraState instances
   h5ExtraFile		extra datasets h5py.File, None until exists or created
   h5ExtraFilePath	path to extra datasets file
@@ -1344,6 +1349,13 @@ to be 'core', and the dataset is not associated with a state point.
     self.core = Core( self.h5File )
     self.dataSetNames, self.states = State.ReadAll( self.h5File, self.core )
 
+    self.derivedMgr = DerivedDataMgr( self.core, self.states, self.dataSetNames )
+#    if len( self.states ) > 0:
+#      self.derivedMgr.FindDataSets(
+#          self.states[ 0 ].GetGroup(),
+#	  self.dataSetNames
+#	  )
+
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }
 
@@ -1843,14 +1855,6 @@ Fields:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		State.GetGroup()				-
-  #----------------------------------------------------------------------
-  def GetGroup( self ):
-    return  self.group
-  #end GetGroup
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		State.GetDataSet()				-
   #----------------------------------------------------------------------
   def GetDataSet( self, ds_name ):
@@ -1862,6 +1866,14 @@ Fields:
 	if ds_name != None and ds_name in self.group else \
 	None
   #end GetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		State.GetGroup()				-
+  #----------------------------------------------------------------------
+  def GetGroup( self ):
+    return  self.group
+  #end GetGroup
 
 
   #----------------------------------------------------------------------
@@ -2016,6 +2028,7 @@ Fields:
 	  channel_ds_names.append( k )
         elif k_shape == detector_shape:
 	  detector_ds_names.append( k )
+	###derived manager
 	elif len( k_shape ) == 4:
 	  other_ds_names.append( k )
 
@@ -2077,7 +2090,7 @@ Fields:
 	  core.npin = cur_group[ 'pin_powers'].shape[ 0 ]
 
 	if n == 1:
-	  ds_names_dict = State.FindDataSets( h5_group[ name ], core )
+	  ds_names_dict = State.FindDataSets( cur_group, core )
       #end if-else
       n += 1
     #end while
