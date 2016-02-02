@@ -10,6 +10,8 @@ import copy, h5py, math, os, sys, tempfile, threading
 import numpy as np
 import pdb
 
+from averager import *
+
 
 # indexes: 0-piny, 1-pinx, 2-ax, 3-assy
 # keyed by dataset label
@@ -21,10 +23,14 @@ DERIVED_DEFS = \
 
   'pin':
     [
-      { 'label': 'assembly', 'prefix': 'asy', 'shapemask': ( 2, 3 ) },
-      { 'label': 'axial', 'prefix': 'axial', 'shapemask': ( 2, ) },
-      { 'label': 'core', 'prefix': 'core', 'shapemask': () },
-      { 'label': 'radial', 'prefix': 'radial', 'shapemask': ( 0, 1, 3 ) }
+      { 'label': 'assembly', 'prefix': 'asy',
+        'avgshape': ( 1, 1, 0, 0 ), 'shapemask': ( 2, 3 ) },
+      { 'label': 'axial', 'prefix': 'axial',
+	'avgshape': ( 1, 1, 0, 1 ), 'shapemask': ( 2, ) },
+      { 'label': 'core', 'prefix': 'core',
+	'avgshape': ( 1, 1, 1, 1 ), 'shapemask': () },
+      { 'label': 'radial', 'prefix': 'radial',
+	'avgshape': ( 0, 0, 1, 0 ), 'shapemask': ( 0, 1, 3 ) }
     ]
   }
 
@@ -36,16 +42,22 @@ class DerivedDataMgr( object ):
   """Encapsulation of the handling of derived datasets.
 
 Properties:
+  averager		Averager instance
   channelShape		shape for 'channel' datasets
-  core			Core object with properties npinx, npiny, nax, nass
-  dataSetNames		dict of dataset names by category
+  core			reference to DataModel.core (properties npinx, npiny, nax, nass)
+  dataSetNames		reference to DataModel.dataSetNames
+  #derivedData		dict by 'category:derivetype:dataset' of h5py.Dataset
+			or name of 
+#xxx make this [ category ][ derive_label ][ dataset ] = name
   derivedNames		dict by 'category:derivetype:dataset' of dataset names
+			where a value beginning with '@' means it's an existing
+			dataset that need not be calculated
   h5File		h5py.File
   h5FileName		name of temporary file
   lock			threading.RLock instance
   pinShape		shape for 'pin' datasets
   scalarShape		shape for 'scalar' datasets
-  states		reference to DataModel states
+  states		reference to DataModel.states
 """
 
 
@@ -73,17 +85,21 @@ Properties:
 @param  states		reference to State list
 @param  ds_names	dict of dataset names by category
 """
+    self.averager = Averager()
     self.core = core
     self.states = states
     self.dataSetNames = ds_names
 
     self.channelShape = ( core.npiny + 1, core.npinx + 1, core.nax, core.nass )
+    self.derivedData = {}
     self.derivedNames = {}
     self.h5File = None
     self.h5FileName = None
     self.lock = threading.RLock()
+    # this is fast enough to put here
+    self.pinFactors = self.averager.CreateCorePinFactors( core )
     self.pinShape = ( core.npiny, core.npinx, core.nax, core.nass )
-    self.scalarShape = ( 1 )
+    self.scalarShape = ( 1, )
 
     self.derivedDefs = copy.deepcopy( DERIVED_DEFS )
     self._ResolveShapes( self.derivedDefs[ 'channel' ], self.channelShape )
@@ -102,9 +118,52 @@ Properties:
 @param  category	dataset category
 @param  derived_label	derived type label
 @param  ds_name		source dataset name
-@return			h5py.Dataset object
+@return			h5py.Dataset or None if dataset not found
 """
-    return  None
+    dset = None
+"""
+Record the name of the calculated dataset, replacing any existing '@'name
+
+    ddef = DerivedDataMgr.\
+        FindItem( self.derivedDefs[ category ], 'label', derived_label )
+
+    if ddef != None:
+      if self.h5File == None:
+        self._CreateH5File()
+
+      name = self.derivedNames.get( key )
+      if name != None:
+
+    #end if ddef
+
+    if name != None:
+
+    if ddef != None:
+
+      if name.startswith( '@' ):
+        source_ds_name = name[ 1 : ]
+
+      elif:
+	n = 1
+	for st in self.states:
+	  if st.GetGroup() != None:
+	    from_group = st.GetGroup()
+	    st_name = from_group.name.replace( '/', '' )
+	    to_group = self.h5File[ st_name ]
+
+	    from_data = from_group[ ds_name ].value
+	    avg_dset = averager.CalcGeneralAverage(
+	        from_data, ddef[ 'avgshape' ], self.pinFactors
+		)
+	      exp_ds = to_group.create_dataset(
+	          'exposure',
+		  data = from_group[ 'exposure' ].value
+		  )
+	#end for
+    #end if name
+"""
+
+    return  dset
   #end CreateDataSet
 
 
@@ -197,11 +256,13 @@ are initialized.
 	          #key = category + ':' + ddef[ 'label' ] + ':' + from_dataset
 		  key = DerivedDataMgr.\
 		      CreateKey( category, ddef[ 'label' ], from_dataset )
-	          self.derivedNames[ key ] = k
+	          self.derivedNames[ key ] = '@' + k
 
-		  if 2 in ddef[ 'shapemask' ]:
-	            key = 'axial:' + key
-	            self.derivedNames[ key ] = k
+# do this after creating dataset
+#		  #if 2 in ddef[ 'shapemask' ]:
+#		  if ddef[ 'avgshape' ][ 2 ] == 0:
+#	            key = 'axial:' + key
+#	            self.derivedNames[ key ] = '@' + k
 		finally:
 		  self.lock.release()
 
@@ -255,6 +316,17 @@ are initialized.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr.GetStates()			-
+  #----------------------------------------------------------------------
+#  def GetStates( self ):
+#    """Accessor for the 'states' property.
+#@return			State list
+#"""
+#    return  self.states
+#  #end GetH5File
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DerivedDataMgr.Match()				-
   #----------------------------------------------------------------------
   def Match( self, derived_def, ds_category, ds_names, name_in, shape_in ):
@@ -302,11 +374,20 @@ are initialized.
   #----------------------------------------------------------------------
   def _ResolveShapes( self, ddefs, ds_shape ):
     for item in ddefs:
-      shape_mask = item[ 'shapemask' ]
-      dshape = [] 
-      for i in shape_mask:
-        dshape.append( ds_shape[ i ] )
-      item[ 'shape' ] = tuple( dshape )
+      avg_shape = item[ 'avgshape' ]
+      dshape = []
+      for i in range( len( avg_shape ) ):
+        if avg_shape[ i ] == 0:
+	  dshape.append( ds_shape[ i ] )
+      item[ 'shape' ] = \
+          self.scalarShape  if len( dshape ) == 0 else \
+	  tuple( dshape )
+
+#      shape_mask = item[ 'shapemask' ]
+#      dshape = []
+#      for i in shape_mask:
+#        dshape.append( ds_shape[ i ] )
+#      item[ 'shape' ] = tuple( dshape )
   #end _ResolveShapes
 
 
@@ -324,6 +405,22 @@ are initialized.
 """
     return  category + ':' + derive_label + ':' + ds_name
   #end CreateKey
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr.FindItem()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def FindItem( item_list, key, value ):
+    match = None
+    for item in item_list:
+      if key in item and item[ key ] == value:
+        match = item
+	break
+    #end for
+
+    return  match
+  #end FindItem
 
 
   #----------------------------------------------------------------------
