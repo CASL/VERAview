@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-02-02	leerw@ornl.gov				-
+#	  Trying to add derivedDataSetMenu.
 #		2016-01-25	leerw@ornl.gov				-
 #	  Added GetWidgetMenu() and GetWidgetMenuButton().
 #		2016-01-22	leerw@ornl.gov				-
@@ -44,7 +46,7 @@
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, math, os, sys
-import pdb  #pdb.set_trace()
+#import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -136,6 +138,7 @@ class WidgetContainer( wx.Panel ):
     #self.axialCheckBox = None
     self.dataSetMenu = None
     self.dataSetMenuButton = None
+    self.derivedDataSetMenu = None
     #self.exposureCheckBox = None
     self.eventLocks = State.CreateLocks()
     self.eventsChooserDialog = None
@@ -149,6 +152,12 @@ class WidgetContainer( wx.Panel ):
     self.widgetClassPath = widget_classpath
     self.widgetMenu = None
     self.widgetMenuButton = None
+
+#		-- Listen for DataModel events
+#		--
+    data_model = State.FindDataModel( state )
+    #if data_model:
+      #data_model.GetDataSetChangeEvent().addListener( self._OnDataSetChange )
 
     self._InitUI( widget_classpath, **kwargs )
   #end __init__
@@ -193,6 +202,14 @@ Must be called on the UI thread.
       self.state.FireStateChange( reason )
       #self.GetParent().FireStateChange( reason )
   #end FireStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetDerivedDataSetMenu()				-
+  #----------------------------------------------------------------------
+  def GetDerivedDataSetMenu( self ):
+    return  self.derivedDataSetMenu
+  #end GetDerivedDataSetMenu
 
 
   #----------------------------------------------------------------------
@@ -376,9 +393,21 @@ Must be called on the UI thread.
 	    self.dataSetMenu.AppendItem( item )
         #end if
 
-        item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
-	self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
-	self.dataSetMenu.AppendItem( item )
+#        item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
+#	self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
+#	self.dataSetMenu.AppendItem( item )
+      #end if
+
+#			-- Derived pullright
+      derived_labels = data_model.GetDerivedLabels( dataset_type )
+      if derived_labels:
+        self.derivedDataSetMenu = wx.Menu()
+	derived_item = wx.MenuItem(
+            self.dataSetMenu, wx.ID_ANY, 'Derived',
+	    subMenu = self.derivedDataSetMenu
+	    )
+        self.dataSetMenu.AppendItem( derived_item )
+        #self._OnDataSetChange( data_model )
       #end if
 
       menu_im = wx.Image(
@@ -387,15 +416,15 @@ Must be called on the UI thread.
 	    )
       self.dataSetMenuButton = \
           wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
-#      self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
       self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset to View' ) )
-      self.dataSetMenuButton.Bind(
-          wx.EVT_BUTTON,
-	  functools.partial(
-	      self._OnPopupMenu,
-	      self.dataSetMenuButton, self.dataSetMenu
-	      )
-	  )
+      self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
+#      self.dataSetMenuButton.Bind(
+#          wx.EVT_BUTTON,
+#	  functools.partial(
+#	      self._OnPopupMenu,
+#	      self.dataSetMenuButton, self.dataSetMenu
+#	      )
+#	  )
       cp_sizer.Add(
           self.dataSetMenuButton, 0,
 	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
@@ -547,18 +576,24 @@ Must be called on the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnDataSetChange()				-
+  #----------------------------------------------------------------------
+  def _OnDataSetChange( self, data_model, *args, **kwargs ):
+    """
+"""
+    self._UpdateDerivedDataSetMenu( data_model )
+  #end _OnDataSetChange
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnDataSetMenu()				-
   #----------------------------------------------------------------------
-#  def _OnDataSetMenu( self, ev ):
-#    """@deprecated
-#"""
-#    # Only for EVT_CONTEXT_MENU
-#    #pos = ev.GetPosition()
-#    #pos = self.widgetMenuButton.ScreenToClient( pos )
-#    #self.widgetMenuButton.PopupMenu( self.widgetMenu, pos )
-#
-#    self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
-#  #end _OnDataSetMenu
+  def _OnDataSetMenu( self, ev ):
+    """
+"""
+    self._UpdateDerivedDataSetMenu()
+    self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
+  #end _OnDataSetMenu
 
 
   #----------------------------------------------------------------------
@@ -566,21 +601,13 @@ Must be called on the UI thread.
   #----------------------------------------------------------------------
   def _OnDataSetMenuExtraItem( self, ev ):
     """
+@deprecated
 """
     ev.Skip()
 
     data_model = State.FindDataModel( self.state )
     if data_model != None:
       matching_ds_names = data_model.GetExtra4DDataSets()
-#      matching_ds_names = []
-#      extra_ds_names = data_model.GetDataSetNames( 'extra' )
-#      if extra_ds_names != None and len( extra_ds_names ) > 0:
-#	st0 = data_model.GetExtraState()
-#        for name in extra_ds_names:
-#	  dset = st0.GetDataSet( name )
-#	  if len( dset.shape ) == 4:
-#	    matching_ds_names.append( name )
-#      #end if
 
       if len( matching_ds_names ) == 0:
         wx.MessageBox(
@@ -614,9 +641,33 @@ Must be called on the UI thread.
     item = menu.FindItemById( ev.GetId() )
     if item != None:
       self.widget._BusyBegin()
-      self.widget.SetDataSet( item.GetText() )
+      self.widget.SetDataSet( item.GetLabel() )
       self.widget._BusyEnd()
   #end _OnDataSetMenuItem
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnDerivedDataSetMenuItem()			-
+  #----------------------------------------------------------------------
+  def _OnDerivedDataSetMenuItem( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item != None:
+      self.widget._BusyBegin()
+
+      ds_name = item.GetLabel().replace( ' *', '' )
+      data_model = State.FindDataModel( self.state )
+      name = data_model.ResolveDerivedDataSet(
+          self.widget.GetDataSetType(), menu._derivedLabel, ds_name
+	  )
+      if name:
+        self.widget.SetDataSet( name )
+      self.widget._BusyEnd()
+  #end _OnDerivedDataSetMenuItem
 
 
   #----------------------------------------------------------------------
@@ -729,7 +780,7 @@ Must be called on the UI thread.
       try:
         animator = None
 
-        label = item.GetText().lower()
+        label = item.GetLabel().lower()
 	if label.find( 'detector axial' ) >= 0:
 	  animator = DetectorAxialAnimator(
               self.widget, callback = AnimationCallback()
@@ -816,5 +867,53 @@ Must be called from the UI event thread
 	msg = 'Error saving image:' + os.linesep + str( ex )
 	wx.CallAfter( wx.MessageBox, msg, 'Save Error', wx.OK_DEFAULT, self )
   #end SaveWidgetImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDerivedDataSetMenu()			-
+  #----------------------------------------------------------------------
+  def _UpdateDerivedDataSetMenu( self, data_model = None ):
+    """
+"""
+    if data_model == None:
+      data_model = State.FindDataModel( self.state )
+
+    if data_model and self.derivedDataSetMenu:
+#		-- Clear existing items
+#		--
+      while self.derivedDataSetMenu.GetMenuItemCount() > 0:
+	item = self.derivedDataSetMenu.FindItemByPosition( 0 )
+	self.derivedDataSetMenu.DestroyItem( item )
+
+#		-- Populate derived label submenus
+#		--
+      dataset_type = self.widget.GetDataSetType()
+      #dmgr = data_model.GetDerivedDataMgr()
+      labels = data_model.GetDerivedLabels( dataset_type )
+      names = data_model.GetDataSetNames( dataset_type )
+
+      if labels and names:
+        for label in labels:
+	  ds_menu = wx.Menu()
+	  ds_menu._derivedLabel = label
+
+	  for name in names:
+	    if data_model.HasDerivedDataSet( dataset_type, label, name ):
+	      name += ' *'
+
+	    item = wx.MenuItem( ds_menu, wx.ID_ANY, name )
+	    self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
+	    ds_menu.AppendItem( item )
+	  #end for
+
+	  label_item = wx.MenuItem(
+            self.derivedDataSetMenu, wx.ID_ANY, label,
+	    subMenu = ds_menu
+	    )
+	  self.derivedDataSetMenu.AppendItem( label_item )
+	#end for label
+      #end if we have labels and names
+    #end if we have a derived submenu
+  #end _UpdateDerivedDataSetMenu
 
 #end WidgetContainer

@@ -12,6 +12,7 @@ import numpy as np
 import pdb
 
 from averager import *
+#from event.event import *
 
 
 # indexes: 0-piny, 1-pinx, 2-ax, 3-assy
@@ -58,9 +59,11 @@ Properties:
   averager		Averager instance
   channelShape		shape for 'channel' datasets
   core			reference to DataModel.core (properties npinx, npiny, nax, nass)
+  dataSetChangeEvent	reference to DataModel.dataSetChangeEvent
   dataSetNames		reference to DataModel.dataSetNames
-#xxx make this [ category ][ derive_label ][ dataset ] = name
-  derivedNames		dict by 'category:derivetype:dataset' of dataset names
+  derivedDefs		tree by category, derived label, dataset name of
+			definitions
+  derivedNames		tree by category, derived label, dataset name
 			where a value beginning with '@' means it's an existing
 			dataset that need not be calculated
   derivedStates		list of DerivedState objects
@@ -81,25 +84,28 @@ Properties:
   #	METHOD:		DerivedDataMgr.__del__()			-
   #----------------------------------------------------------------------
   def __del__( self ):
-    if self.h5File:
-      self.h5File.close()
-#    if os.path.exists( self.h5File.filename ):
-#      os.remove( self.h5File.filename )
+    if hasattr( self, 'h5File' ):
+      h5_file = getattr( self, 'h5File' )
+      if h5_file:
+        h5_file.close()
+#	if os.path.exists( h5_file.filename ):
+#	  os.remove( h5_file.filename )
   #end __del__
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DerivedDataMgr.__init__()			-
   #----------------------------------------------------------------------
-  def __init__( self, core, states, ds_names ):
+  def __init__( self, core, states, ds_names, ds_change_event ):
     """
 @param  core		Core reference
 @param  states		reference to State list
 @param  ds_names	dict of dataset names by category
 """
     self.core = core
-    self.states = states
+    self.dataSetChangEvent = ds_change_event
     self.dataSetNames = ds_names
+    self.states = states
 
     self.averager = Averager()
     self.channelShape = ( core.npiny + 1, core.npinx + 1, core.nax, core.nass )
@@ -268,6 +274,8 @@ Properties:
 	if ddef[ 'avgshape' ][ 2 ] > 1:
 	  self.dataSetNames[ 'axial' ].append( new_der_name )
 
+	#self.dataSetChangeEvent.fire()
+
       else:
         new_der_name = der_name
     #end if ddef found
@@ -420,15 +428,56 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DerivedDataMgr.GetDerivedNames()		-
+  #	METHOD:		DerivedDataMgr.GetDataSetChangeEvent()		-
   #----------------------------------------------------------------------
-  def GetDerivedNames( self ):
+  def GetDataSetChangeEvent( self ):
+    """Accessor the 'dataSetChangeEvent' property
+@return			reference
+"""
+    return  self.dataSetChangeEvent
+  #end GetDataSetChangeEvent
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr.GetDerivedLabels()		-
+  #----------------------------------------------------------------------
+  def GetDerivedLabels( self, category ):
+    """Returns the labels for the specified category
+@param  category	category ('channel', 'pin')
+@return			list of labels, possibly empty
+"""
+    return \
+        sorted( self.derivedDefs[ category ].keys() ) \
+	if category in self.derivedDefs else \
+	[]
+  #end GetDerivedLabels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr.GetDerivedName()			-
+  #----------------------------------------------------------------------
+  def GetDerivedName( self, category, derived_label, ds_name ):
+    """Looks up the derived dataset name for the tuple.
+@param  category	dataset category ('channel', 'pin')
+@param  derived_label	label from derived data definition
+@param  ds_name		source dataset name
+@return			derived name if found, None otherwise
+"""
+    return \
+      self._FindTreeEntry( self.derivedNames, category, derived_label, ds_name )
+  #end GetDerivedName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr._GetDerivedNames()		-
+  #----------------------------------------------------------------------
+  def _GetDerivedNames( self ):
     """Accessor the 'derivedNames' property, a dict by
 'category:derive_label:ds_name' of dataset names.
 @return			dict reference
 """
     return  self.derivedNames
-  #end GetDerivedNames
+  #end _GetDerivedNames
 
 
   #----------------------------------------------------------------------

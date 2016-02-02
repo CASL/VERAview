@@ -77,6 +77,7 @@ import numpy as np
 import pdb
 
 from deriveddata import *
+from event.event import *
 
 
 COL_LABELS = \
@@ -470,6 +471,7 @@ property.
 
 Properties:
   core			Core
+  dataSetChangeEvent	event.Event object
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'detector', 'extra', 'pin', 'scalar' )
   derivedDataMgr	DerivedDataMgr instance
@@ -514,6 +516,7 @@ passed, the read() method must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
 """
+    self.dataSetChangeEvent = Event( self )
     self.rangesLock = threading.RLock()
 
     self.Clear()
@@ -797,6 +800,17 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetChangeEvent()		-
+  #----------------------------------------------------------------------
+  def GetDataSetChangeEvent( self ):
+    """Accessor the 'dataSetChangeEvent' property
+@return			reference
+"""
+    return  self.dataSetChangeEvent
+  #end GetDataSetChangeEvent
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetDisplayName()		-
   #----------------------------------------------------------------------
   def GetDataSetDisplayName( self, ds_name ):
@@ -838,6 +852,14 @@ descending.
 """
     return  self.derivedDataMgr
   #end GetDerivedDataMgr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDerivedLabels()			-
+  #----------------------------------------------------------------------
+  def GetDerivedLabels( self, category ):
+    return  self.derivedDataMgr.GetDerivedLabels( category )
+  #end GetDerivedLabels
 
 
   #----------------------------------------------------------------------
@@ -1103,6 +1125,15 @@ the properties construct for this class soon.
         category in self.dataSetNames and \
 	len( self.dataSetNames[ category ] ) > 0
   #end HasDataSetCategory
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.HasDerivedDataSet()			-
+  #----------------------------------------------------------------------
+  def HasDerivedDataSet( self, category, derived_label, ds_name ):
+    name = self.derivedDataMgr.GetDerivedName( category, derived_label, ds_name )
+    return  name != None and len( name ) > 0
+  #end HasDerivedDataSet
 
 
   #----------------------------------------------------------------------
@@ -1378,8 +1409,10 @@ to be 'core', and the dataset is not associated with a state point.
     self.core = Core( self.h5File )
     self.dataSetNames, self.states = State.ReadAll( self.h5File, self.core )
 
-    self.derivedDataMgr = \
-        DerivedDataMgr( self.core, self.states, self.dataSetNames )
+    self.derivedDataMgr = DerivedDataMgr(
+        self.core, self.states,
+	self.dataSetNames, self.dataSetChangeEvent
+	)
 
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }
@@ -1481,6 +1514,15 @@ calculated.
       self.h5ExtraFile.flush()
     #end if
   #end RemoveExtraDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ResolveDerivedDataSet()		-
+  #----------------------------------------------------------------------
+  def ResolveDerivedDataSet( self, category, derived_label, ds_name ):
+    return \
+        self.derivedDataMgr.CreateDataSet( category, derived_label, ds_name )
+  #end ResolveDerivedDataSet
 
 
   #----------------------------------------------------------------------

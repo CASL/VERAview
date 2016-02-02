@@ -135,7 +135,7 @@ WIDGET_MAP = \
   'Core 2D View': 'widget.core_view.Core2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
-  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
+#  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
   'Time Plot': 'widget.time_plot.TimePlot'
   }
 
@@ -997,14 +997,14 @@ Must be called from the UI thread.
     title = None
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item != None and item.GetText() in WIDGET_MAP:
-      self.CreateWidget( WIDGET_MAP[ item.GetText() ] )
+    if item != None and item.GetLabel() in WIDGET_MAP:
+      self.CreateWidget( WIDGET_MAP[ item.GetLabel() ] )
       self._Refit()
 
 #    menu_id = ev.GetId()
 #    for item in menu.GetMenuItems():
 #      if item.GetId() == menu_id:
-#        title = item.GetText()
+#        title = item.GetLabel()
 #	break
 #    #end for
 
@@ -1078,7 +1078,7 @@ Must be called on the UI event thread.
     item = menu.FindItemById( ev.GetId() )
 
     if item != None:
-      title = item.GetText()
+      title = item.GetLabel()
       reason = self.state.Change( self.eventLocks, time_dataset = title )
       self.state.FireStateChange( reason )
       #self.grid.FireStateChange( reason )
@@ -1177,7 +1177,7 @@ Must be called on the UI event thread.
 #    item = menu.FindItemById( ev.GetId() )
 #
 #    if item != None:
-#      title = item.GetText()
+#      title = item.GetLabel()
 #      for child in self.GetChildren():
 #        if isinstance( child, WidgetContainer ) and child.GetTitle() == title:
 #	  child.Iconize( False )
@@ -1312,10 +1312,13 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._ResolveTitle()			-
   #----------------------------------------------------------------------
   def _ResolveTitle( self, title ):
+    """
+@deprecated from multi-window days.
+"""
     result = title
 #    last = 0
 #    for item in self.windowMenu.GetMenuItems():
-#      text = item.GetText()
+#      text = item.GetLabel()
 #      colon_ndx = text.find( ':' )
 #      if colon_ndx > 0:
 #        number = int( text[ : colon_ndx ] )

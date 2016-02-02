@@ -425,11 +425,11 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
     if item != None:
-      if item.GetText().startswith( 'Enable' ):
-        item.SetText( item.GetText().replace( 'Enable', 'Disable' ) )
+      if item.GetLabel().startswith( 'Enable' ):
+        item.SetText( item.GetLabel().replace( 'Enable', 'Disable' ) )
 	self.autoSync = True
       else:
-        item.SetText( item.GetText().replace( 'Disable', 'Enable' ) )
+        item.SetText( item.GetLabel().replace( 'Disable', 'Enable' ) )
 	self.autoSync = False
     #end if
   #end _OnAutoSync
