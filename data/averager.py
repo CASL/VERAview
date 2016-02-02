@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		averager.py					-
 #	HISTORY:							-
+#		2016-02-02	leerw@ornl.gov				-
+#	  Added CopyGeneralAverage().
 #		2015-10-28	leerw@ornl.gov				-
 #		2015-10-26	leerw@ornl.gov				-
 #	  Added support for coreSym == 8 in CreateCorePinFactors().
@@ -500,6 +502,37 @@ data_in.
 
     return  avg
   #end CalcScalarAverage_
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Averager.CopyGeneralAverage()			-
+  #----------------------------------------------------------------------
+  def CopyGeneralAverage( self, data_in, avg_shape ):
+    """Calculates any average, preserving the original dimensionality of
+data_in.
+@param  data_in		dataset (numpy.ndarray) to copy, cannot be None
+@param  avg_shape	tuple defining the shape of the result, with 1 for
+			the axes which will have length 1
+@return			numpy.ndarray of shape avg_shape with copied values
+@exception		if any of the shape/size assertions fail
+"""
+#      'avgshape': ( 1, 1, 0, 0 ), 'shapemask': ( 2, 3 )
+#	-- Assertions
+#	--
+    print >> sys.stderr, \
+        '[Averager.CopyGeneralAverage] data_in.shape=%s, avg_shape=%s' % \
+	( str( data_in.shape ), str( avg_shape ) )
+
+    if np.count_nonzero( avg_shape ) != len( data_in.shape ):
+      raise Exception( 'Average shape incompatible with data shape' )
+
+    avg_expr = str( avg_shape ).replace( '0', ':' ).\
+        replace( '(', '[' ).replace( ')', ']' )
+
+    eval( 'avg' + avg_expr + ' = data_in' )
+
+    return  avg
+  #end CopyGeneralAverage
 
 
   #----------------------------------------------------------------------

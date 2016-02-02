@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		deriveddata.py					-
 #	HISTORY:							-
+#		2016-02-02	leerw@ornl.gov				-
 #		2016-02-01	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import copy, h5py, math, os, sys, tempfile, threading
@@ -18,20 +19,32 @@ from averager import *
 DERIVED_DEFS = \
   {
   'channel':
-    [
-    ],
+    {
+    },
 
   'pin':
-    [
-      { 'label': 'assembly', 'prefix': 'asy',
-        'avgshape': ( 1, 1, 0, 0 ), 'shapemask': ( 2, 3 ) },
-      { 'label': 'axial', 'prefix': 'axial',
-	'avgshape': ( 1, 1, 0, 1 ), 'shapemask': ( 2, ) },
-      { 'label': 'core', 'prefix': 'core',
-	'avgshape': ( 1, 1, 1, 1 ), 'shapemask': () },
-      { 'label': 'radial', 'prefix': 'radial',
-	'avgshape': ( 0, 0, 1, 0 ), 'shapemask': ( 0, 1, 3 ) }
-    ]
+    {
+    'assembly':
+      {
+      'label': 'assembly', 'prefix': 'asy',
+      'avgshape': ( 1, 1, 0, 0 ), 'shapemask': ( 2, 3 )
+      },
+    'axial':
+      {
+      'label': 'axial', 'prefix': 'axial',
+      'avgshape': ( 1, 1, 0, 1 ), 'shapemask': ( 2, )
+      },
+    'core':
+      {
+      'label': 'core', 'prefix': 'core',
+      'avgshape': ( 1, 1, 1, 1 ), 'shapemask': ()
+      },
+    'radial':
+      {
+      'label': 'radial', 'prefix': 'radial',
+      'avgshape': ( 0, 0, 1, 0 ), 'shapemask': ( 0, 1, 3 )
+      }
+    }
   }
 
 
@@ -46,12 +59,11 @@ Properties:
   channelShape		shape for 'channel' datasets
   core			reference to DataModel.core (properties npinx, npiny, nax, nass)
   dataSetNames		reference to DataModel.dataSetNames
-  #derivedData		dict by 'category:derivetype:dataset' of h5py.Dataset
-			or name of 
 #xxx make this [ category ][ derive_label ][ dataset ] = name
   derivedNames		dict by 'category:derivetype:dataset' of dataset names
 			where a value beginning with '@' means it's an existing
 			dataset that need not be calculated
+  derivedStates		list of DerivedState objects
   h5File		h5py.File
   h5FileName		name of temporary file
   lock			threading.RLock instance
@@ -71,8 +83,8 @@ Properties:
   def __del__( self ):
     if self.h5File:
       self.h5File.close()
-#    if self.h5FileName and os.path.exists( self.h5FileName ):
-#      os.remove( self.h5FileName )
+#    if os.path.exists( self.h5File.filename ):
+#      os.remove( self.h5File.filename )
   #end __del__
 
 
@@ -85,16 +97,16 @@ Properties:
 @param  states		reference to State list
 @param  ds_names	dict of dataset names by category
 """
-    self.averager = Averager()
     self.core = core
     self.states = states
     self.dataSetNames = ds_names
 
+    self.averager = Averager()
     self.channelShape = ( core.npiny + 1, core.npinx + 1, core.nax, core.nass )
-    self.derivedData = {}
     self.derivedNames = {}
+    self.derivedStates = []
     self.h5File = None
-    self.h5FileName = None
+    #self.h5FileName = None
     self.lock = threading.RLock()
     # this is fast enough to put here
     self.pinFactors = self.averager.CreateCorePinFactors( core )
@@ -106,8 +118,102 @@ Properties:
     self._ResolveShapes( self.derivedDefs[ 'pin' ], self.pinShape )
 
     if ds_names != None and states != None and len( states ) > 0:
-      self.derivedNames = self.FindDataSets( states[ 0 ].GetGroup(), ds_names )
+      self.derivedNames = self._FindDataSets( states[ 0 ].GetGroup(), ds_names )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr._AddTreeEntry()			-
+  #----------------------------------------------------------------------
+  def _AddTreeEntry( self, tree, value, *names ):
+    """Generically adds an entry to the dict hierarchy.
+@param  tree		top level dict
+@param  value		leaf value to add
+@param  names		list of names in hierarchical order
+"""
+    if len( names ) > 0:
+      cur_dict = tree
+
+      for i in range( len( names ) - 1 ):
+        name = names[ i ]
+        if name in cur_dict:
+          cur_dict = cur_dict[ name ]
+        else:
+          new_dict = {}
+	  cur_dict[ name ] = new_dict
+	  cur_dict = new_dict
+      #end for
+
+      cur_dict[ names[ -1 ] ] = value
+    #end if
+  #end _AddTreeEntry
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr._CalculateDataSet()		-
+  #----------------------------------------------------------------------
+  def _CalculateDataSet( self, ds_name, avg_shape, avg_ds_name ):
+    """Calculates using Averager.
+@param  ds_name		source dataset name
+@param  avg_shape	average dataset shape
+@param  avg_ds_name	average dataset name
+@return			count of states to which the dataset was added
+"""
+    count = 0
+
+    if self.states != None and self.derivedStates != None:
+      for state_ndx in range( len( self.derivedStates ) ):
+	from_st = self.states[ state_ndx ]
+	der_st = self.derivedStates[ state_ndx ]
+
+	if from_st != None and der_st != None:
+	  from_group = from_st.GetGroup()
+	  if ds_name in from_group:
+	    from_data = from_group[ ds_name ].value
+	    avg_data = self.averager.\
+	        CalcGeneralAverage( from_data, avg_shape, self.pinFactors )
+
+	    der_st.CreateDataSet( avg_ds_name, avg_data )
+	    count += 1
+	#end if
+      #for state_ndx
+    #end if states exist
+
+    return  count
+  #end _CalculateDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr._CopyDataSet()			-
+  #----------------------------------------------------------------------
+  def _CopyDataSet( self, ds_name, avg_shape, avg_ds_name ):
+    """Calculates using Averager.
+@param  ds_name		source dataset name
+@param  avg_shape	average dataset shape
+@param  avg_ds_name	average dataset name
+@return			count of states to which the dataset was added
+"""
+    count = 0
+
+    if self.states != None and self.derivedStates != None:
+      for state_ndx in range( len( self.derivedStates ) ):
+	from_st = self.states[ state_ndx ]
+	der_st = self.derivedStates[ state_ndx ]
+
+	if from_st != None and der_st != None:
+	  from_group = from_st.GetGroup()
+	  if ds_name in from_group:
+	    from_data = from_group[ ds_name ].value
+	    avg_data = self.averager.CopyGeneralAverage( from_data, avg_shape )
+
+	    der_st.CreateDataSet( avg_ds_name, avg_data )
+	    count += 1
+	#end if
+      #for state_ndx
+    #end if states exist
+
+    return  count
+  #end _CopyDataSet
 
 
   #----------------------------------------------------------------------
@@ -118,52 +224,54 @@ Properties:
 @param  category	dataset category
 @param  derived_label	derived type label
 @param  ds_name		source dataset name
-@return			h5py.Dataset or None if dataset not found
+@return			dataset name
 """
-    dset = None
-"""
-Record the name of the calculated dataset, replacing any existing '@'name
+#    cat_dict = self.derivedNames.get( category )
+#    label_dict = cat_dict.get( derived_label )  if cat_dict != None  else None
+#    der_name = label_dict.get( ds_name )  if label_dict != None  else None
+    new_der_name = None
 
-    ddef = DerivedDataMgr.\
-        FindItem( self.derivedDefs[ category ], 'label', derived_label )
-
+    ddef = self._FindTreeEntry( self.derivedDefs, category, derived_label )
     if ddef != None:
       if self.h5File == None:
         self._CreateH5File()
 
-      name = self.derivedNames.get( key )
-      if name != None:
+      path = [ category, derived_label, ds_name ]
+      der_name = self._FindTreeEntry( self.derivedNames, *path )
 
-    #end if ddef
+#			-- Must calculate?
+#			--
+      if der_name == None:
+        new_der_name = 'derived:' + derived_label + '_' + ds_name
+        self._CalculateDataSet( ds_name, ddef[ 'avgshape' ], new_der_name )
+	#self._AddTreeEntry( self.derivedNames, new_der_name, *path )
+#      avg_data = self.averager.CalcGeneralAverage(
+#          from_data, ddef[ 'avgshape' ], self.pinFactors
+#	  )
 
-    if name != None:
+#			-- Must copy from existing?
+#			--
+      elif not der_name.startswith( 'derived:' ):
+        from_name = der_name
+        new_der_name = 'derived:' + derived_label + '_' + ds_name
+        self._CopyDataSet( from_name, ddef[ 'avgshape' ], new_der_name )
+        #self._AddTreeEntry( self.derivedNames, new_der_name, *path )
 
-    if ddef != None:
+#			-- Already calculated?
+#			--
+      #else:
+      #end if-else
 
-      if name.startswith( '@' ):
-        source_ds_name = name[ 1 : ]
+      if new_der_name != None:
+        self._AddTreeEntry( self.derivedNames, new_der_name, *path )
+	if ddef[ 'avgshape' ][ 2 ] == 0:
+	  self.dataSetNames[ 'axial' ].append( new_der_name )
 
-      elif:
-	n = 1
-	for st in self.states:
-	  if st.GetGroup() != None:
-	    from_group = st.GetGroup()
-	    st_name = from_group.name.replace( '/', '' )
-	    to_group = self.h5File[ st_name ]
+      else:
+        new_der_name = der_name
+    #end if ddef found
 
-	    from_data = from_group[ ds_name ].value
-	    avg_dset = averager.CalcGeneralAverage(
-	        from_data, ddef[ 'avgshape' ], self.pinFactors
-		)
-	      exp_ds = to_group.create_dataset(
-	          'exposure',
-		  data = from_group[ 'exposure' ].value
-		  )
-	#end for
-    #end if name
-"""
-
-    return  dset
+    return  new_der_name
   #end CreateDataSet
 
 
@@ -172,7 +280,7 @@ Record the name of the calculated dataset, replacing any existing '@'name
   #----------------------------------------------------------------------
   def _CreateH5File( self ):
     """Creates and initializes a "derived" HDF5 file.  The state points
-are initialized.
+are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 @return			new h5py.File object (h5File property)
 """
 #		-- Delete existing if requexted
@@ -185,29 +293,36 @@ are initialized.
 #    #end if
 
 
-#		-- Create if it does not exist
+#		-- Create only if not already created
 #		--
     if self.h5File == None:
       fd, name = tempfile.mkstemp( '.h5' )
       os.close( fd )
 
-      self.h5FileName = name
       self.h5File = h5py.File( name, 'w' )
 
 #			-- Add states with exposure values
 #			--
       if self.states != None:
+	n = 0
         for st in self.states:
-	  if st.GetGroup() != None:
-	    from_group = st.GetGroup()
-	    to_group = self.h5File.\
-	        create_group( from_group.name.replace( '/', '' ) )
+	  from_group = st.GetGroup()
+	  if from_group == None:
+	    self.derivedStates.append( None )
+
+	  else:
+	    der_name = from_group.name.replace( '/', '' )
+	    der_group = self.h5File.create_group( der_name )
 	    if 'exposure' in from_group:
-	      exp_ds = to_group.create_dataset(
+	      exp_ds = der_group.create_dataset(
 	          'exposure',
 		  data = from_group[ 'exposure' ].value
 		  )
+
+	    self.derivedStates.append( DerivedState( n, der_name, der_group ) )
 	  #end if state h5py group exists
+
+	  n += 1
 	#end for
       #end if states exist
 
@@ -219,15 +334,17 @@ are initialized.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DerivedDataMgr.FindDataSets()			-
+  #	METHOD:		DerivedDataMgr._FindDataSets()			-
   #----------------------------------------------------------------------
-  def FindDataSets( self, state_group, ds_names ):
+  def _FindDataSets( self, state_group, ds_names ):
     """Searches for already-computed derived datasets
 @param  state_group	h5py.Group for a state point
 @param  ds_names	dict of existing dataset names by 'channel', 'pin'
 @return			dict of derived names keyed by
 			'category:derivetype:dataset'
 """
+    derived_names = {}
+
 #		-- Build list of primary datasets
 #		--
     all_ds_names = set( [] )
@@ -243,28 +360,23 @@ are initialized.
         k_shape = state_group[ k ].shape
 
 	from_dataset = None
-	for category, defs in self.derivedDefs.iteritems():
+	for category, defs_dict in self.derivedDefs.iteritems():
 	  if category in ds_names:
-	    for ddef in defs:
+	    for label, ddef in defs_dict.iteritems():
 	      from_dataset = self.Match(
 	          ddef, category, ds_names[ category ],
 		  k, k_shape
 		  )
 	      if from_dataset:
-		self.lock.acquire()
-		try:
-	          #key = category + ':' + ddef[ 'label' ] + ':' + from_dataset
-		  key = DerivedDataMgr.\
-		      CreateKey( category, ddef[ 'label' ], from_dataset )
-	          self.derivedNames[ key ] = '@' + k
-
+		self._AddTreeEntry(
+		    derived_names, k,
+		    category, label, from_dataset
+		    )
 # do this after creating dataset
 #		  #if 2 in ddef[ 'shapemask' ]:
 #		  if ddef[ 'avgshape' ][ 2 ] == 0:
 #	            key = 'axial:' + key
 #	            self.derivedNames[ key ] = '@' + k
-		finally:
-		  self.lock.release()
 
 	        break
 	      #end if matched
@@ -276,19 +388,39 @@ are initialized.
       #end if not a subgroup or base dataset
     #end for k
 
-    return  self.derivedNames
-  #end FindDataSets
+    return  derived_names
+  #end _FindDataSets
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DerivedDataMgr.GetDataSet()			-
+  #	METHOD:		DerivedDataMgr._FindTreeEntry()			-
   #----------------------------------------------------------------------
-  def GetDataSet( self ):
-    """Retrieves the named dataset.
-@return			h5py.Dataset object
+  def _FindTreeEntry( self, tree, *names ):
+    """Generically adds an entry to the dict hierarchy.
+@param  tree		top level dict
+@param  names		list of names in hierarchical order
+@return			leaf value if found, None otherwise
 """
-    return  None
-  #end GetDataSet
+    value = None
+
+    if len( names ) > 0:
+      cur_dict = tree
+
+      for i in range( len( names ) - 1 ):
+        name = names[ i ]
+        if name in cur_dict:
+          cur_dict = cur_dict[ name ]
+        else:
+	  cur_dict = None
+	  break
+      #end while
+
+      if cur_dict != None:
+        value = cur_dict[ names[ -1 ] ]
+    #end if
+
+    return  value
+  #end _FindTreeEntry
 
 
   #----------------------------------------------------------------------
@@ -316,14 +448,31 @@ are initialized.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DerivedDataMgr.GetState()			-
+  #----------------------------------------------------------------------
+  def GetState( self, ndx = 0 ):
+    """Retrieves a specific state point by index.
+@param  ndx		0-based index
+@return			DerivedState object or None if states not defined or
+			ndx out of range
+"""
+    return  \
+	self.derivedStates[ ndx ] \
+	if self.derivedStates != None and ndx >= 0 and \
+	    ndx < len( self.derivedStates ) else \
+	None
+  #end GetState
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DerivedDataMgr.GetStates()			-
   #----------------------------------------------------------------------
-#  def GetStates( self ):
-#    """Accessor for the 'states' property.
-#@return			State list
-#"""
-#    return  self.states
-#  #end GetH5File
+  def GetStates( self ):
+    """Accessor for the 'states' property.
+@return			State list
+"""
+    return  self.derivedStates
+  #end GetStates
 
 
   #----------------------------------------------------------------------
@@ -372,8 +521,12 @@ are initialized.
   #----------------------------------------------------------------------
   #	METHOD:		DerivedDataMgr._ResolveShapes()			-
   #----------------------------------------------------------------------
-  def _ResolveShapes( self, ddefs, ds_shape ):
-    for item in ddefs:
+  def _ResolveShapes( self, defs_dict, ds_shape ):
+    """
+@param  defs_dict	dictionary of derived definitions by label
+@param  ds_shape	reference shape
+"""
+    for label, item in defs_dict.iteritems():
       avg_shape = item[ 'avgshape' ]
       dshape = []
       for i in range( len( avg_shape ) ):
@@ -435,4 +588,105 @@ are initialized.
     return  tuple( tokens ) if len( tokens ) == 3 else None
   #end ParseKey
 
-#end DataModel
+#end DerivedDataMgr
+
+
+#------------------------------------------------------------------------
+#	CLASS:		DerivedState					-
+#------------------------------------------------------------------------
+class DerivedState( object ):
+  """Special State for derived datasets.
+  
+Fields:
+  group			HDF5 group
+  index			state point index
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.__init__()				-
+  #----------------------------------------------------------------------
+  def __init__( self, index, state_group ):
+    """
+@param  state_group	HDF5 group for this state
+"""
+    #super( DerivedState, self ).__init__( index, name, state_group )
+    self.index = index
+    self.group = state_group
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.Check()				-
+  #----------------------------------------------------------------------
+  def Check( self, core ):
+    """
+@return			empty list
+"""
+    return  []
+  #end Check
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.CreateDataSet()			-
+  #----------------------------------------------------------------------
+  def CreateDataSet( self, ds_name, data_in ):
+    """
+@param  ds_name		dataset name
+@param  data_in		numpy.ndarray
+@return			h5py.Dataset object
+"""
+    return  self.group.create_dataset( ds_name, data = data_in )
+  #end CreateDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.GetDataSet()			-
+  #----------------------------------------------------------------------
+  def GetDataSet( self, ds_name ):
+    """
+@return			h5py.Dataset object or None if not found
+"""
+    return \
+        self.group[ ds_name ] \
+	if ds_name != None and ds_name in self.group else \
+	None
+  #end GetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.GetGroup()				-
+  #----------------------------------------------------------------------
+  def GetGroup( self ):
+    return  self.group
+  #end GetGroup
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.HasDataSet()			-
+  #----------------------------------------------------------------------
+  def HasDataSet( self, ds_name ):
+    """
+"""
+    return  ds_name != None and ds_name in self.group
+  #end HasDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DerivedState.RemoveDataSet()			-
+  #----------------------------------------------------------------------
+  def RemoveDataSet( self, ds_name ):
+    """
+@return			True if removed, False if ds_name not in this
+"""
+    removed = ds_name != None and ds_name in self.group
+    if removed:
+      del self.group[ ds_name ]
+
+    return  removed
+  #end RemoveDataSet
+
+#end DerivedState

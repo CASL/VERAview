@@ -472,7 +472,7 @@ Properties:
   core			Core
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'detector', 'extra', 'pin', 'scalar' )
-  derivedMgr		DerivedDataMgr instance
+  derivedDataMgr	DerivedDataMgr instance
   extraStates		list of ExtraState instances
   h5ExtraFile		extra datasets h5py.File, None until exists or created
   h5ExtraFilePath	path to extra datasets file
@@ -802,7 +802,11 @@ descending.
   def GetDataSetDisplayName( self, ds_name ):
     """Removes any 'extra:' prefix.
 """
-    return  ds_name[ 6 : ] if ds_name.startswith( 'extra:' ) else ds_name
+    #return  ds_name[ 6 : ] if ds_name.startswith( 'extra:' ) else ds_name
+    return \
+        ds_name[ 8 : ] if ds_name.startswith( 'derived:' ) else \
+        ds_name[ 6 : ] if ds_name.startswith( 'extra:' ) else \
+	ds_name
   #end GetDataSetDisplayName
 
 
@@ -823,6 +827,17 @@ descending.
         self.dataSetNames if category == None else \
 	self.dataSetNames.get( category, [] )
   #end GetDataSetNames
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDerivedDataMgr()			-
+  #----------------------------------------------------------------------
+  def GetDerivedDataMgr( self ):
+    """Accessor for the 'derivedDataMgr' property.
+@return			reference
+"""
+    return  self.derivedDataMgr
+  #end GetDerivedDataMgr
 
 
   #----------------------------------------------------------------------
@@ -999,12 +1014,15 @@ the properties construct for this class soon.
   def GetStateDataSet( self, state_ndx, ds_name ):
     """Retrieves a normal or extra dataset.
 @param  state_ndx	0-based state point index
-@param  ds_name		dataset name, where a prefix of 'extra:' means it's an
-			extra dataset
+@param  ds_name		dataset name, where a prefix of 'derived:' or 'extra:'
+			means a derived or extra dataset respectively
 @return			h5py.Dataset object if found or None
 """
     if ds_name == None:
       st = None
+    elif ds_name.startswith( 'derived:' ):
+      st = self.derivedDataMgr.GetState( state_ndx )
+      use_name = ds_name
     elif ds_name.startswith( 'extra:' ):
       st = self.GetExtraState( state_ndx )
       use_name = ds_name[ 6 : ]
@@ -1025,6 +1043,17 @@ the properties construct for this class soon.
 """
     return  self.states
   #end GetStates
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetStatesCount()			-
+  #----------------------------------------------------------------------
+  def GetStatesCount( self ):
+    """
+@return			number of State instances, where -1 means not read
+"""
+    return  -1  if self.states == None else  len( self.states )
+  #end GetStatesCount
 
 
   #----------------------------------------------------------------------
@@ -1349,12 +1378,8 @@ to be 'core', and the dataset is not associated with a state point.
     self.core = Core( self.h5File )
     self.dataSetNames, self.states = State.ReadAll( self.h5File, self.core )
 
-    self.derivedMgr = DerivedDataMgr( self.core, self.states, self.dataSetNames )
-#    if len( self.states ) > 0:
-#      self.derivedMgr.FindDataSets(
-#          self.states[ 0 ].GetGroup(),
-#	  self.dataSetNames
-#	  )
+    self.derivedDataMgr = \
+        DerivedDataMgr( self.core, self.states, self.dataSetNames )
 
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }
