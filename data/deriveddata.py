@@ -27,22 +27,22 @@ DERIVED_DEFS = \
     'assembly':
       {
       'label': 'assembly', 'prefix': 'asy',
-      'avgshape': ( 1, 1, 0, 0 ), 'shapemask': ( 2, 3 )
+      'avgshapein': ( 1, 1, 0, 0 ), 'shapemask': ( 2, 3 )
       },
     'axial':
       {
       'label': 'axial', 'prefix': 'axial',
-      'avgshape': ( 1, 1, 0, 1 ), 'shapemask': ( 2, )
+      'avgshapein': ( 1, 1, 0, 1 ), 'shapemask': ( 2, )
       },
     'core':
       {
       'label': 'core', 'prefix': 'core',
-      'avgshape': ( 1, 1, 1, 1 ), 'shapemask': ()
+      'avgshapein': ( 1, 1, 1, 1 ), 'shapemask': ()
       },
     'radial':
       {
       'label': 'radial', 'prefix': 'radial',
-      'avgshape': ( 0, 0, 1, 0 ), 'shapemask': ( 0, 1, 3 )
+      'avgshapein': ( 0, 0, 1, 0 ), 'shapemask': ( 0, 1, 3 )
       }
     }
   }
@@ -253,7 +253,8 @@ Properties:
 #			--
       elif not der_name.startswith( 'derived:' ):
         from_name = der_name
-        new_der_name = 'derived:' + derived_label + '_' + ds_name
+        #new_der_name = 'derived:' + derived_label + '_' + ds_name
+        new_der_name = 'derived:' + der_name
         self._CopyDataSet( from_name, ddef[ 'avgshape' ], new_der_name )
         #self._AddTreeEntry( self.derivedNames, new_der_name, *path )
 
@@ -264,7 +265,7 @@ Properties:
 
       if new_der_name != None:
         self._AddTreeEntry( self.derivedNames, new_der_name, *path )
-	if ddef[ 'avgshape' ][ 2 ] == 0:
+	if ddef[ 'avgshape' ][ 2 ] > 1:
 	  self.dataSetNames[ 'axial' ].append( new_der_name )
 
       else:
@@ -319,7 +320,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 		  data = from_group[ 'exposure' ].value
 		  )
 
-	    self.derivedStates.append( DerivedState( n, der_name, der_group ) )
+	    self.derivedStates.append( DerivedState( n, der_group ) )
 	  #end if state h5py group exists
 
 	  n += 1
@@ -372,11 +373,6 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 		    derived_names, k,
 		    category, label, from_dataset
 		    )
-# do this after creating dataset
-#		  #if 2 in ddef[ 'shapemask' ]:
-#		  if ddef[ 'avgshape' ][ 2 ] == 0:
-#	            key = 'axial:' + key
-#	            self.derivedNames[ key ] = '@' + k
 
 	        break
 	      #end if matched
@@ -416,7 +412,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
       #end while
 
       if cur_dict != None:
-        value = cur_dict[ names[ -1 ] ]
+        value = cur_dict.get( names[ -1 ] )
     #end if
 
     return  value
@@ -527,20 +523,21 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 @param  ds_shape	reference shape
 """
     for label, item in defs_dict.iteritems():
-      avg_shape = item[ 'avgshape' ]
-      dshape = []
-      for i in range( len( avg_shape ) ):
-        if avg_shape[ i ] == 0:
-	  dshape.append( ds_shape[ i ] )
-      item[ 'shape' ] = \
-          self.scalarShape  if len( dshape ) == 0 else \
-	  tuple( dshape )
+      avg_shape_in = item[ 'avgshapein' ]
+      avg_shape_out = []
+      shape_out = []
 
-#      shape_mask = item[ 'shapemask' ]
-#      dshape = []
-#      for i in shape_mask:
-#        dshape.append( ds_shape[ i ] )
-#      item[ 'shape' ] = tuple( dshape )
+      for i in range( len( avg_shape_in ) ):
+        if avg_shape_in[ i ] == 0:
+	  avg_shape_out.append( ds_shape[ i ] )
+	  shape_out.append( ds_shape[ i ] )
+        else:
+	  avg_shape_out.append( 1 )
+
+      item[ 'avgshape' ] = tuple( avg_shape_out )
+      item[ 'shape' ] = \
+          self.scalarShape  if len( shape_out ) == 0 else \
+	  tuple( shape_out )
   #end _ResolveShapes
 
 

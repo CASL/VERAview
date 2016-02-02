@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-02-02	leerw@ornl.gov				-
 #	  Added CopyGeneralAverage().
+#	  Can use exec() instead of execfile().
 #		2015-10-28	leerw@ornl.gov				-
 #		2015-10-26	leerw@ornl.gov				-
 #	  Added support for coreSym == 8 in CreateCorePinFactors().
@@ -422,19 +423,20 @@ data_in.
     exec_str += \
         s % ( indent, avg_expr, data_expr, data_expr, data_expr, data_expr )
 
+    exec( exec_str )
 #    exec( exec_str )
-    fd, name = tempfile.mkstemp( '.avg' )
-    try:
-      fp = os.fdopen( fd, 'w' )
-      try:
-        fp.write( exec_str )
-      finally:
-        fp.close()
-
-      execfile( name )
-
-    finally:
-      os.remove( name )
+##    fd, name = tempfile.mkstemp( '.avg' )
+##    try:
+##      fp = os.fdopen( fd, 'w' )
+##      try:
+##        fp.write( exec_str )
+##      finally:
+##        fp.close()
+##
+##      execfile( name )
+##
+##    finally:
+##      os.remove( name )
 
     return  avg
   #end CalcGeneralAverage
@@ -523,14 +525,22 @@ data_in.
         '[Averager.CopyGeneralAverage] data_in.shape=%s, avg_shape=%s' % \
 	( str( data_in.shape ), str( avg_shape ) )
 
-    if np.count_nonzero( avg_shape ) != len( data_in.shape ):
-      raise Exception( 'Average shape incompatible with data shape' )
+    if np.count_nonzero( avg_shape ) != len( avg_shape ):
+      raise Exception( 'Average shape cannot have zeros' )
 
-    avg_expr = str( avg_shape ).replace( '0', ':' ).\
-        replace( '(', '[' ).replace( ')', ']' )
+    avg = np.ndarray( avg_shape, np.float64 )
+    avg.fill( 0.0 )
 
-    eval( 'avg' + avg_expr + ' = data_in' )
+    avg_expr = '['
+    for s in avg_shape:
+      if len( avg_expr ) > 1:
+        avg_expr += ','
+      avg_expr += '0' if s == 1 else ':'
+    avg_expr += ']'
+#    avg_expr = str( avg_shape ).replace( '0', ':' ).\
+#        replace( '(', '[' ).replace( ')', ']' )
 
+    exec( 'avg' + avg_expr + ' = data_in' )
     return  avg
   #end CopyGeneralAverage
 
