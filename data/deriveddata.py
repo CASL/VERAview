@@ -271,6 +271,7 @@ Properties:
 
       if new_der_name != None:
         self._AddTreeEntry( self.derivedNames, new_der_name, *path )
+	self.dataSetNames[ 'derived' ].append( new_der_name )
 	if ddef[ 'avgshape' ][ 2 ] > 1:
 	  self.dataSetNames[ 'axial' ].append( new_der_name )
 

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-02-03	leerw@ornl.gov				-
+#	  Added IsValidForShape().
 #		2016-02-01	leerw@ornl.gov				-
 #	  Starting derived datasets.
 #		2016-01-22	leerw@ornl.gov				-
@@ -473,7 +475,8 @@ Properties:
   core			Core
   dataSetChangeEvent	event.Event object
   dataSetNames		dict of dataset names by category
-			  ( 'channel', 'detector', 'extra', 'pin', 'scalar' )
+			  ( 'channel', 'derived', 'detector', 'extra',
+			     'pin', 'scalar' )
   derivedDataMgr	DerivedDataMgr instance
   extraStates		list of ExtraState instances
   h5ExtraFile		extra datasets h5py.File, None until exists or created
@@ -834,8 +837,8 @@ descending.
 			category
 			if category == None, dict of dataset name lists by
 			category
-			( 'axial', 'channel', 'detector', 'extra', 'other',
-			  'pin', 'scalar' )
+			( 'axial', 'channel', 'derived', 'detector', 'extra',
+			  'other', 'pin', 'scalar' )
 """
     return \
         self.dataSetNames if category == None else \
@@ -1117,8 +1120,8 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   def HasDataSetCategory( self, category = None ):
     """Tests existence of datasets in category
-@param  category	one of 'axial', 'channel', 'detector', 'extra',
-			'other', 'pin', 'scalar'
+@param  category	one of 'axial', 'channel', 'derived', 'detector',
+			'extra', 'other', 'pin', 'scalar'
 @return			True if there are datasets, False otherwise
 """
     return  \
@@ -1195,39 +1198,80 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'assembly_index' ]
 #      valid = val >= 0 and val < self.core.nass
       if hasattr( val, '__iter__' ):
-        valid = val != None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
+        valid &= val != None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
       else:
-        valid = val >= 0 and val < self.core.nass
+        valid &= val >= 0 and val < self.core.nass
 
     if 'axial_level' in kwargs:
       val = kwargs[ 'axial_level' ]
-      valid = val >= 0 and val < self.core.nax
+      valid &= val >= 0 and val < self.core.nax
 
     if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != None:
       col, row = kwargs[ 'channel_colrow' ]
-      valid = \
-          col >= 0 and col <= self.core.npin and \
-	  row >= 0 and row <= self.core.npin
+      valid &= \
+          col >= 0 and col <= self.core.npinx and \
+	  row >= 0 and row <= self.core.npiny
 
     if 'detector_index' in kwargs:
       val = kwargs[ 'detector_index' ]
-      valid = val >= 0 and val < self.core.ndet
+      valid &= val >= 0 and val < self.core.ndet
 
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != None:
       col, row = kwargs[ 'pin_colrow' ]
-      valid = \
-          col >= 0 and col < self.core.npin and \
-	  row >= 0 and row < self.core.npin
+      valid &= \
+          col >= 0 and col < self.core.npinx and \
+	  row >= 0 and row < self.core.npiny
 
     if 'state_index' in kwargs:
       val = kwargs[ 'state_index' ]
-      valid = val >= 0 and val < len( self.states )
+      valid &= val >= 0 and val < len( self.states )
       if valid and 'dataset_name' in kwargs:
-        valid = kwargs[ 'dataset_name' ] in self.states[ val ].group
+        valid &= kwargs[ 'dataset_name' ] in self.states[ val ].group
     #end if 'state_index'
 
     return  valid
   #end IsValid
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsValidForShape()			-
+  #----------------------------------------------------------------------
+  def IsValidForShape( self, shape_in, **kwargs ):
+    """Checks values for ge 0 and w/in shape range.
+@param  shape_in	shape against which to validate
+@param  kwargs		named values to check:
+    'assembly_index'
+    'axial_level'
+    'channel_colrow'
+    'pin_colrow'
+"""
+    valid = True
+
+    if 'assembly_index' in kwargs:
+      val = kwargs[ 'assembly_index' ]
+      if hasattr( val, '__iter__' ):
+        valid &= val != None and val[ 0 ] >= 0 and val[ 0 ] < shape_in[ 3 ]
+      else:
+        valid &= val >= 0 and val < shape_in[ 3 ]
+
+    if 'axial_level' in kwargs:
+      val = kwargs[ 'axial_level' ]
+      valid &= val >= 0 and val < shape_in[ 2 ]
+
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != None:
+      col, row = kwargs[ 'channel_colrow' ]
+      valid &= \
+          col >= 0 and col <= shape_in[ 0 ] and \
+	  row >= 0 and row <= shape_in[ 1 ]
+
+    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != None:
+      col, row = kwargs[ 'pin_colrow' ]
+      valid &= \
+          col >= 0 and col < shape_in[ 0 ] and \
+	  row >= 0 and row < shape_in[ 1 ]
+
+    return  valid
+  #end IsValidForShape
 
 
   #----------------------------------------------------------------------
@@ -1457,7 +1501,10 @@ to be 'core', and the dataset is not associated with a state point.
     range_min = sys.float_info.min
     range_max = sys.float_info.max
 
-    if ds_name.startswith( 'extra:' ):
+    if ds_name.startswith( 'derived:' ):
+      use_states = self.derivedDataMgr.GetStates()
+      use_name = ds_name
+    elif ds_name.startswith( 'extra:' ):
       use_states = self.GetExtraStates()
       use_name = ds_name[ 6 : ]
     else:
@@ -2117,6 +2164,7 @@ Fields:
       {
       'axial': axial_ds_names,
       'channel': channel_ds_names,
+      'derived': [],
       'detector': detector_ds_names,
       'other': other_ds_names,
       'pin': pin_ds_names,

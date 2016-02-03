@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2016-02-03	leerw@ornl.gov				-
+#	  Fixed handling of derived data in _UpdateDataSetValues().
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
 #	  Added _CreateClipboardData().
@@ -39,7 +41,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, time, traceback
 import numpy as np
-#import pdb  # pdb.set_trace()
+import pdb  # pdb.set_trace()
 
 try:
   import wx
@@ -631,7 +633,7 @@ to be passed to UpdateState().  Assume self.data is valid.
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
-	'assy_index': assy_ndx,
+	'assembly_index': assy_ndx,
 	'axial_value': axial_value,
 	'channel_colrow': chan_colrow,
 	'channel_dataset': self.state.channelDataSet,
@@ -744,10 +746,18 @@ to be passed to UpdateState().  Assume self.data is valid.
 	      self.dataSetValues[ k ] = dset_array[ :, self.detectorIndex[ 0 ] ]
               self.dataSetTypes.add( 'detector' )
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
+	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
+	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
 	      ds_display_name in self.data.GetDataSetNames( 'other' ):
-	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
-	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
+            pdb.set_trace()
+	    valid = self.data.IsValidForShape(
+		dset.shape,
+		assembly_index = self.assemblyIndex[ 0 ],
+		pin_colrow = self.pinColRow
+	        )
+#	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
+#	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
+	    if valid:
 	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
 	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
 	      self.dataSetValues[ k ] = dset_array[
