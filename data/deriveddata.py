@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		deriveddata.py					-
 #	HISTORY:							-
+#		2016-02-05	leerw@ornl.gov				-
+#	  Keeping a DataModel reference instead of separate core,
+#	  dataSetNames, and states.
 #		2016-02-02	leerw@ornl.gov				-
 #		2016-02-01	leerw@ornl.gov				-
 #------------------------------------------------------------------------
@@ -58,9 +61,7 @@ class DerivedDataMgr( object ):
 Properties:
   averager		Averager instance
   channelShape		shape for 'channel' datasets
-  core			reference to DataModel.core (properties npinx, npiny, nax, nass)
-  dataSetChangeEvent	reference to DataModel.dataSetChangeEvent
-  dataSetNames		reference to DataModel.dataSetNames
+  data			reference to DataModel
   derivedDefs		tree by category, derived label, dataset name of
 			definitions
   derivedNames		tree by category, derived label, dataset name
@@ -72,7 +73,6 @@ Properties:
   lock			threading.RLock instance
   pinShape		shape for 'pin' datasets
   scalarShape		shape for 'scalar' datasets
-  states		reference to DataModel.states
 """
 
 
@@ -96,16 +96,12 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DerivedDataMgr.__init__()			-
   #----------------------------------------------------------------------
-  def __init__( self, core, states, ds_names, ds_change_event ):
+  def __init__( self, data_model ):
     """
-@param  core		Core reference
-@param  states		reference to State list
-@param  ds_names	dict of dataset names by category
+@param  data_model	reference to DataModel instance
 """
-    self.core = core
-    self.dataSetChangEvent = ds_change_event
-    self.dataSetNames = ds_names
-    self.states = states
+    self.data = data_model
+    core = data_model.GetCore()
 
     self.averager = Averager()
     self.channelShape = ( core.npiny + 1, core.npinx + 1, core.nax, core.nass )
@@ -123,8 +119,10 @@ Properties:
     self._ResolveShapes( self.derivedDefs[ 'channel' ], self.channelShape )
     self._ResolveShapes( self.derivedDefs[ 'pin' ], self.pinShape )
 
-    if ds_names != None and states != None and len( states ) > 0:
-      self.derivedNames = self._FindDataSets( states[ 0 ].GetGroup(), ds_names )
+    ds_names = data_model.GetDataSetNames()
+    if ds_names != None and data_model.GetStatesCount() > 0:
+      self.derivedNames = \
+          self._FindDataSets( data_model.GetState( 0 ).GetGroup(), ds_names )
   #end __init__
 
 
@@ -167,9 +165,11 @@ Properties:
 """
     count = 0
 
-    if self.states != None and self.derivedStates != None:
+    #if self.states != None and self.derivedStates != None:
+    if self.data.GetStatesCount() > 0 and self.derivedStates != None:
       for state_ndx in range( len( self.derivedStates ) ):
-	from_st = self.states[ state_ndx ]
+	#from_st = self.states[ state_ndx ]
+	from_st = self.data.GetState( state_ndx )
 	der_st = self.derivedStates[ state_ndx ]
 
 	if from_st != None and der_st != None:
@@ -201,9 +201,11 @@ Properties:
 """
     count = 0
 
-    if self.states != None and self.derivedStates != None:
+    #if self.states != None and self.derivedStates != None:
+    if self.data.GetStatesCount() > 0 and self.derivedStates != None:
       for state_ndx in range( len( self.derivedStates ) ):
-	from_st = self.states[ state_ndx ]
+	#from_st = self.states[ state_ndx ]
+	from_st = self.data.GetState( state_ndx )
 	der_st = self.derivedStates[ state_ndx ]
 
 	if from_st != None and der_st != None:
@@ -271,11 +273,13 @@ Properties:
 
       if new_der_name != None:
         self._AddTreeEntry( self.derivedNames, new_der_name, *path )
-	self.dataSetNames[ 'derived' ].append( new_der_name )
+	self.data.AddDataSetName( 'derived', new_der_name )
 	if ddef[ 'avgshape' ][ 2 ] > 1:
-	  self.dataSetNames[ 'axial' ].append( new_der_name )
+	  self.data.AddDataSetName( 'axial', new_der_name )
+	elif len( ddef[ 'shapemask' ] ) == 0:
+	  self.data.AddDataSetName( 'scalar', new_der_name )
 
-	#self.dataSetChangeEvent.fire()
+	#self.data.dataSetChangeEvent.fire()
 
       else:
         new_der_name = der_name
@@ -313,9 +317,9 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 
 #			-- Add states with exposure values
 #			--
-      if self.states != None:
+      if self.data.GetStatesCount() > 0:
 	n = 0
-        for st in self.states:
+        for st in self.data.GetStates():
 	  from_group = st.GetGroup()
 	  if from_group == None:
 	    self.derivedStates.append( None )
@@ -426,17 +430,6 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 
     return  value
   #end _FindTreeEntry
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DerivedDataMgr.GetDataSetChangeEvent()		-
-  #----------------------------------------------------------------------
-  def GetDataSetChangeEvent( self ):
-    """Accessor the 'dataSetChangeEvent' property
-@return			reference
-"""
-    return  self.dataSetChangeEvent
-  #end GetDataSetChangeEvent
 
 
   #----------------------------------------------------------------------

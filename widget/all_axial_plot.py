@@ -199,10 +199,15 @@ Properties:
 		  ( ds_display_name, dset_array[ :, self.detectorIndex[ 0 ] ] )
 	          )
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
+	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
+	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
 	      ds_display_name in self.data.GetDataSetNames( 'other' ):
-	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
-	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
+	    valid = self.data.IsValidForShape(
+		dset.shape,
+		assembly_index = self.assemblyIndex[ 0 ],
+		pin_colrow = self.pinColRow
+	        )
+	    if valid:
 	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
 	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
 	      values = dset_array[
@@ -749,20 +754,17 @@ to be passed to UpdateState().  Assume self.data is valid.
 	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
 	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
 	      ds_display_name in self.data.GetDataSetNames( 'other' ):
-            pdb.set_trace()
 	    valid = self.data.IsValidForShape(
 		dset.shape,
 		assembly_index = self.assemblyIndex[ 0 ],
 		pin_colrow = self.pinColRow
 	        )
-#	    if self.pinColRow[ 0 ] < dset.shape[ 0 ] and \
-#	        self.pinColRow[ 1 ] < dset.shape[ 1 ]:
 	    if valid:
 	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
 	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
 	      self.dataSetValues[ k ] = dset_array[
 	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-	          :, assy_ndx
+	          0 : temp_nax, assy_ndx
 	          ]
               self.dataSetTypes.add( 'other' )
 

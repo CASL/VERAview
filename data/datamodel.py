@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-02-05	leerw@ornl.gov				-
+#	  Added DataModel dataSetNamesVersion property and
+#	  AddDataSetName() method.
 #		2016-02-03	leerw@ornl.gov				-
 #	  Added IsValidForShape().
 #		2016-02-01	leerw@ornl.gov				-
@@ -473,10 +476,11 @@ property.
 
 Properties:
   core			Core
-  dataSetChangeEvent	event.Event object
+  #dataSetChangeEvent	event.Event object
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector', 'extra',
 			     'pin', 'scalar' )
+  dataSetNamesVersion	counter to indicate changes
   derivedDataMgr	DerivedDataMgr instance
   extraStates		list of ExtraState instances
   h5ExtraFile		extra datasets h5py.File, None until exists or created
@@ -519,7 +523,8 @@ passed, the read() method must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
 """
-    self.dataSetChangeEvent = Event( self )
+    #self.dataSetChangeEvent = Event( self )
+    self.dataSetNamesVersion = 0
     self.rangesLock = threading.RLock()
 
     self.Clear()
@@ -535,6 +540,28 @@ passed, the read() method must be called.
     #return  json.dumps( self.ToJson() )
     return  ''
   #end __str__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.AddDataSetName()			-
+  #----------------------------------------------------------------------
+  def AddDataSetName( self, category, ds_name ):
+    """Accessor for the 'dataSetNames' property.
+@param  category	category/type
+			( 'axial', 'channel', 'derived', 'detector', 'extra',
+			  'other', 'pin', 'scalar' )
+@param  ds_name		name
+"""
+    if category in self.dataSetNames:
+      cat_list = self.dataSetNames[ category ]
+    else:
+      cat_list = []
+      self.dataSetNames[ category ] = cat_list
+
+    if not ds_name in cat_list:
+      cat_list.append( ds_name )
+      self.dataSetNamesVersion += 1
+  #end AddDataSetName
 
 
   #----------------------------------------------------------------------
@@ -805,12 +832,12 @@ descending.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetChangeEvent()		-
   #----------------------------------------------------------------------
-  def GetDataSetChangeEvent( self ):
-    """Accessor the 'dataSetChangeEvent' property
-@return			reference
-"""
-    return  self.dataSetChangeEvent
-  #end GetDataSetChangeEvent
+#  def GetDataSetChangeEvent( self ):
+#    """Accessor the 'dataSetChangeEvent' property
+#@return			reference
+#"""
+#    return  self.dataSetChangeEvent
+#  #end GetDataSetChangeEvent
 
 
   #----------------------------------------------------------------------
@@ -844,6 +871,14 @@ descending.
         self.dataSetNames if category == None else \
 	self.dataSetNames.get( category, [] )
   #end GetDataSetNames
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetNamesVersion()		-
+  #----------------------------------------------------------------------
+  def GetDataSetNamesVersion( self ):
+    return  self.dataSetNamesVersion
+  #end GetDataSetNamesVersion
 
 
   #----------------------------------------------------------------------
@@ -1453,10 +1488,11 @@ to be 'core', and the dataset is not associated with a state point.
     self.core = Core( self.h5File )
     self.dataSetNames, self.states = State.ReadAll( self.h5File, self.core )
 
-    self.derivedDataMgr = DerivedDataMgr(
-        self.core, self.states,
-	self.dataSetNames, self.dataSetChangeEvent
-	)
+    self.derivedDataMgr = DerivedDataMgr( self )
+#    self.derivedDataMgr = DerivedDataMgr(
+#        self.core, self.states,
+#	self.dataSetNames, self.dataSetChangeEvent
+#	)
 
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }

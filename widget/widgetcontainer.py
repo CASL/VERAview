@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-02-05	leerw@ornl.gov				-
+#	  Dynamically creating the dataset menu when out-of-date.
 #		2016-02-02	leerw@ornl.gov				-
 #	  Trying to add derivedDataSetMenu.
 #		2016-01-25	leerw@ornl.gov				-
@@ -138,6 +140,7 @@ class WidgetContainer( wx.Panel ):
     #self.axialCheckBox = None
     self.dataSetMenu = None
     self.dataSetMenuButton = None
+    self.dataSetMenuVersion = -1
     self.derivedDataSetMenu = None
     #self.exposureCheckBox = None
     self.eventLocks = State.CreateLocks()
@@ -372,42 +375,19 @@ Must be called on the UI thread.
 #		-- Dataset menu button
 #		--
     dataset_type = self.widget.GetDataSetType()
-    #if dataset_type != None and dataset_type in data_model.dataSetNames:
     if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
-      #dataset_names = data_model.dataSetNames[ dataset_type ]
-      dataset_names = data_model.GetDataSetNames( dataset_type )
       self.dataSetMenu = wx.Menu()
-      for name in dataset_names:
-        item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
-        self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	self.dataSetMenu.AppendItem( item )
-      #end for
-
-#			-- Other 4-tuple shapes?
-      if self.widget.GetAllow4DDataSets():
-        if data_model.HasDataSetCategory( 'other' ):
-	  self.dataSetMenu.AppendSeparator()
-	  for name in data_model.GetDataSetNames( 'other' ):
-	    item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
-	    self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	    self.dataSetMenu.AppendItem( item )
-        #end if
-
-#        item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
-#	self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
-#	self.dataSetMenu.AppendItem( item )
-      #end if
 
 #			-- Derived pullright
+#			--
       derived_labels = data_model.GetDerivedLabels( dataset_type )
       if derived_labels:
         self.derivedDataSetMenu = wx.Menu()
-	derived_item = wx.MenuItem(
+        derived_item = wx.MenuItem(
             self.dataSetMenu, wx.ID_ANY, 'Derived',
 	    subMenu = self.derivedDataSetMenu
 	    )
         self.dataSetMenu.AppendItem( derived_item )
-        #self._OnDataSetChange( data_model )
       #end if
 
       menu_im = wx.Image(
@@ -418,8 +398,8 @@ Must be called on the UI thread.
           wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
       self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset to View' ) )
       self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
-#      self.dataSetMenuButton.Bind(
-#          wx.EVT_BUTTON,
+#     self.dataSetMenuButton.Bind(
+#         wx.EVT_BUTTON,
 #	  functools.partial(
 #	      self._OnPopupMenu,
 #	      self.dataSetMenuButton, self.dataSetMenu
@@ -429,7 +409,7 @@ Must be called on the UI thread.
           self.dataSetMenuButton, 0,
 	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	  )
-    #end if dataset names to select
+    #end if dataset_type
 
 #		-- Widget menu
 #		--
@@ -578,11 +558,11 @@ Must be called on the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		_OnDataSetChange()				-
   #----------------------------------------------------------------------
-  def _OnDataSetChange( self, data_model, *args, **kwargs ):
-    """
-"""
-    self._UpdateDerivedDataSetMenu( data_model )
-  #end _OnDataSetChange
+#  def _OnDataSetChange( self, data_model, *args, **kwargs ):
+#    """
+#"""
+#    self._UpdateDerivedDataSetMenu( data_model )
+#  #end _OnDataSetChange
 
 
   #----------------------------------------------------------------------
@@ -591,7 +571,8 @@ Must be called on the UI thread.
   def _OnDataSetMenu( self, ev ):
     """
 """
-    self._UpdateDerivedDataSetMenu()
+    #self._UpdateDerivedDataSetMenu()
+    self._UpdateDataSetMenu()
     self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
   #end _OnDataSetMenu
 
@@ -664,6 +645,7 @@ Must be called on the UI thread.
       name = data_model.ResolveDerivedDataSet(
           self.widget.GetDataSetType(), menu._derivedLabel, ds_name
 	  )
+      #xxx check for core here? how?
       if name:
         self.widget.SetDataSet( name )
       self.widget._BusyEnd()
@@ -867,6 +849,81 @@ Must be called from the UI event thread
 	msg = 'Error saving image:' + os.linesep + str( ex )
 	wx.CallAfter( wx.MessageBox, msg, 'Save Error', wx.OK_DEFAULT, self )
   #end SaveWidgetImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDataSetMenu()				-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetMenu( self ):
+    """Handles (re)creation of the dataset menu.
+"""
+#		-- Check need for update
+#		--
+    data_model = State.FindDataModel( self.state )
+    if data_model != None and \
+        self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
+
+      print >> sys.stderr, \
+          '[WidgetContainer._UpdateDataSetMenu] version from=%d, to=%d' % \
+	  ( self.dataSetMenuVersion, data_model.GetDataSetNamesVersion() )
+
+#			-- Remove existing items
+#			--
+      rlist = []
+      for item in self.dataSetMenu.GetMenuItems():
+        if item.GetLabel() not in ( 'Derived', 'Other' ):
+	  rlist.append( item )
+      for item in rlist:
+        self.dataSetMenu.DestroyItem( item )
+#      while self.dataSetMenu.GetMenuItemCount() > 0:
+#	item = self.dataSetMenu.FindItemByPosition( 0 )
+#	if item.GetLabel() not in ( 'Derived', 'Other' ):
+#	  self.dataSetMenu.DestroyItem( item )
+#      #end while
+
+#			-- Must have datasets
+#			--
+      dataset_type = self.widget.GetDataSetType()
+      if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
+        dataset_names = data_model.GetDataSetNames( dataset_type )
+
+#				-- Populate dataset items
+#				--
+	ndx = 0
+        for name in dataset_names:
+          item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+          self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+	  #self.dataSetMenu.AppendItem( item )
+	  self.dataSetMenu.InsertItem( 0, item )
+	  ndx += 1
+        #end for
+
+#				-- Other 4-tuple shapes?
+#				--
+        if self.widget.GetAllow4DDataSets():
+          if data_model.HasDataSetCategory( 'other' ):
+	    self.dataSetMenu.AppendSeparator()
+	    for name in data_model.GetDataSetNames( 'other' ):
+	      item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+	      self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+	      #self.dataSetMenu.AppendItem( item )
+	      self.dataSetMenu.InsertItem( 0, item )
+	  #end if other datasets exists
+        #end if 4d datasets allowed
+
+        #item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
+	#self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
+	#self.dataSetMenu.AppendItem( item )
+
+#				-- Derived pullright
+#				--
+	if self.derivedDataSetMenu != None:
+	  self._UpdateDerivedDataSetMenu( data_model )
+      #end if dataset_type exists
+
+      self.dataSetMenuVersion = data_model.GetDataSetNamesVersion()
+    #end if must update
+  #end _UpdateDataSetMenu
 
 
   #----------------------------------------------------------------------
