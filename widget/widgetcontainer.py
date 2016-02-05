@@ -48,7 +48,7 @@
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, math, os, sys
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -641,9 +641,10 @@ Must be called on the UI thread.
       self.widget._BusyBegin()
 
       ds_name = item.GetLabel().replace( ' *', '' )
+      ds_menu = item.GetMenu()
       data_model = State.FindDataModel( self.state )
       name = data_model.ResolveDerivedDataSet(
-          self.widget.GetDataSetType(), menu._derivedLabel, ds_name
+          self.widget.GetDataSetType(), ds_menu._derivedLabel, ds_name
 	  )
       #xxx check for core here? how?
       if name:
