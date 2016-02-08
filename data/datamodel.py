@@ -100,20 +100,23 @@ DATASET_DEFS = \
   'channel':
     {
     'label': 'channel',
-    'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nax, core.nass )'
+    'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nax, core.nass )',
+    'type': 'channel'
     },
 
   'detector':
     {
     'label': 'detector',
-    'shape_expr': '( core.ndetax, core.ndet )'
+    'shape_expr': '( core.ndetax, core.ndet )',
+    'type': 'detector'
     },
 
   'pin':
     {
     'category': 'pin',
     'label': 'pin',
-    'shape_expr': '( core.npiny, core.npinx, core.nax, core.nass )'
+    'shape_expr': '( core.npiny, core.npinx, core.nax, core.nass )',
+    'type': 'pin'
     },
 
   'pin:assembly':
@@ -123,7 +126,8 @@ DATASET_DEFS = \
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
     'ds_prefix': 'asy',
     'label': 'assembly',
-    'shape_expr': '( core.nax, core.nass )'
+    'shape_expr': '( core.nax, core.nass )',
+    'type': 'pin:assembly'
     },
 
   'pin:axial':
@@ -133,7 +137,8 @@ DATASET_DEFS = \
     'copy_shape_expr': '( 1, 1, core.nax, 1 )',
     'ds_prefix': 'axial',
     'label': 'axial',
-    'shape_expr': '( core.nax, )'
+    'shape_expr': '( core.nax, )',
+    'type': 'pin:axial'
     },
 
   'pin:core':
@@ -141,7 +146,8 @@ DATASET_DEFS = \
     'avg_method': 'avg.calc_pin_core_avg( core, data )',
     'ds_prefix': 'core',
     'label': 'core',
-    'shape': ( 1, )
+    'shape': ( 1, ),
+    'type': 'pin:core'
     },
 
   'pin:radial':
@@ -151,13 +157,15 @@ DATASET_DEFS = \
     'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
     'ds_prefix': 'radial',
     'label': 'radial',
-    'shape_expr': '( core.npiny, core.npinx, core.nass )'
+    'shape_expr': '( core.npiny, core.npinx, core.nass )',
+    'type': 'pin:radial'
     },
 
   'scalar':
     {
     'label': 'scalar',
-    'shape': ( 1, )
+    'shape': ( 1, ),
+    'type': 'scalar'
     }
   }
 
@@ -1201,6 +1209,7 @@ the properties construct for this class soon.
         if st != None:
           dset = st.GetDataSet( ds_name )
 
+	#xxxx 2nd call from Assembly2DView gets original, not copy
         if dset != None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
           copy_name = 'copy:' + ds_name
 	  copy_dset = st.GetDataSet( copy_name )

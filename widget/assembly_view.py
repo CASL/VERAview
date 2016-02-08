@@ -294,6 +294,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  if self.pinDataSet in self.data.states[ state_ndx ].group \
 #	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+
       #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset != None else None
       if dset == None:
@@ -571,7 +572,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Assembly2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin' ]
+    return  [ 'pin', 'pin:radial' ]
   #end GetDataSetTypes
 
 
