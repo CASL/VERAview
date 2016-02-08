@@ -119,7 +119,8 @@ DATASET_DEFS = \
   'pin:assembly':
     {
     'avg_method': 'avg.calc_pin_assembly_avg( core, data )',
-    'copy_expr': '[ 1, 1, :, : ]',
+    'copy_expr': '[ 0, 0, :, : ]',
+    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
     'ds_prefix': 'asy',
     'label': 'assembly',
     'shape_expr': '( core.nax, core.nass )'
@@ -128,7 +129,8 @@ DATASET_DEFS = \
   'pin:axial':
     {
     'avg_method': 'avg.calc_pin_axial_avg( core, data )',
-    'copy_expr': '[ 1, 1, :, 1 ]',
+    'copy_expr': '[ 0, 0, :, 0 ]',
+    'copy_shape_expr': '( 1, 1, core.nax, 1 )',
     'ds_prefix': 'axial',
     'label': 'axial',
     'shape_expr': '( core.nax, )'
@@ -137,7 +139,6 @@ DATASET_DEFS = \
   'pin:core':
     {
     'avg_method': 'avg.calc_pin_core_avg( core, data )',
-    'copy_expr': '[ :, :, :, : ]',
     'ds_prefix': 'core',
     'label': 'core',
     'shape': ( 1, )
@@ -146,7 +147,8 @@ DATASET_DEFS = \
   'pin:radial':
     {
     'avg_method': 'avg.calc_pin_radial_avg( core, data )',
-    'copy_expr': '[ :, :, 1, : ]',
+    'copy_expr': '[ :, :, 0, : ]',
+    'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
     'ds_prefix': 'radial',
     'label': 'radial',
     'shape_expr': '( core.npiny, core.npinx, core.nass )'
@@ -546,6 +548,8 @@ Properties:
   core			Core
   #dataSetChangeEvent	event.Event object
   dataSetDefs		dict of dataset definitions
+  dataSetDefsByName	reverse lookup of dataset definitions by ds_name
+  dataSetDefsLock	threading.RLock for dataSetDefs and dataSetDefsByName
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector', 'extra',
 			     'pin', 'scalar' )
@@ -557,6 +561,7 @@ Properties:
   h5File		h5py.File
   pinPowerRange		( min, max ), computed from all states
   ranges		dict of ranges ( min, max ) by dataset
+  rangesLock		threading.RLock for ranges dict
   states		list of State instances
 """
 
@@ -593,6 +598,7 @@ passed, Read() must be called.
 			HDF5 file (.h5)
 """
     #self.dataSetChangeEvent = Event( self )
+    self.dataSetDefsLock = threading.RLock()
     self.rangesLock = threading.RLock()
 
     self.Clear()
@@ -654,6 +660,7 @@ passed, Read() must be called.
   def Clear( self ):
     self.core = None
     self.dataSetDefs = None
+    self.dataSetDefsByName = None
     self.dataSetNames = None
     self.dataSetNamesVersion = 0
     self.extraStates = None
@@ -927,6 +934,19 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetDefByDsName()		-
+  #----------------------------------------------------------------------
+  def GetDataSetDefByDsName( self, ds_name ):
+    """Looks up the dataset definition for the dataset name.
+@param  ds_name		dataset name
+@return			dataset definition in dataSetDefsByName if found,
+			None otherwise
+"""
+    return  self.dataSetDefsByName.get( ds_name )
+  #end GetDataSetDefByDsName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetDisplayName()		-
   #----------------------------------------------------------------------
   def GetDataSetDisplayName( self, ds_name ):
@@ -1164,20 +1184,68 @@ the properties construct for this class soon.
 			means a derived or extra dataset respectively
 @return			h5py.Dataset object if found or None
 """
+    dset = None
+
     if ds_name == None:
-      st = None
+      pass
+
     elif ds_name.startswith( 'derived:' ):
       st = self.derivedDataMgr.GetState( state_ndx )
-      use_name = ds_name
-    elif ds_name.startswith( 'extra:' ):
-      st = self.GetExtraState( state_ndx )
-      use_name = ds_name[ 6 : ]
-    else:
-      st = self.GetState( state_ndx )
-      use_name = ds_name
+      if st != None:
+        dset = st.GetDataSet( ds_name )
 
-    return  st.GetDataSet( use_name ) if st != None else None
+    else:
+      self.dataSetDefsLock.acquire()
+      try:
+        st = self.GetState( state_ndx )
+        if st != None:
+          dset = st.GetDataSet( ds_name )
+
+        if dset != None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
+          copy_name = 'copy:' + ds_name
+	  copy_dset = st.GetDataSet( copy_name )
+
+	  if copy_dset == None:
+            ds_def = self.dataSetDefsByName.get( ds_name )
+	    if ds_def != None and 'copy_expr' in ds_def:
+	      copy_data = \
+	          np.ndarray( ds_def[ 'copy_shape' ], dtype = np.float64 )
+	      exec_str = 'copy_data' + ds_def[ 'copy_expr' ] + ' = dset'
+	      exec( exec_str )
+	      dset = st.CreateDataSet( copy_name, copy_data )
+        #end if must use copy
+      finally:
+        self.dataSetDefsLock.release()
+    #end else
+
+    return  dset
   #end GetStateDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetStateDataSet_old()			-
+  #----------------------------------------------------------------------
+#  def GetStateDataSet_old( self, state_ndx, ds_name ):
+#    """Retrieves a normal or extra dataset.
+#@param  state_ndx	0-based state point index
+#@param  ds_name		dataset name, where a prefix of 'derived:' or 'extra:'
+#			means a derived or extra dataset respectively
+#@return			h5py.Dataset object if found or None
+#"""
+#    if ds_name == None:
+#      st = None
+#    elif ds_name.startswith( 'derived:' ):
+#      st = self.derivedDataMgr.GetState( state_ndx )
+#      use_name = ds_name
+#    elif ds_name.startswith( 'extra:' ):
+#      st = self.GetExtraState( state_ndx )
+#      use_name = ds_name[ 6 : ]
+#    else:
+#      st = self.GetState( state_ndx )
+#      use_name = ds_name
+#
+#    return  st.GetDataSet( use_name ) if st != None else None
+#  #end GetStateDataSet_old
 
 
   #----------------------------------------------------------------------
@@ -1583,7 +1651,7 @@ to be 'core', and the dataset is not associated with a state point.
     if self.core.npin == 0 and 'pin_powers' in st_group:
       self.core.npin = st_group[ 'pin_powers'].shape[ 0 ]
 
-    self.dataSetDefs, self.dataSetNames = \
+    self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
         self._ResolveDataSets( self.core, st_group )
 
     self.derivedDataMgr = DerivedDataMgr( self )
@@ -1696,7 +1764,14 @@ calculated.
   #	METHOD:		DataModel._ResolveDataSets()			-
   #----------------------------------------------------------------------
   def _ResolveDataSets( self, core, st_group ):
+    """Thread-safe method to build three dicts:
+  ds_defs		dataset definitions by dataset type
+  ds_defs_by_name	dataset definition by dataset name
+  ds_names		list of dataset names by dataset type
+@return			ds_defs, ds_defs_by_name, ds_names
+"""
     ds_defs = copy.deepcopy( DATASET_DEFS )
+    ds_defs_by_name = {}
     ds_names = { 'axial': [], 'scalar': [], 'time': [ 'state' ] }
 
 #		-- Resolve dataset defs
@@ -1705,7 +1780,9 @@ calculated.
       ds_names[ def_name ] = []
       if 'shape' not in def_item:
         def_item[ 'shape' ] = eval( def_item[ 'shape_expr' ] )
-      #end if
+
+      if 'copy_shape_expr' in def_item:
+        def_item[ 'copy_shape' ] = eval( def_item[ 'copy_shape_expr' ] )
     #end for
 
 #		-- Walk datasets
@@ -1713,7 +1790,11 @@ calculated.
     scalar_shape = ( 1, )
 
     for cur_name in st_group:
-      if not isinstance( st_group[ cur_name ], h5py.Group ):
+      #if not isinstance( st_group[ cur_name ], h5py.Group ):
+      if not (
+          isinstance( st_group[ cur_name ], h5py.Group ) or
+	  cur_name.startswith( 'copy:' )
+	  ):
         cur_shape = st_group[ cur_name ].shape
 
 #			-- Scalar is special case
@@ -1736,12 +1817,16 @@ calculated.
 	    cat_name = 'scalar'
 	  ds_names[ cat_name ].append( cur_name )
 
+	  ds_defs_by_name[ cur_name ] = ds_defs.get( cat_name )
+
 #			-- Not a scalar
 #			--
 	else:
 	  for def_name, def_item in ds_defs.iteritems():
 	    if cur_shape == def_item[ 'shape' ]:
 	      ds_names[ def_name ].append( cur_name )
+	      ds_defs_by_name[ cur_name ] = def_item
+
 	      if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
 	        ds_names[ 'axial' ].append( cur_name )
 	      break
@@ -1760,7 +1845,7 @@ calculated.
     for name in ds_names:
       ds_names[ name ].sort()
 
-    return  ds_defs, ds_names
+    return  ds_defs, ds_defs_by_name, ds_names
   #end _ResolveDataSets
 
 
