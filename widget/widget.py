@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the widget menu messiness with _CreateMenuDef()
 #	  and menuDef defined here and GetPopupMenu() implemented here.
@@ -438,16 +440,19 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataSetType()				-
+  #	METHOD:		GetDataSetTypes()				-
   #----------------------------------------------------------------------
-  def GetDataSetType( self ):
-    """Accessor specifying the type of dataset which can be single-selected
-for this widget.  The type is one of 'channel', 'pin', or 'scalar'.
-Subclasses should override as this implementation returns None
-@return			dataset_type
+  def GetDataSetTypes( self ):
+    """Accessor specifying the types of datasets which can be single-selected
+for this widget.  The types are defined in datamodel and include 'channel',
+'detector', 'pin', and 'scalar' as well as derived types such as
+'pin:assembly'.  This implementation returns an empty list and must be
+overridden by subclasses.
+
+@return			list of dataset types, cannot be None
 """
-    return  None
-  #end GetDataSetType
+    return  []
+  #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------

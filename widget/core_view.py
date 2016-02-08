@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
 #		2016-01-22	leerw@ornl.gov				-
@@ -981,11 +983,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.GetDataSetType()			-
+  #	METHOD:		Core2DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
-  def GetDataSetType( self ):
-    return  'pin'
-  #end GetDataSetType
+  def GetDataSetTypes( self ):
+    return  [ 'pin' ]
+  #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------

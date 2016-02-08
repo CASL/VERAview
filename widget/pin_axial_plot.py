@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_axial_plot.py				-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed GetDataSetType() to GetDataSetTypes().
 #		2015-08-31	leerw@ornl.gov				-
 #	  Added GetAnimationIndexes().
 #		2015-07-27	leerw@ornl.gov				-
@@ -174,11 +176,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataSetType()				-
+  #	METHOD:		GetDataSetTypes()				-
   #----------------------------------------------------------------------
-  def GetDataSetType( self ):
-    return  'pin'
-  #end GetDataSetType
+  def GetDataSetTypes( self ):
+    return  [ 'pin' ]
+  #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------

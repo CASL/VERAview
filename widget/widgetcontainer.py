@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed Widget.GetDataSetType() to GetDataSetTypes().
 #		2016-02-05	leerw@ornl.gov				-
 #	  Dynamically creating the dataset menu when out-of-date.
 #		2016-02-02	leerw@ornl.gov				-
@@ -374,13 +376,21 @@ Must be called on the UI thread.
 
 #		-- Dataset menu button
 #		--
-    dataset_type = self.widget.GetDataSetType()
-    if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
+    dataset_types = list( self.widget.GetDataSetTypes() )
+    ndx = 0
+    while ndx < len( dataset_types ):
+      if data_model.HasDataSetType( dataset_types[ ndx ] ):
+        ndx += 1
+      else:
+        del dataset_types[ ndx ]
+
+    #if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
+    if len( dataset_types ) > 0:
       self.dataSetMenu = wx.Menu()
 
 #			-- Derived pullright
 #			--
-      derived_labels = data_model.GetDerivedLabels( dataset_type )
+      derived_labels = data_model.GetDerivedLabels( dataset_types[ 0 ] )
       if derived_labels:
         self.derivedDataSetMenu = wx.Menu()
         derived_item = wx.MenuItem(
@@ -426,31 +436,31 @@ Must be called on the UI thread.
       anim_indexes = self.widget.GetAnimationIndexes()
 
       if 'axial:detector' in anim_indexes and \
-        data_model.GetCore().ndetax > 1 and \
-	data_model.HasDataSetCategory( 'detector' ):
-          anim_item = wx.MenuItem(
-	      self.animateMenu, wx.ID_ANY, 'Detector Axial Levels'
-	      )
-          self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
-          self.animateMenu.AppendItem( anim_item )
+          data_model.GetCore().ndetax > 1 and \
+	  data_model.HasDataSetType( 'detector' ):
+        anim_item = wx.MenuItem(
+	    self.animateMenu, wx.ID_ANY, 'Detector Axial Levels'
+	    )
+        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+        self.animateMenu.AppendItem( anim_item )
       #end 'axial:detector'
 
       if 'axial:pin' in anim_indexes and \
-        data_model.GetCore().nax > 1 and \
-	data_model.HasDataSetCategory( 'pin' ):
-          anim_item = wx.MenuItem(
-	      self.animateMenu, wx.ID_ANY, 'Pin Axial Levels'
-	      )
-          self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
-          self.animateMenu.AppendItem( anim_item )
+          data_model.GetCore().nax > 1 and \
+	  data_model.HasDataSetType( 'pin' ):
+        anim_item = wx.MenuItem(
+	    self.animateMenu, wx.ID_ANY, 'Pin Axial Levels'
+	    )
+        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+        self.animateMenu.AppendItem( anim_item )
       #end 'axial:detector'
 
       if 'statepoint' in anim_indexes and len( data_model.GetStates() ) > 1:
-          anim_item = wx.MenuItem(
-	      self.animateMenu, wx.ID_ANY, 'State Points'
-	      )
-          self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
-          self.animateMenu.AppendItem( anim_item )
+        anim_item = wx.MenuItem(
+	    self.animateMenu, wx.ID_ANY, 'State Points'
+	    )
+        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+        self.animateMenu.AppendItem( anim_item )
       #end 'axial:detector'
 
       self.widgetMenu.AppendMenu(
@@ -644,7 +654,8 @@ Must be called on the UI thread.
       ds_menu = item.GetMenu()
       data_model = State.FindDataModel( self.state )
       name = data_model.ResolveDerivedDataSet(
-          self.widget.GetDataSetType(), ds_menu._derivedLabel, ds_name
+          self.widget.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
+          #self.widget.GetDataSetType(), ds_menu._derivedLabel, ds_name
 	  )
       #xxx check for core here? how?
       if name:
@@ -884,33 +895,40 @@ Must be called from the UI event thread
 
 #			-- Must have datasets
 #			--
-      dataset_type = self.widget.GetDataSetType()
-      if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
-        dataset_names = data_model.GetDataSetNames( dataset_type )
+#      dataset_type = self.widget.GetDataSetType()
+#      if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
+#        dataset_names = data_model.GetDataSetNames( dataset_type )
+      dataset_names = []
+      if self.widget.GetDataSetTypes() != None:
+        for dtype in self.widget.GetDataSetTypes():
+	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
 
 #				-- Populate dataset items
 #				--
+      if len( dataset_names ) > 0:
+	dataset_names.sort()
+
 	ndx = 0
         for name in dataset_names:
           item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
           self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
 	  #self.dataSetMenu.AppendItem( item )
-	  self.dataSetMenu.InsertItem( 0, item )
+	  self.dataSetMenu.InsertItem( ndx, item )
 	  ndx += 1
         #end for
 
 #				-- Other 4-tuple shapes?
 #				--
-        if self.widget.GetAllow4DDataSets():
-          if data_model.HasDataSetCategory( 'other' ):
-	    self.dataSetMenu.AppendSeparator()
-	    for name in data_model.GetDataSetNames( 'other' ):
-	      item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
-	      self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	      #self.dataSetMenu.AppendItem( item )
-	      self.dataSetMenu.InsertItem( 0, item )
-	  #end if other datasets exists
-        #end if 4d datasets allowed
+#        if self.widget.GetAllow4DDataSets():
+#          if data_model.HasDataSetCategory( 'other' ):
+#	    self.dataSetMenu.AppendSeparator()
+#	    for name in data_model.GetDataSetNames( 'other' ):
+#	      item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+#	      self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+#	      #self.dataSetMenu.AppendItem( item )
+#	      self.dataSetMenu.InsertItem( 0, item )
+#	  #end if other datasets exists
+#        #end if 4d datasets allowed
 
         #item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
 	#self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
@@ -920,7 +938,7 @@ Must be called from the UI event thread
 #				--
 	if self.derivedDataSetMenu != None:
 	  self._UpdateDerivedDataSetMenu( data_model )
-      #end if dataset_type exists
+      #end if dataset names
 
       self.dataSetMenuVersion = data_model.GetDataSetNamesVersion()
     #end if must update
@@ -945,8 +963,9 @@ Must be called from the UI event thread
 
 #		-- Populate derived label submenus
 #		--
-      dataset_type = self.widget.GetDataSetType()
-      #dmgr = data_model.GetDerivedDataMgr()
+      dataset_types = self.widget.GetDataSetTypes()
+      dataset_type = dataset_types[ 0 ]  if len( dataset_types ) > 0  else ''
+      #dataset_type = self.widget.GetDataSetTypes()
       labels = data_model.GetDerivedLabels( dataset_type )
       names = data_model.GetDataSetNames( dataset_type )
 

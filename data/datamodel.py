@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  New scheme for defining datasets.				-
 #		2016-02-05	leerw@ornl.gov				-
 #	  Added DataModel dataSetNamesVersion property and
 #	  AddDataSetName() method.
@@ -77,7 +79,7 @@
 #		2014-12-28	leerw@ornl.gov				-
 #		2014-10-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import cStringIO, h5py, json, math, os, sys, threading, traceback
+import copy, cStringIO, h5py, json, math, os, sys, threading, traceback
 import numpy as np
 import pdb
 
@@ -91,6 +93,72 @@ COL_LABELS = \
   )
 
 #{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}
+
+
+DATASET_DEFS = \
+  {
+  'channel':
+    {
+    'label': 'channel',
+    'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nax, core.nass )'
+    },
+
+  'detector':
+    {
+    'label': 'detector',
+    'shape_expr': '( core.ndetax, core.ndet )'
+    },
+
+  'pin':
+    {
+    'category': 'pin',
+    'label': 'pin',
+    'shape_expr': '( core.npiny, core.npinx, core.nax, core.nass )'
+    },
+
+  'pin:assembly':
+    {
+    'avg_method': 'avg.calc_pin_assembly_avg( core, data )',
+    'copy_expr': '[ 1, 1, :, : ]',
+    'ds_prefix': 'asy',
+    'label': 'assembly',
+    'shape_expr': '( core.nax, core.nass )'
+    },
+
+  'pin:axial':
+    {
+    'avg_method': 'avg.calc_pin_axial_avg( core, data )',
+    'copy_expr': '[ 1, 1, :, 1 ]',
+    'ds_prefix': 'axial',
+    'label': 'axial',
+    'shape_expr': '( core.nax, )'
+    },
+
+  'pin:core':
+    {
+    'avg_method': 'avg.calc_pin_core_avg( core, data )',
+    'copy_expr': '[ :, :, :, : ]',
+    'ds_prefix': 'core',
+    'label': 'core',
+    'shape': ( 1, )
+    },
+
+  'pin:radial':
+    {
+    'avg_method': 'avg.calc_pin_radial_avg( core, data )',
+    'copy_expr': '[ :, :, 1, : ]',
+    'ds_prefix': 'radial',
+    'label': 'radial',
+    'shape_expr': '( core.npiny, core.npinx, core.nass )'
+    },
+
+  'scalar':
+    {
+    'label': 'scalar',
+    'shape': ( 1, )
+    }
+  }
+
 
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
 
@@ -477,14 +545,15 @@ property.
 Properties:
   core			Core
   #dataSetChangeEvent	event.Event object
+  dataSetDefs		dict of dataset definitions
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector', 'extra',
 			     'pin', 'scalar' )
   dataSetNamesVersion	counter to indicate changes
   derivedDataMgr	DerivedDataMgr instance
-  extraStates		list of ExtraState instances
-  h5ExtraFile		extra datasets h5py.File, None until exists or created
-  h5ExtraFilePath	path to extra datasets file
+  #extraStates		list of ExtraState instances
+  #h5ExtraFile		extra datasets h5py.File, None until exists or created
+  #h5ExtraFilePath	path to extra datasets file
   h5File		h5py.File
   pinPowerRange		( min, max ), computed from all states
   ranges		dict of ranges ( min, max ) by dataset
@@ -519,12 +588,11 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, h5f_param = None ):
     """Constructor with optional HDF5 file or filename.  If neither are
-passed, the read() method must be called.
+passed, Read() must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
 """
     #self.dataSetChangeEvent = Event( self )
-    self.dataSetNamesVersion = 0
     self.rangesLock = threading.RLock()
 
     self.Clear()
@@ -585,7 +653,9 @@ passed, the read() method must be called.
   #----------------------------------------------------------------------
   def Clear( self ):
     self.core = None
+    self.dataSetDefs = None
     self.dataSetNames = None
+    self.dataSetNamesVersion = 0
     self.extraStates = None
     self.h5ExtraFile = None
     self.h5ExtraFilePath = None
@@ -841,6 +911,22 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetDef()			-
+  #----------------------------------------------------------------------
+  def GetDataSetDef( self, ds_type = None ):
+    """Accessor for the 'dataSetDefs' property.
+@param  ds_type		optional type name
+@return			if ds_type != None, the definition for the type
+			or None if not found
+			if ds_type == None, dict of definitions name by type
+"""
+    return \
+	self.dataSetDefs  if ds_type == None else \
+	self.dataSetDefs.get( ds_type )
+  #end GetDataSetDef
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetDisplayName()		-
   #----------------------------------------------------------------------
   def GetDataSetDisplayName( self, ds_name ):
@@ -857,19 +943,19 @@ descending.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetNames()			-
   #----------------------------------------------------------------------
-  def GetDataSetNames( self, category = None ):
+  def GetDataSetNames( self, ds_type = None ):
     """Accessor for the 'dataSetNames' property.
-@param  category	optional category/type
-@return			if category != None, list of datasets in that
-			category
-			if category == None, dict of dataset name lists by
-			category
-			( 'axial', 'channel', 'derived', 'detector', 'extra',
-			  'other', 'pin', 'scalar' )
+@param  ds_type		optional type name
+@return			if ds_type != None, list of datasets in that
+			ds_type, empty if not found
+			if ds_type == None, dict of dataset name lists by
+			ds_type
+			( 'axial', 'channel', 'derived', 'detector',
+			  'pin', 'scalar', etc. )
 """
     return \
-        self.dataSetNames if category == None else \
-	self.dataSetNames.get( category, [] )
+        self.dataSetNames if ds_type == None else \
+	self.dataSetNames.get( ds_type, [] )
   #end GetDataSetNames
 
 
@@ -1151,18 +1237,18 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.HasDataSetCategory()			-
+  #	METHOD:		DataModel.HasDataSetType()			-
   #----------------------------------------------------------------------
-  def HasDataSetCategory( self, category = None ):
-    """Tests existence of datasets in category
-@param  category	one of 'axial', 'channel', 'derived', 'detector',
-			'extra', 'other', 'pin', 'scalar'
+  def HasDataSetType( self, ds_type = None ):
+    """Tests existence of datasets in named type
+@param  ds_type		one of type names, e.g., 'axial', 'channel', 'derived',
+			'detector', 'pin', 'scalar'
 @return			True if there are datasets, False otherwise
 """
     return  \
-        category in self.dataSetNames and \
-	len( self.dataSetNames[ category ] ) > 0
-  #end HasDataSetCategory
+        ds_type in self.dataSetNames and \
+	len( self.dataSetNames[ ds_type ] ) > 0
+  #end HasDataSetType
 
 
   #----------------------------------------------------------------------
@@ -1486,27 +1572,34 @@ to be 'core', and the dataset is not associated with a state point.
       self.h5File = h5py.File( str( h5f_param ) )
 
     self.core = Core( self.h5File )
-    self.dataSetNames, self.states = State.ReadAll( self.h5File, self.core )
+    self.states = State.ReadAll( self.h5File )
+
+#		-- Assert on states
+#		--
+    if self.states == None or len( self.states ) == 0:
+      raise  Exception( 'No state points could be read' )
+
+    st_group = self.states[ 0 ].GetGroup()
+    if self.core.npin == 0 and 'pin_powers' in st_group:
+      self.core.npin = st_group[ 'pin_powers'].shape[ 0 ]
+
+    self.dataSetDefs, self.dataSetNames = \
+        self._ResolveDataSets( self.core, st_group )
 
     self.derivedDataMgr = DerivedDataMgr( self )
-#    self.derivedDataMgr = DerivedDataMgr(
-#        self.core, self.states,
-#	self.dataSetNames, self.dataSetChangeEvent
-#	)
 
     self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
     self.ranges = { 'pin_powers': self.pinPowerRange }
 
 #	-- Read extras file if it exists
 #	--
-    self.h5ExtraFile = None
-    base, ext = os.path.splitext( self.h5File.filename )
-    self.h5ExtraFilePath = base + '.extra' + ext
-    if os.path.exists( self.h5ExtraFilePath ):
-      self.h5ExtraFile = h5py.File( self.h5ExtraFilePath, 'r+' )  # 'a': r/w or creates
-      self.ReadExtraDataSets()
-#      self.dataSetNames[ 'extra' ], self.extraStates = \
-#          ExtraState.ReadAll( self.h5ExtraFile )
+#    self.h5ExtraFile = None
+#    base, ext = os.path.splitext( self.h5File.filename )
+#    self.h5ExtraFilePath = base + '.extra' + ext
+#    if os.path.exists( self.h5ExtraFilePath ):
+#      # 'a': r/w or creates
+#      self.h5ExtraFile = h5py.File( self.h5ExtraFilePath, 'r+' )
+#      self.ReadExtraDataSets()
   #end Read
 
 
@@ -1597,6 +1690,78 @@ calculated.
       self.h5ExtraFile.flush()
     #end if
   #end RemoveExtraDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._ResolveDataSets()			-
+  #----------------------------------------------------------------------
+  def _ResolveDataSets( self, core, st_group ):
+    ds_defs = copy.deepcopy( DATASET_DEFS )
+    ds_names = { 'axial': [], 'scalar': [], 'time': [ 'state' ] }
+
+#		-- Resolve dataset defs
+#		--
+    for def_name, def_item in ds_defs.iteritems():
+      ds_names[ def_name ] = []
+      if 'shape' not in def_item:
+        def_item[ 'shape' ] = eval( def_item[ 'shape_expr' ] )
+      #end if
+    #end for
+
+#		-- Walk datasets
+#		--
+    scalar_shape = ( 1, )
+
+    for cur_name in st_group:
+      if not isinstance( st_group[ cur_name ], h5py.Group ):
+        cur_shape = st_group[ cur_name ].shape
+
+#			-- Scalar is special case
+#			--
+        if len( cur_shape ) == 0 or cur_shape == scalar_shape:
+	  cat_name = None
+	  if cur_name in TIME_DS_NAMES:
+	    cat_name = 'time'
+	  else:
+	    for def_name, def_item in ds_defs.iteritems():
+	      if def_name != 'scalar' and \
+	          def_item[ 'shape' ] == scalar_shape and \
+		  cur_name.startswith( def_item[ 'ds_prefix' ] + '_' ):
+	        cat_name = def_name
+		break
+	    #end for
+	  #end if-else on cur_name
+
+	  if cat_name == None:
+	    cat_name = 'scalar'
+	  ds_names[ cat_name ].append( cur_name )
+
+#			-- Not a scalar
+#			--
+	else:
+	  for def_name, def_item in ds_defs.iteritems():
+	    if cur_shape == def_item[ 'shape' ]:
+	      ds_names[ def_name ].append( cur_name )
+	      if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
+	        ds_names[ 'axial' ].append( cur_name )
+	      break
+	  #end for
+        #end if-else on shape
+
+#			-- Old 'axial' check
+#			--
+#        if ( len( cur_shape ) == 4 and cur_shape[ 2 ] == core.nax ) or \
+#	    ( len( cur_shape ) == 2 and cur_shape[ 0 ] == core.ndetax ):
+#	  ds_names[ 'axial' ].append( cur_name )
+    #end for st_group keys
+
+#		-- Sort names
+#		--
+    for name in ds_names:
+      ds_names[ name ].sort()
+
+    return  ds_defs, ds_names
+  #end _ResolveDataSets
 
 
   #----------------------------------------------------------------------
@@ -2215,11 +2380,11 @@ Fields:
   #	METHOD:		State.ReadAll()					-
   #----------------------------------------------------------------------
   @staticmethod
-  def ReadAll( h5_group, core ):
+  def ReadAll( h5_group ):
     """
 @return			( dataset_names_dict, states )
 """
-    ds_names_dict = {}
+    #ds_names_dict = {}
     states = []
 
     missing_count = 0
@@ -2237,16 +2402,17 @@ Fields:
 
 #				-- Special hook to fix npin
 #				--
-	if core.npin == 0 and 'pin_powers' in cur_group:
-	  core.npin = cur_group[ 'pin_powers'].shape[ 0 ]
+#	if core.npin == 0 and 'pin_powers' in cur_group:
+#	  core.npin = cur_group[ 'pin_powers'].shape[ 0 ]
 
-	if n == 1:
-	  ds_names_dict = State.FindDataSets( cur_group, core )
+#	if n == 1:
+#	  ds_names_dict = State.FindDataSets( cur_group, core )
       #end if-else
       n += 1
     #end while
 
-    return  ( ds_names_dict, states )
+    #return  ( ds_names_dict, states )
+    return  states
   #end ReadAll
 
 

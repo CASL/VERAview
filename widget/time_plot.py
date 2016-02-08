@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plot.py					-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
 #	  Added _CreateClipboardData().
 #		2015-07-03	leerw@ornl.gov				-
@@ -174,11 +176,11 @@ calls self.ax.grid() and can be called by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataSetType()				-
+  #	METHOD:		GetDataSetTypes()				-
   #----------------------------------------------------------------------
-  def GetDataSetType( self ):
-    return  'scalar'
-  #end GetDataSetType
+  def GetDataSetTypes( self ):
+    return  [ 'scalar' ]
+  #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------

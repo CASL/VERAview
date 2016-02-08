@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-02-03	leerw@ornl.gov				-
 #	  Fixed handling of derived data in _UpdateDataSetValues().
 #		2016-01-25	leerw@ornl.gov				-

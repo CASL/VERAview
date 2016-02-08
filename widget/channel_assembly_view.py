@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-02-08	leerw@ornl.gov				-
+#	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
 #	  Added _CreateClipboardData().
@@ -602,11 +604,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ChannelAssembly2DView.GetDataSetType()		-
+  #	METHOD:		ChannelAssembly2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
-  def GetDataSetType( self ):
-    return  'channel'
-  #end GetDataSetType
+  def GetDataSetTypes( self ):
+    return  [ 'channel' ]
+  #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------
