@@ -16,7 +16,7 @@ import copy, h5py, math, os, sys, tempfile, threading
 import numpy as np
 import pdb
 
-#from averager import *
+from averager import *
 #from event.event import *
 
 

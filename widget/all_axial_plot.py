@@ -725,6 +725,7 @@ to be passed to UpdateState().  Assume self.data is valid.
     self.dataSetValues.clear()
 
     if self.data != None and self.data.IsValid( state_index = self.stateIndex ):
+      pdb.set_trace()
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
