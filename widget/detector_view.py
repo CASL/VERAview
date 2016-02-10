@@ -711,8 +711,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     resized = kwargs.get( 'resized', False )
 
     if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
-      resized = True
-      self.detectorDataSet = kwargs[ 'detector_dataset' ]
+      ds_type = self.data.GetDataSetType( kwargs[ 'detector_dataset' ] )
+      if ds_type and ds_type in self.GetDataSetTypes():
+        resized = True
+        self.detectorDataSet = kwargs[ 'detector_dataset' ]
 
     if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
       changed = True

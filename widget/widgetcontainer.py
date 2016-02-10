@@ -247,23 +247,24 @@ Must be called on the UI thread.
   def HandleStateChange( self, reason ):
     reason = self.state.ResolveLocks( reason, self.eventLocks )
     if reason != STATE_CHANGE_noop:
+#handled inside RasterWidget extension _UpdateStateValues() methods
 #			-- Check dataset changes
 #			--
-      data_model = State.FindDataModel( self.state )
-      if data_model != None:
-        ds_types = self.widget.GetDataSetTypes()
-        for pair in (
-            ( STATE_CHANGE_channelDataSet, self.state.channelDataSet ),
-            ( STATE_CHANGE_detectorDataSet, self.state.detectorDataSet ),
-            ( STATE_CHANGE_pinDataSet, self.state.pinDataSet )
-	    ):
-	  if (reason & pair[ 0 ]) > 0:
-	    ds_def = data_model.GetDataSetDefByDsName( pair[ 1 ] )
-	    if ds_def != None and ds_def[ 'type' ] not in ds_types:
-	      reasons &= ~pair[ 0 ]
-	  #end if
-        #end for
-      #end if data_model
+#      data_model = State.FindDataModel( self.state )
+#      if data_model != None:
+#        ds_types = self.widget.GetDataSetTypes()
+#        for pair in (
+#            ( STATE_CHANGE_channelDataSet, self.state.channelDataSet ),
+#            ( STATE_CHANGE_detectorDataSet, self.state.detectorDataSet ),
+#            ( STATE_CHANGE_pinDataSet, self.state.pinDataSet )
+#	    ):
+#	  if (reason & pair[ 0 ]) > 0:
+#	    cur_type = data_model.GetDataSetType( pair[ 1 ] )
+#	    if cur_type != None and cur_type not in ds_types:
+#	      reasons &= ~pair[ 0 ]
+#	  #end if
+#        #end for
+#      #end if data_model
 
       self.widget.HandleStateChange( reason )
   #end HandleStateChange
@@ -672,9 +673,7 @@ Must be called on the UI thread.
       data_model = State.FindDataModel( self.state )
       name = data_model.ResolveDerivedDataSet(
           self.widget.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
-          #self.widget.GetDataSetType(), ds_menu._derivedLabel, ds_name
 	  )
-      #xxx check for core here? how?
       if name:
         self.widget.SetDataSet( name )
       self.widget._BusyEnd()

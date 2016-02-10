@@ -859,8 +859,10 @@ attributes/properties that aren't already set in _LoadDataModel():
       self.channelColRow = self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
 
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
-      resized = True
-      self.channelDataSet = kwargs[ 'channel_dataset' ]
+      ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )
+      if ds_type and ds_type in self.GetDataSetTypes():
+        resized = True
+        self.channelDataSet = kwargs[ 'channel_dataset' ]
 
     if changed:
       kwargs[ 'changed' ] = True

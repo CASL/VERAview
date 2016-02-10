@@ -781,8 +781,10 @@ attributes/properties that aren't already set in _LoadDataModel():
       self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
-      resized = True
-      self.pinDataSet = kwargs[ 'pin_dataset' ]
+      ds_type = self.data.GetDataSetType( kwargs[ 'pin_dataset' ] )
+      if ds_type and ds_type in self.GetDataSetTypes():
+        resized = True
+        self.pinDataSet = kwargs[ 'pin_dataset' ]
 
     if changed:
       kwargs[ 'changed' ] = True

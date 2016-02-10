@@ -127,7 +127,8 @@ DATASET_DEFS = \
 
   'pin:assembly':
     {
-    'avg_method': 'avg.calc_pin_assembly_avg( core, data )',
+#    'avg_method': 'avg.calc_pin_assembly_avg( core, data )',
+    'avg_method': 'calc_pin_assembly_avg',
     'copy_expr': '[ 0, 0, :, : ]',
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
     'ds_prefix': 'asy',
@@ -633,21 +634,19 @@ passed, Read() must be called.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.AddDataSetName()			-
   #----------------------------------------------------------------------
-  def AddDataSetName( self, category, ds_name ):
-    """Accessor for the 'dataSetNames' property.
-@param  category	category/type
-			( 'axial', 'channel', 'derived', 'detector', 'extra',
-			  'other', 'pin', 'scalar' )
-@param  ds_name		name
+  def AddDataSetName( self, ds_type, ds_name ):
+    """
+@param  ds_type		dataset type
+@param  ds_name		name of new dataset
 """
-    if category in self.dataSetNames:
-      cat_list = self.dataSetNames[ category ]
+    if ds_type in self.dataSetNames:
+      type_list = self.dataSetNames[ ds_type ]
     else:
-      cat_list = []
-      self.dataSetNames[ category ] = cat_list
+      type_list = []
+      self.dataSetNames[ ds_type ] = type_list
 
-    if not ds_name in cat_list:
-      cat_list.append( ds_name )
+    if not ds_name in type_list:
+      type_list.append( ds_name )
       self.dataSetNamesVersion += 1
   #end AddDataSetName
 
@@ -751,6 +750,80 @@ Parameters:
 
     return  ( axial_cm, core_ndx, det_ndx )
   #end CreateAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._CreateDerivedDataSet()		-
+  #----------------------------------------------------------------------
+  def _CreateDerivedDataSet( self, ds_category, derived_label, ds_name ):
+    """Calculates and adds the specified dataset.
+@param  ds_category	dataset category, e.g., 'channel', 'pin'
+@param  derived_label	derived label, e.g., 'assembly', 'axial', 'core,
+			'radial'
+@param  ds_name		dataset name that is in ds_category, e.g.,
+			'pin_powers', 'pin_fueltemps'
+@return			name of new dataset or None if params are invalid
+"""
+    derived_name = None
+    core = self.core
+    #avg = self.averager
+
+    if len( self.states ) > 0:
+      ddef = None
+      der_names = \
+          self._CreateDerivedNames( ds_category, derived_label, ds_name )
+      if der_names:
+        ddef = self.dataSetDefs.get( ds_type )
+
+      if ddef and 'avg_method' in ddef:
+	derived_name = der_names[ 1 ]
+        avg_method_name = ddef[ 'avg_method' ]
+
+        for state_ndx in range( len( self.derivedStates ) ):
+	  st = self.GetState( state_ndx )
+	  data = st.GetDataSet( ds_name )
+	  if data:
+	    pass
+#x	    avg_method = getattr( self.averager, avg_method_name )
+#x	    avg_data = avg_method( self.core, data )
+#x	    st.CreateDataSet( derived_name, avg_data )
+	  #end if data
+	#end for each state
+      #end if dataset definition found
+    #end we have state points
+
+    return  derived_name
+  #end _CreateDerivedDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._CreateDerivedNames()			-
+  #----------------------------------------------------------------------
+  def _CreateDerivedNames( self, ds_category, derived_label, ds_name ):
+    """Creates the dataset type name (e.g., pin:radial) and
+prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
+@param  ds_category	dataset category, e.g., 'channel', 'pin'
+@param  derived_label	derived label, e.g., 'assembly', 'axial', 'core,
+			'radial'
+@param  ds_name		dataset name that is in ds_category, e.g.,
+			'pin_powers', 'pin_fueltemps'
+@return			( ds_type, prefix_name, replaced_name )
+			or None if invalid params
+"""
+    result = None
+    ds_type = ds_category + ':' + derived_label
+    ddef = self.dataSetDefs.get( ds_type )
+    if ddef:
+      der_prefix = ddef[ 'ds_prefix' ]
+
+      pref_name = der_prefix + '_' + ds_name
+      repl_name = pref_name.replace( ds_category + '_', '' )
+
+      result = ( ds_type, pref_name, repl_name )
+    #end if ddef
+
+    return  result
+  #end _CreateDerivedNames
 
 
   #----------------------------------------------------------------------
@@ -1003,6 +1076,18 @@ descending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetType()			-
+  #----------------------------------------------------------------------
+  def GetDataSetType( self, ds_name ):
+    """Retrieves the type for the name dataset.
+@return			type or None
+"""
+    ddef = self.dataSetDefsByName.get( ds_name )
+    return  ddef[ 'type' ]  if ddef  else None
+  #end GetDataSetType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDerivedDataMgr()			-
   #----------------------------------------------------------------------
   def GetDerivedDataMgr( self ):
@@ -1215,10 +1300,10 @@ the properties construct for this class soon.
     if ds_name == None:
       pass
 
-    elif ds_name.startswith( 'derived:' ):
-      st = self.derivedDataMgr.GetState( state_ndx )
-      if st != None:
-        dset = st.GetDataSet( ds_name )
+#    elif ds_name.startswith( 'derived:' ):
+#      st = self.derivedDataMgr.GetState( state_ndx )
+#      if st != None:
+#        dset = st.GetDataSet( ds_name )
 
     else:
       self.dataSetDefsLock.acquire()
@@ -1227,7 +1312,6 @@ the properties construct for this class soon.
         if st != None:
           dset = st.GetDataSet( ds_name )
 
-	#xxxx 2nd call from Assembly2DView gets original, not copy
         if dset != None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
           copy_name = 'copy:' + ds_name
 	  copy_dset = st.GetDataSet( copy_name )
@@ -1351,39 +1435,28 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.HasDerivedDataSet()			-
   #----------------------------------------------------------------------
-  def HasDerivedDataSet( self, ds_category, der_label, ds_name ):
-    """
+  def HasDerivedDataSet( self, ds_category, derived_label, ds_name ):
+    """Checks to see if the dataset exists.
 @param  ds_category	dataset category, e.g., 'channel', 'pin'
-@param  der_label	derived label, e.g., 'assembly', 'axial', 'core,
+@param  derived_label	derived label, e.g., 'assembly', 'axial', 'core,
 			'radial'
 @param  ds_name		dataset name that is in ds_category, e.g.,
 			'pin_powers', 'pin_fueltemps'
+@return			name under which it exists or None if we don't have it
 """
-    matched = False
-
-    ds_type = ds_category + ':' + der_label
-    ddef = self.dataSetDefs.get( ds_type )
-    names = self.dataSetNames.get( ds_type ) if ddef else None
+    match = None
+    names = None
+    der_names = self._CreateDerivedNames( ds_category, derived_label, ds_name )
+    if der_names:
+      names = self.dataSetNames.get( der_names[ 0 ] )
 
     if names:
-      der_prefix = ddef[ 'ds_prefix' ]
+      if der_names[ 1 ] in names:
+        match = der_names[ 1 ]
+      elif der_names[ 2 ] in names:
+        match = der_names[ 2 ]
 
-#		-- Match on prefixed name ('radial_pin_powers')
-#		--
-      name = der_prefix + '_' + ds_name
-      if name in names:
-        matched = True
-
-#		-- Match on replaced name ('radial_powers')
-#		--
-      else:
-        name = name.replace( ds_category + '_', '' )
-	if name in names:
-	  matched = True
-      #end if-else
-    #end if ddef and names
-
-    return  matched
+    return  match
 
 #    name = self.derivedDataMgr.GetDerivedName( category, derived_label, ds_name )
 #    return  name != None and len( name ) > 0
@@ -1928,9 +2001,13 @@ calculated.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.ResolveDerivedDataSet()		-
   #----------------------------------------------------------------------
-  def ResolveDerivedDataSet( self, category, derived_label, ds_name ):
-    return \
-        self.derivedDataMgr.CreateDataSet( category, derived_label, ds_name )
+  def ResolveDerivedDataSet( self, ds_category, derived_label, ds_name ):
+    match_name = self.HasDerivedDataSet( ds_category, derived_label, ds_name )
+    if not match_name:
+      match_name = self._CreateDerivedDataSet( ds_category, derived_label, ds_name )
+    return  self.GetStateDataSet( self, state_ndx, match_name )
+#    return \
+#        self.derivedDataMgr.CreateDataSet( category, derived_label, ds_name )
   #end ResolveDerivedDataSet
 
 
