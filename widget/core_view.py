@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Title template and string creation now inherited from
+#	  RasterWidget.
 #		2016-02-09	leerw@ornl.gov				-
 #	  Start on customizing title based on dataset shape.
 #		2016-02-08	leerw@ornl.gov				-
@@ -271,15 +274,6 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_gap = self.config[ 'pinGap' ]
       pin_wd = self.config[ 'pinWidth' ]
 
-      title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.data.GetDataSetDisplayName( self.pinDataSet ),
-	    self.state.timeDataSet )
-      title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-#	  if self.pinDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
       if dset == None:
@@ -294,12 +288,10 @@ If neither are specified, a default 'scale' value of 24 is used.
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-      #xxxxx
-      if dset_shape[ 2 ] <= 1:
-        title_fmt = '%s: Assembly %%d, %s %%.3g' % \
-            ( self.data.GetDataSetDisplayName( self.pinDataSet ),
-	      self.state.timeDataSet )
-        title_size = pil_font.getsize( title_fmt % ( 99, 99.999 ) )
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	  assembly_ndx = 3, axial_ndx = 2
+	  )
 
 #			-- Limit axial level
 #			--
@@ -342,13 +334,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-##	  value = 0.0
-##	  if ds_value != None:
-##	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
-##	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-#	  if dset != None and \
-#	      pin_row < dset.shape[ 0 ] and \
-#	      pin_col < dset.shape[ 1 ]:
 	  value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
 #	  if value > 0.0:
 	  if not self.data.IsNoDataValue( self.pinDataSet, value ):
@@ -387,18 +372,12 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_y = max( pin_y, legend_size[ 1 ] )
       pin_y += font_size >> 2
 
-      #xxxxx
-      if dset_shape[ 2 ] <= 1:
-        title_str = title_fmt % ( \
-	    assy_ndx + 1,
-	    self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	    )
-      else:
-        title_str = title_fmt % ( \
-	    assy_ndx + 1,
-	    self.data.core.axialMeshCenters[ axial_level ],
-	    self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	    )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  assembly = assy_ndx,
+	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,
@@ -617,18 +596,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       pil_font = self.config[ 'pilFont' ]
       pin_wd = self.config[ 'pinWidth' ]
 
-      title_fmt = '%s: Axial %%.3f, %s %%.3g' % \
-          ( self.data.GetDataSetDisplayName( self.pinDataSet ),
-	    self.state.timeDataSet )
-      title_size = pil_font.getsize( title_fmt % ( 99, 99.999 ) )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-#	  if self.pinDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
-      #ds_value = dset.value if dset != None else None
+
       if dset == None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
@@ -641,13 +610,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-      #xxxxx
-      print >> sys.stderr, '\n\nXX dset_shape[ 2 ]=%d' % dset_shape[ 2 ]
-      if dset_shape[ 2 ] <= 1:
-        title_fmt = '%s: Assembly %%d, %s %%.3g' % \
-            ( self.data.GetDataSetDisplayName( self.pinDataSet ),
-	      self.state.timeDataSet )
-        title_size = pil_font.getsize( title_fmt % ( 99, 99.999 ) )
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	  axial_ndx = 2
+	  )
 
 #			-- Limit axial level
 #			--
@@ -758,17 +724,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_y = max( assy_y, legend_size[ 1 ] )
       assy_y += font_size >> 2
 
-      #xxxxx
-      if dset_shape[ 2 ] <= 1:
-        title_str = title_fmt % ( \
-	    assy_ndx + 1,
-	    self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	    )
-      else:
-        title_str = title_fmt % ( \
-	    self.data.core.axialMeshCenters[ axial_level ],
-	    self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	    )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,

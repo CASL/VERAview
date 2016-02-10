@@ -24,7 +24,7 @@
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
-import math, os, sys, threading
+import math, os, string, sys, threading
 import numpy as np
 #import pdb  #pdb.set_trace()
 #import time, traceback
@@ -439,6 +439,121 @@ _CreateRasterImage().
 """
     return  ()
   #end _CreateStateTuple
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateTitleFormat()		-
+  #----------------------------------------------------------------------
+  def _CreateTitleFormat(
+      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      assembly_ndx = -1, axial_ndx = -1
+      ):
+    """Creates the title format and default string for sizing.
+@param  pil_font	PIL font to use for sizing
+@param  ds_name		dataset name
+@param  ds_shape	dataset shape
+@param  time_ds_name	optional time dataset name
+@param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
+@param  axial_ndx	shape index for Axial, or -1 if Axial should not be
+			displayed
+@return			( format-string, size-tuple )
+"""
+    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    comma_flag = False
+    size_args = []
+
+    if assembly_ndx >= 0 and ds_shape[ assembly_ndx ] > 1:
+      title_fmt += 'Assembly %%d'
+      size_args.append( 99 )
+      comma_flag = True
+
+    if axial_ndx >= 0 and ds_shape[ axial_ndx ] > 1:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += 'Axial %%.3f'
+      size_args.append( 99.999 )
+      comma_flag = True
+
+    if time_ds_name:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += '%s %%.3g' % time_ds_name
+      size_args.append( 99.999 )
+
+    title_size = pil_font.getsize( title_fmt % tuple( size_args ) )
+
+    return  title_fmt, title_size
+  #end _CreateTitleFormat
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateTitleString()		-
+  #----------------------------------------------------------------------
+  def _CreateTitleString( self, title_templ, **kwargs ):
+    """Creates the title template and default string for sizing.
+@param  title_templ	template created with _CreateTitleTemplate()
+@param  kwargs		keyword arguments
+		'assembly'	0-based assembly index
+		'axial'		axial value in cm
+		'time'		time dataset value
+@return			title string
+"""
+    targs = {}
+    if 'assembly' in kwargs:
+      targs[ 'assembly' ] = '%d' % (kwargs[ 'assembly' ] + 1)
+    if 'axial' in kwargs:
+      targs[ 'axial' ] = '%.3f' % kwargs[ 'axial' ]
+    if 'time' in kwargs:
+      targs[ 'time' ] = '%.4g' % kwargs[ 'time' ]
+      
+    return  title_templ.substitute( targs )
+  #end _CreateTitleString
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateTitleTemplate()		-
+  #----------------------------------------------------------------------
+  def _CreateTitleTemplate(
+      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      assembly_ndx = -1, axial_ndx = -1
+      ):
+    """Creates the title template and default string for sizing.
+@param  pil_font	PIL font to use for sizing
+@param  ds_name		dataset name
+@param  ds_shape	dataset shape
+@param  time_ds_name	optional time dataset name
+@param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
+@param  axial_ndx	shape index for Axial, or -1 if Axial should not be
+			displayed
+@return			( string.Template, size-tuple )
+"""
+    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    comma_flag = False
+    size_values = {}
+
+    if assembly_ndx >= 0 and ds_shape[ assembly_ndx ] > 1:
+      title_fmt += 'Assembly ${assembly}'
+      size_values[ 'assembly' ] = '99'
+      comma_flag = True
+
+    if axial_ndx >= 0 and ds_shape[ axial_ndx ] > 1:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += 'Axial ${axial}'
+      size_values[ 'axial' ] = '999.999'
+      comma_flag = True
+
+    if time_ds_name:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += '%s ${time}' % time_ds_name
+      size_values[ 'time' ] = '9.99e+99'
+
+    title_templ = string.Template( title_fmt )
+    title_size = pil_font.getsize( title_templ.substitute( size_values ) )
+
+    return  title_templ, title_size
+  #end _CreateTitleTemplate
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Title template and string creation now inherited from
+#	  RasterWidget.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
@@ -200,16 +203,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       legend_pil_im = self.config[ 'legendPilImage' ]
       pil_font = self.config[ 'pilFont' ]
 
-      title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.data.GetDataSetDisplayName( self.channelDataSet ),
-            self.state.timeDataSet )
-      #title_fmt = '%s: Assembly %%d, Axial %%.3f, Exposure %%.3f' % self.channelDataSet
-      title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
-#	  if self.channelDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset != None else None
@@ -221,6 +214,11 @@ If neither are specified, a default 'scale' value of 4 is used.
         dset_shape = dset.shape
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
+	  assembly_ndx = 3, axial_ndx = 2
+	  )
 
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
@@ -263,7 +261,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #	  if ds_value != None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, chan_col, chan_row )
 #	    value = ds_value[ chan_row, chan_col, axial_level, assy_ndx ]
-	  value = dset_array[ chann_row, chann_col, axial_level, assy_ndx ]
+	  value = dset_array[ chan_row, chan_col, axial_level, assy_ndx ]
 	  #if value > 0.0:
 	  if not self.data.IsNoDataValue( self.channelDataSet, value ):
 	    brush_color = Widget.GetColorTuple(
@@ -323,12 +321,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       chan_y = max( chan_y, legend_size[ 1 ] )
       chan_y += font_size >> 2
 
-      title_str = title_fmt % ( \
-	  assy_ndx + 1,
-	  self.data.core.axialMeshCenters[ axial_level ],
-	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-#	  self.data.states[ state_ndx ].exposure
-	  )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  assembly = assy_ndx,
+	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,
@@ -546,16 +544,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       legend_pil_im = self.config[ 'legendPilImage' ]
       pil_font = self.config[ 'pilFont' ]
 
-      title_fmt = '%s: Axial %%.3f, %s %%.3g' % \
-          ( self.data.GetDataSetDisplayName( self.channelDataSet ),
-            self.state.timeDataSet )
-      #title_fmt = '%s: Axial %%.3f, Exposure %%.3f' % self.channelDataSet
-      title_size = pil_font.getsize( title_fmt % ( 99, 99.999 ) )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
-#	  if self.channelDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset != None else None
@@ -567,6 +555,11 @@ If neither are specified, a default 'scale' value of 4 is used.
         dset_shape = dset.shape
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
+	  axial_ndx = 2
+	  )
 
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
@@ -671,11 +664,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_y = max( assy_y, legend_size[ 1 ] )
       assy_y += font_size >> 2
 
-      title_str = title_fmt % ( \
-	  self.data.core.axialMeshCenters[ axial_level ],
-	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-#	  self.data.states[ state_ndx ].exposure
-	  )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,

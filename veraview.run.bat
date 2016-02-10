@@ -8,7 +8,7 @@ rem - If you changed the path for your per-user Canopy environment setup,
 rem - set the value of the CanopyUserDir variable to point to the User subdir
 rem - under that path.
 rem ---------------------------------------------------------------------
-set CanopyUserDir=%homepath%\AppData\Local\Enthought\Canopy\User
+set CanopyUserDir=%userprofile%\AppData\Local\Enthought\Canopy\User
 
 
 if exist "%CanopyUserDir%\python.exe" goto found

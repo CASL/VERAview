@@ -980,19 +980,18 @@ Must be called from the UI event thread
 
 #		-- Populate derived label submenus
 #		--
-      dataset_types = self.widget.GetDataSetTypes()
-      dataset_type = dataset_types[ 0 ]  if len( dataset_types ) > 0  else ''
-      #dataset_type = self.widget.GetDataSetTypes()
-      labels = data_model.GetDerivedLabels( dataset_type )
-      names = data_model.GetDataSetNames( dataset_type )
+      ds_category = self.widget.GetDataSetTypes()[ 0 ]
+      labels = data_model.GetDerivedLabels( ds_category )
+      names = data_model.GetDataSetNames( ds_category )
 
       if labels and names:
         for label in labels:
+	  ds_type = ds_category + ':' + label
 	  ds_menu = wx.Menu()
 	  ds_menu._derivedLabel = label
 
 	  for name in names:
-	    if data_model.HasDerivedDataSet( dataset_type, label, name ):
+	    if data_model.HasDerivedDataSet( ds_category, label, name ):
 	      name += ' *'
 
 	    item = wx.MenuItem( ds_menu, wx.ID_ANY, name )

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Fixed bug where core.npinx and core.npiny were not being assigned
+#	  when core.npin was set from pin_powers length.
 #		2016-02-09	leerw@ornl.gov				-
 #	  Fixed logic bug in GetStateDataSet() when the copy dataset
 #	  already exists.
@@ -965,8 +968,9 @@ descending.
 """
     #return  ds_name[ 6 : ] if ds_name.startswith( 'extra:' ) else ds_name
     return \
-        ds_name[ 8 : ] if ds_name.startswith( 'derived:' ) else \
-        ds_name[ 6 : ] if ds_name.startswith( 'extra:' ) else \
+	ds_name  if not ds_name else \
+        ds_name[ 8 : ]  if ds_name.startswith( 'derived:' ) else \
+        ds_name[ 6 : ]  if ds_name.startswith( 'extra:' ) else \
 	ds_name
   #end GetDataSetDisplayName
 
@@ -1012,8 +1016,19 @@ descending.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDerivedLabels()			-
   #----------------------------------------------------------------------
-  def GetDerivedLabels( self, category ):
-    return  self.derivedDataMgr.GetDerivedLabels( category )
+  def GetDerivedLabels( self, ds_category ):
+    labels = []
+
+    #xxxx must look up prefix in def
+    for def_name, def_item in self.dataSetDefs.iteritems():
+      if def_name.startswith( ds_category ):
+        ndx = def_name.find( ':' )
+	if ndx >= 0:
+	  labels.append( def_name[ ndx + 1 : ] )
+    #end for
+
+    labels.sort()
+    return  labels
   #end GetDerivedLabels
 
 
@@ -1336,9 +1351,42 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.HasDerivedDataSet()			-
   #----------------------------------------------------------------------
-  def HasDerivedDataSet( self, category, derived_label, ds_name ):
-    name = self.derivedDataMgr.GetDerivedName( category, derived_label, ds_name )
-    return  name != None and len( name ) > 0
+  def HasDerivedDataSet( self, ds_category, der_label, ds_name ):
+    """
+@param  ds_category	dataset category, e.g., 'channel', 'pin'
+@param  der_label	derived label, e.g., 'assembly', 'axial', 'core,
+			'radial'
+@param  ds_name		dataset name that is in ds_category, e.g.,
+			'pin_powers', 'pin_fueltemps'
+"""
+    matched = False
+
+    ds_type = ds_category + ':' + der_label
+    ddef = self.dataSetDefs.get( ds_type )
+    names = self.dataSetNames.get( ds_type ) if ddef else None
+
+    if names:
+      der_prefix = ddef[ 'ds_prefix' ]
+
+#		-- Match on prefixed name ('radial_pin_powers')
+#		--
+      name = der_prefix + '_' + ds_name
+      if name in names:
+        matched = True
+
+#		-- Match on replaced name ('radial_powers')
+#		--
+      else:
+        name = name.replace( ds_category + '_', '' )
+	if name in names:
+	  matched = True
+      #end if-else
+    #end if ddef and names
+
+    return  matched
+
+#    name = self.derivedDataMgr.GetDerivedName( category, derived_label, ds_name )
+#    return  name != None and len( name ) > 0
   #end HasDerivedDataSet
 
 
@@ -1662,7 +1710,10 @@ to be 'core', and the dataset is not associated with a state point.
       raise  Exception( 'No state points could be read' )
 
     st_group = self.states[ 0 ].GetGroup()
+#			-- Special check to get core.npin if pin_volumes
+#			-- missing from CORE
     if self.core.npin == 0 and 'pin_powers' in st_group:
+      self.core.npinx = self.core.npiny = \
       self.core.npin = st_group[ 'pin_powers'].shape[ 0 ]
 
     self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
@@ -1712,7 +1763,9 @@ to be 'core', and the dataset is not associated with a state point.
     range_min = sys.float_info.min
     range_max = sys.float_info.max
 
-    if ds_name.startswith( 'derived:' ):
+    if not ds_name:
+      use_states = None
+    elif ds_name.startswith( 'derived:' ):
       use_states = self.derivedDataMgr.GetStates()
       use_name = ds_name
     elif ds_name.startswith( 'extra:' ):
@@ -1782,6 +1835,8 @@ calculated.
   ds_defs		dataset definitions by dataset type
   ds_defs_by_name	dataset definition by dataset name
   ds_names		list of dataset names by dataset type
+@param  core		core object, cannot be None
+@param  st_group	h5py.Group for first state group, cannot be None
 @return			ds_defs, ds_defs_by_name, ds_names
 """
     ds_defs = copy.deepcopy( DATASET_DEFS )
@@ -1832,6 +1887,13 @@ calculated.
 	  ds_names[ cat_name ].append( cur_name )
 
 	  ds_defs_by_name[ cur_name ] = ds_defs.get( cat_name )
+
+#			-- Detector is special case
+#			--
+	elif cur_name == 'detector_response' and \
+	    cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+	  ds_names[ 'detector' ].append( cur_name )
+	  ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
 
 #			-- Not a scalar
 #			--

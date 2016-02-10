@@ -446,8 +446,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """Accessor specifying the types of datasets which can be single-selected
 for this widget.  The types are defined in datamodel and include 'channel',
 'detector', 'pin', and 'scalar' as well as derived types such as
-'pin:assembly'.  This implementation returns an empty list and must be
-overridden by subclasses.
+'pin:assembly'.  The first type in the list should be the primary type or
+"category", one of 'channel', 'detector', 'pin', or 'scalar'.  This
+implementation returns an empty list and must be overridden by subclasses.
 
 @return			list of dataset types, cannot be None
 """

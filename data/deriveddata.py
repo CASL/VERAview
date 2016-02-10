@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		deriveddata.py					-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Re-engineered for new approach to managing datasets.
 #		2016-02-05	leerw@ornl.gov				-
 #	  Keeping a DataModel reference instead of separate core,
 #	  dataSetNames, and states.
@@ -14,7 +16,7 @@ import copy, h5py, math, os, sys, tempfile, threading
 import numpy as np
 import pdb
 
-from averager import *
+#from averager import *
 #from event.event import *
 
 
@@ -435,7 +437,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
   #----------------------------------------------------------------------
   #	METHOD:		DerivedDataMgr.GetDerivedLabels()		-
   #----------------------------------------------------------------------
-  def GetDerivedLabels( self, category ):
+  def GetDerivedLabels( self, ds_category ):
     """Returns the labels for the specified category
 @param  category	category ('channel', 'pin')
 @return			list of labels, possibly empty

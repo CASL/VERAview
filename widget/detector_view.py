@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Title template and string creation now inherited from
+#	  RasterWidget.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
@@ -238,18 +241,16 @@ If neither are specified, a default 'scale' value of 4 is used.
       pil_font = self.config[ 'pilFont' ]
       #value_font = self.config[ 'valueFont' ]
 
-      title_fmt = '%s: %s %%.3g' % ( self.detectorDataSet, self.state.timeDataSet )
-      title_size = pil_font.getsize( title_fmt % 99.999 )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.detectorDataSet ].value \
-#	  if self.detectorDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.detectorDataSet )
       #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
       ds_value = dset.value if dset != None else None
       ds_range = self.data.GetRange( self.detectorDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.detectorDataSet,
+	  dset.shape, self.state.timeDataSet
+	  )
 
       if 'detector_operable' in self.data.states[ state_ndx ].group:
         ds_operable = self.data.states[ state_ndx ].group[ 'detector_operable' ].value
@@ -412,8 +413,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       #det_y += font_size - det_gap
       det_y += font_size >> 2
 
-      title_str = title_fmt % \
-          self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,

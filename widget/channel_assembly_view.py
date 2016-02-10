@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Title template and string creation now inherited from
+#	  RasterWidget.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
@@ -321,14 +324,6 @@ Must be called from the UI thread.
       pil_font = self.config[ 'pilFont' ]
       value_font = self.config[ 'valueFont' ]
 
-      title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.channelDataSet, self.state.timeDataSet )
-      title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.channelDataSet ].value \
-#	  if self.channelDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       #ds_value = dset.value if dset != None else None
       if dset == None:
@@ -339,6 +334,11 @@ Must be called from the UI thread.
         dset_shape = dset.shape
       ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
+	  assembly_ndx = 3, axial_ndx = 2
+	  )
 
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
@@ -468,11 +468,12 @@ Must be called from the UI thread.
       chan_y = max( chan_y, legend_size[ 1 ] )
       chan_y += font_size >> 2
 
-      title_str = title_fmt % ( \
-	  assy_ndx + 1,
-	  self.data.core.axialMeshCenters[ axial_level ],
-	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	  )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  assembly = assy_ndx,
+	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,

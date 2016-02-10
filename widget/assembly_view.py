@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-02-10	leerw@ornl.gov				-
+#	  Title template and string creation now inherited from
+#	  RasterWidget.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
@@ -284,15 +287,6 @@ If neither are specified, a default 'scale' value of 24 is used.
       value_font = self.config[ 'valueFont' ]
 #      value_font_smaller = self.config[ 'valueFontSmaller' ]
 
-      title_fmt = '%s: Assembly %%d, Axial %%.3f, %s %%.3g' % \
-          ( self.data.GetDataSetDisplayName( self.pinDataSet ),
-	    self.state.timeDataSet )
-      title_size = pil_font.getsize( title_fmt % ( 99, 99.999, 99.999 ) )
-
-#      ds_value = \
-#          self.data.states[ state_ndx ].group[ self.pinDataSet ].value \
-#	  if self.pinDataSet in self.data.states[ state_ndx ].group \
-#	  else None
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
       #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
@@ -305,6 +299,11 @@ If neither are specified, a default 'scale' value of 24 is used.
         dset_shape = dset.shape
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	  assembly_ndx = 3, axial_ndx = 2
+	  )
 
 #			-- Must be valid assy ndx
 #			--
@@ -414,11 +413,12 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_y = max( pin_y, legend_size[ 1 ] )
       pin_y += font_size >> 2
 
-      title_str = title_fmt % ( \
-	  assy_ndx + 1,
-	  self.data.core.axialMeshCenters[ axial_level ],
-	  self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	  )
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  assembly = assy_ndx,
+	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
       title_size = pil_font.getsize( title_str )
       title_x = max(
 	  0,
