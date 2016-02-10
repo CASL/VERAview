@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-02-09	leerw@ornl.gov				-
+#	  Fixed logic bug in GetStateDataSet() when the copy dataset
+#	  already exists.
 #		2016-02-08	leerw@ornl.gov				-
 #	  New scheme for defining datasets.				-
 #		2016-02-05	leerw@ornl.gov				-
@@ -1214,7 +1217,9 @@ the properties construct for this class soon.
           copy_name = 'copy:' + ds_name
 	  copy_dset = st.GetDataSet( copy_name )
 
-	  if copy_dset == None:
+	  if copy_dset != None:
+	    dset = copy_dset
+	  else:
             ds_def = self.dataSetDefsByName.get( ds_name )
 	    if ds_def != None and 'copy_expr' in ds_def:
 	      copy_data = \
