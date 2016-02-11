@@ -23,6 +23,7 @@ import numpy as np
 class Averager( object ):
   """Interface definition and base implementation of routines to calculate
 averages over 4D VERAOutput datasets.
+@deprecated
 """
 
 
@@ -36,7 +37,7 @@ averages over 4D VERAOutput datasets.
   def __init__( self ):
     """
 """
-    pass
+    self.fPinFactors = None
   #end __init__
 
 

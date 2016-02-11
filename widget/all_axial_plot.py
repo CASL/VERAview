@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2016-02-11	leerw@ornl.gov				-
+#	  Refitting _UpdateDataSetValues() to allow all the new ds_types.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-02-03	leerw@ornl.gov				-
@@ -724,65 +726,95 @@ to be passed to UpdateState().  Assume self.data is valid.
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
 
+#		-- Must have data
+#		--
     if self.data != None and self.data.IsValid( state_index = self.stateIndex ):
-      pdb.set_trace()
+      axial_ds_names = self.data.GetDataSetNames( 'axial' )
+
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
 
-        if ds_rec[ 'visible' ] and ds_name != None:
-	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+#				-- Must be visible and an "axial" dataset
+#				--
+        if ds_rec[ 'visible' ] and ds_name != None and \
+	    ds_name in axial_ds_names:
+	  #ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+	  ds_type = self.data.GetDataSetType( ds_name )
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-	  dset_array = dset.value if dset != None else None
+	  dset_array = dset.value \
+	      if dset != None and ds_type != None  else None
+
 	  if dset_array == None:
 	    pass
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
-	    valid = self.data.IsValid(
-	        assembly_index = self.assemblyIndex,
-		channel_colrow = self.channelColRow
-	        )
-	    if valid:
-              self.dataSetValues[ k ] = dset_array[
-	          self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-		  :, self.assemblyIndex[ 0 ]
-	          ]
-              self.dataSetTypes.add( 'channel' )
+	  elif ds_type.startswith( 'channel' ):
+	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
+	    chan_col = min( self.channelColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
+	    chan_row = min( self.channelColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
+	    self.dataSetValues[ k ] = \
+	        dset_array[ chan_row, chan_col, :, assy_ndx ]
+            self.dataSetTypes.add( 'channel' )
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
-	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
-	      self.dataSetValues[ k ] = dset_array[ :, self.detectorIndex[ 0 ] ]
-              self.dataSetTypes.add( 'detector' )
+#	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
+#	    valid = self.data.IsValid(
+#	        assembly_index = self.assemblyIndex,
+#		channel_colrow = self.channelColRow
+#	        )
+#	    if valid:
+#              self.dataSetValues[ k ] = dset_array[
+#	          self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+#		  :, self.assemblyIndex[ 0 ]
+#	          ]
+#              self.dataSetTypes.add( 'channel' )
 
-	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
-	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
-	      ds_display_name in self.data.GetDataSetNames( 'other' ):
-	    valid = self.data.IsValidForShape(
-		dset.shape,
-		assembly_index = self.assemblyIndex[ 0 ],
-		pin_colrow = self.pinColRow
-	        )
-	    if valid:
-	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
-	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
-	      self.dataSetValues[ k ] = dset_array[
-	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-	          0 : temp_nax, assy_ndx
-	          ]
-              self.dataSetTypes.add( 'other' )
+	  elif ds_type.startswith( 'detector' ):
+	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
+	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+            self.dataSetTypes.add( 'detector' )
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
-	    valid = self.data.IsValid(
-	        assembly_index = self.assemblyIndex,
-		pin_colrow = self.pinColRow
-	        )
-	    if valid:
-	      self.dataSetValues[ k ] = dset_array[
-	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-		  :, self.assemblyIndex[ 0 ]
-	          ]
-              self.dataSetTypes.add( 'pin' )
-	  #end if category match
+#	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
+#	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
+#	      self.dataSetValues[ k ] = dset_array[ :, self.detectorIndex[ 0 ] ]
+#              self.dataSetTypes.add( 'detector' )
+
+#	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
+#	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
+#	      ds_display_name in self.data.GetDataSetNames( 'other' ):
+#	    valid = self.data.IsValidForShape(
+#		dset.shape,
+#		assembly_index = self.assemblyIndex[ 0 ],
+#		pin_colrow = self.pinColRow
+#	        )
+#	    if valid:
+#	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
+#	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
+#	      self.dataSetValues[ k ] = dset_array[
+#	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+#	          0 : temp_nax, assy_ndx
+#	          ]
+#              self.dataSetTypes.add( 'other' )
+
+	  elif ds_type.startswith( 'pin' ):
+	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
+	    pin_col = min( self.pinColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
+	    pin_row = min( self.pinColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
+	    self.dataSetValues[ k ] = \
+	        dset_array[ pin_row, pin_col, :, assy_ndx ]
+            self.dataSetTypes.add( 'pin' )
+
+#	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
+#	    valid = self.data.IsValid(
+#	        assembly_index = self.assemblyIndex,
+#		pin_colrow = self.pinColRow
+#	        )
+#	    if valid:
+#	      self.dataSetValues[ k ] = dset_array[
+#	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+#		  :, self.assemblyIndex[ 0 ]
+#	          ]
+#              self.dataSetTypes.add( 'pin' )
+	  #end if ds_type match
         #end if visible
       #end for each dataset
     #end if valid state

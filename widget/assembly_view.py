@@ -50,7 +50,7 @@
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, traceback
 import numpy as np
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
   import wx

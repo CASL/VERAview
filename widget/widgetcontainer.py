@@ -663,20 +663,27 @@ Must be called on the UI thread.
 """
     ev.Skip()
 
-    menu = ev.GetEventObject()
-    item = menu.FindItemById( ev.GetId() )
-    if item != None:
-      self.widget._BusyBegin()
+    try:
+      menu = ev.GetEventObject()
+      item = menu.FindItemById( ev.GetId() )
+      if item != None:
+        self.widget._BusyBegin()
 
-      ds_name = item.GetLabel().replace( ' *', '' )
-      ds_menu = item.GetMenu()
-      data_model = State.FindDataModel( self.state )
-      name = data_model.ResolveDerivedDataSet(
-          self.widget.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
+        ds_name = item.GetLabel().replace( ' *', '' )
+        ds_menu = item.GetMenu()
+        data_model = State.FindDataModel( self.state )
+        name = data_model.ResolveDerivedDataSet(
+            self.widget.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
+	    )
+        if name:
+          self.widget.SetDataSet( name )
+        self.widget._BusyEnd()
+
+    except Exception, ex:
+      wx.MessageBox(
+	  str( ex ), 'Calculate Derived Dataset',
+	  wx.OK_DEFAULT, self
 	  )
-      if name:
-        self.widget.SetDataSet( name )
-      self.widget._BusyEnd()
   #end _OnDerivedDataSetMenuItem
 
 

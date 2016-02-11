@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-02-11	leerw@ornl.gov				-
+#	  Supporting pin:assembly datasets by duplicating the last pin
+#	  value in each dimension.
 #		2016-02-10	leerw@ornl.gov				-
 #	  Title template and string creation now inherited from
 #	  RasterWidget.
@@ -662,21 +665,24 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	  assy_ndx = core_data_row[ assy_col ] - 1
 
-	  #if assy_ndx >= 0:
-	  #if dset != None and assy_ndx >= 0 and assy_ndx < dset.shape[ 3 ]:
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pin_y = assy_y + 1
-	    cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
-	    cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
+	    cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
+	    cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
 
-	    for pin_row in range( cur_nypin ):
+	    #for pin_row in range( cur_nypin ):
+	    for pin_row in range( self.data.core.npiny ):
 	      pin_x = assy_x + 1
-	      for pin_col in range( cur_nxpin ):
-#		value = 0.0
-#	        if ds_value != None:
-#		  #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
-#		  value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
-		value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
+
+	      cur_pin_row = min( pin_row, cur_nypin - 1 )
+	      #for pin_col in range( cur_nxpin ):
+	      for pin_col in range( self.data.core.npinx ):
+	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
+		#value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
+		value = dset_array[
+		    cur_pin_row, cur_pin_col, axial_level, assy_ndx
+		    ]
+
 		#if value > 0.0:
 	        if not self.data.IsNoDataValue( self.pinDataSet, value ):
 	          pen_color = Widget.GetColorTuple(
@@ -976,7 +982,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Core2DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:radial' ]
+    return  [ 'pin', 'pin:assembly', 'pin:radial' ]
   #end GetDataSetTypes
 
 

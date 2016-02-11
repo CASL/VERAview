@@ -89,7 +89,7 @@ import copy, cStringIO, h5py, json, math, os, sys, threading, traceback
 import numpy as np
 import pdb
 
-from deriveddata import *
+#from deriveddata import *
 from event.event import *
 
 
@@ -139,7 +139,7 @@ DATASET_DEFS = \
 
   'pin:axial':
     {
-    'avg_method': 'avg.calc_pin_axial_avg( core, data )',
+    'avg_method': 'calc_pin_axial_avg',
     'copy_expr': '[ 0, 0, :, 0 ]',
     'copy_shape_expr': '( 1, 1, core.nax, 1 )',
     'ds_prefix': 'axial',
@@ -150,7 +150,7 @@ DATASET_DEFS = \
 
   'pin:core':
     {
-    'avg_method': 'avg.calc_pin_core_avg( core, data )',
+    'avg_method': 'calc_pin_core_avg',
     'ds_prefix': 'core',
     'label': 'core',
     'shape': ( 1, ),
@@ -159,7 +159,7 @@ DATASET_DEFS = \
 
   'pin:radial':
     {
-    'avg_method': 'avg.calc_pin_radial_avg( core, data )',
+    'avg_method': 'calc_pin_radial_avg',
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
     'ds_prefix': 'radial',
@@ -175,6 +175,8 @@ DATASET_DEFS = \
     'type': 'scalar'
     }
   }
+
+DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
 
 
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
@@ -202,6 +204,7 @@ Properties:
   coreSym		symmetry value
   detectorMap		np.ndarray of assembly indexes (row, col)
   detectorMeshCenters	np.ndarray of center-of-mesh values
+  group			HDF5 group
   nass			number of full core assemblies
   nassx			number of core assembly columns
   nassy			number of core assembly rows
@@ -290,6 +293,7 @@ Properties:
     self.coreSym = 0
     self.detectorMap = None
     self.detectorMeshCenters = None
+    self.group = None
     self.nass = 0
     self.nassx = 0
     self.nassy = 0
@@ -317,32 +321,6 @@ Properties:
 
     return  result
   #end CreateAssyLabel
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core.CreatePinFactors()				-
-  #----------------------------------------------------------------------
-  def CreatePinFactors( self ):
-    """Creates a pin factors np.ndarray for the current config properties:
-coreSym, npiny, npinx, nax, and nass.
-@return			np.ndarray with shape ( npiny, npinx, nax, nass ) or
-			None if any of the properties are 0
-@deprecated  Use Averager.CreateCorePinFactors()
-"""
-    factors = None
-    if self.IsNonZero():
-      factors = np.ndarray(
-          ( self.npiny, self.npinx, self.nax, self.nass ),
-	  np.float32
-	  )
-      factors.fill( 1.0 )
-      factors[ 0, :, :, : ] = 1.0 / self.coreSym
-      factors[ :, 0, :, : ] = 1.0 / self.coreSym
-      factors[ 0, 0, :, : ] /= self.coreSym
-    #end if
-
-    return  factors
-  #end CreatePinFactors
 
 
   #----------------------------------------------------------------------
@@ -374,6 +352,14 @@ coreSym, npiny, npinx, nax, and nass.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.GetGroup()					-
+  #----------------------------------------------------------------------
+  def GetGroup( self ):
+    return  self.group
+  #end GetGroup
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core.Read()					-
   #----------------------------------------------------------------------
   def Read( self, h5_group ):
@@ -402,6 +388,8 @@ coreSym, npiny, npinx, nax, and nass.
   #	METHOD:		Core._ReadImpl()				-
   #----------------------------------------------------------------------
   def _ReadImpl( self, core_group, input_group ):
+    self.group = core_group
+
     in_core_group = None
     if input_group != None:
       in_core_group = input_group.get( 'CASEID/CORE' )
@@ -514,6 +502,7 @@ coreSym, npiny, npinx, nax, and nass.
 
 #		-- Assert on NPIN
 #		--
+#x No: channel files don't have pin_volumes.
 #x    if self.npin == 0:
 #x      raise Exception( 'NPIN could not be determined from "num_pins" or "pin_volumes"' )
   #end _ReadImpl
@@ -560,6 +549,7 @@ class DataModel( object ):
 property.
 
 Properties:
+  averager		reference to object for caculating derived averages
   core			Core
   #dataSetChangeEvent	event.Event object
   dataSetDefs		dict of dataset definitions
@@ -569,12 +559,11 @@ Properties:
 			  ( 'channel', 'derived', 'detector', 'extra',
 			     'pin', 'scalar' )
   dataSetNamesVersion	counter to indicate changes
-  derivedDataMgr	DerivedDataMgr instance
+  #derivedDataMgr	DerivedDataMgr instance
   #extraStates		list of ExtraState instances
   #h5ExtraFile		extra datasets h5py.File, None until exists or created
   #h5ExtraFilePath	path to extra datasets file
   h5File		h5py.File
-  pinPowerRange		( min, max ), computed from all states
   ranges		dict of ranges ( min, max ) by dataset
   rangesLock		threading.RLock for ranges dict
   states		list of State instances
@@ -612,6 +601,25 @@ passed, Read() must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
 """
+#		-- Instantiate averager
+#		--
+    module_path, class_name = DERIVED_CALCULATOR_CLASS.rsplit( '.', 1 )
+    try:
+      module = __import__( module_path, fromlist = [ class_name ] )
+      cls = getattr( module, class_name )
+      self.averager = cls()
+    except AttributeError:
+      raise Exception(
+	  'DataModel error: Class "%s" not found in module "%s"' %
+	  ( class_name, module_path )
+	  )
+    except ImportError:
+      raise Exception(
+	  'DataModel error: Module "%s" could not be imported' % module_path
+	  )
+
+#		-- Create locks
+#		--
     #self.dataSetChangeEvent = Event( self )
     self.dataSetDefsLock = threading.RLock()
     self.rangesLock = threading.RLock()
@@ -680,7 +688,6 @@ passed, Read() must be called.
     self.h5ExtraFile = None
     self.h5ExtraFilePath = None
     self.h5File = None
-    self.pinPowerRange = None
     self.ranges = None
     self.states = None
   #end Clear
@@ -766,29 +773,35 @@ Parameters:
 """
     derived_name = None
     core = self.core
-    #avg = self.averager
 
     if len( self.states ) > 0:
       ddef = None
       der_names = \
           self._CreateDerivedNames( ds_category, derived_label, ds_name )
       if der_names:
-        ddef = self.dataSetDefs.get( ds_type )
+        ddef = self.dataSetDefs.get( der_names[ 0 ] )
 
       if ddef and 'avg_method' in ddef:
 	derived_name = der_names[ 1 ]
         avg_method_name = ddef[ 'avg_method' ]
 
-        for state_ndx in range( len( self.derivedStates ) ):
+        for state_ndx in range( len( self.states ) ):
 	  st = self.GetState( state_ndx )
 	  data = st.GetDataSet( ds_name )
 	  if data:
-	    pass
-#x	    avg_method = getattr( self.averager, avg_method_name )
-#x	    avg_data = avg_method( self.core, data )
-#x	    st.CreateDataSet( derived_name, avg_data )
+	    try:
+	      avg_method = getattr( self.averager, avg_method_name )
+	      avg_data = avg_method( self.core, data )
+	      st.CreateDataSet( derived_name, avg_data )
+	    except Exception, ex:
+	      msg = 'Error calculating derived "%s" dataset for "%s"' % \
+	          ( derived_label, ds_name )
+	      print >> sys.stderr, '%s\nddef="%s"' % ( msg, str( ddef ) )
+	      raise Exception( msg )
 	  #end if data
 	#end for each state
+
+	self.AddDataSetName( der_names[ 0 ], derived_name )
       #end if dataset definition found
     #end we have state points
 
@@ -1090,12 +1103,12 @@ descending.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDerivedDataMgr()			-
   #----------------------------------------------------------------------
-  def GetDerivedDataMgr( self ):
-    """Accessor for the 'derivedDataMgr' property.
-@return			reference
-"""
-    return  self.derivedDataMgr
-  #end GetDerivedDataMgr
+#  def GetDerivedDataMgr( self ):
+#    """Accessor for the 'derivedDataMgr' property.
+#@return			reference
+#"""
+#    return  self.derivedDataMgr
+#  #end GetDerivedDataMgr
 
 
   #----------------------------------------------------------------------
@@ -1201,17 +1214,6 @@ descending.
 """
     return  self.h5File
   #end GetH5File
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetPinPowerRange()			-
-  #----------------------------------------------------------------------
-  def GetPinPowerRange( self ):
-    """( min, max )
-@return			range or None
-"""
-    return  self.pinPowerRange
-  #end GetPinPowerRange
 
 
   #----------------------------------------------------------------------
@@ -1783,19 +1785,38 @@ to be 'core', and the dataset is not associated with a state point.
       raise  Exception( 'No state points could be read' )
 
     st_group = self.states[ 0 ].GetGroup()
-#			-- Special check to get core.npin if pin_volumes
-#			-- missing from CORE
+
+#		-- Special check to get core.npin if pin_volumes
+#		-- missing from CORE
     if self.core.npin == 0 and 'pin_powers' in st_group:
       self.core.npinx = self.core.npiny = \
       self.core.npin = st_group[ 'pin_powers'].shape[ 0 ]
 
+#		-- Resolve everything
+#		--
     self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
         self._ResolveDataSets( self.core, st_group )
 
-    self.derivedDataMgr = DerivedDataMgr( self )
+    self.ranges = {}
 
-    self.pinPowerRange = self._ReadDataSetRange( 'pin_powers' )
-    self.ranges = { 'pin_powers': self.pinPowerRange }
+#		-- Special check for pin_factors
+#		--
+    pin_factors = None
+    pin_factors_shape = \
+        ( self.core.npiny, self.core.npinx, self.core.nax, self.core.nass )
+    for name, group in (
+	( 'pin_factors', self.core.GetGroup() ),
+	#( 'core.pin_factors', self.h5File )
+        ):
+      if name in group:
+        darray = group[ name ].value
+	if darray.shape == pin_factors_shape:
+	  pin_factors = darray
+	  break
+    #end for
+
+    if pin_factors:
+      self.averager.pinFactors = pin_factors
 
 #	-- Read extras file if it exists
 #	--
@@ -1838,12 +1859,12 @@ to be 'core', and the dataset is not associated with a state point.
 
     if not ds_name:
       use_states = None
-    elif ds_name.startswith( 'derived:' ):
-      use_states = self.derivedDataMgr.GetStates()
-      use_name = ds_name
-    elif ds_name.startswith( 'extra:' ):
-      use_states = self.GetExtraStates()
-      use_name = ds_name[ 6 : ]
+#    elif ds_name.startswith( 'derived:' ):
+#      use_states = self.derivedDataMgr.GetStates()
+#      use_name = ds_name
+#    elif ds_name.startswith( 'extra:' ):
+#      use_states = self.GetExtraStates()
+#      use_name = ds_name[ 6 : ]
     else:
       use_states = self.GetStates()
       use_name = ds_name
@@ -1966,6 +1987,7 @@ calculated.
 	elif cur_name == 'detector_response' and \
 	    cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
 	  ds_names[ 'detector' ].append( cur_name )
+	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
 
 #			-- Not a scalar
@@ -2005,7 +2027,7 @@ calculated.
     match_name = self.HasDerivedDataSet( ds_category, derived_label, ds_name )
     if not match_name:
       match_name = self._CreateDerivedDataSet( ds_category, derived_label, ds_name )
-    return  self.GetStateDataSet( self, state_ndx, match_name )
+    return  match_name
 #    return \
 #        self.derivedDataMgr.CreateDataSet( category, derived_label, ds_name )
   #end ResolveDerivedDataSet
@@ -2155,8 +2177,6 @@ to be 'core', and the dataset is not associated with a state point.
       obj[ 'core' ] = self.core.ToJson()
     if self.states != None:
       obj[ 'states' ] = State.ToJsonAll( self.states )
-    if self.pinPowerRange != None:
-      obj[ 'pinPowerRange' ] = list( self.pinPowerRange )
 
     return  obj
   #end ToJson
