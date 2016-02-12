@@ -656,6 +656,10 @@ passed, Read() must be called.
     if not ds_name in type_list:
       type_list.append( ds_name )
       self.dataSetNamesVersion += 1
+
+      ddef = self.dataSetDefs[ ds_type ]
+      if ddef:
+        self.dataSetDefsByName[ ds_name ] = ddef
   #end AddDataSetName
 
 
