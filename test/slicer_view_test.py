@@ -70,7 +70,7 @@ class SlicerViewTestApp( wx.App ):
           )
       args = parser.parse_args()
 
-      if args.file_path == None:
+      if args.file_path is None:
         parser.print_help()
 
       else:
@@ -190,10 +190,10 @@ class SlicerViewTestFrame( wx.Frame ):
   #----------------------------------------------------------------------
   def _OnCycleStatePoint( self, ev ):
     ev.Skip()
-    if self.vizFrame != None:
+    if self.vizFrame is not None:
       state = self.vizFrame.widgetContainer.state
-      data = State.FindDataModel( state ) if state != None else None
-      if data != None:
+      data = State.FindDataModel( state ) if state is not None else None
+      if data is not None:
 #	ndx = state.stateIndex + 1
 #	if ndx > len( data.GetStates() ):
 #	  ndx = 0
@@ -216,7 +216,7 @@ class SlicerViewTestFrame( wx.Frame ):
 
     def feedback( loaded, errors ):
       msg = 'Loaded' if loaded else 'Not Loaded'
-      if errors != None and len( errors ) > 0:
+      if errors is not None and len( errors ) > 0:
         msg += ':' + os.linesep.join( errors )
       wx.MessageBox(
 	  msg, 'Load',
@@ -237,7 +237,7 @@ class SlicerViewTestFrame( wx.Frame ):
     ev.Skip()
 
     def check_and_show( loaded, errors ):
-      if errors != None and len( errors ) > 0:
+      if errors is not None and len( errors ) > 0:
         msg = \
 	    'Error loading 3D environment:' + os.linesep + \
 	    os.linesep.join( errors )

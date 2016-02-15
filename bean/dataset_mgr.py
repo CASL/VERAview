@@ -52,7 +52,7 @@ average datasets.
     self.fDataModel = data_model
 
     #extra_names = data_model.GetDataSetNames( 'extra' )
-    #self.fExtraNames = [] if extra_names == None else extra_names
+    #self.fExtraNames = [] if extra_names is None else extra_names
 
     self.fButtonPanel = None
     self.fCategoryListBoxes = {}
@@ -81,7 +81,7 @@ average datasets.
       obj.Enable( flag )
 
 #    for panel in ( self.fButtonPanel, self.fCategoryTabs, self.fExtrasList ):
-#      if panel != None:
+#      if panel is not None:
 #        for child in panel.GetChildren():
 #          if isinstance( child, wx.Window ):
 #	    child.Enable( flag )
@@ -303,7 +303,7 @@ Called on the UI thread.
       ndx = self.fExtrasList.GetFirstSelected()
       while ndx >= 0:
         name = self.fExtrasList.GetItemText( ndx, 0 )
-        if name != None:
+        if name is not None:
           self.fDataModel.RemoveExtraDataSet( name )
 
         ndx = self.fExtrasList.GetNextSelected( ndx )
@@ -337,7 +337,7 @@ Called on the UI thread.
     ndx = 0
 
     extra_file = self.fDataModel.GetH5ExtraFile()
-    if extra_file != None:
+    if extra_file is not None:
       for name in sorted( extra_file.keys() ):
         if not name.startswith( 'STATE' ):
 	  ds = extra_file[ name ]
@@ -349,7 +349,7 @@ Called on the UI thread.
 
     #extra_names = self.fDataModel.GetDataSetNames( 'extra' )
     extra_states = self.fDataModel.GetExtraStates()
-    if extra_states != None and len( extra_states ) > 0:
+    if extra_states is not None and len( extra_states ) > 0:
       st = self.fDataModel.GetExtraState( 0 )
 
       #ndx = 0

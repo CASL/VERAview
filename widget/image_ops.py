@@ -92,7 +92,7 @@ Creates a separate thread with the _Run() method as target.
       pil_images = []
       for name in self.images:
 	im = PIL.Image.open( name )
-	if im != None:
+	if im is not None:
 	  pil_images.append( im )
 	  im_wd = max( im_wd, im.size[ 0 ] )
 	  im_ht = max( im_ht, im.size[ 1 ] )
@@ -169,11 +169,11 @@ Creates a separate thread with the _Run() method as target.
     """
 """
     status = result.get()
-    if status != None:
+    if status is not None:
       status[ 'dialog' ].Destroy()
 
       messages = status.get( 'messages' )
-      if messages != None and len( messages ) > 0:
+      if messages is not None and len( messages ) > 0:
         msg = \
 	    'Montage image not created:\n' + \
             '\n '.join( messages )
@@ -276,7 +276,7 @@ Creates a separate thread with the _Run() method as target.
       pil_images = []
       for name in image_names:
 	im = PIL.Image.open( name )
-	if im != None:
+	if im is not None:
 	  pil_images.append( im )
 	  im_wd = max( im_wd, im.size[ 0 ] )
 	  im_ht = max( im_ht, im.size[ 1 ] )
@@ -343,7 +343,7 @@ Creates a separate thread with the _Run() method as target.
           [ 'Error creating image:' + os.linesep + str( ex ) ]
 
     finally:
-      if temp_dir != None:
+      if temp_dir is not None:
         shutil.rmtree( temp_dir )
 
     return  status
@@ -357,11 +357,11 @@ Creates a separate thread with the _Run() method as target.
     """
 """
     status = result.get()
-    if status != None:
+    if status is not None:
       status[ 'dialog' ].Destroy()
 
       messages = status.get( 'messages' )
-      if messages != None and len( messages ) > 0:
+      if messages is not None and len( messages ) > 0:
         msg = \
 	    'Montage image not created:\n' + \
             '\n '.join( messages )

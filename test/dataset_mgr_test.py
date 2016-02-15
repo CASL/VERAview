@@ -75,7 +75,7 @@ class DataSetManagerDialogTestApp( wx.App ):
           )
       args = parser.parse_args()
 
-      if args.file_path == None:
+      if args.file_path is None:
         parser.print_help()
 
       else:

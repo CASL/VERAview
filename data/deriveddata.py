@@ -122,7 +122,7 @@ Properties:
     self._ResolveShapes( self.derivedDefs[ 'pin' ], self.pinShape )
 
     ds_names = data_model.GetDataSetNames()
-    if ds_names != None and data_model.GetStatesCount() > 0:
+    if ds_names is not None and data_model.GetStatesCount() > 0:
       self.derivedNames = \
           self._FindDataSets( data_model.GetState( 0 ).GetGroup(), ds_names )
   #end __init__
@@ -167,14 +167,14 @@ Properties:
 """
     count = 0
 
-    #if self.states != None and self.derivedStates != None:
-    if self.data.GetStatesCount() > 0 and self.derivedStates != None:
+    #if self.states is not None and self.derivedStates is not None:
+    if self.data.GetStatesCount() > 0 and self.derivedStates is not None:
       for state_ndx in range( len( self.derivedStates ) ):
 	#from_st = self.states[ state_ndx ]
 	from_st = self.data.GetState( state_ndx )
 	der_st = self.derivedStates[ state_ndx ]
 
-	if from_st != None and der_st != None:
+	if from_st is not None and der_st is not None:
 	  from_group = from_st.GetGroup()
 	  if ds_name in from_group:
 	    from_data = from_group[ ds_name ].value
@@ -203,14 +203,14 @@ Properties:
 """
     count = 0
 
-    #if self.states != None and self.derivedStates != None:
-    if self.data.GetStatesCount() > 0 and self.derivedStates != None:
+    #if self.states is not None and self.derivedStates is not None:
+    if self.data.GetStatesCount() > 0 and self.derivedStates is not None:
       for state_ndx in range( len( self.derivedStates ) ):
 	#from_st = self.states[ state_ndx ]
 	from_st = self.data.GetState( state_ndx )
 	der_st = self.derivedStates[ state_ndx ]
 
-	if from_st != None and der_st != None:
+	if from_st is not None and der_st is not None:
 	  from_group = from_st.GetGroup()
 	  if ds_name in from_group:
 	    from_data = from_group[ ds_name ].value
@@ -237,13 +237,13 @@ Properties:
 @return			dataset name
 """
 #    cat_dict = self.derivedNames.get( category )
-#    label_dict = cat_dict.get( derived_label )  if cat_dict != None  else None
-#    der_name = label_dict.get( ds_name )  if label_dict != None  else None
+#    label_dict = cat_dict.get( derived_label )  if cat_dict is not None  else None
+#    der_name = label_dict.get( ds_name )  if label_dict is not None  else None
     new_der_name = None
 
     ddef = self._FindTreeEntry( self.derivedDefs, category, derived_label )
-    if ddef != None:
-      if self.h5File == None:
+    if ddef is not None:
+      if self.h5File is None:
         self._CreateH5File()
 
       path = [ category, derived_label, ds_name ]
@@ -251,7 +251,7 @@ Properties:
 
 #			-- Must calculate?
 #			--
-      if der_name == None:
+      if der_name is None:
         new_der_name = 'derived:' + derived_label + '_' + ds_name
         self._CalculateDataSet( ds_name, ddef[ 'avgshape' ], new_der_name )
 	#self._AddTreeEntry( self.derivedNames, new_der_name, *path )
@@ -273,7 +273,7 @@ Properties:
       #else:
       #end if-else
 
-      if new_der_name != None:
+      if new_der_name is not None:
         self._AddTreeEntry( self.derivedNames, new_der_name, *path )
 	self.data.AddDataSetName( 'derived', new_der_name )
 	if ddef[ 'avgshape' ][ 2 ] > 1:
@@ -301,7 +301,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 """
 #		-- Delete existing if requexted
 #		--
-#    if truncate_flag and self.h5ExtraFile != None:
+#    if truncate_flag and self.h5ExtraFile is not None:
 #      self.h5ExtraFile.close()
 #      if os.path.exists( self.h5ExtraFilePath ):
 #        os.remove( self.h5ExtraFilePath )
@@ -311,7 +311,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 
 #		-- Create only if not already created
 #		--
-    if self.h5File == None:
+    if self.h5File is None:
       fd, name = tempfile.mkstemp( '.h5' )
       os.close( fd )
 
@@ -323,7 +323,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 	n = 0
         for st in self.data.GetStates():
 	  from_group = st.GetGroup()
-	  if from_group == None:
+	  if from_group is None:
 	    self.derivedStates.append( None )
 
 	  else:
@@ -426,7 +426,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 	  break
       #end while
 
-      if cur_dict != None:
+      if cur_dict is not None:
         value = cur_dict.get( names[ -1 ] )
     #end if
 
@@ -499,7 +499,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 """
     return  \
 	self.derivedStates[ ndx ] \
-	if self.derivedStates != None and ndx >= 0 and \
+	if self.derivedStates is not None and ndx >= 0 and \
 	    ndx < len( self.derivedStates ) else \
 	None
   #end GetState
@@ -551,7 +551,7 @@ are initialized.  Populates the 'h5File' and 'derivedStates' properties.
 	      name_in == ds_name.replace( ds_category, derived_prefix ):
             match = ds_name
 
-        if match != None:  break
+        if match is not None:  break
       #end for ds_name
     #if shapes match
 
@@ -694,7 +694,7 @@ Fields:
 """
     return \
         self.group[ ds_name ] \
-	if ds_name != None and ds_name in self.group else \
+	if ds_name is not None and ds_name in self.group else \
 	None
   #end GetDataSet
 
@@ -713,7 +713,7 @@ Fields:
   def HasDataSet( self, ds_name ):
     """
 """
-    return  ds_name != None and ds_name in self.group
+    return  ds_name is not None and ds_name in self.group
   #end HasDataSet
 
 
@@ -724,7 +724,7 @@ Fields:
     """
 @return			True if removed, False if ds_name not in this
 """
-    removed = ds_name != None and ds_name in self.group
+    removed = ds_name is not None and ds_name in self.group
     if removed:
       del self.group[ ds_name ]
 

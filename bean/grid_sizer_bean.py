@@ -84,11 +84,11 @@ Properties:
 
   @value.setter
   def value( self, pair ):
-    if pair != None and len( pair ) >= 2:
+    if pair is not None and len( pair ) >= 2:
       self.fValue = pair
-      if self.fGridSizerForm != None:
+      if self.fGridSizerForm is not None:
         self.fGridSizerForm.value = pair
-      if self.fGridSizerGraphic != None:
+      if self.fGridSizerGraphic is not None:
         self.fGridSizerGraphic.value = pair
     #end if
   #end value.setter
@@ -120,9 +120,9 @@ Properties:
   #----------------------------------------------------------------------
   def Enable( self, flag = True ):
     super( GridSizerBean, self ).Enable( flag )
-    if self.fGridSizerForm != None:
+    if self.fGridSizerForm is not None:
       self.fGridSizerForm.Enable( flag )
-    if self.fGridSizerGraphic != None:
+    if self.fGridSizerGraphic is not None:
       self.fGridSizerGraphic.Enable( flag )
   #end Enable
 
@@ -284,11 +284,11 @@ Properties:
 
   @value.setter
   def value( self, pair ):
-    if pair != None and len( pair ) >= 2:
+    if pair is not None and len( pair ) >= 2:
       self.fValue = pair
-      if self.fColSpinner != None:
+      if self.fColSpinner is not None:
         self.fColSpinner.SetValue( pair[ 1 ] )
-      if self.fRowSpinner != None:
+      if self.fRowSpinner is not None:
         self.fRowSpinner.SetValue( pair[ 0 ] )
     #end if
   #end value.setter
@@ -303,9 +303,9 @@ Properties:
   #----------------------------------------------------------------------
   def Enable( self, flag = True ):
     super( GridSizerForm, self ).Enable( flag )
-    if self.fColSpinner != None:
+    if self.fColSpinner is not None:
       self.fColSpinner.Enable( flag )
-    if self.fRowSpinner != None:
+    if self.fRowSpinner is not None:
       self.fRowSpinner.Enable( flag )
   #end Enable
 
@@ -386,7 +386,7 @@ Properties:
 
   @maxValues.setter
   def maxValues( self, pair ):
-    if pair != None and len( pair ) >= 2:
+    if pair is not None and len( pair ) >= 2:
       self.fMaxValues = pair
       self.Refresh()
     #end if
@@ -409,7 +409,7 @@ Properties:
 
   @value.setter
   def value( self, pair ):
-    if pair != None and len( pair ) >= 2:
+    if pair is not None and len( pair ) >= 2:
       self.fValue = pair
       self.Refresh()
     #end if

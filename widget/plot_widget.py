@@ -121,8 +121,8 @@ Properties:
   def CreatePrintImage( self, file_path ):
     result = None
 
-    if self.fig != None:
-      if self.axline != None:
+    if self.fig is not None:
+      if self.axline is not None:
         self.axline.set_visible( False )
 
       self.fig.savefig(
@@ -130,7 +130,7 @@ Properties:
 	  )
       result = file_path
 
-      if self.axline != None:
+      if self.axline is not None:
         self.axline.set_visible( True )
       self.canvas.draw()
     #end if
@@ -249,7 +249,7 @@ model.
     print >> sys.stderr, '[PlotWidget._LoadDataModel]'
 
     self.data = State.FindDataModel( self.state )
-    if self.data != None and self.data.HasData():
+    if self.data is not None and self.data.HasData():
       update_args = self._LoadDataModelValues()
       wx.CallAfter( self.UpdateState, **update_args )
   #end _LoadDataModel
@@ -273,7 +273,7 @@ to be passed to UpdateState().  Assume self.data is valid.
   def _OnClose( self, ev ):
     """
 """
-    if self.fig != None:
+    if self.fig is not None:
       self.fig.close()
   #end _OnClose
 
@@ -304,13 +304,13 @@ to be passed to UpdateState().  Assume self.data is valid.
 
     if ev.inaxes is None:
       self.cursor = None
-      if self.cursorLine != None:
+      if self.cursorLine is not None:
         self.cursorLine.set_visible( False )
         self.canvas.draw()
       #self.canvas.SetToolTipString( '' )
 
-    elif self.ax != None:
-      if self.cursorLine == None:
+    elif self.ax is not None:
+      if self.cursorLine is None:
         self.cursorLine = \
 	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
 	    if self.refAxis == 'y' else \
@@ -340,13 +340,13 @@ to be passed to UpdateState().  Assume self.data is valid.
 
     if ev.inaxes is None:
       self.cursor = None
-      if self.cursorLine != None:
+      if self.cursorLine is not None:
         self.cursorLine.set_visible( False )
         self.canvas.draw()
       #self.canvas.SetToolTipString( '' )
 
     elif ev.inaxes == self.ax:
-      if self.cursorLine == None:
+      if self.cursorLine is None:
         self.cursorLine = \
 	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
 	    if self.refAxis == 'y' else \
@@ -392,7 +392,7 @@ with super.
     wd, ht = self.GetClientSize()
     print >> sys.stderr, '[PlotWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
 
-    if wd > 0 and ht > 0 and self.data != None:
+    if wd > 0 and ht > 0 and self.data is not None:
       self.UpdateState( replot = True )
   #end _OnSize
 
@@ -431,12 +431,12 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-    if self.ax != None and self.data != None:
+    if self.ax is not None and self.data is not None:
       self.axline = None
       self.cursorLine = None
 
 #      self.ax.clear()
-#      if hasattr( self, 'ax2' ) and self.ax2 != None:
+#      if hasattr( self, 'ax2' ) and self.ax2 is not None:
 #        self.ax2.clear()
       self.fig.clear()
       self._InitAxes()

@@ -143,7 +143,7 @@ Properties:
     if force or (state_ndx not in self.avgValues):
       dset = data.GetStateDataSet( state_ndx, self.pinDataSet )
 
-    if dset != None:
+    if dset is not None:
       dset_array = dset.value
       t_nax = min( data.core.nax, dset_array.shape[ 2 ] )
       t_nass = min( data.core.nass, dset_array.shape[ 3 ] )
@@ -267,7 +267,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	axial_level = axial_level,
 	state_index = state_ndx
 	)
-    if self.config != None and tuple_valid:
+    if self.config is not None and tuple_valid:
       assy_region = self.config[ 'assemblyRegion' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
       font_size = self.config[ 'fontSize' ]
@@ -279,7 +279,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
-      if dset == None:
+      if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
 	cur_nxpin = cur_nypin = 0
@@ -361,7 +361,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			-- Draw Legend Image
 #			--
 #      im.paste( legend_pil_im, ( assy_wd + font_size, 1 ) )
-      if legend_pil_im != None:
+      if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
 	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
@@ -396,7 +396,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     #end if self.config exists
 
     #return  im
-    return  im if im != None else self.emptyPilImage
+    return  im if im is not None else self.emptyPilImage
   #end _CreateAssyImage
 
 
@@ -418,7 +418,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     if is_valid:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
 
-    if dset != None:
+    if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
@@ -588,7 +588,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	( state_ndx, axial_level )
     im = None
 
-    if self.config != None:
+    if self.config is not None:
       assy_advance = self.config[ 'assemblyAdvance' ]
       assy_wd = self.config[ 'assemblyWidth' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
@@ -601,7 +601,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
-      if dset == None:
+      if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
 	cur_nxpin = cur_nypin = 0
@@ -716,7 +716,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Draw Legend Image
 #			--
-      if legend_pil_im != None:
+      if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
 	    ( core_region[ 2 ] + 2 + font_size, core_region[ 1 ] )
@@ -750,10 +750,10 @@ If neither are specified, a default 'scale' value of 4 is used.
     elapsed_time = timeit.default_timer() - start_time
     print >> sys.stderr, \
         '\n[Core2DView._CreateCoreImage] time=%.3fs, im-None=%s' % \
-	( elapsed_time, im == None )
+	( elapsed_time, im is None )
 
     #return  im
-    return  im if im != None else self.emptyPilImage
+    return  im if im is not None else self.emptyPilImage
   #end _CreateCoreImage
 
 
@@ -837,15 +837,15 @@ The config and data attributes are good to go.
 """
     tip_str = ''
 
-    if self.mode == 'core' and cell_info != None and cell_info[ 0 ] >= 0:
+    if self.mode == 'core' and cell_info is not None and cell_info[ 0 ] >= 0:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       assy_ndx = cell_info[ 0 ]
-      if dset != None and assy_ndx < dset.shape[ 3 ]:
+      if dset is not None and assy_ndx < dset.shape[ 3 ]:
         show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
         tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
 
 	avg_values = self.avgValues.get( self.stateIndex )
-	if avg_values != None:
+	if avg_values is not None:
           ax = min( self.axialValue[ 1 ], avg_values.shape[ 0 ] - 1 )
 	  assy_ndx = min( assy_ndx, avg_values.shape[ 1 ] - 1 )
 	  avg_value = avg_values[ ax, assy_ndx ]
@@ -871,8 +871,8 @@ The config and data attributes are good to go.
 """
     result = None
 
-    if self.config != None and self.data != None and \
-        self.data.core != None and self.data.core.coreMap != None:
+    if self.config is not None and self.data is not None and \
+        self.data.core is not None and self.data.core.coreMap is not None:
       if ev_x >= 0 and ev_y >= 0:
 	assy_advance = self.config[ 'assemblyAdvance' ]
 	core_region = self.config[ 'coreRegion' ]
@@ -934,7 +934,7 @@ The config and data attributes are good to go.
 """
     result = None
 
-    if self.config != None and self.data != None:
+    if self.config is not None and self.data is not None:
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
@@ -1026,7 +1026,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    if self.config != None:
+    if self.config is not None:
       line_wd = -1
       rect = None
 
@@ -1074,7 +1074,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 #			-- Draw?
 #			--
-      if rect != None:
+      if rect is not None:
 	new_bmap = self._CopyBitmap( bmap )
 
         dc = wx.MemoryDC( new_bmap )
@@ -1099,7 +1099,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 	result = new_bmap
       #end if rect
-    #end if self.config != None:
+    #end if self.config is not None:
 
     return  result
   #end _HiliteBitmap
@@ -1127,7 +1127,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
     if self.mode == 'assy':
       result = \
-          tpl != None and len( tpl ) >= 5 and \
+          tpl is not None and len( tpl ) >= 5 and \
           tpl[ 0 ] == self.stateIndex and \
 	  tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
 	  tpl[ 2 ] == self.axialValue[ 1 ] and \
@@ -1136,7 +1136,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
     else:
       result = \
-          tpl != None and len( tpl ) >= 2 and \
+          tpl is not None and len( tpl ) >= 2 and \
           tpl[ 0 ] == self.stateIndex and \
 	  tpl[ 1 ] == self.axialValue[ 1 ]
 
@@ -1167,7 +1167,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     y = ev.GetY()
 
     cell_info = self.FindAssembly( x, y )
-    if cell_info != None and cell_info[ 0 ] >= 0:
+    if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
       assy_ndx = cell_info[ 0 : 3 ]
       if assy_ndx != self.assemblyIndex:
@@ -1217,14 +1217,14 @@ copy operation.  This method just calls ev.Skip().
 """
     tip_str = ''
     pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr != None:
+    if pin_addr is not None:
       state_ndx = self.stateIndex
       ds_name = self.pinDataSet
       pin_value = 0.0
 #      if ds_name in self.data.states[ state_ndx ].group:
 #        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset != None:
+      if dset is not None:
 	ds_value = dset.value
 #	pin_value = ds_value[
 #	    pin_addr[ 1 ], pin_addr[ 0 ],
@@ -1258,7 +1258,7 @@ copy operation.  This method just calls ev.Skip().
     """
 """
     pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr != None and pin_addr != self.pinColRow:
+    if pin_addr is not None and pin_addr != self.pinColRow:
 #      print >> sys.stderr, \
 #          '[Assembly2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
 
@@ -1268,7 +1268,7 @@ copy operation.  This method just calls ev.Skip().
 #      if ds_name in self.data.states[ state_ndx ].group:
 #        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset != None:
+      if dset is not None:
         ds_value = dset.value
 #	pin_value = ds_value[
 #	    pin_addr[ 1 ], pin_addr[ 0 ],
@@ -1299,7 +1299,7 @@ copy operation.  This method just calls ev.Skip().
 """
     ev.Skip()
 
-    if self.data != None:
+    if self.data is not None:
       matching_ds_names = self.data.GetExtra4DDataSets()
 
       if len( matching_ds_names ) == 0:
@@ -1315,7 +1315,7 @@ copy operation.  This method just calls ev.Skip().
         status = dialog.ShowModal()
 	if status == wx.ID_OK:
 	  name = dialog.GetStringSelection()
-	  if name != None:
+	  if name is not None:
 	    self.UpdateState( avg_dataset = 'extra:' + name )
       #end if-else matching_ds_names
     #end if self.data
@@ -1379,11 +1379,11 @@ copy operation.  This method just calls ev.Skip().
   #----------------------------------------------------------------------
   def _UpdateAvgValues( self, state_ndx, force = False ):
     dset = None
-    if self.avgDataSet != None and \
+    if self.avgDataSet is not None and \
         (force or (state_ndx not in self.avgValues)):
       dset = self.data.GetStateDataSet( state_ndx, self.avgDataSet )
 
-    if dset != None:
+    if dset is not None:
       dset_array = dset.value
 
       t_nax = min( self.data.core.nax, dset_array.shape[ 2 ] )
@@ -1434,7 +1434,7 @@ copy operation.  This method just calls ev.Skip().
         self.pinDataSet = kwargs[ 'pin_dataset' ]
         self.avgValues.clear()
 
-    if (changed or resized) and self.config != None:
+    if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )
       #self._CalcAvgValues( self.data, self.stateIndex )
 

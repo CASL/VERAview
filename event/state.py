@@ -258,7 +258,7 @@ Keys passed and the corresponding state bit are:
 #		--
     if (reason & STATE_CHANGE_assemblyIndex) > 0:
       if (reason & STATE_CHANGE_detectorIndex) == 0 and \
-          self.dataModel.core.detectorMap != None:
+          self.dataModel.core.detectorMap is not None:
 	col = self.assemblyIndex[ 1 ]
 	row = self.assemblyIndex[ 2 ]
 	det_ndx = self.dataModel.core.detectorMap[ row, col ] - 1
@@ -267,7 +267,7 @@ Keys passed and the corresponding state bit are:
 
     elif (reason & STATE_CHANGE_detectorIndex) > 0:
       if (reason & STATE_CHANGE_assemblyIndex) == 0:
-          #self.dataModel.core.coreMap != None:
+          #self.dataModel.core.coreMap is not None:
 	col = self.detectorIndex[ 1 ]
 	row = self.detectorIndex[ 2 ]
 	assy_ndx = self.dataModel.core.coreMap[ row, col ] - 1
@@ -371,7 +371,7 @@ Keys passed and the corresponding state bit are:
     undefined3 = ( -1, -1, -1 )
     self.dataModel = data_model
 
-    if data_model != None:
+    if data_model is not None:
       self.assemblyIndex = data_model.NormalizeAssemblyIndex( undefined3 )
       self.axialValue = data_model.NormalizeAxialValue( undefined_ax )
       self.channelDataSet = data_model.GetFirstDataSet( 'channel' )
@@ -419,7 +419,7 @@ Keys passed and the corresponding state bit are:
     """
 @return		resolved reason
 """
-    if reason == None:
+    if reason is None:
       reason = STATE_CHANGE_noop
 
     else:
@@ -468,7 +468,7 @@ Keys passed and the corresponding state bit are:
   @staticmethod
   def FindDataModel( state ):
     data_model = None
-    if state != None and state.dataModel != None:
+    if state is not None and state.dataModel is not None:
       data_model = state.dataModel
 
     return  data_model

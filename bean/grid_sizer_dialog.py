@@ -57,7 +57,7 @@ Properties:
 #  @property
 #  def value( self ):
 #    """( rows, cols ), read-only"""
-#    return  self.fBean.value  if self.fBean != None  else ( 1, 1 )
+#    return  self.fBean.value  if self.fBean is not None  else ( 1, 1 )
 #  #end value.getter
 
 
@@ -160,7 +160,7 @@ Properties:
   #----------------------------------------------------------------------
   def ShowModal( self, value = None ):
     self.fResult = None
-    if value != None:
+    if value is not None:
       self.fBean.value = value
     super( GridSizerDialog, self ).ShowModal()
   #end ShowModal

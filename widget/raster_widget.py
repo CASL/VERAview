@@ -116,7 +116,7 @@ Properties:
     """Background thread completion method called in the UI thread.
 Paired to _BitmapThreadStart().
 """
-    if result == None:
+    if result is None:
       cur_tuple = pil_im = None
     else:
       cur_tuple, pil_im = result.get()
@@ -124,12 +124,12 @@ Paired to _BitmapThreadStart().
 #    print >> sys.stderr, \
 #        '[RasterWidget._BitmapThreadFinish] %s cur_tuple=%s/%s, pil_im=%s' % \
 #	( self.GetTitle(), str( cur_tuple ), self.IsTupleCurrent( cur_tuple ),
-#	  pil_im != None )
+#	  pil_im is not None )
 
-    if cur_tuple != None:
+    if cur_tuple is not None:
 #			-- Create bitmap
 #			--
-      if pil_im == None:
+      if pil_im is None:
         bmap = self.blankBitmap
 
       else:
@@ -157,7 +157,7 @@ Paired to _BitmapThreadStart().
       if self.IsTupleCurrent( cur_tuple ):
         self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
         self.bitmapCtrl.Update()
-    #end if cur_pair != None:
+    #end if cur_pair is not None:
 
     self._BusyEnd()
   #end _BitmapThreadFinish
@@ -174,7 +174,7 @@ Calls _CreateRasterImage().
 """
     pil_im = None
 
-    if next_tuple != None and self.config != None:
+    if next_tuple is not None and self.config is not None:
       pil_im = self._CreateRasterImage( next_tuple )
 
     return  ( next_tuple, pil_im )
@@ -193,7 +193,7 @@ Calls _CreateRasterImage().
 
       tuples = list( self.bitmaps.keys() )
       for t in tuples:
-	if keep_tuple == None or keep_tuple != t:
+	if keep_tuple is None or keep_tuple != t:
           b = self.bitmaps[ t ]
 	  del self.bitmaps[ t ]
 	  b.Destroy()
@@ -215,8 +215,8 @@ Sets the config attribute.
     print >> sys.stderr, '[RasterWidget._Configure] %d,%d' % ( wd, ht )
 
     self.config = None
-    if wd > 0 and ht > 0 and self.data != None and \
-        self.data.HasData() and self.cellRange != None:
+    if wd > 0 and ht > 0 and self.data is not None and \
+        self.data.HasData() and self.cellRange is not None:
       self.config = self._CreateDrawConfig( size = ( wd, ht ) )
   #end _Configure
 
@@ -231,7 +231,7 @@ Sets the config attribute.
 """
     new_bmap = None
 
-    if bmap != None:
+    if bmap is not None:
       block = chr( 0 ) * bmap.GetWidth() * bmap.GetHeight() * 4
       bmap.CopyToBuffer( block, wx.BitmapBufferFormat_RGBA )
 	#new_bmap = wx.Bitmap.FromBufferRGBA( bmap.GetWidth(), bmap.GetHeight(),block )
@@ -314,7 +314,7 @@ called from subclass _CreateDrawConfig() methods.
     """Retrieves the currently-displayed bitmap.
 @return			bitmap or None
 """
-    return  self.bitmapCtrl.GetBitmap() if self.bitmapCtrl != None else None
+    return  self.bitmapCtrl.GetBitmap() if self.bitmapCtrl is not None else None
   #end _CreateClipboardImage
 
 
@@ -370,7 +370,7 @@ Must be called from the UI thread.
 """
     popup_menu = super( RasterWidget, self )._CreatePopupMenu()
 
-    if popup_menu != None:
+    if popup_menu is not None:
       self._UpdateVisibilityMenuItems(
           popup_menu,
           'Labels', self.showLabels,
@@ -399,7 +399,7 @@ Must be called from the UI thread.
 #    #return  wx_im
 
 #    wx_im.SaveFile( file_path, wx.BITMAP_TYPE_PNG )
-    if pil_im != None:
+    if pil_im is not None:
       pil_im.save( file_path, 'PNG' )
     return  file_path
   #end CreatePrintImage
@@ -653,7 +653,7 @@ Subclasses should override as needed.
 			( left, top, right, bottom, dx, dy )
 """
     return \
-        self.data.ExtractSymmetryExtent() if self.data != None else \
+        self.data.ExtractSymmetryExtent() if self.data is not None else \
 	( 0, 0, 0, 0, 0, 0 )
   #end GetInitialCellRange
 
@@ -759,7 +759,7 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     print >> sys.stderr, '[RasterWidget._LoadDataModel]'
     self.data = State.FindDataModel( self.state )
-    if self.data != None and self.data.HasData():
+    if self.data is not None and self.data.HasData():
       print >> sys.stderr, '[RasterWidget._LoadDataModel] we have data'
 
 #		-- Do here what is not dependent on size
@@ -850,7 +850,7 @@ This implementation is a noop.
 """
     self.bitmapCtrl.SetToolTipString( '' )
     cell_info = self.FindCell( *ev.GetPosition() )
-    if cell_info != None:
+    if cell_info is not None:
       self.dragStartCell = cell_info
       self.dragStartPosition = ev.GetPosition()
   #end _OnLeftDown
@@ -870,11 +870,11 @@ This implementation is a noop.
       self.ReleaseMouse()
 
     rect = None
-    if self.dragStartPosition != None:
+    if self.dragStartPosition is not None:
       rect = wx.RectPP( self.dragStartPosition, ev.GetPosition() )
 
     #elif self.dragStartPosition == ev.GetPosition():
-    if rect == None or rect.width <= 5 or rect.height <= 5:
+    if rect is None or rect.width <= 5 or rect.height <= 5:
       self._OnClick( ev )
 
     else:
@@ -882,7 +882,7 @@ This implementation is a noop.
       y = ev.GetY()
       cell_info = self.FindCell( x, y )
 
-      if cell_info != None:
+      if cell_info is not None:
         left = min( self.dragStartCell[ 1 ], cell_info[ 1 ] )
         right = max( self.dragStartCell[ 1 ], cell_info[ 1 ] ) + 1
 	top = min( self.dragStartCell[ 2 ], cell_info[ 2 ] )
@@ -914,12 +914,12 @@ This implementation is a noop.
 """
     #if self.HasCapture():
     #if ev.Dragging() and ev.LeftIsDown():
-    if self.dragStartPosition == None:
+    if self.dragStartPosition is None:
       tip_str = ''
       cell_info = self.FindCell( *ev.GetPosition() )
 
-      #if assy != None and assy[ 0 ] >= 0:
-      if cell_info != None:
+      #if assy is not None and assy[ 0 ] >= 0:
+      if cell_info is not None:
         tip_str = self._CreateToolTipText( cell_info )
 
       self.bitmapCtrl.SetToolTipString( tip_str )
@@ -957,7 +957,7 @@ This implementation is a noop.
   def _OnSize( self, ev ):
     """
 """
-    if ev == None:
+    if ev is None:
       self.curSize = None
     else:
       ev.Skip()
@@ -965,8 +965,8 @@ This implementation is a noop.
     wd, ht = self.GetClientSize()
     print >> sys.stderr, '[RasterWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
 
-    if wd > 0 and ht > 0 and self.data != None and \
-        (self.curSize == None or wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]):
+    if wd > 0 and ht > 0 and self.data is not None and \
+        (self.curSize is None or wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]):
       self._BusyBegin()
       self.curSize = ( wd, ht )
       #wx.CallAfter( self._Configure )
@@ -1000,7 +1000,7 @@ This implementation is a noop.
         self.GetPopupMenu() \
 	if menu == self.container.GetWidgetMenu() else \
 	self.container.GetWidgetMenu()
-    if other_menu != None:
+    if other_menu is not None:
       self._UpdateVisibilityMenuItems(
           other_menu,
 	  'Labels', self.showLabels
@@ -1038,7 +1038,7 @@ This implementation is a noop.
         self.GetPopupMenu() \
 	if menu == self.container.widgetMenu else \
 	self.container.widgetMenu
-    if other_menu != None:
+    if other_menu is not None:
       self._UpdateVisibilityMenuItems(
           other_menu,
 	  'Legend', self.showLegend
@@ -1084,7 +1084,7 @@ Calls _UpdateStateValues().
       self._Configure()
       changed = True
 
-    if changed and self.config != None:
+    if changed and self.config is not None:
       tpl = self._CreateStateTuple()
       bitmap_args = tpl + self.curSize + tuple( self.cellRange )
 

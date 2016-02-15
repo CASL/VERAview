@@ -183,7 +183,7 @@ class Legend2( object ):
   def GetWxBitmap( self ):
     """Must be called from the UI thread."""
     wx_im = self.GetWxImage()
-    if wx_im != None:
+    if wx_im is not None:
       bmap = wx.BitmapFromImage( wx_im )
     else:
       bmap = None
@@ -198,7 +198,7 @@ class Legend2( object ):
   def GetWxImage( self ):
     """Must be called from the UI thread."""
     wx_im = None
-    if self.image != None:
+    if self.image is not None:
       wx_im = wx.EmptyImage( *self.image.size )
       im_data_str = self.image.convert( 'RGB' ).tostring()
       wx_im.SetData( im_data_str )

@@ -71,7 +71,7 @@ Attributes/properties:
   @property
   def axialLevel( self ):
     """0-based axial level, not deletable"""
-    return  self.fSlider.GetValue() - 1  if self.fSlider != None  else  -1
+    return  self.fSlider.GetValue() - 1  if self.fSlider is not None  else  -1
   #end axialLevel.getter
 
 
@@ -83,7 +83,7 @@ Attributes/properties:
 
   @axialLevel.setter
   def axialLevel( self, value ):
-    if self.fSlider != None:
+    if self.fSlider is not None:
       cur_value = self.fSlider.GetValue()
       if cur_value != value:
         self.fSlider.SetValue( value + 1 )
@@ -110,7 +110,7 @@ Attributes/properties:
   #----------------------------------------------------------------------
   def Enable( self, flag = True ):
     super( AxialSliderBean, self ).Enable( flag )
-    if self.fSlider != None:
+    if self.fSlider is not None:
       self.fSlider.Enable( flag )
   #end Enable
 
@@ -164,7 +164,7 @@ Attributes/properties:
     """
 """
     #self.axialLevel = lo
-    if self.fSlider != None:
+    if self.fSlider is not None:
       self.fSlider.SetRange( lo, hi )
       self.fSlider.Refresh()
   #end SetRange

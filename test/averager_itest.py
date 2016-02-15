@@ -102,7 +102,7 @@ class AveragerITest( object ):
 
 #		-- Check required arguments
 #		--
-      if args.dataset == None or args.file == None or args.test == None:
+      if args.dataset is None or args.file is None or args.test is None:
 	parser.print_help()
 
       else:
@@ -113,11 +113,11 @@ class AveragerITest( object ):
         data = DataModel( args.file )
 	messages = data.Check()
 	st = data.GetState( args.state_pt )
-	ds_in_nd = st.GetDataSet( args.dataset ) if st != None else None
+	ds_in_nd = st.GetDataSet( args.dataset ) if st is not None else None
 
 	if len( messages ) > 0:
 	  print sys.stderr, '\n'.join( messages )
-	elif ds_in_nd == None:
+	elif ds_in_nd is None:
 	  parser.print_help()
 
 	else:
@@ -125,19 +125,19 @@ class AveragerITest( object ):
 #				--
 	  ds_in = ds_in_nd.value
 	  pin_factors_nd = st.GetDataSet( args.pin_factors )
-	  pin_factors = pin_factors_nd.value if pin_factors_nd != None else None
+	  pin_factors = pin_factors_nd.value if pin_factors_nd is not None else None
 
 	  weights = None
-	  if args.weights_file != None:
+	  if args.weights_file is not None:
 	    fp = file( args.weights_file )
 	    try:
 	      content = fp.read( -1 )
 	      weights = np.array( list( eval( content ) ), np.float64 )
 	    finally:
 	      fp.close()
-	  elif args.weights != None:
+	  elif args.weights is not None:
 	    weights_nd = st.GetDataSet( args.weights )
-	    weights = weights_nd.value if weights_nd != None else None
+	    weights = weights_nd.value if weights_nd is not None else None
 
 #				-- Check test
 #				--

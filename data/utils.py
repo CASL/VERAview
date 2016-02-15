@@ -123,12 +123,12 @@ class DataUtils( object ):
 """
 #		-- Noop if no labels
 #		--
-    if labels != None and len( labels ) > 0:
+    if labels is not None and len( labels ) > 0:
 #			-- Find longest, count labels with exponents
 #			--
       longest = None
       for label in labels:
-        if longest == None or len( label ) > len( longest ):
+        if longest is None or len( label ) > len( longest ):
           longest = label
       #end for
 #			-- Exponent?

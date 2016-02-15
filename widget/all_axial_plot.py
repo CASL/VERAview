@@ -106,7 +106,7 @@ Properties:
   #	METHOD:		__del__()					-
   #----------------------------------------------------------------------
   def __del__( self ):
-    if self.dataSetDialog != None:
+    if self.dataSetDialog is not None:
       self.dataSetDialog.Destroy()
 
     super( AllAxialPlot, self ).__del__()
@@ -169,11 +169,11 @@ Properties:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
 
-        if ds_rec[ 'visible' ] and ds_name != None:
+        if ds_rec[ 'visible' ] and ds_name is not None:
 	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-	  dset_array = dset.value if dset != None else None
-	  if dset_array == None:
+	  dset_array = dset.value if dset is not None else None
+	  if dset_array is None:
 	    pass
 
 	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
@@ -314,7 +314,7 @@ Properties:
 """
     tip_str = ''
     ds_values = self._FindDataSetValues( ev.ydata )
-    if ds_values != None:
+    if ds_values is not None:
       tip_str = 'Axial=%.3g' % ev.ydata
 #      ds_keys = ds_values.keys()
 #      ds_keys.sort()
@@ -362,16 +362,16 @@ calls self.ax.grid() and can be called by subclasses.
 	    bottom_ds_name = self._GetDataSetName( k )
           elif rec[ 'axis' ] == 'top':
 	    top_ds_name = self._GetDataSetName( k )
-          elif bottom_ds_name == None:
+          elif bottom_ds_name is None:
 	    bottom_ds_name = self._GetDataSetName( k )
       #end for
-      if bottom_ds_name == None:
+      if bottom_ds_name is None:
         bottom_ds_name = top_ds_name
 	top_ds_name = None
 
 #			-- Configure axes
 #			--
-      if top_ds_name != None and self.ax2 != None:
+      if top_ds_name is not None and self.ax2 is not None:
         self.ax2.set_xlabel( top_ds_name, fontsize = label_font_size )
         self.ax2.set_xlim( *self.data.GetRange( top_ds_name ) )
 	self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
@@ -432,7 +432,7 @@ calls self.ax.grid() and can be called by subclasses.
 	  axial_values = self.data.core.axialMeshCenters
 	  plot_type = '-'
 
-	if axial_values != None:
+	if axial_values is not None:
 	  if self.dataSetValues[ k ].size == axial_values.size:
 	    cur_values = self.dataSetValues[ k ]
 	  else:
@@ -447,7 +447,7 @@ calls self.ax.grid() and can be called by subclasses.
 	      cur_values * scale, axial_values, plot_mode,
 	      label = legend_label, linewidth = 2
 	      )
-	#end if axial_values != None:
+	#end if axial_values is not None:
 
 	count += 1
       #end for
@@ -455,7 +455,7 @@ calls self.ax.grid() and can be called by subclasses.
 #			-- Create legend
 #			--
       handles, labels = self.ax.get_legend_handles_labels()
-      if self.ax2 != None:
+      if self.ax2 is not None:
         handles2, labels2 = self.ax2.get_legend_handles_labels()
 	handles += handles2
 	labels += labels2
@@ -500,7 +500,7 @@ calls self.ax.grid() and can be called by subclasses.
       ds_name = self._GetDataSetName( k )
 
       if ds_name in self.data.GetDataSetNames( 'detector' ):
-        if self.data.core.detectorMeshCenters != None:
+        if self.data.core.detectorMeshCenters is not None:
 	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
@@ -633,7 +633,7 @@ to be passed to UpdateState().  Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
     self.dataSetDialog = None
-    if self.data != None and self.data.HasData():
+    if self.data is not None and self.data.HasData():
       assy_ndx = self.data.NormalizeAssemblyIndex( self.state.assemblyIndex )
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
       chan_colrow = self.data.NormalizeChannelColRow( self.state.channelColRow )
@@ -670,7 +670,7 @@ to be passed to UpdateState().  Assume self.data is valid.
     super( AllAxialPlot, self )._OnMplMouseRelease( ev )
 
     button = ev.button or 1
-    if button == 1 and self.cursor != None:
+    if button == 1 and self.cursor is not None:
       axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
       self.UpdateState( axial_value = axial_value )
       self.FireStateChange( axial_value = axial_value )
@@ -683,8 +683,8 @@ to be passed to UpdateState().  Assume self.data is valid.
   def _OnSelectDataSets( self, ev ):
     """Must be called from the UI thread.
 """
-    if self.dataSetDialog == None:
-      if self.data == None:
+    if self.dataSetDialog is None:
+      if self.data is None:
         wx.MessageBox( self, 'No data model', 'Select Datasets' ).ShowModal()
       else:
         ds_names = self.data.GetDataSetNames( 'axial' )
@@ -696,10 +696,10 @@ to be passed to UpdateState().  Assume self.data is valid.
 	self.dataSetDialog = DataSetChooserDialog( self, ds_names = ds_names )
     #end if
 
-    if self.dataSetDialog != None:
+    if self.dataSetDialog is not None:
       self.dataSetDialog.ShowModal( self.dataSetSelections )
       selections = self.dataSetDialog.GetResult()
-      if selections != None:
+      if selections is not None:
         self.dataSetSelections = selections
 	self.UpdateState( replot = True )
     #end if
@@ -728,7 +728,7 @@ to be passed to UpdateState().  Assume self.data is valid.
 
 #		-- Must have data
 #		--
-    if self.data != None and self.data.IsValid( state_index = self.stateIndex ):
+    if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
       axial_ds_names = self.data.GetDataSetNames( 'axial' )
 
       for k in self.dataSetSelections:
@@ -737,15 +737,15 @@ to be passed to UpdateState().  Assume self.data is valid.
 
 #				-- Must be visible and an "axial" dataset
 #				--
-        if ds_rec[ 'visible' ] and ds_name != None and \
+        if ds_rec[ 'visible' ] and ds_name is not None and \
 	    ds_name in axial_ds_names:
 	  #ds_display_name = self.data.GetDataSetDisplayName( ds_name )
 	  ds_type = self.data.GetDataSetType( ds_name )
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
 	  dset_array = dset.value \
-	      if dset != None and ds_type != None  else None
+	      if dset is not None and ds_type is not None  else None
 
-	  if dset_array == None:
+	  if dset_array is None:
 	    pass
 
 	  elif ds_type.startswith( 'channel' ):

@@ -143,11 +143,11 @@ Must be called in the UI thread.
     """Called in the UI thread.
 """
     status = result.get()
-    if status != None:
+    if status is not None:
       status[ 'dialog' ].Destroy()
 
       messages = status.get( 'messages' )
-      if messages != None and len( messages ) > 0:
+      if messages is not None and len( messages ) > 0:
         msg = \
 	    'Averages not calculated:' + os.linesep + \
 	    os.linesep.join( messages )
@@ -192,13 +192,13 @@ which to average.
 
     dset = None
     st = data_model.GetState( 0 )
-    if st != None:
+    if st is not None:
       dset = st.GetDataSet( ds_name )
 
-    self.fShape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+    self.fShape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
 
     #extra_names = data_model.GetDataSetNames( 'extra' )
-    #self.fExtraNames = [] if extra_names == None else extra_names
+    #self.fExtraNames = [] if extra_names is None else extra_names
 
     self.fAvgNameField = None
     self.fAxisCheckBoxes = []

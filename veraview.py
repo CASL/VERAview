@@ -205,7 +205,7 @@ unnecessary.
 """
     print >> sys.stderr, '[VeraViewApp.OnEventLoopEnter]'
 
-    if self.frame == None:
+    if self.frame is None:
       print >> sys.stderr, '[VeraViewApp] no frame to show'
       self.ExitMainLoop()
 
@@ -214,7 +214,7 @@ unnecessary.
       self.firstLoop = False
       self.frame.GetStatusBar().SetStatusText( '' )
 
-      if self.filepath != None and os.path.exists( self.filepath ):
+      if self.filepath is not None and os.path.exists( self.filepath ):
         self.frame.OpenFile( self.filepath )
       else:
         self.frame._OnOpenFile( None )
@@ -285,28 +285,28 @@ unnecessary.
 
       args = parser.parse_args()
 
-      if args.axial == None:
-        if args.state == None:
+      if args.axial is None:
+        if args.state is None:
 	  args.state = 0
 
       Config.SetRootDir( os.path.dirname( os.path.abspath( __file__ ) ) )
-#      if args.dataset != None:
+#      if args.dataset is not None:
 #        Config.SetDefaultDataSet( args.dataset )
 
       data_model = None
-#1      if args.file_path != None:
+#1      if args.file_path is not None:
 #1        data_model = DataModel( args.file_path )
 
 #			-- Create State
 #			--
 #1      state = State( data_model = data_model, scale = args.scale )
       state = State( scale = args.scale )
-      if args.assembly != None and args.assembly > 0:
+      if args.assembly is not None and args.assembly > 0:
         state.assemblyIndex = ( args.assembly - 1, 0, 0 )
-      if args.axial != None and args.axial > 0:
+      if args.axial is not None and args.axial > 0:
         state.axialValue = ( 0.0, args.axial - 1, -1 )
 #        state.axialLevel = args.axial - 1
-      elif args.state != None and args.state > 0:
+      elif args.state is not None and args.state > 0:
         state.stateIndex = args.state - 1
 
 #			-- Create App
@@ -314,7 +314,7 @@ unnecessary.
       #app = VeraViewApp( redirect = False )  # redirect = False
       app = VeraViewApp()
 #      app.dataSetDefault = \
-#          args.dataset if args.dataset != None else 'pin_powers'
+#          args.dataset if args.dataset is not None else 'pin_powers'
       app.filepath = args.file_path
       app.state = state
 
@@ -449,7 +449,7 @@ class VeraViewFrame( wx.Frame ):
     """Convenience accessor for the state.dataModel property.
 @return			DataModel object
 """
-    #return  None if self.state == None else self.state.GetDataModel()
+    #return  None if self.state is None else self.state.GetDataModel()
     return  State.FindDataModel( self.state )
   #end GetDataModel
 
@@ -700,7 +700,7 @@ Must be called from the UI thread.
       self.timeDataSetMenu.AppendItem( item )
     #end for
 
-    if check_item != None:
+    if check_item is not None:
       check_item.Check()
 
 #		-- Determine Initial Widgets
@@ -759,14 +759,14 @@ Must be called from the UI thread.
         axial_plot_widget = con.widget
     #end for
 
-    if axial_plot_widget != None:
+    if axial_plot_widget is not None:
       axial_plot_widget.InitDataSetSelections( axial_plot_types )
     #end if
 
 #		-- Update title
 #		--
     title = TITLE
-    if file_path != None:
+    if file_path is not None:
       title += (': %s' % os.path.basename( file_path ))
     self.SetTitle( title )
 
@@ -788,14 +788,14 @@ Must be called from the UI thread.
     ti_count = 1
     for ti in TOOLBAR_ITEMS:
       item = self.widgetToolBar.FindById( ti_count )
-      if item != None:
+      if item is not None:
         ds_names = data.GetDataSetNames()
         ds_type = ti[ 'type' ]
 	tip = ti[ 'widget' ]
 
         enabled = \
-	    ( ds_type == None or ds_type == '' ) or \
-            ( ds_type in ds_names and ds_names[ ds_type ] != None and \
+	    ( ds_type is None or ds_type == '' ) or \
+            ( ds_type in ds_names and ds_names[ ds_type ] is not None and \
 	      len( ds_names[ ds_type ] ) > 0 )
 	if enabled and 'func' in ti:
 	  enabled = ti[ 'func' ]( data )
@@ -915,13 +915,13 @@ Must be called from the UI thread.
     msg = None
     data_model = self.GetDataModel()
 
-    if data_model == None:
+    if data_model is None:
       msg = 'No VERAOutput file has been read'
 
     elif len( data_model.GetStates() ) == 0:
       msg = 'No state points read from VERAOutput file'
 
-    if msg != None:
+    if msg is not None:
       wx.MessageDialog( self, msg, 'Manage Extra DataSets' ).ShowWindowModal()
 
     else:
@@ -945,7 +945,7 @@ Must be called from the UI thread.
     dialog = GridSizerDialog( None )
     dialog.ShowModal( cur_size )
     new_size = dialog.GetResult()
-    if new_size != None and new_size != cur_size:
+    if new_size is not None and new_size != cur_size:
       proceed = True
       cell_count = new_size[ 0 ] * new_size[ 1 ]
       widget_count = len( self.grid.GetChildren() )
@@ -997,7 +997,7 @@ Must be called from the UI thread.
     title = None
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item != None and item.GetLabel() in WIDGET_MAP:
+    if item is not None and item.GetLabel() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetLabel() ] )
       self._Refit()
 
@@ -1008,7 +1008,7 @@ Must be called from the UI thread.
 #	break
 #    #end for
 
-#    if title != None and title in WIDGET_MAP:
+#    if title is not None and title in WIDGET_MAP:
 #      self.CreateWidget( WIDGET_MAP[ title ] )
   #end _OnNew
 
@@ -1020,7 +1020,7 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-    if ev != None:
+    if ev is not None:
       ev.Skip()
 
     dialog = wx.FileDialog(
@@ -1077,7 +1077,7 @@ Must be called on the UI event thread.
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
 
-    if item != None:
+    if item is not None:
       title = item.GetLabel()
       reason = self.state.Change( self.eventLocks, time_dataset = title )
       self.state.FireStateChange( reason )
@@ -1093,7 +1093,7 @@ Must be called on the UI event thread.
     #ev.Skip( False )
 
     def check_and_show_volume_slicer( loaded, errors ):
-      if errors != None and len( errors ) > 0:
+      if errors is not None and len( errors ) > 0:
         msg = \
 	    'Error loading 3D envrionment:' + os.linesep + \
 	    os.linesep.join( errors )
@@ -1106,7 +1106,7 @@ Must be called on the UI event thread.
         self._OnView3DImpl()
     #end check_and_show
 
-    if State.FindDataModel( self.state ) == None:
+    if State.FindDataModel( self.state ) is None:
       wx.MessageBox(
           'A VERAOutput file must be opened',
 	  'View 3D Volume Slicer',
@@ -1133,14 +1133,14 @@ Must be called on the UI event thread.
     except ImportError:
       error = 'Error importing "%s"' % object_classpath
 
-    if error == None:
+    if error is None:
       try:
         cls = getattr( module, class_name )
       except AttributeError:
         error = 'Class "%s" not found in module "%s"' % \
 	    ( module_path, class_name )
 
-    if error != None:
+    if error is not None:
       wx.MessageBox(
 	  error, 'View 3D Volume Slicer',
 	  wx.ICON_ERROR | wx.OK_DEFAULT
@@ -1162,7 +1162,7 @@ Must be called on the UI event thread.
 
     tbar = ev.GetEventObject()
     item = tbar.FindById( ev.GetId() )
-    if item != None and item.GetShortHelp() in WIDGET_MAP:
+    if item is not None and item.GetShortHelp() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetShortHelp() ] )
       self._Refit()
   #end _OnWidgetTool
@@ -1176,7 +1176,7 @@ Must be called on the UI event thread.
 #    menu = ev.GetEventObject()
 #    item = menu.FindItemById( ev.GetId() )
 #
-#    if item != None:
+#    if item is not None:
 #      title = item.GetLabel()
 #      for child in self.GetChildren():
 #        if isinstance( child, WidgetContainer ) and child.GetTitle() == title:
@@ -1242,7 +1242,7 @@ Must be called from the UI thread.
     """
 """
     status = result.get()
-    if status != None:
+    if status is not None:
       if 'dialog' in status:
 	dlg = status[ 'dialog' ]
 	#dlg.Lower()
@@ -1277,7 +1277,7 @@ Must be called from the UI thread.
       data_model = DataModel( file_path )
 
       messages = data_model.Check()
-      if messages != None and len( messages ) > 0:
+      if messages is not None and len( messages ) > 0:
 	msg = 'Data file cannot be processed:' + '\n  '.join( messages )
 	wx.CallAfter( self.ShowMessageDialog, msg, 'Open File' )
 
@@ -1342,7 +1342,7 @@ Must be called on the UI event thread.
       self.ShowMessageDialog( 'No widgets to save', 'Save Image' )
 
     else:
-      if file_path == None:
+      if file_path is None:
         dialog = wx.FileDialog(
 	    self, 'Save Widgets Image', '', '',
 	    'PNG files (*.png)|*.png',
@@ -1352,7 +1352,7 @@ Must be called on the UI event thread.
 	  file_path = dialog.GetPath()
       #end if
 
-      if file_path != None:
+      if file_path is not None:
         try:
 	  widgets = []
 	  for wc in self.grid.GetChildren():

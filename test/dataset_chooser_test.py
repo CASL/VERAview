@@ -74,7 +74,7 @@ class DataSetChooserDialogTestApp( wx.App ):
           )
       args = parser.parse_args()
 
-      if args.file == None:
+      if args.file is None:
         ds_names = [ 'detector_response', 'pin_powers', 'pin_volumes' ]
 	value_in = None
       else:
@@ -183,7 +183,7 @@ class DataSetChooserDialogTestFrame( wx.Frame ):
     dialog = DataSetChooserDialog( self, ds_names = self.dsNames )
     dialog.ShowModal( self.value )
     new_value = dialog.GetResult()
-    if new_value != None:
+    if new_value is not None:
       self.value = new_value
       print json.dumps( new_value )
 

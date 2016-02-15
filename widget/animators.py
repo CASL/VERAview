@@ -47,15 +47,15 @@ class AnimatorThreads( object ):
 #		-- Assert
 #		--
     self.widget = widget_in
-    if widget_in == None:
+    if widget_in is None:
       raise  Exception( 'widget cannot be None' )
 
     self.state = widget_in.GetState()
-    if self.state == None:
+    if self.state is None:
       raise  Exception( 'widget state is missing' )
 
     self.data = State.FindDataModel( self.state )
-    if self.data == None:
+    if self.data is None:
       raise  Exception( 'widget data model is missing' )
 
 #    self.data = kwargs.get( 'data_model', None )
@@ -63,7 +63,7 @@ class AnimatorThreads( object ):
 #    self.widget = kwargs.get( 'widget', None )
 
     self.callback = kwargs.get( 'callback', None )
-    if self.callback != None and not hasattr( self.callback, '__call__' ):
+    if self.callback is not None and not hasattr( self.callback, '__call__' ):
       self.callback = None
 
     self.nextStep = 0
@@ -130,7 +130,7 @@ Must not be called on the UI thread.
 
       count = 0
       while self._DoNextStep():
-	if self.callback != None:
+	if self.callback is not None:
 	  self.callback( count + 1, self.totalSteps + 1 )
 
         fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
@@ -141,22 +141,22 @@ Must not be called on the UI thread.
 	count += 1
       #end while stepping
 
-      if self.callback != None:
+      if self.callback is not None:
         self.callback( count, self.totalSteps + 1 )
 
       self.CreateAnimatedImage( file_path, temp_dir )
 
-      if self.callback != None:
+      if self.callback is not None:
         self.callback( -1, self.totalSteps + 1 )
 
     except Exception, ex :
       msg = 'Error creating image:' + os.linesep + str( ex )
-      if self.callback != None:
+      if self.callback is not None:
         self.callback( -2, 0, msg )
 
     finally:
       #self.widget.Thaw()
-      if temp_dir != None:
+      if temp_dir is not None:
         shutil.rmtree( temp_dir )
     #end if we have a destination file path
   #end _Run
@@ -206,15 +206,15 @@ class Animator( object ):
 #		-- Assert
 #		--
     self.widget = widget_in
-    if widget_in == None:
+    if widget_in is None:
       raise  Exception( 'widget cannot be None' )
 
     self.state = widget_in.GetState()
-    if self.state == None:
+    if self.state is None:
       raise  Exception( 'widget state is missing' )
 
     self.data = State.FindDataModel( self.state )
-    if self.data == None:
+    if self.data is None:
       raise  Exception( 'widget data model is missing' )
 
 #    self.data = kwargs.get( 'data_model', None )
@@ -222,7 +222,7 @@ class Animator( object ):
 #    self.widget = kwargs.get( 'widget', None )
 
     self.callback = kwargs.get( 'callback', None )
-    if self.callback != None and not hasattr( self.callback, '__call__' ):
+    if self.callback is not None and not hasattr( self.callback, '__call__' ):
       self.callback = None
 
     self.nextStep = 0
@@ -347,11 +347,11 @@ Creates a separate thread with the _Run() method as target.
     """
 """
     status = result.get()
-    if status != None:
+    if status is not None:
       status[ 'dialog' ].Destroy()
 
       messages = status.get( 'messages' )
-      if messages != None and len( messages ) > 0:
+      if messages is not None and len( messages ) > 0:
         msg = \
 	    'Animated GIF not created:\n' + \
             '\n '.join( messages )

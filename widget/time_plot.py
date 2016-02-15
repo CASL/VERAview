@@ -95,8 +95,8 @@ Properties:
 """
     csv_text = None
 
-    if self.data != None and self.data.HasData() and \
-	self.state.timeDataSet != None and self.scalarDataSet != None and \
+    if self.data is not None and self.data.HasData() and \
+	self.state.timeDataSet is not None and self.scalarDataSet is not None and \
 	len( self.refAxisValues ) > 0 and len( self.scalarValues ) > 0:
 
       csv_text = '%s,%s\n' % ( self.state.timeDataSet, self.scalarDataSet )
@@ -223,7 +223,7 @@ calls self.ax.grid() and can be called by subclasses.
 to be passed to UpdateState().  Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
-    if self.data != None and self.data.HasData():
+    if self.data is not None and self.data.HasData():
       update_args = \
         {
 	'scalar_dataset': self.scalarDataSet,
@@ -246,7 +246,7 @@ to be passed to UpdateState().  Assume self.data is valid.
     super( TimePlot, self )._OnMplMouseRelease( ev )
 
     button = ev.button or 1
-    if button == 1 and self.cursor != None:
+    if button == 1 and self.cursor is not None:
       state_ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
       if state_ndx >= 0:
         self.UpdateState( state_index = state_ndx )
@@ -275,7 +275,7 @@ This noop version must be overridden by subclasses.
     del self.refAxisValues[ : ]
     del self.scalarValues[ : ]
 
-    if self.data != None and self.data.HasData():
+    if self.data is not None and self.data.HasData():
       for st in self.data.states:
         time_value = \
 	    self.data.GetScalarValue( st.group[ self.state.timeDataSet ] ) \

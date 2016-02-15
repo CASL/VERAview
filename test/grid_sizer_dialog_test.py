@@ -185,7 +185,7 @@ class GridSizerDialogTestFrame( wx.Frame ):
 #      self.statusBar.SetStatusText( str( self.value ) )
     dialog.ShowModal( self.value )
     new_value = dialog.GetResult()
-    if new_value != None:
+    if new_value is not None:
       self.value = new_value
       self.statusBar.SetStatusText( str( self.value ) )
 

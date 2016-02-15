@@ -100,7 +100,7 @@ Static properties (use accessors):
     if not Environment3D.loaded_:
       loader = Environment3DLoader()
       loader.Run( callback )
-    elif callback != None:
+    elif callback is not None:
       callback( True, None )
   #end LoadAndCall
 
@@ -225,13 +225,13 @@ Must be called in the UI thread.
     status = result.get()
     #pdb.set_trace()
 
-    if status != None:
+    if status is not None:
       dialog = status.get( 'dialog' )
-      if dialog != None:
+      if dialog is not None:
         dialog.Destroy()
 
 #      messages = status.get( 'messages' )
-#      if messages != None and len( messages ) > 0:
+#      if messages is not None and len( messages ) > 0:
 #        msg = \
 #	    'Mayavi 3D environment could not be loaded:' + os.linesep + \
 #	    os.linesep.join( messages )
@@ -241,7 +241,7 @@ Must be called in the UI thread.
 #	    )
 
       callback = status.get( 'callback' )
-      if callback != None:
+      if callback is not None:
         #callback( Environment3D.IsLoaded(), status.get( 'errors' ) )
         wx.CallAfter(
 	    callback, Environment3D.IsLoaded(), status.get( 'errors' )
@@ -259,9 +259,9 @@ Must be called in the UI thread.
     status = result.get()
     pdb.set_trace()
 
-    if status != None:
+    if status is not None:
       dialog = status.get( 'dialog' )
-      if dialog != None:
+      if dialog is not None:
 	dialog.Update( 9, 'Finished!' )
     #end if status
   #end _RunEnd1

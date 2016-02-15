@@ -118,7 +118,7 @@ Attrs/properties:
     if is_valid:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
 
-    if dset != None:
+    if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
@@ -275,7 +275,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	axial_level = axial_level,
 	state_index = state_ndx
 	)
-    if self.config != None and tuple_valid:
+    if self.config is not None and tuple_valid:
       assy_region = self.config[ 'assemblyRegion' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
       font_size = self.config[ 'fontSize' ]
@@ -289,9 +289,9 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
-      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
-      #ds_value = dset.value if dset != None else None
-      if dset == None:
+      #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
+      #ds_value = dset.value if dset is not None else None
+      if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
       else:
@@ -307,7 +307,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Must be valid assy ndx
 #			--
-    if dset_array != None and assy_ndx < dset_shape[ 3 ]:
+    if dset_array is not None and assy_ndx < dset_shape[ 3 ]:
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
 #			-- Create image
@@ -346,7 +346,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-#	  if ds_value != None:
+#	  if ds_value is not None:
 #	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
 #	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
 	  if pin_row < dset_shape[ 0 ] and pin_col < dset_shape[ 1 ]:
@@ -368,7 +368,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        fill = brush_color, outline = pen_color
 	        )
 
-	    if value_font != None:
+	    if value_font is not None:
 #	      value_precision = 2 if value < 0.0 else 3
 #	      value_str = DataUtils.FormatFloat2( value, value_precision )
 #	      e_ndx = value_str.lower().find( 'e' )
@@ -399,7 +399,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			-- Draw Legend Image
 #			--
 #      im.paste( legend_pil_im, ( assy_region[ 2 ] + font_size, 0 ) )
-      if legend_pil_im != None:
+      if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
 	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
@@ -434,7 +434,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     #end if self.config exists
 
     #return  im
-    return  im if im != None else self.emptyPilImage
+    return  im if im is not None else self.emptyPilImage
   #end _CreateRasterImage
 
 
@@ -472,7 +472,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #	  self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
 #	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
       value = 0.0
       if cell_info[ 2 ] < dset_shape[ 0 ] and cell_info[ 1 ] < dset_shape[ 1 ]:
         value = dset[
@@ -506,7 +506,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 """
     pin_addr = self.FindPin( ev_x, ev_y )
     return \
-        None if pin_addr == None else \
+        None if pin_addr is None else \
 	( -1, pin_addr[ 0 ], pin_addr[ 1 ] )
   #end FindCell
 
@@ -523,7 +523,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 """
     result = None
 
-    if self.config != None and self.data != None:
+    if self.config is not None and self.data is not None:
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
@@ -601,7 +601,7 @@ Subclasses should override as needed.
 			( left, top, right, bottom, dx, dy )
 """
     result = None
-    if self.data != None:
+    if self.data is not None:
       result = [
           0, 0,
 	  self.data.core.npin, self.data.core.npin,
@@ -625,7 +625,7 @@ Subclasses should override as needed.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    if self.config != None:
+    if self.config is not None:
       rel_col = self.pinColRow[ 0 ] - self.cellRange[ 0 ]
       rel_row = self.pinColRow[ 1 ] - self.cellRange[ 1 ]
 
@@ -668,7 +668,7 @@ Subclasses should override as needed.
 
 	result = new_bmap
       #end if within range
-    #end if self.config != None:
+    #end if self.config is not None:
 
     return  result
   #end _HiliteBitmap
@@ -683,7 +683,7 @@ Subclasses should override as needed.
 @return			True if it matches the current state, false otherwise
 """
     result = \
-        tpl != None and len( tpl ) >= 3 and \
+        tpl is not None and len( tpl ) >= 3 and \
 	tpl[ 0 ] == self.stateIndex and \
 	tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
 	tpl[ 2 ] == self.axialValue[ 1 ]
@@ -718,7 +718,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 #		--
     valid = False
     pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr != None and pin_addr != self.pinColRow:
+    if pin_addr is not None and pin_addr != self.pinColRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
@@ -733,7 +733,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 #          self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
 #	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
+      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
       value = 0.0
       if pin_addr[ 1 ] < dset_shape[ 0 ] and pin_addr[ 0 ] < dset_shape[ 1 ]:
         value = dset[

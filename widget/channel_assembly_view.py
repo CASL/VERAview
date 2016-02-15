@@ -94,7 +94,7 @@ Attrs/properties:
     if is_valid:
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
 
-    if dset != None:
+    if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
@@ -267,7 +267,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     """Lazily creates.  Must be called from the UI thread.
 """
     super( ChannelAssembly2DView, self ).CreatePopupMenu()
-    if self.GetPopupMenu() != None:
+    if self.GetPopupMenu() is not None:
       self._UpdateVisibilityMenuItems(
           self.GetPopupMenu(),
 	  'Pins', self.showPins
@@ -286,7 +286,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 Must be called from the UI thread.
 """
     popup_menu = super( ChannelAssembly2DView, self )._CreatePopupMenu()
-    if popup_menu != None:
+    if popup_menu is not None:
       self._UpdateVisibilityMenuItems( popup_menu, 'Pins', self.showPins )
 
     return  popup_menu
@@ -313,7 +313,7 @@ Must be called from the UI thread.
 	axial_level = axial_level,
 	state_index = state_ndx
 	)
-    if self.config != None and tuple_valid:
+    if self.config is not None and tuple_valid:
       assy_region = self.config[ 'assemblyRegion' ]
       chan_gap = self.config[ 'channelGap' ]
       chan_wd = self.config[ 'channelWidth' ]
@@ -325,8 +325,8 @@ Must be called from the UI thread.
       value_font = self.config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
-      #ds_value = dset.value if dset != None else None
-      if dset == None:
+      #ds_value = dset.value if dset is not None else None
+      if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
       else:
@@ -381,7 +381,7 @@ Must be called from the UI thread.
 	  #end if writing column label
 
 	  #value = 0.0
-	  #if ds_value != None:
+	  #if ds_value is not None:
 	  if chan_row < dset_shape[ 0 ] and chan_col < dset_shape[ 1 ]:
 	    value = dset_array[ chan_row, chan_col, axial_level, assy_ndx ]
 	  else:
@@ -400,7 +400,7 @@ Must be called from the UI thread.
 	        fill = brush_color, outline = pen_color
 	        )
 
-	    if value_font != None:
+	    if value_font is not None:
 #	      value_precision = 2 if value < 0.0 else 3
 #	      value_str = DataUtils.FormatFloat2( value, value_precision )
 #	      e_ndx = value_str.lower().find( 'e' )
@@ -454,7 +454,7 @@ Must be called from the UI thread.
 #			-- Draw Legend Image
 #			--
 #      im.paste( legend_pil_im, ( assy_region[ 2 ] + font_size, 0 ) )
-      if legend_pil_im != None:
+      if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
 	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
@@ -489,7 +489,7 @@ Must be called from the UI thread.
     #end if self.config exists
 
     #return  im
-    return  im if im != None else self.emptyPilImage
+    return  im if im is not None else self.emptyPilImage
   #end _CreateRasterImage
 
 
@@ -524,7 +524,7 @@ Must be called from the UI thread.
       value = 0.0
       #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
-      if dset != None:
+      if dset is not None:
         value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
@@ -553,7 +553,7 @@ drag processing.
 """
     chan_addr = self.FindChannel( ev_x, ev_y )
     return \
-        None if chan_addr == None else \
+        None if chan_addr is None else \
 	( -1, chan_addr[ 0 ], chan_addr[ 1 ] )
   #end FindCell
 
@@ -570,7 +570,7 @@ drag processing.
 """
     result = None
 
-    if self.config != None and self.data != None:
+    if self.config is not None and self.data is not None:
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         chan_size = self.config[ 'channelWidth' ] + self.config[ 'channelGap' ]
@@ -637,7 +637,7 @@ Subclasses should override as needed.
 			( left, top, right, bottom, dx, dy )
 """
     result = None
-    if self.data != None:
+    if self.data is not None:
       result = [
           0, 0,
 	  self.data.core.npin + 1, self.data.core.npin + 1,
@@ -673,7 +673,7 @@ Subclasses should override as needed.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    if self.config != None:
+    if self.config is not None:
       rel_col = self.channelColRow[ 0 ] - self.cellRange[ 0 ]
       rel_row = self.channelColRow[ 1 ] - self.cellRange[ 1 ]
 
@@ -716,7 +716,7 @@ Subclasses should override as needed.
 
 	result = new_bmap
       #end if within range
-    #end if self.config != None:
+    #end if self.config is not None:
 
     return  result
   #end _HiliteBitmap
@@ -731,7 +731,7 @@ Subclasses should override as needed.
 @return			True if it matches the current state, false otherwise
 """
     result = \
-        tpl != None and len( tpl ) >= 3 and \
+        tpl is not None and len( tpl ) >= 3 and \
 	tpl[ 0 ] == self.stateIndex and \
 	tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
 	tpl[ 2 ] == self.axialValue[ 1 ]
@@ -766,7 +766,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 #		--
     valid = False
     chan_addr = self.FindChannel( *ev.GetPosition() )
-    if chan_addr != None and chan_addr != self.channelColRow:
+    if chan_addr is not None and chan_addr != self.channelColRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
@@ -777,7 +777,7 @@ attributes/properties that aren't already set in _LoadDataModel():
     if valid:
       #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
-      if dset != None:
+      if dset is not None:
         value = dset[
 	    chan_addr[ 1 ], chan_addr[ 0 ],
 	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
@@ -815,7 +815,7 @@ attributes/properties that aren't already set in _LoadDataModel():
         self.GetPopupMenu() \
 	if menu == self.container.GetWidgetMenu() else \
 	self.container.GetWidgetMenu()
-    if other_menu != None:
+    if other_menu is not None:
       self._UpdateVisibilityMenuItems(
           other_menu,
 	  'Pins', self.showPins

@@ -88,11 +88,11 @@ Attrs/properties:
     dset = None
     is_valid = DataModel.IsValidObj( self.data, state_index = self.stateIndex )
     if is_valid and \
-        self.data.core.detectorMeshCenters != None and \
+        self.data.core.detectorMeshCenters is not None and \
 	len( self.data.core.detectorMeshCenters ) > 0:
       dset = self.data.GetStateDataSet( self.stateIndex, self.detectorDataSet )
 
-    if dset != None:
+    if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
 
@@ -228,8 +228,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     im = None
 
     tuple_valid = DataModel.IsValidObj( self.data, state_index = state_ndx )
-    if self.config != None and tuple_valid and \
-	self.data.core.detectorMeshCenters != None and \
+    if self.config is not None and tuple_valid and \
+	self.data.core.detectorMeshCenters is not None and \
 	len( self.data.core.detectorMeshCenters ) > 0:
       im_wd, im_ht = self.config[ 'clientSize' ]
       core_region = self.config[ 'coreRegion' ]
@@ -242,8 +242,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       #value_font = self.config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.detectorDataSet )
-      #dset_shape = dset.shape if dset != None else ( 0, 0, 0, 0 )
-      ds_value = dset.value if dset != None else None
+      #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
+      ds_value = dset.value if dset is not None else None
       ds_range = self.data.GetRange( self.detectorDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -312,10 +312,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 #					--   and self.data
 	  det_ndx = detmap_row[ det_col ] - 1
 	  values = None
-	  if det_ndx >= 0 and ds_value != None:
+	  if det_ndx >= 0 and ds_value is not None:
 	    values = ds_value[ :, det_ndx ]
 
-	  if values != None and len( values ) == len( self.data.core.detectorMeshCenters ):
+	  if values is not None and len( values ) == len( self.data.core.detectorMeshCenters ):
 #						-- Draw rectangle
 #						--
 #	    brush_color = Widget.GetColorTuple(
@@ -331,7 +331,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        )
 
 	    brush_color = op_color
-	    if ds_operable != None and len( ds_operable ) > det_ndx and \
+	    if ds_operable is not None and len( ds_operable ) > det_ndx and \
 	        ds_operable[ det_ndx ] != 0:
 	      brush_color = noop_color
 
@@ -374,7 +374,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      cur_x = det_x + 1 + dx
 	      cur_y = det_y + 1 + dy
 
-	      if last_x != None:
+	      if last_x is not None:
 	        im_draw.line(
 		    [ last_x, last_y, cur_x, cur_y ],
 		    fill = line_color
@@ -398,7 +398,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			-- Draw Legend Image
 #			--
 #      im.paste( legend_pil_im, ( core_region[ 2 ] + font_size, 0 ) )
-      if legend_pil_im != None:
+      if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
 	    ( core_region[ 2 ] + 2 + font_size, core_region[ 1 ] )
@@ -432,7 +432,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     #end if self.config exists
 
     #return  im
-    return  im if im != None else self.emptyPilImage
+    return  im if im is not None else self.emptyPilImage
   #end _CreateRasterImage
 
 
@@ -500,7 +500,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     result = None
 
-    if self.config != None and self.data != None:
+    if self.config is not None and self.data is not None:
       if ev_x >= 0 and ev_y >= 0:
         det_size = self.config[ 'detectorWidth' ] + self.config[ 'detectorGap' ]
 	core_region = self.config[ 'coreRegion' ]
@@ -584,7 +584,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    if self.config != None:
+    if self.config is not None:
       rel_col = self.detectorIndex[ 1 ] - self.cellRange[ 0 ]
       rel_row = self.detectorIndex[ 2 ] - self.cellRange[ 1 ]
 
@@ -627,7 +627,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 	result = new_bmap
       #end if within range
-    #end if self.config != None:
+    #end if self.config is not None:
 
     return  result
   #end _HiliteBitmap
@@ -642,7 +642,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			True if it matches the current state, false otherwise
 """
     return  \
-        tpl != None and len( tpl ) >= 1 and \
+        tpl is not None and len( tpl ) >= 1 and \
 	tpl[ 0 ] == self.stateIndex
   #end IsTupleCurrent
 
@@ -670,7 +670,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #		--
     valid = False
     det = self.FindDetector( *ev.GetPosition() )
-    if det != None and det[ 0 ] >= 0 and det != self.detectorIndex:
+    if det is not None and det[ 0 ] >= 0 and det != self.detectorIndex:
       valid = self.data.IsValid(
 	  detector_index = det[ 0 ],
 	  state_index = self.stateIndex

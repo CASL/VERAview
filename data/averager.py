@@ -55,8 +55,8 @@ averages over 4D VERAOutput datasets.
 @return			numpy.ndarray with shape ( nax )
 """
     wts = \
-        pin_factors * weights if pin_factors != None and weights != None else \
-	pin_factors if pin_factors != None else \
+        pin_factors * weights if pin_factors is not None and weights is not None else \
+	pin_factors if pin_factors is not None else \
 	weights
 
     avg = np.ndarray( ( core.nax, ), np.float64 )
@@ -64,7 +64,7 @@ averages over 4D VERAOutput datasets.
 
     for k in range( core.nax ):
       avg[ k ] = \
-          np.average( data_in[ :, :, k, : ] )  if wts == None else \
+          np.average( data_in[ :, :, k, : ] )  if wts is None else \
           0.0  if np.sum( wts[ :, :, k, : ] ) == 0.0 else \
           np.average( data_in[ :, :, k, : ], weights = wts[ :, :, k, : ] )
     #end for axial levels
@@ -95,8 +95,8 @@ averages over 4D VERAOutput datasets.
       for i in range( core.nass ):
         for x in range( core.npin ):
           for y in range( core.npin ):
-	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
-	    if weights != None:
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors is not None else 1.0
+	    if weights is not None:
 	      local_wt *= weights[ y, x, k, i ]
 
 	    avg[ k ] += data_in[ y, x, k, i ] * local_wt
@@ -129,8 +129,8 @@ averages over 4D VERAOutput datasets.
 @return			numpy.ndarray with shape ( nass )
 """
     wts = \
-        pin_factors * weights if pin_factors != None and weights != None else \
-	pin_factors if pin_factors != None else \
+        pin_factors * weights if pin_factors is not None and weights is not None else \
+	pin_factors if pin_factors is not None else \
 	weights
 
     avg = np.ndarray( ( core.nass, ), np.float64 )
@@ -138,7 +138,7 @@ averages over 4D VERAOutput datasets.
 
     for i in range( core.nass ):
       avg[ i ] = \
-          np.average( data_in[ :, :, :, i ] )  if wts == None else \
+          np.average( data_in[ :, :, :, i ] )  if wts is None else \
           0.0  if np.sum( wts[ :, :, :, i ] ) == 0.0 else \
           np.average( data_in[ :, :, :, i ], weights = wts[ :, :, :, i ] )
     #end for assemblies
@@ -169,8 +169,8 @@ averages over 4D VERAOutput datasets.
       for x in range( core.npin ):
         for y in range( core.npin ):
           for k in range( core.nax ):
-	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
-	    if weights != None:
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors is not None else 1.0
+	    if weights is not None:
 	      local_wt *= weights[ y, x, k, i ]
 
 	    avg[ i ] += data_in[ y, x, k, i ] * local_wt
@@ -203,8 +203,8 @@ averages over 4D VERAOutput datasets.
 @return			numpy.ndarray with shape ( npiny, npinx, nass )
 """
     wts = \
-        pin_factors * weights if pin_factors != None and weights != None else \
-	pin_factors if pin_factors != None else \
+        pin_factors * weights if pin_factors is not None and weights is not None else \
+	pin_factors if pin_factors is not None else \
 	weights
 
     avg = np.ndarray( ( core.npiny, core.npinx, core.nass ), np.float64 )
@@ -214,7 +214,7 @@ averages over 4D VERAOutput datasets.
       for x in range( core.npin ):
         for y in range( core.npin ):
           avg[ y, x, i ] = \
-	      np.average( data_in[ y, x, :, i ] )  if wts == None else \
+	      np.average( data_in[ y, x, :, i ] )  if wts is None else \
 	      0.0  if np.sum( wts[ y, x, :, i ] ) == 0.0 else \
 	      np.average( data_in[ y, x, :, i ], weights = wts[ y, x, :, i ] )
         #end for rows
@@ -247,8 +247,8 @@ averages over 4D VERAOutput datasets.
           sum_weights = 0.0
 
           for k in range( core.nax ):
-	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
-	    if weights != None:
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors is not None else 1.0
+	    if weights is not None:
 	      local_wt *= weights[ y, x, k, i ]
 
 	    avg[ y, x, i ] += data_in[ y, x, k, i ] * local_wt
@@ -280,8 +280,8 @@ averages over 4D VERAOutput datasets.
 @return			numpy.ndarray with shape ( nax, nass )
 """
     wts = \
-        pin_factors * weights if pin_factors != None and weights != None else \
-	pin_factors if pin_factors != None else \
+        pin_factors * weights if pin_factors is not None and weights is not None else \
+	pin_factors if pin_factors is not None else \
 	weights
 
     avg = np.ndarray( ( core.nax, core.nass ), np.float64 )
@@ -290,7 +290,7 @@ averages over 4D VERAOutput datasets.
     for i in range( core.nass ):
       for k in range( core.nax ):
         avg[ k, i ] = \
-	    np.average( data_in[ :, :, k, i ] )  if wts == None else \
+	    np.average( data_in[ :, :, k, i ] )  if wts is None else \
 	    0.0  if np.sum( wts[ :, :, k, i ] ) == 0.0 else \
 	    np.average( data_in[ :, :, k, i ], weights = wts[ :, :, k, i ] )
       #end for axial levels
@@ -321,8 +321,8 @@ averages over 4D VERAOutput datasets.
 
 	for x in range( core.npin ):
 	  for y in range( core.npin ):
-	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
-	    if weights != None:
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors is not None else 1.0
+	    if weights is not None:
 	      local_wt *= weights[ y, x, k, i ]
 
 	    avg[ k, i ] += data_in[ y, x, k, i ] * local_wt
@@ -371,17 +371,17 @@ data_in.
     if np.count_nonzero( avg_shape ) != len( avg_shape ):
       raise Exception( 'Average shape cannot have zeros' )
 
-    if factors != None and factors.shape != data_in.shape:
+    if factors is not None and factors.shape != data_in.shape:
       raise Exception( 'Factors must have same shape as data' )
 
-    if weights != None and weights.shape != data_in.shape:
+    if weights is not None and weights.shape != data_in.shape:
       raise Exception( 'Weights must have same shape as data' )
 
 #	-- Resolve factors and weights
 #	--
     wts = \
-        factors * weights if factors != None and weights != None else \
-	factors if factors != None else \
+        factors * weights if factors is not None and weights is not None else \
+	factors if factors is not None else \
 	weights
 
     avg = np.ndarray( avg_shape, np.float64 )
@@ -417,7 +417,7 @@ data_in.
     avg_expr = data_expr.replace( ':', '0' )
 
     s = """%savg%s = \\
-    np.average( data_in%s )  if wts == None else \\
+    np.average( data_in%s )  if wts is None else \\
     0.0  if np.sum( wts%s ) == 0.0 else \\
     np.average( data_in%s, weights = wts%s )
 """
@@ -457,11 +457,11 @@ data_in.
 """
 
     wts = \
-        pin_factors * weights if pin_factors != None and weights != None else \
-	pin_factors if pin_factors != None else \
+        pin_factors * weights if pin_factors is not None and weights is not None else \
+	pin_factors if pin_factors is not None else \
 	weights
     avg = \
-	np.average( data_in )  if wts == None else \
+	np.average( data_in )  if wts is None else \
 	0.0  if np.sum( wts ) == 0.0 else \
         np.average( data_in, weights = wts )
     return  avg
@@ -487,8 +487,8 @@ data_in.
       for k in range( core.nax ):
         for y in range( core.npin ):
 	  for x in range( core.npin ):
-	    local_wt = pin_factors[ y, x, k, i ] if pin_factors != None else 1.0
-	    if weights != None:
+	    local_wt = pin_factors[ y, x, k, i ] if pin_factors is not None else 1.0
+	    if weights is not None:
 	      local_wt *= weights[ y, x, k, i ]
 
 	    avg += data_in[ y, x, k, i ] * local_wt
@@ -560,10 +560,10 @@ coreSym, npiny, npinx, nax, and nass.
 			None if any of the properties are 0
 """
     factors = None
-    if core != None and core.coreSym > 0 and \
+    if core is not None and core.coreSym > 0 and \
         core.nass > 0 and core.nax > 0 and \
 	core.npinx > 0 and core.npiny > 0 and \
-	core.axialMesh != None and core.axialMesh.shape[ 0 ] == core.nax + 1:
+	core.axialMesh is not None and core.axialMesh.shape[ 0 ] == core.nax + 1:
       factors = np.ndarray(
           ( core.npiny, core.npinx, core.nax, core.nass ),
 	  np.float32

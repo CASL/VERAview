@@ -107,7 +107,7 @@ class AnimationCallback( object ):
     n = max( n, 1 )
     print >> sys.stderr, \
         '[AnimationCallback] %d/%d (%.2f%%) %s' % \
-	( i, n, i * 100.0 / n, '' if msg == None else msg )
+	( i, n, i * 100.0 / n, '' if msg is None else msg )
   #end __call__
 
 
@@ -185,7 +185,7 @@ Must be called on the UI thread.
 	  )
       file_path = None
 
-    elif file_path == None:
+    elif file_path is None:
       dialog = wx.FileDialog(
           self, 'Save Widget Animated Image', '', '',
 	  'GIF files (*.gif)|*.gif',
@@ -251,7 +251,7 @@ Must be called on the UI thread.
 #			-- Check dataset changes
 #			--
 #      data_model = State.FindDataModel( self.state )
-#      if data_model != None:
+#      if data_model is not None:
 #        ds_types = self.widget.GetDataSetTypes()
 #        for pair in (
 #            ( STATE_CHANGE_channelDataSet, self.state.channelDataSet ),
@@ -260,7 +260,7 @@ Must be called on the UI thread.
 #	    ):
 #	  if (reason & pair[ 0 ]) > 0:
 #	    cur_type = data_model.GetDataSetType( pair[ 1 ] )
-#	    if cur_type != None and cur_type not in ds_types:
+#	    if cur_type is not None and cur_type not in ds_types:
 #	      reasons &= ~pair[ 0 ]
 #	  #end if
 #        #end for
@@ -329,7 +329,7 @@ Must be called on the UI thread.
 #		-- Widget-defined toolbar buttons
 #		--
     tool_button_defs = self.widget.GetToolButtonDefs( data_model )
-    if tool_button_defs != None:
+    if tool_button_defs is not None:
       for icon, tip, handler in tool_button_defs:
         tool_im = wx.Image(
 	    os.path.join( Config.GetResDir(), icon ),
@@ -402,7 +402,7 @@ Must be called on the UI thread.
       else:
         del dataset_types[ ndx ]
 
-    #if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
+    #if dataset_type is not None and data_model.HasDataSetCategory( dataset_type ):
     if len( dataset_types ) > 0:
       self.dataSetMenu = wx.Menu()
 
@@ -449,7 +449,7 @@ Must be called on the UI thread.
 
 #			-- Save animated image
     anim_indexes = self.widget.GetAnimationIndexes()
-    if anim_indexes != None:
+    if anim_indexes is not None:
       self.animateMenu = wx.Menu()
       anim_indexes = self.widget.GetAnimationIndexes()
 
@@ -488,7 +488,7 @@ Must be called on the UI thread.
 
 #			-- Widget-defined items
     widget_menu_def = self.widget.GetMenuDef( data_model )
-    if widget_menu_def != None:
+    if widget_menu_def is not None:
       self.widgetMenu.AppendSeparator()
       for label, handler in widget_menu_def:
 	if label == '-':
@@ -575,7 +575,7 @@ Must be called on the UI thread.
   def OnClose( self, ev ):
     """
 """
-    if self.state != None and self.widget != None:
+    if self.state is not None and self.widget is not None:
       self.state.RemoveListener( self )
 
     self.Close()
@@ -615,7 +615,7 @@ Must be called on the UI thread.
     ev.Skip()
 
     data_model = State.FindDataModel( self.state )
-    if data_model != None:
+    if data_model is not None:
       matching_ds_names = data_model.GetExtra4DDataSets()
 
       if len( matching_ds_names ) == 0:
@@ -631,7 +631,7 @@ Must be called on the UI thread.
         status = dialog.ShowModal()
 	if status == wx.ID_OK:
 	  name = dialog.GetStringSelection()
-	  if name != None:
+	  if name is not None:
 	    self.widget.SetDataSet( 'extra:' + dialog.GetStringSelection() )
       #end if-else
     #end if data_model exists
@@ -648,7 +648,7 @@ Must be called on the UI thread.
 
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item != None:
+    if item is not None:
       self.widget._BusyBegin()
       self.widget.SetDataSet( item.GetLabel() )
       self.widget._BusyEnd()
@@ -666,7 +666,7 @@ Must be called on the UI thread.
     try:
       menu = ev.GetEventObject()
       item = menu.FindItemById( ev.GetId() )
-      if item != None:
+      if item is not None:
         self.widget._BusyBegin()
 
         ds_name = item.GetLabel().replace( ' *', '' )
@@ -715,7 +715,7 @@ Must be called on the UI thread.
 
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item != None:
+    if item is not None:
       self.eventLocks[ ev_id ] = item.IsChecked()
       if item.IsChecked():
         self.widget.HandleStateChange( ev_id )
@@ -730,7 +730,7 @@ Must be called on the UI thread.
 """
     ev.Skip()
 
-    if self.eventsChooserDialog == None:
+    if self.eventsChooserDialog is None:
       self.eventsChooserDialog = EventsChooserDialog(
           self, wx.ID_ANY,
 	  event_set = self.widget.GetEventLockSet()
@@ -738,7 +738,7 @@ Must be called on the UI thread.
 
     self.eventsChooserDialog.ShowModal( self.eventLocks )
     new_events = self.eventsChooserDialog.GetResult()
-    if new_events != None:
+    if new_events is not None:
       for k in new_events:
         if k in self.eventsMenuItems:
 	  on = new_events[ k ]
@@ -793,7 +793,7 @@ Must be called on the UI thread.
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
 
-    if item != None and self.widget.GetState() != None:
+    if item is not None and self.widget.GetState() is not None:
       try:
         animator = None
 
@@ -813,7 +813,7 @@ Must be called on the UI thread.
               self.widget, callback = AnimationCallback()
 	      )
 
-        if animator != None:
+        if animator is not None:
           self.SaveWidgetAnimatedImage( animator )
       #end try
 
@@ -850,7 +850,7 @@ Must be called from the UI event thread
 """
     file_path = self._CheckAndPromptForAnimatedImage( file_path )
 
-    if file_path != None:
+    if file_path is not None:
       animator.Run( file_path )
       #animator.Start( file_path )
     #end if we have a destination file path
@@ -863,7 +863,7 @@ Must be called from the UI event thread
   def SaveWidgetImage( self, file_path = None ):
     """
 """
-    if file_path == None:
+    if file_path is None:
       dialog = wx.FileDialog(
           self, 'Save Widget Image', '', '',
 	  'PNG files (*.png)|*.png',
@@ -873,10 +873,10 @@ Must be called from the UI event thread
         file_path = dialog.GetPath()
     #end if
 
-    if file_path != None:
+    if file_path is not None:
       try:
 	result = self.widget.CreatePrintImage( file_path )
-	if result == None:
+	if result is None:
 	  raise Exception( 'No image created' )
 	elif isinstance( result, wx.Image ):
 	  result.SaveFile( file_path, wx.BITMAP_TYPE_PNG )
@@ -895,7 +895,7 @@ Must be called from the UI event thread
 #		-- Check need for update
 #		--
     data_model = State.FindDataModel( self.state )
-    if data_model != None and \
+    if data_model is not None and \
         self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
 
       print >> sys.stderr, \
@@ -919,10 +919,10 @@ Must be called from the UI event thread
 #			-- Must have datasets
 #			--
 #      dataset_type = self.widget.GetDataSetType()
-#      if dataset_type != None and data_model.HasDataSetCategory( dataset_type ):
+#      if dataset_type is not None and data_model.HasDataSetCategory( dataset_type ):
 #        dataset_names = data_model.GetDataSetNames( dataset_type )
       dataset_names = []
-      if self.widget.GetDataSetTypes() != None:
+      if self.widget.GetDataSetTypes() is not None:
         for dtype in self.widget.GetDataSetTypes():
 	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
 
@@ -959,7 +959,7 @@ Must be called from the UI event thread
 
 #				-- Derived pullright
 #				--
-	if self.derivedDataSetMenu != None:
+	if self.derivedDataSetMenu is not None:
 	  self._UpdateDerivedDataSetMenu( data_model )
       #end if dataset names
 
@@ -974,7 +974,7 @@ Must be called from the UI event thread
   def _UpdateDerivedDataSetMenu( self, data_model = None ):
     """
 """
-    if data_model == None:
+    if data_model is None:
       data_model = State.FindDataModel( self.state )
 
     if data_model and self.derivedDataSetMenu:

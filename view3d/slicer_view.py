@@ -166,7 +166,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 """
     rec = None
 
-    if self.data != None and self.meshLevels != None:
+    if self.data is not None and self.meshLevels is not None:
       slice_z, slice_x, slice_y = slice_position
       core = self.data.GetCore()
 
@@ -212,7 +212,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   def _Create3DMatrix( self ):
     matrix = None
 
-    if self.data != None and self.coreExtent != None:
+    if self.data is not None and self.coreExtent is not None:
       core = self.data.GetCore()
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_value = dset.value
@@ -273,7 +273,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
         pin_y += core.npiny
       #end for assy_y
-    #end if self.data != None
+    #end if self.data is not None
 
     return  matrix
   #end _Create3DMatrix
@@ -392,7 +392,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
     self.data = State.FindDataModel( self.state )
-    if self.data != None and self.data.HasData():
+    if self.data is not None and self.data.HasData():
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
       self.coreExtent = self.data.ExtractSymmetryExtent()
@@ -424,7 +424,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item != None:
+    if item is not None:
       if item.GetLabel().startswith( 'Enable' ):
         item.SetText( item.GetLabel().replace( 'Enable', 'Disable' ) )
 	self.autoSync = True
@@ -444,7 +444,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     rec = self.CalcDataState( position )
     #print >> sys.stderr, '[Slicer3DView._OnSlicePosition]', str( rec )
 
-    if rec != None:
+    if rec is not None:
       if rec[ 'assembly_index' ] != self.assemblyIndex:
         self.assemblyIndex = rec[ 'assembly_index' ]
       else:
@@ -462,7 +462,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
       if self.autoSync and len( rec ) > 0:
         self.FireStateChange( **rec )
-    #end if rec != None
+    #end if rec is not None
   #end _OnSlicePosition
 
 
@@ -478,9 +478,9 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #	METHOD:		Slicer3DView._OnSyncTo()			-
   #----------------------------------------------------------------------
   def _OnSyncTo( self, ev ):
-    if self.viz != None:
+    if self.viz is not None:
 #      rec = self.CalcDataState( self.viz.GetSlicePosition() )
-#      if rec != None:
+#      if rec is not None:
 #        self.FireStateChange( **rec )
       rec = \
         {
@@ -489,7 +489,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 	'pin_colrow': self.pinColRow
 	}
       self.FireStateChange( **rec )
-    #end if rec != None
+    #end if rec is not None
   #end _OnSyncTo
 
 
@@ -508,10 +508,10 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #----------------------------------------------------------------------
   def _UpdateData( self ):
     matrix = self._Create3DMatrix()
-    if matrix != None:
+    if matrix is not None:
       drange = self.data.GetRange( self.pinDataSet )
 
-      if self.viz == None:
+      if self.viz is None:
         self._CreateViz( matrix, drange )
       else:
         self.viz.SetScalarData( matrix, drange )
@@ -787,7 +787,7 @@ class VolumeSlicer( HasTraits ):
 
     print >> sys.stderr, '[create_side_view] uaxis=%s, pos=%s' % ( uaxis, pos )
     ipw.ipw.slice_position = \
-        pos if pos != None else \
+        pos if pos is not None else \
         0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
 
     ipw.ipw.sync_trait(
@@ -1096,7 +1096,7 @@ class VolumeSlicer( HasTraits ):
         ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
 	ipw_3d.ipw.slice_position = position[ cur_ndx ]
 
-    if self.slicePositionListener != None:
+    if self.slicePositionListener is not None:
       self.slicePositionListener( position )
   #end on_slice_change
 

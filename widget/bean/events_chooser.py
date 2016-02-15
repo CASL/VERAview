@@ -81,7 +81,7 @@ Attributes/properties:
   @events.setter
   def events( self, value_in ):
     """@param  value_in	dict from which to copy"""
-    if value_in != None:
+    if value_in is not None:
       for k in self.fEventControls:
         self.fEventControls[ k ].SetValue( value_in.get( k, False ) )
     #end if
@@ -117,7 +117,7 @@ Attributes/properties:
     super( EventsChooserBean, self ).Enable( flag )
 
     for panel in ( self.fButtonPanel, self.fTablePanel ):
-      if panel != None:
+      if panel is not None:
         for child in panel.GetChildren():
           if isinstance( child, wx.Window ):
 	    child.Enable( flag )
@@ -300,7 +300,7 @@ Must pass the 'event_set' parameter.
   #----------------------------------------------------------------------
   def ShowModal( self, events = None ):
     self.fResult = None
-    if events != None:
+    if events is not None:
       self.fBean.events = events
     super( EventsChooserDialog, self ).ShowModal()
   #end ShowModal

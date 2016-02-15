@@ -106,8 +106,8 @@ Properties:
   def CreatePrintImage( self, file_path ):
     result = None
 
-    if self.fig != None:
-      if self.axialLine != None:
+    if self.fig is not None:
+      if self.axialLine is not None:
         self.axialLine.set_visible( False )
 
       self.fig.savefig(
@@ -115,7 +115,7 @@ Properties:
 	  )
       result = file_path
 
-      if self.axialLine != None:
+      if self.axialLine is not None:
         self.axialLine.set_visible( True )
     #end if
 
@@ -288,14 +288,14 @@ model.
     print >> sys.stderr, '[PinAxialPlot._LoadDataModel]'
 
     self.data = State.FindDataModel( self.state )
-    if self.data != None and self.data.core != None and \
+    if self.data is not None and self.data.core is not None and \
 	self.data.core.npin > 0 and self.data.core.nax > 0 and \
-        self.data.states != None and len( self.data.states ) > 0:
+        self.data.states is not None and len( self.data.states ) > 0:
 
 #      self.axialValues = range( self.data.core.nax, 0, -1 )
       self.axialValues = \
 	  self.data.core.axialMeshCenters \
-	  if self.data.core.axialMeshCenters != None else \
+	  if self.data.core.axialMeshCenters is not None else \
           range( self.data.core.nax, 0, -1 )
 
       self.dataSetValues = [ 0.0 ] * self.data.core.nax
@@ -321,7 +321,7 @@ model.
   def _OnClose( self, ev ):
     """
 """
-    if self.fig != None:
+    if self.fig is not None:
       self.fig.close()
   #end _OnClose
 
@@ -332,13 +332,13 @@ model.
   def _OnMplMouseMotion( self, ev ):
     if ev.inaxes is None:
       self.cursor = None
-      if self.lx != None:
+      if self.lx is not None:
         self.lx.set_visible( False )
         self.canvas.draw()
       self.canvas.SetToolTipString( '' )
 
     elif ev.inaxes == self.ax:
-      if self.lx == None:
+      if self.lx is None:
         self.lx = self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 )
 
       self.cursor = ( ev.xdata, ev.ydata )
@@ -348,7 +348,7 @@ model.
 
       tip_str = ''
       ds_value = self._FindDataSetValue( ev.ydata )
-      if ds_value != None:
+      if ds_value is not None:
         tip_str = \
 	    'Axial=%.3g\n%s=%.3g' % \
 	    ( ev.ydata, self.pinDataSet, ds_value )
@@ -364,7 +364,7 @@ model.
     """
 """
     button = ev.button or 1
-    if button == 1 and self.cursor != None:
+    if button == 1 and self.cursor is not None:
       axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
       self.UpdateState( axial_value = axial_value )
       self.FireStateChange( axial_value = axial_value )
@@ -381,7 +381,7 @@ model.
     wd, ht = self.GetClientSize()
     print >> sys.stderr, '[PinAxialPlot._OnSize] clientSize=%d,%d' % ( wd, ht )
 
-    if wd > 0 and ht > 0 and self.data != None:
+    if wd > 0 and ht > 0 and self.data is not None:
       self.UpdateState( replot = True )
 #      axial_level = self.axialLevel
 #      self.axialLevel = -1
@@ -423,7 +423,7 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-    if self.ax != None and self.data != None:
+    if self.ax is not None and self.data is not None:
       self.axialLine = None
       self.lx = None
       self.ax.clear()
@@ -521,7 +521,7 @@ Must be called from the UI thread.
       self.axialValue = kwargs[ 'axial_value' ]
       if not replot:
         redraw = True
-        if self.axialLine == None:
+        if self.axialLine is None:
 	  self.axialLine = \
 	      self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
         self.axialLine.set_ydata( self.axialValue[ 0 ] )

@@ -78,9 +78,9 @@ Static properties (use accessors):
     """
 @return			True or False
 """
-    if Config.haveImageMagick_ == None:
+    if Config.haveImageMagick_ is None:
       path = find_executable( 'convert' )
-      Config.haveImageMagick_ = path != None
+      Config.haveImageMagick_ = path is not None
 #      proc = subprocess.Popen(
 #          [ 'convert', '-h' ],
 #	  shell = True, stdout = subprocess.PIPE
@@ -90,7 +90,7 @@ Static properties (use accessors):
 #      proc.wait()
 #
 #      Config.haveImageMagick_ = \
-#        line != None and line.lower().find( 'version: imagemagick' ) == 0
+#        line is not None and line.lower().find( 'version: imagemagick' ) == 0
     #end if
 
     return  Config.haveImageMagick_

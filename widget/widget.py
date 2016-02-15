@@ -133,7 +133,7 @@ Must be called from the UI thread.
     """Show indication of being busy.  Must call _EndBusy().
 Must be called from the UI thread.
 """
-    if self.busyCursor == None:
+    if self.busyCursor is None:
       self.busyCursor = wx.BusyCursor()
       self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_red ) )
       self.container.led.Update()
@@ -193,7 +193,7 @@ Must be called from the UI thread.
     """End indication of being busy.
 Must be called from the UI thread.
 """
-    if self.busyCursor != None:
+    if self.busyCursor is not None:
       self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_green ) )
       self.container.led.Update()
       del self.busyCursor
@@ -208,7 +208,7 @@ Must be called from the UI thread.
     """End indication of being busy.
 Must be called from the UI thread.
 """
-    if self.busyCursor != None:
+    if self.busyCursor is not None:
       self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_green ) )
       self.container.led.Update()
       del self.busyCursor
@@ -493,7 +493,7 @@ by subclasses.
 @param  data_model	loaded data model, might be None
 @return			[ ( label, handler ), ... ]
 """
-    if self.menuDef == None:
+    if self.menuDef is None:
       self.menuDef = self._CreateMenuDef( data_model )
     return  self.menuDef
   #end GetMenuDef
@@ -519,7 +519,7 @@ Subclasses should override as this implementation returns None
     """Lazily creates calling _CreatePopupMenu().
 Must be called from the UI thread.
 """
-    if self.popupMenu == None:
+    if self.popupMenu is None:
       self.popupMenu = self._CreatePopupMenu()
     return  self.popupMenu
   #end GetPopupMenu
@@ -575,7 +575,7 @@ Returning None means no tool buttons, which is the default implemented here.
 #    ct = threading.current_thread()
 #    print >> sys.stderr, \
 #        '[Widget.HandleStateChange] reason=%d, thread=%s/%d' % \
-#        ( reason, ct.name, -1 if ct.ident == None else ct.ident )
+#        ( reason, ct.name, -1 if ct.ident is None else ct.ident )
 
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
@@ -652,7 +652,7 @@ the clipboard.
     ev.Skip()
 
     data_text = self._CreateClipboardData()
-    if data_text != None and len( data_text ) > 0:
+    if data_text is not None and len( data_text ) > 0:
       if not wx.TheClipboard.Open():
         wx.MessageBox(
 	    'Could not open the clipboard', 'Copy Data',
@@ -687,7 +687,7 @@ it to the clipboard.
     ev.Skip()
 
     bitmap = self._CreateClipboardImage()
-    if bitmap != None:
+    if bitmap is not None:
       if not wx.TheClipboard.Open():
         wx.MessageBox(
 	    'Could not open the clipboard', 'Copy Image',
@@ -786,8 +786,8 @@ it to the clipboard.
 			after "Show" or "Hide" in the menu item and
 			flag is the current visibility state
 """
-    if menu != None and \
-        suffixes_and_flags != None and len( suffixes_and_flags ) >= 2:
+    if menu is not None and \
+        suffixes_and_flags is not None and len( suffixes_and_flags ) >= 2:
       for item in menu.GetMenuItems():
         label = item.GetItemLabel()
 

@@ -74,7 +74,7 @@ class DerivedDataITest( object ):
 
 #		-- Check required arguments
 #		--
-      if args.dataset == None or args.file == None:
+      if args.dataset is None or args.file is None:
 	parser.print_help()
 
       else:

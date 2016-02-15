@@ -229,7 +229,7 @@ Properties:
 @param  h5_group	top level group in the file
 """
     self.Clear()
-    if h5_group != None:
+    if h5_group is not None:
       self.Read( h5_group )
   #end __init__
 
@@ -251,25 +251,25 @@ Properties:
 """
     missing = []
 
-#    if self.axialMesh == None or self.axialMeshCenters == None:
-    if self.axialMesh == None:
+#    if self.axialMesh is None or self.axialMeshCenters is None:
+    if self.axialMesh is None:
       missing.append( 'AXIAL_MESH not found' )
 #    elif self.axialMesh.shape[ 0 ] != self.nax + 1 or \
 #        self.axialMeshCenters.shape[ 0 ] != self.nax:
     elif self.axialMesh.shape[ 0 ] != self.nax + 1:
       missing.append( 'AXIAL_MESH shape is not consistent with NAX' )
 
-    if self.coreMap == None:
+    if self.coreMap is None:
       missing.append( 'CORE_MAP not found' )
     elif self.coreMap.shape[ 0 ] != self.nassy or \
         self.coreMap.shape[ 1 ] != self.nassx:
       missing.append( 'CORE_MAP shape is not consistent with NASSX and NASSY' )
 
-    if self.detectorMap != None and self.coreMap != None:
+    if self.detectorMap is not None and self.coreMap is not None:
       if self.detectorMap.shape != self.coreMap.shape:
         missing.append( 'DETECTOR_MAP shape inconsistent with CORE_MAP shape' )
 
-    if self.pinVolumes == None:
+    if self.pinVolumes is None:
       pass
 #      missing.append( 'PIN_VOLUMES not found' )
     elif self.pinVolumes.shape[ 0 ] != self.npin or \
@@ -316,7 +316,7 @@ Properties:
   #----------------------------------------------------------------------
   def CreateAssyLabel( self, col, row ):
     result = '(?)'
-    if self.coreLabels != None and len( self.coreLabels ) >= 2:
+    if self.coreLabels is not None and len( self.coreLabels ) >= 2:
       result = '(%s-%s)' % \
           ( self.coreLabels[ 0 ][ col ], self.coreLabels[ 1 ][ row ] )
 
@@ -330,7 +330,7 @@ Properties:
   def _FindInGroup( self, name, *groups ):
     match = None
     for g in groups:
-      if g != None and name in g:
+      if g is not None and name in g:
         match = g[ name ]
 	break
     #end for
@@ -368,7 +368,7 @@ Properties:
 
 #		-- Assert on valid group
 #		--
-    if h5_group == None or not isinstance( h5_group, h5py.Group ):
+    if h5_group is None or not isinstance( h5_group, h5py.Group ):
       raise Exception( 'Must have valid HDF5 file' )
 
     core_group = h5_group[ 'CORE' ]
@@ -376,9 +376,9 @@ Properties:
 
 #		-- Assert on CORE or INPUT group
 #		--
-#    if core_group == None and input_group == None:
+#    if core_group is None and input_group is None:
 #      raise Exception( 'Could not find "CORE" or "INPUT" group' )
-    if core_group == None:
+    if core_group is None:
       raise Exception( 'Could not find "CORE"' )
 
     self._ReadImpl( core_group, input_group )
@@ -392,13 +392,13 @@ Properties:
     self.group = core_group
 
     in_core_group = None
-    if input_group != None:
+    if input_group is not None:
       in_core_group = input_group.get( 'CASEID/CORE' )
 
 #		-- Assert on must have 'core_map'
 #		--
     item = self._FindInGroup( 'core_map', core_group, in_core_group )
-    if item == None:
+    if item is None:
       raise Exception( '"core_map" dataset not found' )
 
 #		-- No exception, plow on
@@ -419,12 +419,12 @@ Properties:
 #		-- Other datasets
 #		--
     item = self._FindInGroup( 'apitch', core_group, in_core_group )
-    if item != None:
+    if item is not None:
       self.apitch = item.value.item() if len( item.shape ) > 0 else item.value
 #      self.apitch = item.value[ 0 ]
 
     item = self._FindInGroup( 'axial_mesh', core_group, in_core_group )
-    if item != None:
+    if item is not None:
       self.axialMesh = item.value
       self.nax = self.axialMesh.shape[ 0 ] - 1
 #			-- Numpy magic
@@ -433,13 +433,13 @@ Properties:
       self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
 
     item = self._FindInGroup( 'core_sym', core_group, in_core_group )
-    if item != None:
+    if item is not None:
       self.coreSym = item.value.item() if len( item.shape ) > 0 else item.value
       #self.coreSym = item.value[ 0 ]
 
     self.pinVolumesSum = 0
     item = self._FindInGroup( 'pin_volumes', core_group, in_core_group )
-    if item != None:
+    if item is not None:
       self.pinVolumes = item.value
       self.pinVolumesSum = np.sum( item.value )
       self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
@@ -450,27 +450,27 @@ Properties:
       self.nass = self.pinVolumes.shape[ 3 ]
 
     item = self._FindInGroup( 'rated_flow', core_group, in_core_group )
-    if item != None:
+    if item is not None:
       self.ratedFlow = item.value.item() if len( item.shape ) > 0 else item.value
       #self.ratedFlow = item.value[ 0 ]
 
     item = self._FindInGroup( 'rated_power', core_group, in_core_group )
-    if item != None:
+    if item is not None:
       self.ratedPower = item.value.item() if len( item.shape ) > 0 else item.value
       #self.ratedPower = item.value[ 0 ]
 
 #		-- Optional detector_map
 #		--
     item = self._FindInGroup( 'detector_map', core_group, in_core_group )
-    #if item != None and item.value.shape == self.coreMap.shape:
-    if item != None:
+    #if item is not None and item.value.shape == self.coreMap.shape:
+    if item is not None:
       self.detectorMap = item.value
       self.ndet = np.amax( item.value )
 
 #			-- Optional detector_mesh
 #			--
       item = self._FindInGroup( 'detector_mesh', core_group )
-      if item != None:
+      if item is not None:
 	self.detectorMeshCenters = item.value
 #	self.detectorMeshCentersSorted = \
 #	    item.value if item.value[ -1 ] > item.value[ 0 ] else \
@@ -486,9 +486,9 @@ Properties:
     if self.nass == 0:
       self.nass = np.amax( self.coreMap )
 
-    if self.npin == 0 and input_group != None:
+    if self.npin == 0 and input_group is not None:
       num_pins_ds = input_group.get( 'CASEID/ASSEMBLIES/Assembly_1/num_pins' )
-      if num_pins_ds != None:
+      if num_pins_ds is not None:
         self.npin = num_pins_ds.value.item() if len( num_pins_ds.shape ) > 0 else num_pins_ds.value
 	self.npinx = self.npin
 	self.npiny = self.npin
@@ -497,7 +497,7 @@ Properties:
 
 #		-- Assert NAX match b/w axial_mesh and pin_volumes
 #		--
-    if self.nax > 0 and self.pinVolumes != None and \
+    if self.nax > 0 and self.pinVolumes is not None and \
         self.pinVolumes.shape[ 2 ] != self.nax:
       raise Exception( 'NAX dimension mismatch between "axial_mesh" and "pin_volumes"' )
 
@@ -515,14 +515,14 @@ Properties:
   def ToJson( self ):
     obj = {}
     obj[ 'apitch' ] = self.apitch
-    if self.axialMesh != None:
+    if self.axialMesh is not None:
       obj[ 'axialMesh' ] = self.axialMesh.tolist()
-    if self.coreMap != None:
+    if self.coreMap is not None:
       obj[ 'coreMap' ] = self.coreMap.tolist()
     obj[ 'coreSym' ] = self.coreSym
-    if self.detectorMap != None:
+    if self.detectorMap is not None:
       obj[ 'detectorMap' ] = self.detectorMap.tolist()
-    if self.detectorMeshCenters != None:
+    if self.detectorMeshCenters is not None:
       obj[ 'detectorMeshCenters' ] = self.detectorMeshCenters.tolist()
     obj[ 'nass' ] = self.nass
     obj[ 'nassx' ] = self.nassx
@@ -531,7 +531,7 @@ Properties:
     obj[ 'ndet' ] = self.ndet
     obj[ 'ndetax' ] = self.ndetax
     obj[ 'npin' ] = self.npin
-    if self.pinVolumes != None:
+    if self.pinVolumes is not None:
       obj[ 'pinVolumes' ] = self.pinVolumes.tolist()
     obj[ 'ratedFlow' ] = self.ratedFlow
     obj[ 'ratedPower' ] = self.ratedPower
@@ -584,7 +584,7 @@ Properties:
   #	METHOD:		DataModel.__del__()				-
   #----------------------------------------------------------------------
   def __del__( self ):
-#    if self.h5ExtraFile != None:
+#    if self.h5ExtraFile is not None:
 #      self.h5ExtraFile.close()
     if hasattr( self, 'derivedFile' ):
       der_file = getattr( self, 'derivedFile' )
@@ -593,7 +593,7 @@ Properties:
         der_file.close()
         #x os.remove( fname )
 
-    if self.h5File != None:
+    if self.h5File is not None:
       self.h5File.close()
   #end __del__
 
@@ -631,7 +631,7 @@ passed, Read() must be called.
     self.rangesLock = threading.RLock()
 
     self.Clear()
-    if h5f_param != None:
+    if h5f_param is not None:
       self.Read( h5f_param )
   #end __init__
 
@@ -727,7 +727,7 @@ passed, Read() must be called.
 """
     return \
         ( self.core.coreMap[ row, col ], col, row ) \
-	if self.core != None else \
+	if self.core is not None else \
 	( -1, -1, -1 )
   #end CreateAssemblyIndex
 
@@ -803,7 +803,7 @@ Parameters:
 	  derived_st = self.GetDerivedState( state_ndx )
 
 	  data = st.GetDataSet( ds_name )
-	  if data == None:
+	  if data is None:
 	    data = derived_st.GetDataSet( ds_name )
 
 	  if data:
@@ -847,7 +847,7 @@ are initialized.
       n = 0
       for st in states:
         from_group = st.GetGroup()
-	if from_group == None:
+	if from_group is None:
 	  derived_states.append( None )
 
 	else:
@@ -921,7 +921,7 @@ dimensions.
 
     result = None
 
-    if self.core != None:
+    if self.core is not None:
       bottom = self.core.nassy
       right = self.core.nassx
 
@@ -954,7 +954,7 @@ dimensions.
   def FindFirstDetector( self ):
     result = ( -1, -1, -1 )
 
-    if self.core != None and self.core.detectorMap != None:
+    if self.core is not None and self.core.detectorMap is not None:
       nzs = self.core.detectorMap.nonzero()
       row = nzs[ 0 ][ 0 ] if len( nzs[ 0 ] ) > 0 else -1
       col = nzs[ 1 ][ 0 ] if len( nzs[ 1 ] ) > 0 else -1
@@ -979,7 +979,7 @@ descending.
 """
     match_ndx = -1
 
-    if values != None and len( values ) > 0:
+    if values is not None and len( values ) > 0:
       if values[ 0 ] > values[ -1 ]:
         if value > values[ 0 ]:
 	  match_ndx = 0
@@ -1037,12 +1037,12 @@ descending.
   def GetDataSetDef( self, ds_type = None ):
     """Accessor for the 'dataSetDefs' property.
 @param  ds_type		optional type name
-@return			if ds_type != None, the definition for the type
+@return			if ds_type is not None, the definition for the type
 			or None if not found
-			if ds_type == None, dict of definitions name by type
+			if ds_type is None, dict of definitions name by type
 """
     return \
-	self.dataSetDefs  if ds_type == None else \
+	self.dataSetDefs  if ds_type is None else \
 	self.dataSetDefs.get( ds_type )
   #end GetDataSetDef
 
@@ -1080,15 +1080,15 @@ descending.
   def GetDataSetNames( self, ds_type = None ):
     """Accessor for the 'dataSetNames' property.
 @param  ds_type		optional type name
-@return			if ds_type != None, list of datasets in that
+@return			if ds_type is not None, list of datasets in that
 			ds_type, empty if not found
-			if ds_type == None, dict of dataset name lists by
+			if ds_type is None, dict of dataset name lists by
 			ds_type
 			( 'axial', 'channel', 'derived', 'detector',
 			  'pin', 'scalar', etc. )
 """
     return \
-        self.dataSetNames if ds_type == None else \
+        self.dataSetNames if ds_type is None else \
 	self.dataSetNames.get( ds_type, [] )
   #end GetDataSetNames
 
@@ -1154,7 +1154,7 @@ descending.
 """
     return  \
 	self.derivedStates[ ndx ]  \
-	if self.derivedStates != None and ndx >= 0 and \
+	if self.derivedStates is not None and ndx >= 0 and \
 	    ndx < len( self.derivedStates ) else \
 	None
   #end GetDerivedState
@@ -1180,7 +1180,7 @@ descending.
 @return			dataset name or None
 """
     names = self.dataSetNames.get( category )
-    return  names[ 0 ] if names != None and len( names ) > 0 else None
+    return  names[ 0 ] if names is not None and len( names ) > 0 else None
   #end GetFirstDataSet
 
 
@@ -1211,13 +1211,13 @@ the properties construct for this class soon.
     self.rangesLock.acquire()
     try:
       ds_range = self.ranges.get( ds_name )
-      if ds_range == None:
+      if ds_range is None:
         ds_range = self._ReadDataSetRange( ds_name )
         self.ranges[ ds_name ] = ds_range
     finally:
       self.rangesLock.release()
 
-    if ds_range == None:
+    if ds_range is None:
       ds_range = DataModel.DEFAULT_range
 
     return  ds_range
@@ -1244,7 +1244,7 @@ the properties construct for this class soon.
 @return			value or None
 """
     return \
-        None if ds == None else \
+        None if ds is None else \
 	ds.value if len( ds.shape ) == 0 else \
 	ds.value.item()
   #end GetScalarValue
@@ -1261,7 +1261,7 @@ the properties construct for this class soon.
 """
     return  \
 	self.states[ ndx ]  \
-	if self.states != None and ndx >= 0 and ndx < len( self.states ) else \
+	if self.states is not None and ndx >= 0 and ndx < len( self.states ) else \
 	None
   #end GetState
 
@@ -1280,7 +1280,7 @@ the properties construct for this class soon.
     st = None
     derived_st = None
 
-    if ds_name != None:
+    if ds_name is not None:
       st = self.GetState( state_ndx )
       derived_st = self.GetDerivedState( state_ndx )
 
@@ -1288,19 +1288,19 @@ the properties construct for this class soon.
       self.dataSetDefsLock.acquire()
       try:
         dset = st.GetDataSet( ds_name )
-	if dset == None:
+	if dset is None:
 	  dset = derived_st.GetDataSet( ds_name )
 
-        if dset != None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
+        if dset is not None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
           copy_name = 'copy:' + ds_name
 	  #copy_dset = st.GetDataSet( copy_name )
 	  copy_dset = derived_st.GetDataSet( copy_name )
 
-	  if copy_dset != None:
+	  if copy_dset is not None:
 	    dset = copy_dset
 	  else:
             ds_def = self.dataSetDefsByName.get( ds_name )
-	    if ds_def != None and 'copy_expr' in ds_def:
+	    if ds_def is not None and 'copy_expr' in ds_def:
 	      copy_data = \
 	          np.ndarray( ds_def[ 'copy_shape' ], dtype = np.float64 )
 	      copy_data.fill( 0.0 )
@@ -1329,7 +1329,7 @@ the properties construct for this class soon.
 #			means a derived or extra dataset respectively
 #@return			h5py.Dataset object if found or None
 #"""
-#    if ds_name == None:
+#    if ds_name is None:
 #      st = None
 #    elif ds_name.startswith( 'derived:' ):
 #      st = self.derivedDataMgr.GetState( state_ndx )
@@ -1341,7 +1341,7 @@ the properties construct for this class soon.
 #      st = self.GetState( state_ndx )
 #      use_name = ds_name
 #
-#    return  st.GetDataSet( use_name ) if st != None else None
+#    return  st.GetDataSet( use_name ) if st is not None else None
 #  #end GetStateDataSet_old
 
 
@@ -1363,7 +1363,7 @@ the properties construct for this class soon.
     """
 @return			number of State instances, where -1 means not read
 """
-    return  -1  if self.states == None else  len( self.states )
+    return  -1  if self.states is None else  len( self.states )
   #end GetStatesCount
 
 
@@ -1378,7 +1378,7 @@ the properties construct for this class soon.
 """
     value = 0.0
     #if self.IsValid( state_index = state_ndx ) and ds_name in self.GetDataSetNames( 'time' )
-    if self.IsValid( state_index = state_ndx ) and ds_name != None:
+    if self.IsValid( state_index = state_ndx ) and ds_name is not None:
       value = \
           (state_ndx + 1) if ds_name == 'state' else \
           self.GetScalarValue( self.states[ state_ndx ].group[ ds_name ] )
@@ -1395,7 +1395,7 @@ the properties construct for this class soon.
 @return			True if both are non-None, False otherwise
 """
     return \
-        self.core != None and self.states != None and \
+        self.core is not None and self.states is not None and \
 	len( self.states ) > 0 and \
 	self.core.nass > 0 and self.core.nax > 0 and self.core.npin > 0
   #end HasData
@@ -1443,7 +1443,7 @@ the properties construct for this class soon.
     return  match
 
 #    name = self.derivedDataMgr.GetDerivedName( category, derived_label, ds_name )
-#    return  name != None and len( name ) > 0
+#    return  name is not None and len( name ) > 0
   #end HasDerivedDataSet
 
 
@@ -1484,7 +1484,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'assembly_index' ]
 #      valid = val >= 0 and val < self.core.nass
       if hasattr( val, '__iter__' ):
-        valid &= val != None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
+        valid &= val is not None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
       else:
         valid &= val >= 0 and val < self.core.nass
 
@@ -1492,7 +1492,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'axial_level' ]
       valid &= val >= 0 and val < self.core.nax
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != None:
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] is not None:
       col, row = kwargs[ 'channel_colrow' ]
       valid &= \
           col >= 0 and col <= self.core.npinx and \
@@ -1502,7 +1502,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'detector_index' ]
       valid &= val >= 0 and val < self.core.ndet
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != None:
+    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] is not None:
       col, row = kwargs[ 'pin_colrow' ]
       valid &= \
           col >= 0 and col < self.core.npinx and \
@@ -1536,7 +1536,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
     if 'assembly_index' in kwargs:
       val = kwargs[ 'assembly_index' ]
       if hasattr( val, '__iter__' ):
-        valid &= val != None and val[ 0 ] >= 0 and val[ 0 ] < shape_in[ 3 ]
+        valid &= val is not None and val[ 0 ] >= 0 and val[ 0 ] < shape_in[ 3 ]
       else:
         valid &= val >= 0 and val < shape_in[ 3 ]
 
@@ -1544,13 +1544,13 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'axial_level' ]
       valid &= val >= 0 and val < shape_in[ 2 ]
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != None:
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] is not None:
       col, row = kwargs[ 'channel_colrow' ]
       valid &= \
           col >= 0 and col <= shape_in[ 0 ] and \
 	  row >= 0 and row <= shape_in[ 1 ]
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != None:
+    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] is not None:
       col, row = kwargs[ 'pin_colrow' ]
       valid &= \
           col >= 0 and col < shape_in[ 0 ] and \
@@ -1581,7 +1581,7 @@ to be 'core', and the dataset is not associated with a state point.
 """
     dset = None
 
-    if self.h5ExtraFile != None and ds_name != None:
+    if self.h5ExtraFile is not None and ds_name is not None:
       qname = src_name + '.' + ds_name
 
       if state_ndx < 0:
@@ -1589,7 +1589,7 @@ to be 'core', and the dataset is not associated with a state point.
 	  dset = self.h5ExtraFile[ qname ]
       else:
         st = self.GetExtraState( state_ndx )
-	if st != None and qname in st.GetGroup():
+	if st is not None and qname in st.GetGroup():
 	  dset = st.GetDataSet( qname )
       #end if-else core or state point
     #end if file exists
@@ -1620,7 +1620,7 @@ to be 'core', and the dataset is not associated with a state point.
     dset = None
     ds_name = kwargs.get( 'ds_name' )
 
-    if self.h5ExtraFile != None and ds_name != None:
+    if self.h5ExtraFile is not None and ds_name is not None:
       src_name = kwargs.get( 'src_name', 'core' )
       state_ndx = kwargs.get( 'state_ndx', -1 )
       qname = src_name + '.' + ds_name
@@ -1630,7 +1630,7 @@ to be 'core', and the dataset is not associated with a state point.
 	  dset = self.h5ExtraFile[ qname ]
       else:
         st = self.GetExtraState( state_ndx )
-	if st != None and qname in st.GetGroup():
+	if st is not None and qname in st.GetGroup():
 	  dset = st.GetDataSet( qname )
       #end if-else core or state point
     #end if file exists
@@ -1741,7 +1741,7 @@ to be 'core', and the dataset is not associated with a state point.
 
 #		-- Assert on states
 #		--
-    if self.states == None or len( self.states ) == 0:
+    if self.states is None or len( self.states ) == 0:
       raise  Exception( 'No state points could be read' )
 
     st_group = self.states[ 0 ].GetGroup()
@@ -1792,7 +1792,7 @@ to be 'core', and the dataset is not associated with a state point.
   def ReadExtraDataSets( self ):
     """
 """
-    if self.h5ExtraFile == None:
+    if self.h5ExtraFile is None:
       self.dataSetNames[ 'extra' ] = []
       self.extraStates = None
 
@@ -1820,7 +1820,7 @@ to be 'core', and the dataset is not associated with a state point.
 	derived_st = self.GetDerivedState( i )
 
 	dset = st.GetDataSet( ds_name )
-	if dset == None:
+	if dset is None:
 	  dset = derived_st.GetDataSet( ds_name )
 
         if dset:
@@ -1871,7 +1871,7 @@ to be 'core', and the dataset is not associated with a state point.
       use_states = self.GetStates()
       use_name = ds_name
 
-    if use_states != None:
+    if use_states is not None:
       vmin = vmax = float( 'nan' )
       for st in use_states:
 	if st.HasDataSet( use_name ):
@@ -1978,7 +1978,7 @@ calculated.
 	    #end for
 	  #end if-else on cur_name
 
-	  if cat_name == None:
+	  if cat_name is None:
 	    cat_name = 'scalar'
 	  ds_names[ cat_name ].append( cur_name )
 
@@ -2059,12 +2059,12 @@ to be 'core', and the dataset is not associated with a state point.
 
 #		-- Create Extra File if Necessary
 #		--
-    if self.h5ExtraFile == None:
+    if self.h5ExtraFile is None:
       self._CreateExtraH5File( self )
 
 #		-- Assert on required params
 #		--
-    if ds_name == None or data == None:
+    if ds_name is None or data is None:
       raise  Exception( 'ds_name and data are required' )
 
 #		-- State point dataset?
@@ -2072,7 +2072,7 @@ to be 'core', and the dataset is not associated with a state point.
     st = self.GetExtraState( state_ndx )
     if src_name != 'core':
 #			-- Assert on index
-      if st == None:
+      if st is None:
         raise  Exception( '"state_ndx" out of range' )
 
       qname = src_name + '.' + ds_name
@@ -2123,7 +2123,7 @@ to be 'core', and the dataset is not associated with a state point.
 
 #		-- Create Extra File if Necessary
 #		--
-    if self.h5ExtraFile == None:
+    if self.h5ExtraFile is None:
       self._CreateExtraH5File( self )
 
 #		-- Assert on required params
@@ -2142,7 +2142,7 @@ to be 'core', and the dataset is not associated with a state point.
     st = self.GetExtraState( state_ndx )
     if src_name != 'core':
 #			-- Assert on index
-      if st == None:
+      if st is None:
         raise  Exception( '"state_ndx" out of range' )
 
       qname = src_name + '.' + ds_name
@@ -2175,9 +2175,9 @@ to be 'core', and the dataset is not associated with a state point.
   def ToJson( self ):
     obj = {}
 
-    if self.core != None:
+    if self.core is not None:
       obj[ 'core' ] = self.core.ToJson()
-    if self.states != None:
+    if self.states is not None:
       obj[ 'states' ] = State.ToJsonAll( self.states )
 
     return  obj
@@ -2237,7 +2237,7 @@ to be 'core', and the dataset is not associated with a state point.
   def IsValidObj( data, **kwargs ):
     """Checks for non-None data and then calls its IsValid() instance method.
 """
-    return  data != None and data.IsValid( **kwargs )
+    return  data is not None and data.IsValid( **kwargs )
   #end IsValidObj
 
 
@@ -2251,7 +2251,7 @@ to be 'core', and the dataset is not associated with a state point.
 @param  title		optional title string or iterable of strings
 @return			h5py.Dataset object if found or None
 """
-    if data == None:
+    if data is None:
       cvs_text = None
 
     else:
@@ -2261,7 +2261,7 @@ to be 'core', and the dataset is not associated with a state point.
 	  for t in title:
 	    output.write( str( t ) + '\n' )
 	    #output.write( '# ' + str( t ) + '\n' )
-	elif title != None:
+	elif title is not None:
           output.write( str( title ) + '\n' )
           #output.write( '# ' + str( title ) + '\n' )
 
@@ -2359,7 +2359,7 @@ Fields:
 @param  state_group	HDF5 group for this state
 """
     self.Clear()
-    if name != None and state_group != None:
+    if name is not None and state_group is not None:
       self.Read( index, name, state_group )
   #end __init__
 
@@ -2400,7 +2400,7 @@ Fields:
 #    if self.keff < 0.0:
 #      missing.append( '%s missing KEFF' % self.name )
 
-    if self.pinPowers == None:
+    if self.pinPowers is None:
       missing.append( '%s missing PIN_POWERS' % self.name )
     elif self.pinPowers.shape[ 0 ] != core.npin or \
         self.pinPowers.shape[ 1 ] != core.npin or \
@@ -2438,7 +2438,7 @@ Fields:
 """
     return \
         self.group[ ds_name ] \
-	if ds_name != None and ds_name in self.group else \
+	if ds_name is not None and ds_name in self.group else \
 	None
   #end GetDataSet
 
@@ -2457,7 +2457,7 @@ Fields:
   def HasDataSet( self, ds_name ):
     """
 """
-    return  ds_name != None and ds_name in self.group
+    return  ds_name is not None and ds_name in self.group
   #end HasDataSet
 
 
@@ -2470,7 +2470,7 @@ Fields:
     self.index = index
     self.name = name
 
-    if state_group != None and isinstance( state_group, h5py.Group ):
+    if state_group is not None and isinstance( state_group, h5py.Group ):
 #      exposure_shape = ( -1, )
 #      powers_shape = ( -1, )
 
@@ -2501,7 +2501,7 @@ Fields:
     """
 @return			True if removed, False if ds_name not in this
 """
-    removed = ds_name != None and ds_name in self.group
+    removed = ds_name is not None and ds_name in self.group
     if removed:
       del self.group[ ds_name ]
 
@@ -2519,12 +2519,12 @@ Fields:
 #      'keff': self.keff.item()
 #      }
     obj = {}
-    if self.exposure != None:
+    if self.exposure is not None:
       obj[ 'exposure' ] = self.exposure.item()
-    if self.keff != None:
+    if self.keff is not None:
       obj[ 'keff' ] = self.keff.item()
 
-    if self.pinPowers != None:
+    if self.pinPowers is not None:
       obj[ 'pinPowers' ] = self.pinPowers.tolist()
 
     return  obj
@@ -2544,7 +2544,7 @@ Fields:
 """
     missing = []
 
-    if states == None or len( states ) == 0:
+    if states is None or len( states ) == 0:
       missing.append( 'No STATE_nnnn groups found' )
 
     else:

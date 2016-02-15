@@ -253,11 +253,11 @@ class VeraViewApp(wx.App):
                     args.state = 0
 
             Config.SetRootDir(os.path.dirname(os.path.abspath(__file__)))
-#      if args.dataset != None:
+#      if args.dataset is not None:
 #        Config.SetDefaultDataSet( args.dataset )
 
             #data_model = None
-# 1      if args.file_path != None:
+# 1      if args.file_path is not None:
 # 1        data_model = DataModel( args.file_path )
 
 #			-- Create State
@@ -277,7 +277,7 @@ class VeraViewApp(wx.App):
             # app = VeraViewApp( redirect = False )  # redirect = False
             app = VeraViewApp()
 #      app.dataSetDefault = \
-#          args.dataset if args.dataset != None else 'pin_powers'
+#          args.dataset if args.dataset is not None else 'pin_powers'
             app.filepath = args.file_path
             app.state = state
 
@@ -462,7 +462,7 @@ class VeraViewTab(wx.Panel):
 #	break
 #    #end for
 
-#    if title != None and title in WIDGET_MAP:
+#    if title is not None and title in WIDGET_MAP:
 #      self.CreateWidget( WIDGET_MAP[ title ] )
     # end _OnNew
 
@@ -1157,7 +1157,7 @@ class VeraViewFrame(wx.Frame):
 #    menu = ev.GetEventObject()
 #    item = menu.FindItemById( ev.GetId() )
 #
-#    if item != None:
+#    if item is not None:
 #      title = item.GetText()
 #      for child in self.GetChildren():
 #        if isinstance( child, WidgetContainer ) and child.GetTitle() == title:

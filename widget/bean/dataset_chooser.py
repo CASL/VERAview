@@ -66,7 +66,7 @@ Attributes/properties:
   @value.setter
   def value( self, value_in ):
     """@param  value_in	dict from which to copy"""
-    if value_in != None:
+    if value_in is not None:
       #self.fValue.clear()
       for k in self.fValue:
         if k in value_in:
@@ -92,7 +92,7 @@ Attributes/properties:
   def __init__( self, container, id = -1, ds_names = None ):
     super( DataSetChooserBean, self ).__init__( container, id )
 
-    self.fDataSetNames = [] if ds_names == None else ds_names
+    self.fDataSetNames = [] if ds_names is None else ds_names
     self.fValue = {}
     for name in ds_names:
       self.fValue[ name ] = { 'axis': '', 'scale': 1.0, 'visible': False }
@@ -114,7 +114,7 @@ Attributes/properties:
     super( DataSetChooserBean, self ).Enable( flag )
 
     for panel in ( self.fButtonPanel, self.fTablePanel ):
-      if panel != None:
+      if panel is not None:
         for child in panel.GetChildren():
           if isinstance( child, wx.Window ):
 	    child.Enable( flag )
@@ -283,7 +283,7 @@ manipulating dataset.  That is done with _CreateDataSetUI().
           ).ShowModal()
 
     finally:
-      if fp != None:
+      if fp is not None:
         fp.close()
   #end LoadFile
 
@@ -422,7 +422,7 @@ manipulating dataset.  That is done with _CreateDataSetUI().
           ).ShowModal()
 
     finally:
-      if fp != None:
+      if fp is not None:
         fp.close()
   #end SaveFile
 
@@ -530,7 +530,7 @@ Must pass the 'ds_names' parameter.
       ds_names = None
 
     style = kwargs.get( 'style' )
-    if style == None:
+    if style is None:
       style = wx.DEFAULT_DIALOG_STYLE
     style |= wx.RESIZE_BORDER
     kwargs[ 'style' ] = style
@@ -610,7 +610,7 @@ Must pass the 'ds_names' parameter.
   #----------------------------------------------------------------------
   def ShowModal( self, bean_value = None ):
     self.fResult = None
-    if bean_value != None:
+    if bean_value is not None:
       self.fBean.value = bean_value
     super( DataSetChooserDialog, self ).ShowModal()
   #end ShowModal
