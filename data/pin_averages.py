@@ -7,6 +7,7 @@
 #------------------------------------------------------------------------
 import h5py, os, sys
 import numpy as np
+import pdb
 
 
 #------------------------------------------------------------------------
@@ -18,53 +19,32 @@ class Averages( object ):
   #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
-  def __init__( self, core, statept ):
-    """
-@param  core		datamodel.Core object with properties
-			  axialMesh, axialMeshCenters, coreMap, coreSym,
-			  nass, nassx, nassy, nax, npin, pinVolumes
-@param  statept		datamodel.State reference object, probably from
-			'STATE_0001', which is assumed to have 'pin_powers'
+  def __init__( self, *args ):
+    """Calls load() if the arguments are provided.  Otherwise load() must
+be called before use.
+@param  args		optional args
+          core		  datamodel.Core
+	  pin_powers	  reference pin_powers np.ndarray
 """
-    self.core = core
-    self.statept = statept
+    if len( args ) >= 2:
+      self.load( *args )
 
-# Get the geometry information ----------------------------------------
-#map=f['CORE']['core_map']               # get core map
-#ax_mesh=f['CORE']['axial_mesh']         # get axial mesh
-#sym=f['CORE']['core_sym'][0]            # symmetry option
-#pows=f['STATE_0001']['pin_powers']      # get sample pin powers
-#nass=pows.shape[3]                      # total number of assembles
-#nasx=len(map)                           # number of assemblies across the core
-#mass=int(nasx/2)                        # middle assembly (assume odd)
-    self.mass = core.nassx / 2
-#npin=pows.shape[0]                      # number of fuel pins
-#mpin=int(npin/2)                        # middle fuel pin (assume odd)
-    self.mpin = core.npinx / 2
-#nax=len(ax_mesh)-1                      # number of axial planes
-#pxlo=numpy.empty([nass],dtype=int)      # create arrays for loop bounds
-#pylo=numpy.empty([nass],dtype=int)      # in case of quarter symmetry
-    self.pxlo = np.empty( [ core.nass ], dtype = int )
-    self.pxlo.fill( 0 )
-    self.pylo = np.empty( [ core.nass ], dtype = int )
-    self.pylo.fill( 0 )
-#axlo=0                                  # initialize loop bounds for 
-#hmid=(ax_mesh[0]+ax_mesh[-1])*0.5       # midpoint of the fuel for AO
-    self.axlo = 0
-    self.hmid = (core.axialMesh[ 0 ] + core.axialMesh[ -1 ]) * 0.5
-
-    self.assemblyWeights, \
-    self.axialWeights, \
-    self.pinWeights, \
-    self.radialWeights = \
-    self.calc_weights( core, statept.GetDataSet( 'pin_powers' ).value )
+#    self.core = core
+#    self.statept = statept
+#
+#    self.pinWeights, \
+#    self.assemblyWeights, \
+#    self.axialWeights, \
+#    self.coreWeights, \
+#    self.radialWeights = \
+#    self.calc_weights( core, statept.GetDataSet( 'pin_powers' ).value )
   #end __init__
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_average()					-
   #----------------------------------------------------------------------
-  def calc_average( self, data, avg_weights, avg_axis ):
+  def calc_average( self, data, avg_weights, avg_axis, **errors_args ):
     """
 @param  data		np.ndarray with dataset values to average
 @param  avg_weights	weights to apply as a denominator to the data sum
@@ -72,15 +52,44 @@ class Averages( object ):
 """
     avg = None
     if data is not None:
-      errors = np.seterr( invalid = 'ignore' )
+      if errors_args:
+        errors_save = np.seterr( **errors_args )
+        #errors = np.seterr( invalid = 'ignore' )
       try:
 	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
       finally:
-        np.seterr( **errors )
+	if errors_args:
+          np.seterr( **errors_save )
     #end if
 
     return  avg
   #end calc_average
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		load()						-
+  #----------------------------------------------------------------------
+  def load( self, core, ref_pin_powers ):
+    """
+@param  core		datamodel.Core object with properties
+			  axialMesh, axialMeshCenters, coreMap, coreSym,
+			  nass, nassx, nassy, nax, npin, pinVolumes
+@param  ref_pin_powers	'pin_powers' data as an np.ndarray
+#@param  statept		datamodel.State reference object, probably from
+#			'STATE_0001', which is assumed to have 'pin_powers'
+"""
+    self.core = core
+    #self.statept = statept
+
+
+    self.pinWeights, \
+    self.assemblyWeights, \
+    self.axialWeights, \
+    self.coreWeights, \
+    self.radialWeights = \
+    self._calc_weights( core, ref_pin_powers )
+    #self._calc_weights( core, statept.GetDataSet( 'pin_powers' ).value )
+  #end load
 
 
   #----------------------------------------------------------------------
@@ -100,19 +109,47 @@ class Averages( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_core_avg()				-
+  #----------------------------------------------------------------------
+  def calc_pin_core_avg( self, data ):
+    return  self.calc_average( data, self.coreWeights, ( 0, 1, 2 ) )
+  #end calc_pin_core_avg
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		calc_pin_radial_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_radial_avg( self, data ):
-    return  self.calc_average( data, self.radialWeights, 2 )
+    return  self.calc_average( data, self.radialWeights, 2, invalid = 'ignore' )
   #end calc_pin_radial_avg
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		calc_weights()					-
+  #	METHOD:		_calc_weights()					-
   #----------------------------------------------------------------------
-  def calc_weights( self, core, pin_powers ):
+  def _calc_weights( self, core, ref_pin_powers ):
+    """
+@param  core		DataModel.Core object
+@param  ref_pin_powers	'pin_powers' data as an np.ndarray
+@return			( pin_weights, assembly_weights, axial_weights,
+			  core_weights, radial_weights )
+"""
+# Get the geometry information ----------------------------------------
+#map=f['CORE']['core_map']               # get core map
+#ax_mesh=f['CORE']['axial_mesh']         # get axial mesh
+#sym=f['CORE']['core_sym'][0]            # symmetry option
+#pows=f['STATE_0001']['pin_powers']      # get sample pin powers
+#nass=pows.shape[3]                      # total number of assembles
+#nasx=len(map)                           # number of assemblies across the core
+#mass=int(nasx/2)                        # middle assembly (assume odd)
+#npin=pows.shape[0]                      # number of fuel pins
+#mpin=int(npin/2)                        # middle fuel pin (assume odd)
+#nax=len(ax_mesh)-1                      # number of axial planes
+#pxlo=numpy.empty([nass],dtype=int)      # create arrays for loop bounds
+#pylo=numpy.empty([nass],dtype=int)      # in case of quarter symmetry
+#axlo=0                                  # initialize loop bounds for 
     axlo = 0
-
+#hmid=(ax_mesh[0]+ax_mesh[-1])*0.5       # midpoint of the fuel for AO
 #if sym==4:                              # for quarter symmetry
 #    axlo=mass                           # start in the middle of the core
 #    for i in xrange(axlo,nasx):
@@ -149,13 +186,13 @@ class Averages( object ):
 
 #		-- Start with zero weights
 #		--
-    weights = np.zeros( core.pinVolumes.shape, dtype = np.float64 )
+    pin_weights = np.zeros( core.pinVolumes.shape, dtype = np.float64 )
     #powers = statept.GetDataSet( 'pin_powers' ).value
 
 #		-- Full core, weight is 1 for non-zero power
 #		--
     if core.coreSym == 0:
-      np.place( weights, pin_powers > 0.0, 1.0 )
+      np.place( pin_weights, ref_pin_powers > 0.0, 1.0 )
 
     else:
 #			-- Initialize weights to 1 for non-zero power
@@ -163,8 +200,8 @@ class Averages( object ):
       npin = core.npin
       for i in xrange( core.nass ):
 	np.place(
-            weights[ pylo[ i ] : npin, pxlo[ i ] : npin, :, i ],
-            pin_powers[ pylo[ i ] : npin, pxlo[ i ] : npin, :, i ] > 0.0,
+            pin_weights[ pylo[ i ] : npin, pxlo[ i ] : npin, :, i ],
+            ref_pin_powers[ pylo[ i ] : npin, pxlo[ i ] : npin, :, i ] > 0.0,
             1.0
 	    )
 #			-- Cut pin weights by half on line of symmetry
@@ -172,24 +209,26 @@ class Averages( object ):
       for i in xrange( axlo, core.nassx ):
 	assy_ndx = core.coreMap[ mass, i ] - 1
 	if assy_ndx >= 0:
-	  weights[ mpin, :, :, i ] *= 0.5
+	  pin_weights[ mpin, :, :, i ] *= 0.5
 
       for j in xrange( axlo, core.nassy ):
         assy_ndx = core.coreMap[ j, mass ] - 1
 	if assy_ndx >= 0:
-	  weights[ :, mpin, :, j ] *= 0.5
+	  pin_weights[ :, mpin, :, j ] *= 0.5
     #end if-else
 
 #		-- Multiply weights by axial mesh size
 #		--
     for k in xrange( core.nax ):
-      weights[ :, :, k, : ] *= (core.axialMesh[ k + 1 ] - core.axialMesh[ k ])
+      pin_weights[ :, :, k, : ] *= (core.axialMesh[ k + 1 ] - core.axialMesh[ k ])
 
-    assembly_weights = np.sum( weights, axis = ( 0, 1 ) )
-    axial_weights = np.sum( weights, axis = ( 0, 1, 3 ) )
-    radial_weights = np.sum( weights, axis = 2 )
+    assembly_weights = np.sum( pin_weights, axis = ( 0, 1 ) )
+    axial_weights = np.sum( pin_weights, axis = ( 0, 1, 3 ) )
+    core_weights = np.sum( pin_weights, axis = ( 0, 1, 2 ) )
+    radial_weights = np.sum( pin_weights, axis = 2 )
 
-    return  assembly_weights, axial_weights, weights, radial_weights
-  #end calc_weights
+    return  \
+    pin_weights, assembly_weights, axial_weights, core_weights, radial_weights
+  #end _calc_weights
 
 #end Averages

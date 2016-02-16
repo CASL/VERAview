@@ -177,7 +177,8 @@ DATASET_DEFS = \
     }
   }
 
-DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
+#DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
+DERIVED_CALCULATOR_CLASS = 'data.pin_averages.Averages'
 
 
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
@@ -798,28 +799,31 @@ Parameters:
 	derived_name = der_names[ 1 ]
         avg_method_name = ddef[ 'avg_method' ]
 
-        for state_ndx in range( len( self.states ) ):
-	  st = self.GetState( state_ndx )
-	  derived_st = self.GetDerivedState( state_ndx )
+	try:
+	  avg_method = getattr( self.averager, avg_method_name )
 
-	  data = st.GetDataSet( ds_name )
-	  if data is None:
-	    data = derived_st.GetDataSet( ds_name )
+          for state_ndx in range( len( self.states ) ):
+	    st = self.GetState( state_ndx )
+	    derived_st = self.GetDerivedState( state_ndx )
 
-	  if data:
-	    try:
-	      avg_method = getattr( self.averager, avg_method_name )
-	      avg_data = avg_method( self.core, data )
+	    data = st.GetDataSet( ds_name )
+	    if data is None:
+	      data = derived_st.GetDataSet( ds_name )
+
+	    if data:
+	      #avg_data = avg_method( self.core, data )
+	      avg_data = avg_method( data.value )
 	      derived_st.CreateDataSet( derived_name, avg_data )
-	    except Exception, ex:
-	      msg = 'Error calculating derived "%s" dataset for "%s"' % \
-	          ( derived_label, ds_name )
-	      print >> sys.stderr, '%s\nddef="%s"' % ( msg, str( ddef ) )
-	      raise Exception( msg )
-	  #end if data
-	#end for each state
+	    #end if data
+	  #end for each state
 
-	self.AddDataSetName( der_names[ 0 ], derived_name )
+	  self.AddDataSetName( der_names[ 0 ], derived_name )
+
+	except Exception, ex:
+	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
+	      ( derived_label, ds_name )
+	  print >> sys.stderr, '%s\nddef="%s"' % ( msg, str( ddef ) )
+	  raise Exception( msg )
       #end if dataset definition found
     #end we have state points
 
@@ -1221,7 +1225,7 @@ the properties construct for this class soon.
       ds_range = DataModel.DEFAULT_range
 
     return  ds_range
-  #end GetRanges
+  #end GetRange
 
 
   #----------------------------------------------------------------------
@@ -1284,11 +1288,12 @@ the properties construct for this class soon.
       st = self.GetState( state_ndx )
       derived_st = self.GetDerivedState( state_ndx )
 
-    if st and derived_st:
+    #if st and derived_st:
+    if st:
       self.dataSetDefsLock.acquire()
       try:
         dset = st.GetDataSet( ds_name )
-	if dset is None:
+	if dset is None and derived_st is not None:
 	  dset = derived_st.GetDataSet( ds_name )
 
         if dset is not None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
@@ -1783,6 +1788,10 @@ to be 'core', and the dataset is not associated with a state point.
 #		--
     self.derivedFile, self.derivedStates = \
         self._CreateDerivedH5File( self.states )
+
+#		-- Set up the averager
+#		--
+    self.averager.load( self.core, self.GetStateDataSet( 0, 'pin_powers' ).value )
   #end Read
 
 
@@ -1826,13 +1835,15 @@ to be 'core', and the dataset is not associated with a state point.
         if dset:
 	  dset_array = dset.value
 
-	  cur_max = np.amax( dset_array )
+	  #cur_max = np.amax( dset_array )
+	  cur_max = np.nanmax( dset_array )
 	  if math.isnan( vmax ) or cur_max > vmax:
 	    vmax = cur_max
 
 	  cur_nz = dset_array[ np.nonzero( dset_array ) ]
 	  if len( cur_nz ) > 0:
-	    cur_min = np.amin( cur_nz )
+	    #cur_min = np.amin( cur_nz )
+	    cur_min = np.nanmin( cur_nz )
 	    if math.isnan( vmin ) or cur_min < vmin:
 	      vmin = cur_min
 	#end if dset
