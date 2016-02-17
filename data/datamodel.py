@@ -1465,7 +1465,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 @return			True if "no data", False otherwise
 """
     #return  value <= 0.0 if ds_range[ 0 ] >= 0.0 else math.isnan( value )
-    return  value == 0.0
+    return  value == 0.0 or math.isnan( value )
   #end IsNoDataValue
 
 
