@@ -146,7 +146,7 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardData()				-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self ):
+  def _CreateClipboardData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """

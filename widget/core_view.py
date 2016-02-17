@@ -403,7 +403,21 @@ If neither are specified, a default 'scale' value of 24 is used.
   #----------------------------------------------------------------------
   #	METHOD:		Core2DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self ):
+  def _CreateClipboardData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardSelectionData() \
+        if cur_selection_flag else \
+        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateClipboardAllData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardAllData( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -411,7 +425,6 @@ If neither are specified, a default 'scale' value of 24 is used.
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -480,7 +493,49 @@ If neither are specified, a default 'scale' value of 24 is used.
       csv_text = DataModel.ToCSV( clip_data, ( title1, title2 ) )
 
     return  csv_text
-  #end _CreateClipboardData
+  #end _CreateClipboardAllData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateClipboardSelectionData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardSelectionData( self ):
+    """Retrieves the data for the state, axial, and assembly.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+
+    if dset is not None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+
+      clip_shape = ( dset_shape[ 0 ], dset_shape[ 1 ] )
+      #clip_data = np.ndarray( clip_shape, dtype = np.float64 )
+      #clip_data.fill( 0.0 )
+      clip_data = dset_value[ :, :, axial_level, assy_ndx ]
+
+      title = '"%s: Assembly=%d; Axial=%.3f; %s=%.3g"' % (
+	  self.pinDataSet,
+	  assy_ndx + 1,
+	  self.axialValue[ 0 ],
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+      csv_text = DataModel.ToCSV( clip_data, title )
+
+    return  csv_text
+  #end _CreateClipboardSelectionData
 
 
   #----------------------------------------------------------------------
