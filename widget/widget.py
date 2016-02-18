@@ -691,6 +691,13 @@ it to the clipboard.
 
     bitmap = self._CreateClipboardImage()
     if bitmap is not None:
+# bmap = wx.EmptyBitmap( wd, ht )
+# dc = wx.MemoryDC( bmap )
+# dc.SetBackground( wx.Brush( wx.Colour( 255, 255, 255 ) ) )
+# dc.SetPen( wx.Pen( wx.Colour( 255, 255, 255 ) ) )
+# dc.DrawRectangle( 0, 0, wd, ht ) )
+# dc.DrawBitmap( bitmap, 0, 0 )
+# dc.SelectObject( wx.NullBitmap )
       if not wx.TheClipboard.Open():
         wx.MessageBox(
 	    'Could not open the clipboard', 'Copy Image',

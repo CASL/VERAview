@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-02-18	leerw@ornl.gov				-
+#	  Added copy selection.
 #		2016-02-10	leerw@ornl.gov				-
 #	  Title template and string creation now inherited from
 #	  RasterWidget.
@@ -104,6 +106,20 @@ Attrs/properties:
   #	METHOD:		Assembly2DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardSelectionData() \
+        if cur_selection_flag else \
+        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._CreateClipboardAllData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardAllData( self, cur_selection_flag = False ):
     """Retrieves the data for the current assembly selection.
 @return			text or None
 """
@@ -155,7 +171,52 @@ Attrs/properties:
       #end if data in range
 
     return  csv_text
-  #end _CreateClipboardData
+  #end _CreateClipboardAllData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._CreateClipboardSelectionData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardSelectionData( self, cur_selection_flag = False ):
+    """Retrieves the data for the current assembly selection.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+
+    if dset is not None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+
+      pin_row = min( self.pinColRow[ 1 ], dset_shape[ 0 ] - 1 )
+      pin_col = min( self.pinColRow[ 0 ], dset_shape[ 1 ] - 1 )
+      #clip_data = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
+      clip_data = np.ndarray( ( 1, ), dtype = np.float64 )
+      clip_data[ 0 ] = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
+
+      title = '%s: Assembly=%d; Axial=%.3f; Pin=%d:%d; %s=%.3g' % (
+          self.pinDataSet,
+	  assy_ndx + 1,
+	  self.axialValue[ 0 ],
+	  pin_col + 1, pin_row + 1,
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+      csv_text = DataModel.ToCSV( clip_data, title )
+    #end if dset is not None
+
+    return  csv_text
+  #end _CreateClipboardSelectionData
 
 
   #----------------------------------------------------------------------

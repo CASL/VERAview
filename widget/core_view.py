@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-02-17	leerw@ornl.gov				-
+#	  Added copy selection.
 #		2016-02-11	leerw@ornl.gov				-
 #	  Supporting pin:assembly datasets by duplicating the last pin
 #	  value in each dimension.
