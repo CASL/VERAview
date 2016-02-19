@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-02-19	leerw@ornl.gov				-
+#	  Solved black background image copy by forcing a white background
+#	  image in _OnCopyImage().
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
@@ -691,13 +694,6 @@ it to the clipboard.
 
     bitmap = self._CreateClipboardImage()
     if bitmap is not None:
-# bmap = wx.EmptyBitmap( wd, ht )
-# dc = wx.MemoryDC( bmap )
-# dc.SetBackground( wx.Brush( wx.Colour( 255, 255, 255 ) ) )
-# dc.SetPen( wx.Pen( wx.Colour( 255, 255, 255 ) ) )
-# dc.DrawRectangle( 0, 0, wd, ht ) )
-# dc.DrawBitmap( bitmap, 0, 0 )
-# dc.SelectObject( wx.NullBitmap )
       if not wx.TheClipboard.Open():
         wx.MessageBox(
 	    'Could not open the clipboard', 'Copy Image',
@@ -705,15 +701,27 @@ it to the clipboard.
 	    )
 
       else:
+#				-- Force white background for Windoze
+#				--
+        white_bmap = wx.EmptyBitmapRGBA(
+            bitmap.GetWidth(), bitmap.GetHeight(),
+	    255, 255, 255, 255
+	    )
+        img_dc = wx.MemoryDC()
+        img_dc.SelectObject( white_bmap )
+	try:
+          img_dc.DrawBitmap( bitmap, 0, 0 )
+	finally:
+          img_dc.SelectObject( wx.NullBitmap )
+#				--
         try:
-	  wx.TheClipboard.SetData( wx.BitmapDataObject( bitmap ) )
+	  wx.TheClipboard.SetData( wx.BitmapDataObject( white_bmap ) )
 
 	except Exception, ex:
           wx.MessageBox(
 	      'Clipboard copy error', 'Copy Image',
 	      wx.ICON_WARNING | wx.OK_DEFAULT
 	      )
-
 	finally:
 	  wx.TheClipboard.Close()
       #end if-else
