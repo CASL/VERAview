@@ -186,12 +186,14 @@ be called before use.
 
 #		-- Start with zero weights
 #		--
-    pin_weights = np.zeros( core.pinVolumes.shape, dtype = np.float64 )
     #powers = statept.GetDataSet( 'pin_powers' ).value
+    #pin_weights_shape = core.pinVolumes.shape if core.pinVolumes else ref_pin_powers.shape
+    #pin_weights = np.zeros( core.pinVolumes.shape, dtype = np.float64 )
+    pin_weights = np.zeros( ref_pin_powers.shape, dtype = np.float64 )
 
 #		-- Full core, weight is 1 for non-zero power
 #		--
-    if core.coreSym == 0:
+    if core.coreSym <= 1:
       np.place( pin_weights, ref_pin_powers > 0.0, 1.0 )
 
     else:

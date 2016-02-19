@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2016-02-19	leerw@ornl.gov				-
+#	  Added copy selection.
 #		2016-02-10	leerw@ornl.gov				-
 #	  Title template and string creation now inherited from
 #	  RasterWidget.
@@ -78,9 +80,9 @@ Attrs/properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DView._CreateClipboardData()		-
+  #	METHOD:		Detector2DView._CreateClipboardAllData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
+  def _CreateClipboardAllData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -129,7 +131,61 @@ Attrs/properties:
       #end for det rows
 
     return  csv_text
+  #end _CreateClipboardAllData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardSelectionData() \
+        if cur_selection_flag else \
+        self._CreateClipboardAllData()
   #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DView._CreateClipboardSelectionData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardSelectionData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+        self.data,
+	detector_index = self.detectorIndex[ 0 ],
+	state_index = self.stateIndex
+	)
+    if is_valid and \
+        self.data.core.detectorMeshCenters is not None and \
+	len( self.data.core.detectorMeshCenters ) > 0:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.detectorDataSet )
+
+    if dset is not None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+
+      det_ndx = self.detectorIndex[ 0 ]
+
+      csv_text = '"%s: Detector=%d; %s=%.3g"\n' % (
+	  self.detectorDataSet,
+	  det_ndx + 1,
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+      for ax_ndx in range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
+        ax_value = self.data.core.detectorMeshCenters[ ax_ndx ]
+	csv_text += '%.7g,%.7g\n' % ( ax_value, dset_value[ ax_ndx, det_ndx ] )
+      #end for ax_ndx
+
+    return  csv_text
+  #end _CreateClipboardSelectionData
 
 
   #----------------------------------------------------------------------

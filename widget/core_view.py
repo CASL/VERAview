@@ -403,20 +403,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardData()		-
-  #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._CreateClipboardAllData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardAllData( self ):
@@ -499,6 +485,20 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardSelectionData() \
+        if cur_selection_flag else \
+        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._CreateClipboardSelectionData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardSelectionData( self ):
@@ -522,7 +522,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
-      clip_shape = ( dset_shape[ 0 ], dset_shape[ 1 ] )
+      #clip_shape = ( dset_shape[ 0 ], dset_shape[ 1 ] )
       #clip_data = np.ndarray( clip_shape, dtype = np.float64 )
       #clip_data.fill( 0.0 )
       clip_data = dset_value[ :, :, axial_level, assy_ndx ]

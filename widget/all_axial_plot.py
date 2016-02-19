@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		all_axial_plot.py				-
 #	HISTORY:							-
+#		2016-02-19	leerw@ornl.gov				-
+#	  Added copy selection.
 #		2016-02-11	leerw@ornl.gov				-
 #	  Refitting _UpdateDataSetValues() to allow all the new ds_types.
 #		2016-02-08	leerw@ornl.gov				-
@@ -171,14 +173,17 @@ Properties:
 
         if ds_rec[ 'visible' ] and ds_name is not None:
 	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+	  ds_type = self.data.GetDataSetType( ds_name )
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
 	  dset_array = dset.value if dset is not None else None
 	  if dset_array is None:
 	    pass
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
+	  #elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
+	  elif ds_type.startswith( 'channel' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
+		axial_level = self.axialValue[ 1 ],
 		channel_colrow = self.channelColRow
 	        )
 	    if valid:
@@ -187,22 +192,37 @@ Properties:
 		title += '; Channel=(%d,%d)' % ( 
 		    self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1
 		    )
-	      values = dset_array[
-		  self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-		  :, self.assemblyIndex[ 0 ]
-	          ]
+	      if cur_selection_flag:
+	        values = dset_array[
+		    self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+		    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+		    ]
+	      else:
+	        values = dset_array[
+		    self.channelColRow[ 1 ], self.channelColRow[ 0 ],
+		    :, self.assemblyIndex[ 0 ]
+	            ]
 	      axial_mesh_datasets.append( ( ds_display_name, values ) )
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
-	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
+	  #elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
+	  elif ds_type.startswith( 'detector' ):
+	    valid = self.data.IsValid(
+		axial_level = self.axialValue[ 1 ],
+	        detector_index = self.detectorIndex[ 0 ]
+		)
+	    if valid:
 	      if 'detector' not in title_set:
 	        title_set.add( 'detector' )
 		title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
 
-	      detector_mesh_datasets.append(
-		  ( ds_display_name, dset_array[ :, self.detectorIndex[ 0 ] ] )
-	          )
+	      if cur_selection_flag:
+	        values = \
+		    dset_array[ self.axialValue[ 1 ], self.detectorIndex[ 0 ] ]
+	      else:
+	        values = dset_array[ :, self.detectorIndex[ 0 ] ]
+	      detector_mesh_datasets.append( ( ds_display_name, values ) )
 
+	  # deprecated
 	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
 	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
 	      ds_display_name in self.data.GetDataSetNames( 'other' ):
@@ -220,9 +240,11 @@ Properties:
 	          ]
 	      axial_mesh_datasets.append( ( ds_display_name, values ) )
 
-	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
+	  #elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
+	  elif ds_type.startswith( 'pin' ):
 	    valid = self.data.IsValid(
 	        assembly_index = self.assemblyIndex,
+		axial_level = self.axialValue[ 1 ],
 		pin_colrow = self.pinColRow
 	        )
 	    if valid:
@@ -232,10 +254,16 @@ Properties:
 		    self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1
 		    )
 
-	      values = dset_array[
-		  self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-		  :, self.assemblyIndex[ 0 ]
-	          ]
+	      if cur_selection_flag:
+	        values = dset_array[
+		    self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+		    ]
+	      else:
+	        values = dset_array[
+		    self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+		    :, self.assemblyIndex[ 0 ]
+	            ]
 	      axial_mesh_datasets.append( ( ds_display_name, values ) )
 	  #end if category match
         #end if visible
@@ -250,11 +278,22 @@ Properties:
 	  header += ',' + name
         csv_text += header + '\n'
 
-	for j in range( len( core.axialMeshCenters ) - 1, -1, -1 ):
+	if cur_selection_flag:
+	  j_range = ( self.axialValue[ 1 ], )
+	else:
+	  j_range = range( len( core.axialMeshCenters ) - 1, -1, -1 )
+	for j in j_range:
 	  row = '%.7g' % core.axialMeshCenters[ j ]
           for name, values in axial_mesh_datasets:
-	    if len( values ) > j:
-	      row += ',%.7g' % values[ j ]
+	    cur_val = 0
+	    if not hasattr( values, '__len__' ):
+	      if j == self.axialValue[ 1 ]:
+	        cur_val = values
+	    elif len( values ) > j:
+	      cur_val = values[ j ]
+
+	    if cur_val != 0:
+	      row += ',%.7g' % cur_val
 	    else:
 	      row += ',0'
           #end for name, values
@@ -271,11 +310,22 @@ Properties:
 	  header += ',' + name
         csv_text += header + '\n'
 
-	for j in range( len( core.detectorMeshCenters ) - 1, -1, -1 ):
+	if cur_selection_flag:
+	  j_range = ( self.axialValue[ 2 ], )
+	else:
+	  j_range = range( len( core.detectorMeshCenters ) - 1, -1, -1 )
+	for j in j_range:
 	  row = '%.7g' % core.detectorMeshCenters[ j ]
           for name, values in detector_mesh_datasets:
-	    if len( values ) >= j:
-	      row += ',%.7g' % values[ j ]
+	    cur_val = 0
+	    if not hasattr( values, '__len__' ):
+	      if j == self.axialValue[ 2 ]:
+	        cur_val = values
+	    elif len( values ) > j:
+	      cur_val = values[ j ]
+
+	    if cur_val != 0:
+	      row += ',%.7g' % cur_val
 	    else:
 	      row += ',0'
           #end for name, values

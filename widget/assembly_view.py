@@ -103,20 +103,6 @@ Attrs/properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._CreateClipboardData()		-
-  #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._CreateClipboardAllData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardAllData( self, cur_selection_flag = False ):
@@ -172,6 +158,20 @@ Attrs/properties:
 
     return  csv_text
   #end _CreateClipboardAllData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardSelectionData() \
+        if cur_selection_flag else \
+        self._CreateClipboardAllData()
+  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------

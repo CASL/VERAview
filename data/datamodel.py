@@ -1088,7 +1088,7 @@ descending.
 			ds_type, empty if not found
 			if ds_type is None, dict of dataset name lists by
 			ds_type
-			( 'axial', 'channel', 'derived', 'detector',
+			( 'axial', 'channel', 'detector',
 			  'pin', 'scalar', etc. )
 """
     return \
@@ -1132,6 +1132,9 @@ descending.
   #	METHOD:		DataModel.GetDerivedLabels()			-
   #----------------------------------------------------------------------
   def GetDerivedLabels( self, ds_category ):
+    """For the specified category, returns all the labels for possible
+derived datasets.
+"""
     labels = []
 
     #xxxx must look up prefix in def
@@ -1939,9 +1942,10 @@ calculated.
   #----------------------------------------------------------------------
   def _ResolveDataSets( self, core, st_group ):
     """Thread-safe method to build three dicts:
-  ds_defs		dataset definitions by dataset type
-  ds_defs_by_name	dataset definition by dataset name
-  ds_names		list of dataset names by dataset type
+ds_defs		dataset definitions by dataset type
+ds_defs_by_name	dataset definition by dataset name
+ds_names	dict of dataset names by dataset type
+		'axial', 'scalar', 'time', plus types defined in DATASET_DEFS
 @param  core		core object, cannot be None
 @param  st_group	h5py.Group for first state group, cannot be None
 @return			ds_defs, ds_defs_by_name, ds_names
@@ -2577,6 +2581,7 @@ Fields:
 @return			dict of dataset name lists with keys
 			  'axial', 'channel', 'detector', 'other', 'pin',
 			  'scalar', 'time'
+@deprecated  This is now handled in DataModel._ResolveDataSets()
 """
     axial_ds_names = []
     channel_ds_names = []
