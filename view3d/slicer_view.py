@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-02-19	leerw@ornl.gov				-
+#	  Updated menu stuff.
 #		2016-01-15	leerw@ornl.gov				-
 #	  Working on the cut scene.
 #		2016-01-08	leerw@ornl.gov				-
@@ -135,7 +137,7 @@ class Slicer3DView( Widget ):
     self.data = None
 
     self.autoSync = True
-    self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
+    #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
@@ -280,6 +282,18 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateMenuDef()			-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self, data_model ):
+    """
+"""
+    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
+    my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
+    return  menu_def + my_def
+  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._CreateViz()			-
   #----------------------------------------------------------------------
   def _CreateViz( self, matrix, drange ):
@@ -314,11 +328,11 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetDataSetType()			-
+  #	METHOD:		Slicer3DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
-  def GetDataSetType( self ):
-    return  'pin'
-  #end GetDataSetType
+  def GetDataSetTypes( self ):
+    return  [ 'pin' ]
+  #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------
@@ -337,9 +351,9 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.GetMenuDef()			-
   #----------------------------------------------------------------------
-  def GetMenuDef( self, data_model ):
-    return  self.menuDef
-  #end GetMenuDef
+#  def GetMenuDef( self, data_model ):
+#    return  self.menuDef
+#  #end GetMenuDef
 
 
   #----------------------------------------------------------------------

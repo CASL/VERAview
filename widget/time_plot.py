@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plot.py					-
 #	HISTORY:							-
+#		2016-02-19	leerw@ornl.gov				-
+#	  Added copy selection.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed GetDataSetType() to GetDataSetTypes().
 #		2016-01-25	leerw@ornl.gov				-
@@ -100,9 +102,16 @@ Properties:
 	len( self.refAxisValues ) > 0 and len( self.scalarValues ) > 0:
 
       csv_text = '%s,%s\n' % ( self.state.timeDataSet, self.scalarDataSet )
-      for i in range( len( self.refAxisValues ) ):
-	row = '%.7g' % self.refAxisValues[ i ]
-	if len( self.scalarValues ) > i:
+
+      if cur_selection_flag:
+        i_range = ( self.stateIndex, )
+      else:
+        i_range = range( len( self.refAxisValues ) )
+
+      #for i in range( len( self.refAxisValues ) ):
+      for i in i_range:
+        row = '%.7g' % self.refAxisValues[ i ]
+        if len( self.scalarValues ) > i:
 	  row += ',%.7g' % self.scalarValues[ i ]
 	csv_text += row + '\n'
       #end for
