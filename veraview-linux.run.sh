@@ -11,12 +11,14 @@ CanopyUserBinDir=$HOME/Enthought/Canopy_64bit/User/bin
 
 if [ -x "${CanopyUserBinDir}/python" ]; then
   export ETS_TOOLKIT=wx
+  export PYTHONPATH=${VERAViewDir}:${PYTHONPATH}
   exec ${CanopyUserBinDir}/python "${VERAViewDir}/veraview.py" "$@"
 
 else
   cat <<END >&2
 ** Canopy installation not found. **
 
-Edit this script to set the CanopyUserBinDir variable.
+Modify this script to set the CanopyUserBinDir environment variable to point
+to your Canopy User/bin directory.
 END
 fi
