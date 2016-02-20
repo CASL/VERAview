@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_slider.py					-
 #	HISTORY:							-
+#		2016-02-20	leerw@ornl.gov				-
+#	  Added {Decr,Incr}ement() methods.
 #		2015-05-01	leerw@ornl.gov				-
 # 	  Added title param to constructor and _InitUI().
 #		2015-02-06	leerw@ornl.gov				-
@@ -106,6 +108,17 @@ Attributes/properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		AxialSliderBean.Decrement()			-
+  #----------------------------------------------------------------------
+  def Decrement( self ):
+    if self.fSlider.GetValue() > self.fSlider.GetMin():
+      val = self.fSlider.GetValue() - 1
+      self.fSlider.SetValue( val )
+      wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+  #end Decrement
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		AxialSliderBean.Enable()			-
   #----------------------------------------------------------------------
   def Enable( self, flag = True ):
@@ -113,6 +126,17 @@ Attributes/properties:
     if self.fSlider is not None:
       self.fSlider.Enable( flag )
   #end Enable
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		AxialSliderBean.Increment()			-
+  #----------------------------------------------------------------------
+  def Increment( self ):
+    if self.fSlider.GetValue() < self.fSlider.GetMax():
+      val = self.fSlider.GetValue() + 1
+      self.fSlider.SetValue( val )
+      wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+  #end Increment
 
 
   #----------------------------------------------------------------------
@@ -133,13 +157,13 @@ Attributes/properties:
 	    wx.SL_AUTOTICKS | wx.SL_INVERSE | wx.SL_LABELS | wx.SL_RIGHT |
 	    wx.VERTICAL
 	)
+    self.fSlider.Bind( wx.EVT_SCROLL, self._OnSlider )
     self.fSlider.Disable()
 
     sizer = wx.BoxSizer( wx.VERTICAL )
     sizer.Add( slider_label, 0, wx.ALL | wx.ALIGN_CENTER | wx.ALIGN_TOP )
     sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
     self.SetSizer( sizer )
-    self.fSlider.Bind( wx.EVT_SCROLL, self._OnSlider )
   #end _InitUI
 
 

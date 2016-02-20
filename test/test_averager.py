@@ -664,7 +664,7 @@ class TestAverager( unittest.TestCase ):
   #----------------------------------------------------------------------
   #	METHOD:		TestAverager.test_CreateCorePinFactors1()	-
   #----------------------------------------------------------------------
-  def test_CreateCorePinFactors1( self ):
+  def _test_CreateCorePinFactors1( self ):
     obj = Averager()
 
     results = self._readArray( 'pinfactors1.out.gz' )

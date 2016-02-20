@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-02-20	leerw@ornl.gov				-
+#	  Added EVT_CHAR_HOOK to VeraViewFrame.
 #		2016-01-22	leerw@ornl.gov				-
 #	  Added Edit->Copy menu item.
 #		2015-12-29	leerw@ornl.gov				-
@@ -663,6 +665,7 @@ class VeraViewFrame( wx.Frame ):
 #		-- Window Events
 #		--
     self.state.AddListener( self )
+    self.Bind( wx.EVT_CHAR_HOOK, self._OnCharHook )
     self.Bind( wx.EVT_CLOSE, self.OnCloseFrame )
   #end _InitUI
 
@@ -826,6 +829,24 @@ Must be called from the UI thread.
       self.state.FireStateChange( reason )
       #self.grid.FireStateChange( reason )
   #end _OnAxial
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnCharHook()			-
+  #----------------------------------------------------------------------
+  def _OnCharHook( self, ev ):
+    code = ev.GetKeyCode()
+    if code == wx.WXK_DOWN:
+      self.axialBean.Decrement()
+    elif code == wx.WXK_LEFT:
+      self.exposureBean.Decrement()
+    elif code == wx.WXK_RIGHT:
+      self.exposureBean.Increment()
+    elif code == wx.WXK_UP:
+      self.axialBean.Increment()
+    else:
+      ev.DoAllowNextEvent()
+  #end _OnCharHook
 
 
   #----------------------------------------------------------------------
