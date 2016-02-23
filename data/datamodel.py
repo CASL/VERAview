@@ -253,6 +253,7 @@ Properties:
     missing = []
 
 #    if self.axialMesh is None or self.axialMeshCenters is None:
+# Redundant, caught with exception in Read()
     if self.axialMesh is None:
       missing.append( 'AXIAL_MESH not found' )
 #    elif self.axialMesh.shape[ 0 ] != self.nax + 1 or \
@@ -260,6 +261,7 @@ Properties:
     elif self.axialMesh.shape[ 0 ] != self.nax + 1:
       missing.append( 'AXIAL_MESH shape is not consistent with NAX' )
 
+# Redundant, caught with exception in Read()
     if self.coreMap is None:
       missing.append( 'CORE_MAP not found' )
     elif self.coreMap.shape[ 0 ] != self.nassy or \
@@ -372,15 +374,13 @@ Properties:
     if h5_group is None or not isinstance( h5_group, h5py.Group ):
       raise Exception( 'Must have valid HDF5 file' )
 
+#		-- Assert on CORE
+#		--
+    if 'CORE' not in h5_group:
+      raise Exception( 'Could not find "CORE"' )
+
     core_group = h5_group[ 'CORE' ]
     input_group = h5_group[ 'INPUT' ] if 'INPUT' in h5_group else None
-
-#		-- Assert on CORE or INPUT group
-#		--
-#    if core_group is None and input_group is None:
-#      raise Exception( 'Could not find "CORE" or "INPUT" group' )
-    if core_group is None:
-      raise Exception( 'Could not find "CORE"' )
 
     self._ReadImpl( core_group, input_group )
   #end Read
@@ -396,15 +396,24 @@ Properties:
     if input_group is not None:
       in_core_group = input_group.get( 'CASEID/CORE' )
 
-#		-- Assert on must have 'core_map'
+#		-- Assert on must haves: 'axial_mesh', 'core_map'
 #		--
-    item = self._FindInGroup( 'core_map', core_group, in_core_group )
-    if item is None:
-      raise Exception( '"core_map" dataset not found' )
+    missing = []
+    axial_mesh_item = \
+        self._FindInGroup( 'axial_mesh', core_group, in_core_group )
+    if axial_mesh_item is None:
+      missing.append( '"axial_mesh" dataset not found' )
+
+    core_map_item = self._FindInGroup( 'core_map', core_group, in_core_group )
+    if core_map_item is None:
+      missing.append( '"core_map" dataset not found' )
+
+    if missing:
+      raise Exception( ','.join( missing ) )
 
 #		-- No exception, plow on
 #		--
-    self.coreMap = item.value
+    self.coreMap = core_map_item.value
     self.nassy = self.coreMap.shape[ 0 ]
     self.nassx = self.coreMap.shape[ 1 ]
 
@@ -424,19 +433,21 @@ Properties:
       self.apitch = item.value.item() if len( item.shape ) > 0 else item.value
 #      self.apitch = item.value[ 0 ]
 
-    item = self._FindInGroup( 'axial_mesh', core_group, in_core_group )
-    if item is not None:
-      self.axialMesh = item.value
+    #item = self._FindInGroup( 'axial_mesh', core_group, in_core_group )
+    #if item is not None:
+    if True:
+      self.axialMesh = axial_mesh_item.value
       self.nax = self.axialMesh.shape[ 0 ] - 1
 #			-- Numpy magic
-      t = np.copy( item.value )
+      t = np.copy( axial_mesh_item.value )
       t2 = np.r_[ t, np.roll( t, -1 ) ]
       self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
 
     item = self._FindInGroup( 'core_sym', core_group, in_core_group )
-    if item is not None:
+    if item is None:
+      self.coreSym = 1
+    else:
       self.coreSym = item.value.item() if len( item.shape ) > 0 else item.value
-      #self.coreSym = item.value[ 0 ]
 
     self.pinVolumesSum = 0
     item = self._FindInGroup( 'pin_volumes', core_group, in_core_group )
@@ -1754,11 +1765,26 @@ to be 'core', and the dataset is not associated with a state point.
 
     st_group = self.states[ 0 ].GetGroup()
 
+#		-- Assert on pin_powers
+#		--
+    if 'pin_powers' not in st_group:
+      raise  Exception( '"pin_powers" dataset not found' )
+    pin_powers_shape = st_group[ 'pin_powers' ].shape
+
 #		-- Special check to get core.npin if pin_volumes
 #		-- missing from CORE
-    if self.core.npin == 0 and 'pin_powers' in st_group:
+    #if self.core.npin == 0 and 'pin_powers' in st_group:
+    if self.core.npin == 0:
       self.core.npinx = self.core.npiny = \
-      self.core.npin = st_group[ 'pin_powers'].shape[ 0 ]
+      self.core.npin = pin_powers_shape[ 0 ]
+
+#		-- Assert on pin_powers shape
+#		--
+    if pin_powers_shape[ 0 ] != self.core.npin or \
+        pin_powers_shape[ 1 ] != self.core.npin or \
+        pin_powers_shape[ 2 ] != self.core.nax or \
+        pin_powers_shape[ 3 ] != self.core.nass:
+      raise  Exception( 'pin_powers shape inconsistent with npin, nax, and nass' )
 
 #		-- Resolve everything
 #		--
@@ -2415,6 +2441,7 @@ Fields:
 #    if self.keff < 0.0:
 #      missing.append( '%s missing KEFF' % self.name )
 
+# Redundant, caught in DataModel.Read()
     if self.pinPowers is None:
       missing.append( '%s missing PIN_POWERS' % self.name )
     elif self.pinPowers.shape[ 0 ] != core.npin or \
