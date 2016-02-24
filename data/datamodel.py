@@ -1809,9 +1809,9 @@ to be 'core', and the dataset is not associated with a state point.
 	  break
     #end for
 
-    if pin_factors:
-      self.averager.SetPinFactors( pin_factors )
-      #self.averager.pinFactors = pin_factors
+    #Andrew, look here
+#    if pin_factors is not None:
+#      self.averager.pinWeights = pin_factors
 
 #		-- Create derived file and states
 #		--
