@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-02-25	leerw@ornl.gov				-
+#	  Modified _CreateToolTipText() to report the value of an
+#	  assembly average or derived dataset.
 #		2016-02-17	leerw@ornl.gov				-
 #	  Added copy selection.
 #		2016-02-11	leerw@ornl.gov				-
@@ -833,22 +836,17 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   #	METHOD:		Core2DView._CreateMenuDef()			-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
-    """
-"""
-#    menu_def.insert(
-#        0, ( 'Select Average Dataset...', self._OnSelectAverageDataSet )
-#	)
-#    return  menu_def
-
-    menu_def = super( Core2DView, self )._CreateMenuDef( data_model )
-    other_def = \
-      [
-        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
-	( '-', None )
-      ]
-    return  other_def + menu_def
-  #end _CreateMenuDef
+#  def _CreateMenuDef( self, data_model ):
+#    """
+#"""
+#    menu_def = super( Core2DView, self )._CreateMenuDef( data_model )
+#    other_def = \
+#      [
+#        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
+#	( '-', None )
+#      ]
+#    return  other_def + menu_def
+#  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
@@ -901,14 +899,25 @@ The config and data attributes are good to go.
         show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
         tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
 
-	avg_values = self.avgValues.get( self.stateIndex )
-	if avg_values is not None:
-          ax = min( self.axialValue[ 1 ], avg_values.shape[ 0 ] - 1 )
-	  assy_ndx = min( assy_ndx, avg_values.shape[ 1 ] - 1 )
-	  avg_value = avg_values[ ax, assy_ndx ]
-	  tip_str += '\nAvg %s: %.6g' % \
-	    ( self.data.GetDataSetDisplayName( self.avgDataSet ), avg_value )
-	#end if we have avg value
+	if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
+          value = dset[
+	      0, 0,
+	      min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+	      min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
+	      ]
+	  tip_str += ': %g' % value
+
+# now we need to check for derived 'asy' dataset for pinDataSet
+#	else:
+#	  avg_values = self.avgValues.get( self.stateIndex )
+#	  if avg_values is not None:
+#            ax = min( self.axialValue[ 1 ], avg_values.shape[ 0 ] - 1 )
+#	    assy_ndx = min( assy_ndx, avg_values.shape[ 1 ] - 1 )
+#	    avg_value = avg_values[ ax, assy_ndx ]
+#	    tip_str += '\nAvg %s: %.6g' % \
+#	      ( self.data.GetDataSetDisplayName( self.avgDataSet ), avg_value )
+	  #end if we have avg value
+	#end if-else on shape
       #end if assy_ndx in range
     #end if cell_info
 
