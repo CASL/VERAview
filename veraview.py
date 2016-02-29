@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-02-29	leerw@ornl.gov				-
+#	  Special test widget_list.
 #		2016-02-20	leerw@ornl.gov				-
 #	  Added EVT_CHAR_HOOK to VeraViewFrame.
 #		2016-01-22	leerw@ornl.gov				-

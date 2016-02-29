@@ -1,87 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		core_view.py					-
+#	NAME:		core_axial_view.py				-
 #	HISTORY:							-
 #		2016-02-29	leerw@ornl.gov				-
-#	  Calling Redraw() instead of _OnSize( None ).
-#		2016-02-25	leerw@ornl.gov				-
-#	  Modified _CreateToolTipText() to report the value of an
-#	  assembly average or derived dataset.
-#		2016-02-17	leerw@ornl.gov				-
-#	  Added copy selection.
-#		2016-02-11	leerw@ornl.gov				-
-#	  Supporting pin:assembly datasets by duplicating the last pin
-#	  value in each dimension.
-#		2016-02-10	leerw@ornl.gov				-
-#	  Title template and string creation now inherited from
-#	  RasterWidget.
-#		2016-02-09	leerw@ornl.gov				-
-#	  Start on customizing title based on dataset shape.
-#		2016-02-08	leerw@ornl.gov				-
-#	  Changed GetDataSetType() to GetDataSetTypes().
-#		2016-01-25	leerw@ornl.gov				-
-#	  Cleaning up the menu mess.
-#		2016-01-22	leerw@ornl.gov				-
-#	  Adding clipboard copy.
-#		2015-11-28	leerw@ornl.gov				-
-#	  Calling DataModel.IsNoDataValue() instead of checking for
-#	  gt value to draw.
-#		2015-11-23	leerw@ornl.gov				-
-#	  Fixed some bugs.
-#		2015-11-19	leerw@ornl.gov				-
-#	  Adding support for 'extra' datasets.
-#		2015-11-18	leerw@ornl.gov				-
-#	  Relaxing to allow any axial and assembly dimensions.
-#		2015-08-31	leerw@ornl.gov				-
-#	  Added GetAnimationIndexes().
-#		2015-07-27	leerw@ornl.gov				-
-#	  Fixing order of dataset references to row, col, axial, assy
-#	  instead of col, row, ...
-#		2015-06-17	leerw@ornl.gov				-
-# 	  Extending RasterWidget.
-#		2015-06-15	leerw@ornl.gov				-
-#	  Refactoring.
-#		2015-05-26	leerw@ornl.gov				-
-#	  Migrating to global state.timeDataSet.
-#		2015-05-21	leerw@ornl.gov				-
-#	  Showing legend now optional.
-#		2015-05-18	leerw@ornl.gov				-
-#	  Making the showing of assembly labels an option.
-#		2015-05-11	leerw@ornl.gov				-
-#	  Changed State.axialLevel to axialValue.
-#		2015-04-22	leerw@ornl.gov				-
-#	  Showing currently selected assembly.
-#		2015-04-10	leerw@ornl.gov				-
-#	  Minor fixes and removing sliders (now on VeraViewFrame).
-#		2015-04-04	leerw@ornl.gov				-
-#	  Zoom display to an assembly view.
-#		2015-03-25	leerw@ornl.gov				-
-#	  Many fixes and additions, most notably the SetDataSet()
-#	  capability.  Also fixed some zooming issues and added
-#	  the bitmapsLock protocol in _UpdateStateAndAxial().
-#		2015-03-19	leerw@ornl.gov				-
-#	  Trying per-menu item handler.
-#		2015-03-11	leerw@ornl.gov				-
-#	  Using ExposureSliderBean.
-#		2015-03-06	leerw@ornl.gov				-
-#	  New Widget.GetImage() for 'loading' image.
-#	  Starting ellipse drawing at pixel (1,1).
-#		2015-02-07	leerw@ornl.gov				-
-#	  Processing average powers.
-#		2015-02-06	leerw@ornl.gov				-
-#	  Added tooltip.
-#		2015-01-30	leerw@ornl.gov				-
-#	  Added CreateMenu().
-#		2015-01-28	leerw@ornl.gov				-
-#	  Starting cell range and zoom processing.
-#		2015-01-24	leerw@ornl.gov				-
-#		2015-01-19	leerw@ornl.gov				-
-#	  Re-designing
-#		2015-01-16	leerw@ornl.gov				-
-#		2015-01-07	leerw@ornl.gov				-
-#	  Added popup on assembly.
-#		2015-01-06	leerw@ornl.gov				-
+#	  Starting with core_view.py.
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, timeit, traceback
 import numpy as np
@@ -110,9 +33,9 @@ from widget import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		Core2DView					-
+#	CLASS:		CoreAxial2DView					-
 #------------------------------------------------------------------------
-class Core2DView( RasterWidget ):
+class CoreAxial2DView( RasterWidget ):
   """Pin-by-pin assembly view across axials and states.
 
 Properties:
@@ -127,288 +50,23 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.__init__()				-
+  #	METHOD:		CoreAxial2DView.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
     self.avgDataSet = None
     self.avgValues = {}
 
-    self.mode = ''  # 'assy', 'core'
+    self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
-    super( Core2DView, self ).__init__( container, id )
+    super( CoreAxial2DView, self ).__init__( container, id )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CalcAvgValues()			-
-  #----------------------------------------------------------------------
-  def _CalcAvgValues( self, data, state_ndx, force = False ):
-    dset = None
-    if force or (state_ndx not in self.avgValues):
-      dset = data.GetStateDataSet( state_ndx, self.pinDataSet )
-
-    if dset is not None:
-      dset_array = dset.value
-      t_nax = min( data.core.nax, dset_array.shape[ 2 ] )
-      t_nass = min( data.core.nass, dset_array.shape[ 3 ] )
-      avg_values = np.zeros( shape = ( t_nax, t_nass ) )
-
-      for ax in range( t_nax ):  # pp_powers.shape( 2 )
-        for assy in range( t_nass ):  # pp_powers.shape( 3 )
-          if data.core.pinVolumesSum > 0.0:
-	    avg_values[ ax, assy ] = \
-	        np.sum( dset_array[ :, :, ax, assy ] ) / \
-		data.core.pinVolumesSum
-          else:
-	    avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
-        #end for assy
-      #end for ax
-
-      self.avgValues[ state_ndx ] = avg_values
-    #end if
-  #end _CalcAvgValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateAssyDrawConfig()		-
-  #----------------------------------------------------------------------
-  def _CreateAssyDrawConfig( self, **kwargs ):
-    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
-'scale' (pixels per pin) from which a size is determined.
-If neither are specified, a default 'scale' value of 24 is used.
-@param  kwargs
-    scale	pixels per pin
-    size	( wd, ht ) against which to compute the scale
-@return			config dict with keys:
-    clientSize
-    fontSize
-    labelFont
-    labelSize
-    legendPilImage
-    legendSize
-    pilFont
-    +
-    assemblyRegion
-    lineWidth
-    mode = 'assy'
-    pinGap
-    pinWidth
-"""
-    config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
-	**kwargs
-	)
-
-    font_size = config[ 'fontSize' ]
-    label_size = config[ 'labelSize' ]
-    legend_pil_im = config[ 'legendPilImage' ]
-    legend_size = config[ 'legendSize' ]
-
-#		-- Must calculate scale?
-#		--
-    if 'clientSize' in config:
-      wd, ht = config[ 'clientSize' ]
-
-      # label : core : font-sp : legend
-      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      pin_adv_wd = region_wd / self.data.core.npin
-
-      working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-      pin_adv_ht = region_ht / self.data.core.npin
-
-      if pin_adv_ht < pin_adv_wd:
-        pin_adv_wd = pin_adv_ht
-
-      pin_gap = pin_adv_wd >> 3
-      pin_wd = max( 1, pin_adv_wd - pin_gap )
-
-      assy_wd = assy_ht = self.data.core.npin * (pin_wd + pin_gap)
-
-    else:
-      pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 24
-      print >> sys.stderr, '[Core2DView._CreateDrawConfig] pin_wd=%d' % pin_wd
-
-      pin_gap = pin_wd >> 3
-      assy_wd = assy_ht = self.data.core.npin * (pin_wd + pin_gap)
-
-      # label : core : font-sp : legend
-      wd = label_size[ 0 ] + assy_wd + (font_size << 1) + legend_size[ 0 ]
-      ht = max( assy_ht, legend_size[ 1 ] )
-      ht += (font_size << 1) + font_size
-
-      config[ 'clientSize' ] = ( wd, ht )
-    #end if-else
-
-    config[ 'assemblyRegion' ] = \
-        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
-    config[ 'lineWidth' ] = max( 1, pin_gap )
-    config[ 'mode' ] = 'assy'
-    config[ 'pinGap' ] = pin_gap
-    config[ 'pinWidth' ] = pin_wd
-
-    return  config
-  #end _CreateAssyDrawConfig
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateAssyImage()			-
-  #----------------------------------------------------------------------
-  def _CreateAssyImage( self, tuple_in ):
-    """Called in background task to create the PIL image for the state.
-@param  tuple_in	0-based ( state_index, assy_ndx, axial_level )
-"""
-    state_ndx = tuple_in[ 0 ]
-    assy_ndx = tuple_in[ 1 ]
-    axial_level = tuple_in[ 2 ]
-    print >> sys.stderr, \
-        '[Core2DView._CreateAssyImage] tuple_in=%s' % str( tuple_in )
-    im = None
-
-    tuple_valid = DataModel.IsValidObj(
-	self.data,
-        assembly_index = assy_ndx,
-	axial_level = axial_level,
-	state_index = state_ndx
-	)
-    if self.config is not None and tuple_valid:
-      assy_region = self.config[ 'assemblyRegion' ]
-      im_wd, im_ht = self.config[ 'clientSize' ]
-      font_size = self.config[ 'fontSize' ]
-      label_font = self.config[ 'labelFont' ]
-      legend_pil_im = self.config[ 'legendPilImage' ]
-      pil_font = self.config[ 'pilFont' ]
-      pin_gap = self.config[ 'pinGap' ]
-      pin_wd = self.config[ 'pinWidth' ]
-
-      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-
-      if dset is None:
-        dset_array = None
-	dset_shape = ( 0, 0, 0, 0 )
-	cur_nxpin = cur_nypin = 0
-      else:
-        dset_array = dset.value
-        dset_shape = dset.shape
-        cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
-        cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
-      ds_range = self.data.GetRange( self.pinDataSet )
-      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
-
-      title_templ, title_size = self._CreateTitleTemplate(
-	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	  assembly_ndx = 3, axial_ndx = 2
-	  )
-
-#			-- Limit axial level
-#			--
-      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
-
-#			-- Create image
-#			--
-      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
-      #im_pix = im.load()
-      im_draw = PIL.ImageDraw.Draw( im )
-
-      pin_y = assy_region[ 1 ]
-#      for pin_row in range( self.data.core.npin ):
-      for pin_row in range( cur_nypin ):
-#				-- Row label
-#				--
-	if self.showLabels:
-	  label = '%d' % (pin_row + 1)
-	  label_size = label_font.getsize( label )
-	  label_y = pin_y + ((pin_wd - label_size[ 1 ]) >> 1)
-	  im_draw.text(
-	      ( 1, label_y ),
-	      label, fill = ( 0, 0, 0, 255 ), font = label_font
-	      )
-
-#				-- Loop on col
-#				--
-	pin_x = assy_region[ 0 ]
-#	for pin_col in range( self.data.core.npin ):
-	for pin_col in range( cur_nxpin ):
-#					-- Column label
-#					--
-	  if pin_row == 0 and self.showLabels:
-	    label = '%d' % (pin_col + 1)
-	    label_size = label_font.getsize( label )
-	    label_x = pin_x + ((pin_wd - label_size[ 0 ]) >> 1)
-	    im_draw.text(
-	        ( label_x, 1 ), label,
-		fill = ( 0, 0, 0, 255 ), font = label_font
-	        )
-	  #end if writing column label
-
-	  value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-#	  if value > 0.0:
-	  if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	    brush_color = Widget.GetColorTuple(
-	        value - ds_range[ 0 ], value_delta, 255
-	        )
-	    pen_color = Widget.GetDarkerColor( brush_color, 255 )
-	    #brush_color = ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
-
-	    im_draw.ellipse(
-	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
-	        fill = brush_color, outline = pen_color
-	        )
-	  #end if value > 0
-
-	  pin_x += pin_wd + pin_gap
-	#end for pin_col
-
-	pin_y += pin_wd + pin_gap
-      #end for pin_row
-
-#			-- Draw Legend Image
-#			--
-#      im.paste( legend_pil_im, ( assy_wd + font_size, 1 ) )
-      if legend_pil_im is not None:
-        im.paste(
-	    legend_pil_im,
-	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
-	    )
-	legend_size = legend_pil_im.size
-      else:
-	legend_size = ( 0, 0 )
-
-#			-- Draw Title String
-#			--
-      pin_y = max( pin_y, legend_size[ 1 ] )
-      pin_y += font_size >> 2
-
-      title_str = self._CreateTitleString(
-	  title_templ,
-	  assembly = assy_ndx,
-	  axial = self.data.core.axialMeshCenters[ axial_level ],
-	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-          )
-      title_size = pil_font.getsize( title_str )
-      title_x = max(
-	  0,
-          (assy_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
-	  )
-
-      im_draw.text(
-          ( title_x, pin_y ),
-	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
-          )
-
-      del im_draw
-    #end if self.config exists
-
-    #return  im
-    return  im if im is not None else self.emptyPilImage
-  #end _CreateAssyImage
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardAllData()		-
+  #	METHOD:		CoreAxial2DView._CreateClipboardAllData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardAllData( self ):
     """Retrieves the data for the state and axial.
@@ -490,7 +148,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardData()		-
+  #	METHOD:		CoreAxial2DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
@@ -504,7 +162,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardSelectionData()	-
+  #	METHOD:		CoreAxial2DView._CreateClipboardSelectionData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardSelectionData( self ):
     """Retrieves the data for the state, axial, and assembly.
@@ -546,14 +204,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateCoreDrawConfig()		-
+  #	METHOD:		CoreAxial2DView._CreateDrawConfig()		-
   #----------------------------------------------------------------------
-  def _CreateCoreDrawConfig( self, **kwargs ):
+  def _CreateDrawConfig( self, **kwargs ):
     """Creates a draw configuration based on imposed 'size' (wd, ht ) or
 'scale' (pixels per pin) from which a size is determined.
 If neither are specified, a default 'scale' value of 4 is used.
 @param  kwargs
-    scale	pixels per pin
+    scale	pixels per cm
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys:
     clientSize
@@ -564,11 +222,10 @@ If neither are specified, a default 'scale' value of 4 is used.
     legendSize
     pilFont
     +
-    assemblyAdvance
     assemblyWidth
+    axialPixPerCm
     coreRegion
     lineWidth
-    mode = 'core'
     pinWidth
 """
     config = self._CreateBaseDrawConfig(
@@ -581,78 +238,113 @@ If neither are specified, a default 'scale' value of 4 is used.
     legend_pil_im = config[ 'legendPilImage' ]
     legend_size = config[ 'legendSize' ]
 
+    axial_range_cm = \
+        self.data.core.axialMesh[ self.cellRange[ 3 ] ] - \
+        self.data.core.axialMesh[ self.cellRange[ 1 ] ]
+
 #		-- Must calculate scale?
 #		--
+#		self.cellRange ( xy-left, z-bottom, xy-right, z-top, d-xy, dz )
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
-      # label : core : font-sp : legend
-      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      assy_wd = region_wd / self.cellRange[ -2 ]
+#			-- Calculate image scale
+#			--
+      pin_count = \
+          self.data.core.npinx  if self.mode == 'xz' else \
+	  self.data.core.npiny
+      display_pin_count = self.cellRange[ -2 ] * pin_count
+      pitch = self.data.core.GetPitch()
+      core_wd_cm = display_pin_count * pitch
+      #display_ratio = axial_range_cm / float( core_wd_cm )
 
-#      working_ht = max( ht, legend_pil_im.size[ 1 ] )
+#			-- Determine drawable region in image
+#			--
+      # l2r, label : core : font-sp : legend
+      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
+
+      # t2b, core : title
       working_ht = max( ht, legend_size[ 1 ] )
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-      assy_ht = region_ht / self.cellRange[ -1 ]
 
-      if assy_ht < assy_wd:
-        assy_wd = assy_ht
+#			-- What can we draw?
+      x_pix_per_cm = Math.max( region_wd / core_wd_cm, 1 )
+      y_pix_per_cm = Math.max( int( region_ht / axial_range_cm ), 1 )
 
-      pin_wd = max( 1, (assy_wd - 2) / self.data.core.npin )
-      assy_wd = pin_wd * self.data.core.npin + 1
-      assy_advance = assy_wd
-      core_wd = self.cellRange[ -2 ] * assy_advance
-      core_ht = self.cellRange[ -1 ] * assy_advance
+      if y_pix_per_cm < x_pix_per_cm:
+        x_pix_per_cm = y_pix_per_cm
+
+      pin_wd_pix = int( Math.floor( pitch * x_pix_per_cm ) )
+      assy_wd_pix = pin_count * pin_wd_pix
+      core_wd_pix = self.cellRange[ -2 ] * assy_wd_pix
+
+      core_ht_px = int( Math.floor( y_pix_per_cm * axial_range_cm ) )
 
     else:
-      pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
-      print >> sys.stderr, '[Core2DView._CreateCoreDrawConfig] pin_wd=%d' % pin_wd
-      assy_wd = pin_wd * self.data.core.npin + 1
-      assy_advance = assy_wd
+      x_pix_per_cm = y_pix_per_cm = kwargs.get( 'scale', 4 )
+      print >> sys.stderr, '[CoreAxial2DView._CreateDrawConfig] pix_per_cm=%d' % x_pix_per_cm
+
+      pin_wd_pix = int( Math.floor( pitch * x_pix_per_cm ) )
+      assy_wd_pix = pin_count * pin_wd_pix
+      core_wd_pix = self.cellRange[ -2 ] * assy_wd_pix
+
+      core_ht_px = int( Math.floor( y_pix_per_cm * axial_range_cm ) )
 
       font_size = self._CalcFontSize( 768 )
 
-      core_wd = self.cellRange[ -2 ] * assy_advance
-      core_ht = self.cellRange[ -1 ] * assy_advance
-
-      # label : core : font-sp : legend
-      wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
-      ht = max( core_ht, legend_size[ 1 ] )
+      # l2r, label : core : font-sp : legend
+      wd = label_size[ 0 ] + core_wd_pix + (font_size << 1) + legend_size[ 0 ]
+      ht = max( core_ht_px, legend_size[ 1 ] )
       ht += (font_size << 1) + font_size
 
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
-    config[ 'assemblyAdvance' ] = assy_advance
-    config[ 'assemblyWidth' ] = assy_wd
+    config[ 'assemblyWidth' ] = assy_wd_pix
+    config[ 'axialPixPerCm' ] = y_pix_per_cm
     config[ 'coreRegion' ] = \
-        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
-    config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
-    config[ 'mode' ] = 'core'
-    config[ 'pinWidth' ] = pin_wd
+        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd_pix, core_ht_pix ]
+    config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd_pix / 20.0 ) ) )
+    config[ 'pinWidth' ] = pin_wd_pix
 
     return  config
-  #end _CreateCoreDrawConfig
+  #end _CreateDrawConfig
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateCoreImage()			-
+  #	METHOD:		CoreAxial2DView._CreateMenuDef()		-
   #----------------------------------------------------------------------
-  def _CreateCoreImage( self, tuple_in ):
+#  def _CreateMenuDef( self, data_model ):
+#    """
+#"""
+#    menu_def = super( CoreAxial2DView, self )._CreateMenuDef( data_model )
+#    other_def = \
+#      [
+#        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
+#	( '-', None )
+#      ]
+#    return  other_def + menu_def
+#  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateRasterImage()		-
+  #----------------------------------------------------------------------
+  def _CreateRasterImage( self, tuple_in ):
     """Called in background task to create the PIL image for the state.
-@param  tuple_in	0-based ( state_index, axial_level )
+@param  tuple_in	0-based ( state_index, assy_col_or_row )
 """
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
-    axial_level = tuple_in[ 1 ]
+    assy_col_or_row = tuple_in[ 1 ]
     print >> sys.stderr, \
-        '[Core2DView._CreateCoreImage] tuple_in=%d,%d' % \
-	( state_ndx, axial_level )
+        '[CoreAxial2DView._CreateRasterImage] tuple_in=%d,%d' % \
+	( state_ndx, assy_col_or_row )
     im = None
 
     if self.config is not None:
-      assy_advance = self.config[ 'assemblyAdvance' ]
       assy_wd = self.config[ 'assemblyWidth' ]
+      axial_pix_per_cm = self.config[ 'axialPixPerCm' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
       core_region = self.config[ 'coreRegion' ]
       font_size = self.config[ 'fontSize' ]
@@ -811,63 +503,16 @@ If neither are specified, a default 'scale' value of 4 is used.
     #end if self.config exists
     elapsed_time = timeit.default_timer() - start_time
     print >> sys.stderr, \
-        '\n[Core2DView._CreateCoreImage] time=%.3fs, im-None=%s' % \
+        '\n[CoreAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
 	( elapsed_time, im is None )
 
     #return  im
     return  im if im is not None else self.emptyPilImage
-  #end _CreateCoreImage
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateDrawConfig()			-
-  #----------------------------------------------------------------------
-  def _CreateDrawConfig( self, **kwargs ):
-    """
-@param  kwargs
-    scale	pixels per pin
-    size	( wd, ht ) against which to compute the scale
-@return			config dict with keys needed by _CreateRasterImage().
-"""
-    return \
-        self._CreateAssyDrawConfig( **kwargs ) if self.mode == 'assy' else \
-	self._CreateCoreDrawConfig( **kwargs )
-  #end _CreateDrawConfig
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateMenuDef()			-
-  #----------------------------------------------------------------------
-#  def _CreateMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( Core2DView, self )._CreateMenuDef( data_model )
-#    other_def = \
-#      [
-#        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
-#	( '-', None )
-#      ]
-#    return  other_def + menu_def
-#  #end _CreateMenuDef
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateRasterImage()			-
-  #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in ):
-    """Called in background task to create the PIL image for the state.
-The config and data attributes are good to go.
-@param  tuple_in	state tuple
-@return			PIL image
-"""
-    return \
-        self._CreateAssyImage( tuple_in ) if self.mode == 'assy' else \
-	self._CreateCoreImage( tuple_in )
   #end _CreateRasterImage
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateStateTuple()			-
+  #	METHOD:		CoreAxial2DView._CreateStateTuple()		-
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
     """
@@ -886,7 +531,7 @@ The config and data attributes are good to go.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateToolTipText()			-
+  #	METHOD:		CoreAxial2DView._CreateToolTipText()		-
   #----------------------------------------------------------------------
   def _CreateToolTipText( self, cell_info ):
     """Create a tool tip.
@@ -928,7 +573,7 @@ The config and data attributes are good to go.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.FindAssembly()			-
+  #	METHOD:		CoreAxial2DView.FindAssembly()			-
   #----------------------------------------------------------------------
   def FindAssembly( self, ev_x, ev_y ):
     """Finds the assembly index.
@@ -974,7 +619,7 @@ The config and data attributes are good to go.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.FindCell()				-
+  #	METHOD:		CoreAxial2DView.FindCell()			-
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
     """
@@ -991,7 +636,7 @@ The config and data attributes are good to go.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.FindPin()				-
+  #	METHOD:		CoreAxial2DView.FindPin()			-
   #----------------------------------------------------------------------
   def FindPin( self, ev_x, ev_y ):
     """Finds the pin index.
@@ -1035,7 +680,7 @@ The config and data attributes are good to go.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.GetAnimationIndexes()		-
+  #	METHOD:		CoreAxial2DView.GetAnimationIndexes()		-
   #----------------------------------------------------------------------
   def GetAnimationIndexes( self ):
     """Accessor for the list of indexes over which this widget can be
@@ -1047,7 +692,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.GetDataSetTypes()			-
+  #	METHOD:		CoreAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     return  [ 'pin', 'pin:assembly', 'pin:radial' ]
@@ -1055,7 +700,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.GetEventLockSet()			-
+  #	METHOD:		CoreAxial2DView.GetEventLockSet()		-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     """
@@ -1070,7 +715,31 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.GetPrintScale()			-
+  #	METHOD:		CoreAxial2DView.GetInitialCellRange()		-
+  #----------------------------------------------------------------------
+  def GetInitialCellRange( self ):
+    """Creates the range using y for the axial.
+@return			( xy-left, z-bottom, xy-right, z-top, d-xy, dz )
+"""
+    if self.data is None:
+      result = ( 0, 0, 0, 0, 0, 0 )
+
+    else:
+      xy_range = list( self.data.ExtractSymmetryExtent() )
+      if self.mode == 'yz':
+        xy_range[ 0 ] = xy_range[ 1 ]
+	xy_range[ 2 ] = xy_range[ 3 ]
+	xy_range[ 4 ] = xy_range[ 5 ]
+
+      xy_range[ 1 ] = 0
+      xy_range[ 3 ] = xy_range[ 5 ] = self.data.nax
+
+    return  result
+  #end GetInitialCellRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.GetPrintScale()			-
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """
@@ -1081,7 +750,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.GetTitle()				-
+  #	METHOD:		CoreAxial2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
     return  'Core 2D View'
@@ -1089,7 +758,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._HiliteBitmap()			-
+  #	METHOD:		CoreAxial2DView._HiliteBitmap()			-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap ):
     result = bmap
@@ -1174,7 +843,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._InitEventHandlers()			-
+  #	METHOD:		CoreAxial2DView._InitEventHandlers()		-
   #----------------------------------------------------------------------
   def _InitEventHandlers( self ):
     """
@@ -1184,7 +853,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.IsTupleCurrent()			-
+  #	METHOD:		CoreAxial2DView.IsTupleCurrent()		-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
     """
@@ -1213,7 +882,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._LoadDataModelValues()		-
+  #	METHOD:		CoreAxial2DView._LoadDataModelValues()		-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """
@@ -1226,7 +895,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnClick()				-
+  #	METHOD:		CoreAxial2DView._OnClick()			-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
     """
@@ -1263,7 +932,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnDragFinished()			-
+  #	METHOD:		CoreAxial2DView._OnDragFinished()		-
   #----------------------------------------------------------------------
   def _OnDragFinished( self, left, top, right, bottom ):
     """Do post drag things after drag processing.
@@ -1278,7 +947,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnMouseMotionAssy()			-
+  #	METHOD:		CoreAxial2DView._OnMouseMotionAssy()		-
   #----------------------------------------------------------------------
   def _OnMouseMotionAssy( self, ev ):
     """
@@ -1320,7 +989,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnMouseUpAssy()			-
+  #	METHOD:		CoreAxial2DView._OnMouseUpAssy()		-
   #----------------------------------------------------------------------
   def _OnMouseUpAssy( self, ev ):
     """
@@ -1328,7 +997,7 @@ copy operation.  This method just calls ev.Skip().
     pin_addr = self.FindPin( *ev.GetPosition() )
     if pin_addr is not None and pin_addr != self.pinColRow:
 #      print >> sys.stderr, \
-#          '[Core2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
+#          '[CoreAxial2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
 
       state_ndx = self.stateIndex
       ds_name = self.pinDataSet
@@ -1360,7 +1029,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnSelectAverageDataSet()		-
+  #	METHOD:		CoreAxial2DView._OnSelectAverageDataSet()	-
   #----------------------------------------------------------------------
   def _OnSelectAverageDataSet( self, ev ):
     """
@@ -1391,7 +1060,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnUnzoom()				-
+  #	METHOD:		CoreAxial2DView._OnUnzoom()			-
   #----------------------------------------------------------------------
   def _OnUnzoom( self, ev ):
     """
@@ -1399,12 +1068,12 @@ copy operation.  This method just calls ev.Skip().
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
       self._SetMode( 'core' )
-      self.Redraw()  # self._OnSize( None )
+      self._OnSize( None )
   #end _OnUnzoom
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.SetDataSet()				-
+  #	METHOD:		CoreAxial2DView.SetDataSet()			-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
@@ -1416,7 +1085,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._SetMode()				-
+  #	METHOD:		CoreAxial2DView._SetMode()			-
   #----------------------------------------------------------------------
   def _SetMode( self, mode ):
     """Must be called from the UI thread.
@@ -1434,7 +1103,7 @@ copy operation.  This method just calls ev.Skip().
 #        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, None )
 #        self.bitmapCtrl.Bind( wx.EVT_MOTION, None )
 
-	super( Core2DView, self )._InitEventHandlers()
+	super( CoreAxial2DView, self )._InitEventHandlers()
       #end if-else
 
       self.mode = mode
@@ -1443,7 +1112,7 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._UpdateAvgValues()			-
+  #	METHOD:		CoreAxial2DView._UpdateAvgValues()		-
   #----------------------------------------------------------------------
   def _UpdateAvgValues( self, state_ndx, force = False ):
     dset = None
@@ -1470,13 +1139,13 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._UpdateStateValues()			-
+  #	METHOD:		CoreAxial2DView._UpdateStateValues()		-
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
     """
 @return			kwargs with 'changed' and/or 'resized'
 """
-    kwargs = super( Core2DView, self )._UpdateStateValues( **kwargs )
+    kwargs = super( CoreAxial2DView, self )._UpdateStateValues( **kwargs )
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
@@ -1504,7 +1173,6 @@ copy operation.  This method just calls ev.Skip().
 
     if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )
-      #self._CalcAvgValues( self.data, self.stateIndex )
 
     if changed:
       kwargs[ 'changed' ] = True
@@ -1514,4 +1182,4 @@ copy operation.  This method just calls ev.Skip().
     return  kwargs
   #end _UpdateStateValues
 
-#end Core2DView
+#end CoreAxial2DView

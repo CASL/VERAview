@@ -342,6 +342,17 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.GetPitch()					-
+  #----------------------------------------------------------------------
+  def GetPitch( self ):
+    """Returns a value for the assembly pitch.
+@return			'apitch' value or a default of 1.26
+"""
+    return  1.26  if self.apitch == 0.0 else  self.apitch
+  #end GetPitch
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core.IsNonZero()				-
   #----------------------------------------------------------------------
   def IsNonZero( self ):

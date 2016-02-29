@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-02-29	leerw@ornl.gov				-
+#	  Added Redraw() to call _OnSize( None ).
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
 #		2016-01-22	leerw@ornl.gov				-
@@ -783,14 +785,14 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
   #	METHOD:		RasterWidget._LoadDataModelUI()			-
   #----------------------------------------------------------------------
   def _LoadDataModelUI( self ):
-    """This implementation calls _OnSize( None ).
+    """This implementation calls Redraw().
 Must be called on the UI thread.
 """
 #    self.axialBean.SetRange( 1, self.data.core.nax )
 #    self.axialBean.axialLevel = 0
 #    self.exposureBean.SetRange( 1, len( self.data.states ) )
 #    self.exposureBean.stateIndex = 0
-    self._OnSize( None )
+    self.Redraw()  # self._OnSize( None )
   #end _LoadDataModelUI
 
 
@@ -902,7 +904,7 @@ This implementation is a noop.
     self.Refresh()
 
     if zoom_flag:
-      self._OnSize( None )
+      self.Redraw()  # self._OnSize( None )
   #end _OnLeftUp
 
 
@@ -1058,8 +1060,18 @@ This implementation is a noop.
 """
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
-      self._OnSize( None )
+      self.Redraw()  #self._OnSize( None )
   #end _OnUnzoom
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.Redraw()				-
+  #----------------------------------------------------------------------
+  def Redraw( self ):
+    """Calls _OnSize( None )
+"""
+    self._OnSize( None )
+  #end Redraw
 
 
   #----------------------------------------------------------------------
