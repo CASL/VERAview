@@ -60,6 +60,7 @@ Properties:
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
+    self.pinOffset = 0
 
     super( CoreAxial2DView, self ).__init__( container, id )
   #end __init__
@@ -223,6 +224,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     pilFont
     +
     assemblyWidth
+    axialLevelDy	list of pixel offsets in y dimension
     axialPixPerCm
     coreRegion
     lineWidth
@@ -268,14 +270,15 @@ If neither are specified, a default 'scale' value of 4 is used.
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
 
 #			-- What can we draw?
-      x_pix_per_cm = Math.max( region_wd / core_wd_cm, 1 )
+      assy_border_pix = self.cellRange[ -2 ] << 1
+      x_pix_per_cm = Math.max( (region_wd - assy_border_pix) / core_wd_cm, 1 )
       y_pix_per_cm = Math.max( int( region_ht / axial_range_cm ), 1 )
 
       if y_pix_per_cm < x_pix_per_cm:
         x_pix_per_cm = y_pix_per_cm
 
       pin_wd_pix = int( Math.floor( pitch * x_pix_per_cm ) )
-      assy_wd_pix = pin_count * pin_wd_pix
+      assy_wd_pix = pin_count * pin_wd_pix + 2
       core_wd_pix = self.cellRange[ -2 ] * assy_wd_pix
 
       core_ht_px = int( Math.floor( y_pix_per_cm * axial_range_cm ) )
@@ -300,7 +303,15 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    axial_mesh = self.data.core.axialMesh
+    axial_dy = []
+    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+      ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
+      axial_dy.insert( 0, int( math.floor( y_pix_per_cm * ax_cm ) ) )
+    #end for
+
     config[ 'assemblyWidth' ] = assy_wd_pix
+    config[ 'axialLevelDy' ] = axial_dy
     config[ 'axialPixPerCm' ] = y_pix_per_cm
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd_pix, core_ht_pix ]
@@ -336,15 +347,15 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
-    assy_col_or_row = tuple_in[ 1 ]
     print >> sys.stderr, \
-        '[CoreAxial2DView._CreateRasterImage] tuple_in=%d,%d' % \
-	( state_ndx, assy_col_or_row )
+        '[CoreAxial2DView._CreateRasterImage] tuple_in=s' % \
+	str( tuple_in )
     im = None
 
     if self.config is not None:
       assy_wd = self.config[ 'assemblyWidth' ]
       axial_pix_per_cm = self.config[ 'axialPixPerCm' ]
+      axial_level_dy = self.config[ 'axialLevelDy' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
       core_region = self.config[ 'coreRegion' ]
       font_size = self.config[ 'fontSize' ]
@@ -358,23 +369,28 @@ If neither are specified, a default 'scale' value of 4 is used.
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
-	cur_nxpin = cur_nypin = 0
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-        #cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
-        #cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-      title_templ, title_size = self._CreateTitleTemplate(
-	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	  axial_ndx = 2
-	  )
-
-#			-- Limit axial level
-#			--
-      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
+      if self.mode == 'xz':
+        assy_cell = ( -1, min( tuple_in[ 1 ], dset_shape[ 0 ] - 1 ) )
+	cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
+	pin_range = range( self.data.core.npinx )
+        title_templ, title_size = self._CreateTitleTemplate2(
+	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	    additional = 'Pin Row %d' % self.pinOffset
+	    )
+      else # 'yz':
+        assy_cell = ( min( tuple_in[ 1 ], dset_shape[ 1 ] - 1 ), -1 )
+	cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
+	pin_range = range( self.data.core.npiny )
+        title_templ, title_size = self._CreateTitleTemplate2(
+	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	    additional = 'Pin Col %d' % self.pinOffset
+	    )
 
 #			-- Create image
 #			--
@@ -384,18 +400,29 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       assy_pen = ( 155, 155, 155, 255 )
 
-#			-- Loop on assembly rows
+#			-- Loop on axial levels
 #			--
-      assy_y = core_region[ 1 ]
-      for assy_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-        core_data_row = self.data.core.coreMap[ assy_row, : ]
+      axial_y = core_region[ 1 ]
+      if self.mode == 'xz':
+        cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
+      else:
+        cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
+
+      for axial_level in \
+          range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+#	cur_ax_level = min( axial_level, dset_shape[ 2 ] )
+#	cur_dy_cm = \
+#	    self.data.core.axialMesh[ axial_level + 1 ] - \
+#	    self.data.core.axialMesh[ axial_level ]
+#        cur_dy = cur_dy_cm * axial_pix_per_cm
+        cur_dy = axial_level_dy[ axial_level ]
 
 #				-- Row label
 #				--
 	if self.showLabels:
-	  label = self.data.core.coreLabels[ 1 ][ assy_row ]
+	  label = '%02d' % (axial_level + 1)
 	  label_size = pil_font.getsize( label )
-	  label_y = assy_y + ((assy_wd - label_size[ 1 ]) >> 1)
+	  label_y = axial_y + ((cur_dy - label_size[ 1 ]) >> 1)
 	  im_draw.text(
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
@@ -407,65 +434,60 @@ If neither are specified, a default 'scale' value of 4 is used.
 	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
-	  if assy_row == self.cellRange[ 1 ] and self.showLabels:
-	    label = self.data.core.coreLabels[ 0 ][ assy_col ]
+	  if axial_level == self.cellRange[ 3 ] -1 and self.showLabels:
+	    label_ndx = 0 if self.mode == 'xz' else 0
+	    label = self.data.core.coreLabels[ label_ndx ][ assy_col ]
 	    label_size = pil_font.getsize( label )
 	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ),
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
-	  #end if writing column label
+	  #end if
 
-	  assy_ndx = core_data_row[ assy_col ] - 1
+	  if self.mode == 'xz':
+	    assy_ndx = self.data.core.coreMap[ tuple_in[ 1 ], assy_col ]
+	  else:
+	    assy_ndx = self.data.core.coreMap[ assy_col, tuple_in[ 1 ] ]
 
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    pin_y = assy_y + 1
-	    cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
-	    cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
+	    pin_x = assy_x + 1
 
-	    #for pin_row in range( cur_nypin ):
-	    for pin_row in range( self.data.core.npiny ):
-	      pin_x = assy_x + 1
-
-	      cur_pin_row = min( pin_row, cur_nypin - 1 )
-	      #for pin_col in range( cur_nxpin ):
-	      for pin_col in range( self.data.core.npinx ):
-	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
-		#value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-		value = dset_array[
-		    cur_pin_row, cur_pin_col, axial_level, assy_ndx
+	    for pin_col in pin_range:
+	      cur_pin_col = min( pin_col, cur_npin - 1 )
+	      if self.mode == 'xz':
+	        value = dset_array[
+		    tuple_in[ 1 ], cur_pin_col, cur_ax_level, assy_ndx
+		    ]
+	      else:
+	        value = dset_array[
+		    cur_pin_col, tuple_in[ 1 ], cur_ax_level, assy_ndx
 		    ]
 
-		#if value > 0.0:
-	        if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	          pen_color = Widget.GetColorTuple(
-	              value - ds_range[ 0 ], value_delta, 255
-	              )
-	          brush_color = \
-		      ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
-		  #im_draw.ellipse
-	          im_draw.rectangle(
-		      [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
-		      fill = brush_color, outline = pen_color
-		      )
-		#end if value gt 0
-	        pin_x += pin_wd
-	      #end for pin cols
-
-	      pin_y += pin_wd
-	    #end for pin rows
+	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
+	        pen_color = Widget.GetColorTuple(
+	            value - ds_range[ 0 ], value_delta, 255
+	            )
+	        brush_color = \
+		    ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+	        im_draw.rectangle(
+		    [ pin_x, axial_y, pin_x + pin_wd, axial_y + cur_dy ],
+		    fill = brush_color, outline = pen_color
+		    )
+	      #end if valid value
+	      pin_x += pin_wd
+	    #end for pin cols
 
 	    im_draw.rectangle(
-		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
+		[ assy_x, axial_y, assy_x + assy_wd, axial_y + cur_dy ],
 		fill = None, outline = assy_pen
 	        )
 	  #end if assembly referenced
 
-	  assy_x += assy_advance
+	  assy_x += assy_wd
 	#end for assy_col
 
-        assy_y += assy_advance
+	axial_y += cur_dy
       #end for assy_row
 
 #			-- Draw Legend Image
@@ -486,7 +508,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       title_str = self._CreateTitleString(
 	  title_templ,
-	  axial = self.data.core.axialMeshCenters[ axial_level ],
 	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
           )
       title_size = pil_font.getsize( title_str )
@@ -516,17 +537,11 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
     """
-@return			mode == 'assy':
-			( state_index, assy_ndx, axial_level,
-			  assy_col, assy_row )
-			mode == 'core':
-			( state_index, axial_level )
+@return  ( state_index, pin_offset )
 """
-    return \
-        ( self.stateIndex, self.assemblyIndex[ 0 ], self.axialValue[ 1 ],
-	  self.assemblyIndex[ 1 ], self.assemblyIndex[ 2 ] ) \
-        if self.mode == 'assy' else \
-        ( self.stateIndex, self.axialValue[ 1 ] )
+#    colrow_ndx = 1 if self.mode == 'xz' else 0
+#    return  ( self.stateIndex, self.pinColRow[ colrow_ndx ] )
+     return  ( self.stateIndex, self.pinOffset )
   #end _CreateStateTuple
 
 
@@ -538,33 +553,25 @@ If neither are specified, a default 'scale' value of 4 is used.
 @param  cell_info	tuple returned from FindCell()
 """
     tip_str = ''
+    valid = cell_info is not None and \
+        self.data.IsValid(
+            assembly_index = cell_info[ 0 ],
+	    #dataset_name = self.pinDataSet,
+	    pin_colrow = cell_info[ 3 : 5 ],
+	    state_index = self.stateIndex
+	    )
 
-    if self.mode == 'core' and cell_info is not None and cell_info[ 0 ] >= 0:
+    if valid:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       assy_ndx = cell_info[ 0 ]
       if dset is not None and assy_ndx < dset.shape[ 3 ]:
         show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
         tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
 
-	if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
-          value = dset[
-	      0, 0,
-	      min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
-	      min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
-	      ]
-	  tip_str += ': %g' % value
-
-# now we need to check for derived 'asy' dataset for pinDataSet
-#	else:
-#	  avg_values = self.avgValues.get( self.stateIndex )
-#	  if avg_values is not None:
-#            ax = min( self.axialValue[ 1 ], avg_values.shape[ 0 ] - 1 )
-#	    assy_ndx = min( assy_ndx, avg_values.shape[ 1 ] - 1 )
-#	    avg_value = avg_values[ ax, assy_ndx ]
-#	    tip_str += '\nAvg %s: %.6g' % \
-#	      ( self.data.GetDataSetDisplayName( self.avgDataSet ), avg_value )
-	  #end if we have avg value
-	#end if-else on shape
+	if cell_info[ 5 ] >= 0:
+	  axial_value = self.data.CreateAxialValue( core_ndx = cell_info[ 5 ] )
+	  tip_str += ', Axial: %.2f' % axial_value[ 0 ]
+	#end if
       #end if assy_ndx in range
     #end if cell_info
 
@@ -573,110 +580,58 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.FindAssembly()			-
-  #----------------------------------------------------------------------
-  def FindAssembly( self, ev_x, ev_y ):
-    """Finds the assembly index.
-@param  ev_x		event x coordinate (relative to this)
-@param  ev_y		event y coordinate (relative to this)
-@return			None if no match, otherwise tuple of
-			( 0-based index, cell_col, cell_row, pin_col, pin_row )
-"""
-    result = None
-
-    if self.config is not None and self.data is not None and \
-        self.data.core is not None and self.data.core.coreMap is not None:
-      if ev_x >= 0 and ev_y >= 0:
-	assy_advance = self.config[ 'assemblyAdvance' ]
-	core_region = self.config[ 'coreRegion' ]
-	off_x = ev_x - core_region[ 0 ]
-	off_y = ev_y - core_region[ 1 ]
-        cell_x = min(
-	    int( off_x / assy_advance ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-	cell_x = max( self.cellRange[ 0 ], cell_x )
-        cell_y = min(
-	    int( off_y / assy_advance ) + self.cellRange[ 1 ],
-	    self.cellRange[ 3 ] - 1
-	    )
-	cell_y = max( self.cellRange[ 1 ], cell_y )
-
-	assy_ndx = self.data.core.coreMap[ cell_y, cell_x ] - 1
-
-	pin_wd = self.config[ 'pinWidth' ]
-	pin_col = int( (off_x % assy_advance) / pin_wd )
-	if pin_col >= self.data.core.npin: pin_col = -1
-	pin_row = int( (off_y % assy_advance) / pin_wd )
-	if pin_row >= self.data.core.npin: pin_row = -1
-
-	result = ( assy_ndx, cell_x, cell_y, pin_col, pin_row )
-      #end if event within display
-    #end if we have data
-
-    return  result
-  #end FindAssembly
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.FindCell()			-
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
     """
+@return  ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
 """
     result = None
-    if self.mode == 'assy':
-      pin = self.FindPin( ev_x, ev_y )
-      result = ( -1, pin[ 0 ], pin[ 1 ] )
-    else:
-      result = self.FindAssembly( ev_x, ev_y )
+    if self.config is not None and self.data is not None and \
+        self.data.core is not None and self.data.core.coreMap is not None:
+      assy_wd = self.config[ 'assemblyWidth' ]
+      axial_dy = self.config[ 'axialLevelDy' ]
+      core_region = self.config[ 'coreRegion' ]
+      pin_wd = self.config[ 'pinWidth' ]
 
-    return  result
-  #end FindCell
+      off_x = ev_x - core_region[ 0 ]
+      off_y = ev_y - core_region[ 1 ]
 
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.FindPin()			-
-  #----------------------------------------------------------------------
-  def FindPin( self, ev_x, ev_y ):
-    """Finds the pin index.
-@param  ev_x		event x coordinate (relative to this)
-@param  ev_y		event y coordinate (relative to this)
-@return			None if no match, otherwise tuple of
-			( 0-based cell_col, cell_row )
-"""
-    result = None
-
-    if self.config is not None and self.data is not None:
-      if ev_x >= 0 and ev_y >= 0:
-	assy_region = self.config[ 'assemblyRegion' ]
-        pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
-        cell_x = min(
-	    int( (ev_x - assy_region[ 0 ]) / pin_size ),
-	    self.data.core.npin - 1
+      if self.mode == 'xz':
+	assy_row = self.assemblyIndex[ 2 ]
+        pin_row = self.pinColRow[ 1 ]
+        assy_col = min(
+            int( off_x / assy_wd ) + self.cellRange[ 0 ],
+	    self.cellRange[ 2 ] - 1
 	    )
-        cell_y = min(
-	    int( (ev_y - assy_region[ 1 ]) / pin_size ),
-	    self.data.core.npin - 1
-	    )
+        assy_col = max( self.cellRange[ 0 ], assy_col )
+	pin_col = int( (off_x % assy_wd) / pin_wd )
+	if pin_col >= self.data.core.npinx: pin_col = -1
 
-	result = ( cell_x, cell_y )
-      #end if event within display
+      else:
+        assy_col = self.assemblyIndex[ 1 ]
+	pin_col = self.pinColRow[ 0 ]
+	assy_row = min(
+	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
+	    self.cellRange[ 2 ] - 1
+	    )
+	assy_row = max( self.cellRange[ 0 ], assy_row )
+	pin_row = int( (off_x % assy_wd) / pin_wd )
+	if pin_row >= self.data.core.npiny: pin_row = -1
+
+      axial_level = -1
+      for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+        if off_y <= axial_dy[ ax ]:
+	  axial_level = ax
+	  break
+      #end for
+
+      assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
+      result = ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
     #end if we have data
 
     return  result
-  #end FindPin
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		GetAllow4DDataSets()				-
-  #----------------------------------------------------------------------
-  def GetAllow4DDataSets( self ):
-    """
-@return			True
-"""
-    return  True
-  #end GetAllow4DDataSets
+  #end FindCell
 
 
   #----------------------------------------------------------------------
@@ -687,7 +642,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
-    return  ( 'axial:pin', 'statepoint' )
+    return  ( 'statepoint' )
   #end GetAnimationIndexes
 
 
@@ -695,7 +650,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:radial' ]
+    return  [ 'pin', 'pin:assembly', 'pin:axial' ]
   #end GetDataSetTypes
 
 
@@ -743,9 +698,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """
-@return		24 in 'assy' mode, 4 in 'core' mode
+@return		4
 """
-    return  24 if self.mode == 'assy' else 4
+    return  4
   #end GetPrintScale
 
 
@@ -753,7 +708,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Core 2D View'
+    mode_str = 'XZ' if self.mode == 'xz' else 'YZ'
+    return  'Core Axial ' + mode_str + ' View'
   #end GetTitle
 
 
@@ -761,95 +717,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView._HiliteBitmap()			-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap ):
-    result = bmap
-
-    if self.config is not None:
-      line_wd = -1
-      rect = None
-
-#			-- Core mode
-#			--
-      if self.config[ 'mode' ] == 'core':
-        rel_col = self.assemblyIndex[ 1 ] - self.cellRange[ 0 ]
-        rel_row = self.assemblyIndex[ 2 ] - self.cellRange[ 1 ]
-
-        if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
-            rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
-          assy_adv = self.config[ 'assemblyAdvance' ]
-	  assy_wd = self.config[ 'assemblyWidth' ]
-	  core_region = self.config[ 'coreRegion' ]
-	  line_wd = self.config[ 'lineWidth' ]
-
-	  rect = \
-	    [
-	      rel_col * assy_adv + core_region[ 0 ],
-	      rel_row * assy_adv + core_region[ 1 ],
-	      assy_wd, assy_wd
-	    ]
-        #end if cell in drawing range
-
-#			-- Assy mode
-#			--
-      else:  # 'assy'
-	if self.pinColRow[ 0 ] >= 0 and self.pinColRow[ 1 ] >= 0 and \
-	    self.pinColRow[ 0 ] < self.data.core.npin and \
-	    self.pinColRow[ 1 ] < self.data.core.npin:
-          assy_region = self.config[ 'assemblyRegion' ]
-	  pin_gap = self.config[ 'pinGap' ]
-	  pin_wd = self.config[ 'pinWidth' ]
-	  pin_adv = pin_wd + pin_gap
-	  line_wd = self.config[ 'lineWidth' ]
-
-	  rect = \
-	    [
-	      self.pinColRow[ 0 ] * pin_adv + assy_region[ 0 ],
-	      self.pinColRow[ 1 ] * pin_adv + assy_region[ 1 ],
-	      pin_adv, pin_adv
-	    ]
-        #end if cell in drawing range
-      #end if-else on mode
-
-#			-- Draw?
-#			--
-      if rect is not None:
-	new_bmap = self._CopyBitmap( bmap )
-
-        dc = wx.MemoryDC( new_bmap )
-	gc = wx.GraphicsContext.Create( dc )
-	gc.SetPen(
-	    wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 255, 255, 255 ), line_wd, wx.PENSTYLE_SOLID
-		)
-	    )
-	path = gc.CreatePath()
-	path.AddRectangle( *rect )
-	gc.StrokePath( path )
-# This doesn't work on MSWIN
-#	dc.SetBrush( wx.TRANSPARENT_BRUSH )
-#        dc.SetPen(
-#	    wx.ThePenList.FindOrCreatePen(
-#	        wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
-#		)
-#	    )
-#        dc.DrawRectangle( *rect )
-	dc.SelectObject( wx.NullBitmap )
-
-	result = new_bmap
-      #end if rect
-    #end if self.config is not None:
-
-    return  result
+    return  bmap
   #end _HiliteBitmap
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._InitEventHandlers()		-
-  #----------------------------------------------------------------------
-  def _InitEventHandlers( self ):
-    """
-"""
-    self._SetMode( 'core' )
-  #end _InitEventHandlers
 
 
   #----------------------------------------------------------------------
@@ -860,24 +729,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @param  tpl		tuple of state values
 @return			True if it matches the current state, false otherwise
 """
-    result = False
-
-    if self.mode == 'assy':
-      result = \
-          tpl is not None and len( tpl ) >= 5 and \
-          tpl[ 0 ] == self.stateIndex and \
-	  tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
-	  tpl[ 2 ] == self.axialValue[ 1 ] and \
-	  tpl[ 3 ] == self.assemblyIndex[ 1 ] and \
-	  tpl[ 4 ] == self.assemblyIndex[ 2 ]
-
-    else:
-      result = \
-          tpl is not None and len( tpl ) >= 2 and \
-          tpl[ 0 ] == self.stateIndex and \
-	  tpl[ 1 ] == self.axialValue[ 1 ]
-
-    return  result
+    return \
+        tpl[ 0 ] == self.stateIndex and \
+	tpl[ 1 ] == self.pinOffset
   #end IsTupleCurrent
 
 
@@ -891,6 +745,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     self.assemblyIndex = self.state.assemblyIndex
     self.pinDataSet = self.state.pinDataSet
     self.pinColRow = self.state.pinColRow
+
+    if self.mode == 'xz':
+      self.pinOffset = \
+          self.assemblyIndex[ 2 ] * self.data.core.npiny + self.pinColRow[ 1 ]
+    else:
+      self.pinOffset = \
+          self.assemblyIndex[ 1 ] * self.data.core.npinx + self.pinColRow[ 0 ]
   #end _LoadDataModelValues
 
 
@@ -903,7 +764,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     x = ev.GetX()
     y = ev.GetY()
 
-    cell_info = self.FindAssembly( x, y )
+    cell_info = self.FindCell( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
       assy_ndx = cell_info[ 0 : 3 ]
@@ -914,21 +775,15 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       if pin_addr != self.pinColRow:
 	state_args[ 'pin_colrow' ] = pin_addr
 
+      axial_level = cell_info[ 5 ]
+      if axial_level != self.axialValue[ 1 ]:
+        state_args[ 'axial_value' ] = \
+	    self.data.CreateAxialValue( core_ndx = axial_level )
+
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
     #end if cell found
   #end _OnClick
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnCopy()					-
-  #----------------------------------------------------------------------
-  def _OnCopy( self, ev ):
-    """Method that should be implemented by subclasses for a clipboard
-copy operation.  This method just calls ev.Skip().
-"""
-    ev.Skip()
-  #end _OnCopy
 
 
   #----------------------------------------------------------------------
@@ -937,126 +792,8 @@ copy operation.  This method just calls ev.Skip().
   def _OnDragFinished( self, left, top, right, bottom ):
     """Do post drag things after drag processing.
 """
-    if right - left == 1 and bottom - top == 1:
-      self.assemblyIndex = self.dragStartCell
-      self.FireStateChange( assembly_index = self.assemblyIndex )
-      self._SetMode( 'assy' )
-    else:
-      self._SetMode( 'core' )
+    pass
   #end _OnDragFinished
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnMouseMotionAssy()		-
-  #----------------------------------------------------------------------
-  def _OnMouseMotionAssy( self, ev ):
-    """
-"""
-    tip_str = ''
-    pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr is not None:
-      state_ndx = self.stateIndex
-      ds_name = self.pinDataSet
-      pin_value = 0.0
-#      if ds_name in self.data.states[ state_ndx ].group:
-#        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset is not None:
-	ds_value = dset.value
-#	pin_value = ds_value[
-#	    pin_addr[ 1 ], pin_addr[ 0 ],
-#	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-#	    ]
-	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
-	    pin_addr[ 0 ] < ds_value.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
-	  pin_value = ds_value[
-	      pin_addr[ 1 ], pin_addr[ 0 ],
-	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
-	      self.assemblyIndex[ 0 ]
-	      #min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
-	      ]
-      #end if
-
-      #if pin_value > 0.0:
-      if not self.data.IsNoDataValue( ds_name, pin_value ):
-	pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
-        tip_str = 'Pin: %s\n%s: %g' % ( str( pin_rc ), ds_name, pin_value )
-    #end if pin found
-
-    self.bitmapCtrl.SetToolTipString( tip_str )
-  #end _OnMouseMotionAssy
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnMouseUpAssy()		-
-  #----------------------------------------------------------------------
-  def _OnMouseUpAssy( self, ev ):
-    """
-"""
-    pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr is not None and pin_addr != self.pinColRow:
-#      print >> sys.stderr, \
-#          '[CoreAxial2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
-
-      state_ndx = self.stateIndex
-      ds_name = self.pinDataSet
-      pin_value = 0.0
-#      if ds_name in self.data.states[ state_ndx ].group:
-#        ds_value = self.data.states[ state_ndx ].group[ ds_name ].value
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset is not None:
-        ds_value = dset.value
-#	pin_value = ds_value[
-#	    pin_addr[ 1 ], pin_addr[ 0 ],
-#	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-#	    ]
-	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
-	    pin_addr[ 0 ] < ds_value.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
-	  pin_value = ds_value[
-	      pin_addr[ 1 ], pin_addr[ 0 ],
-	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
-	      self.assemblyIndex[ 0 ]
-	      ]
-      #end if ds_name
-
-      #if pin_value > 0.0:
-      if not self.data.IsNoDataValue( ds_name, pin_value ):
-	self.FireStateChange( pin_colrow = pin_addr )
-    #end if pin_addr changed
-  #end _OnMouseUpAssy
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnSelectAverageDataSet()	-
-  #----------------------------------------------------------------------
-  def _OnSelectAverageDataSet( self, ev ):
-    """
-"""
-    ev.Skip()
-
-    if self.data is not None:
-      matching_ds_names = self.data.GetExtra4DDataSets()
-
-      if len( matching_ds_names ) == 0:
-        wx.MessageBox(
-	    'No matching extra datasets',
-	    'Select Average Dataset', wx.OK_DEFAULT, self
-	    )
-      else:
-        dialog = wx.SingleChoiceDialog(
-	    self, 'Select', 'Select Average Dataset',
-	    matching_ds_names
-	    )
-        status = dialog.ShowModal()
-	if status == wx.ID_OK:
-	  name = dialog.GetStringSelection()
-	  if name is not None:
-	    self.UpdateState( avg_dataset = 'extra:' + name )
-      #end if-else matching_ds_names
-    #end if self.data
-  #end _OnSelectAverageDataSet
 
 
   #----------------------------------------------------------------------
@@ -1067,8 +804,7 @@ copy operation.  This method just calls ev.Skip().
 """
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
-      self._SetMode( 'core' )
-      self._OnSize( None )
+      self.Redraw()
   #end _OnUnzoom
 
 
@@ -1085,36 +821,10 @@ copy operation.  This method just calls ev.Skip().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._SetMode()			-
-  #----------------------------------------------------------------------
-  def _SetMode( self, mode ):
-    """Must be called from the UI thread.
-"""
-    if mode != self.mode:
-      if mode == 'assy':
-        self.bitmapCtrl.Bind( wx.EVT_LEFT_DOWN, None )
-#        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, None )
-#        self.bitmapCtrl.Bind( wx.EVT_MOTION, None )
-
-        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, self._OnMouseUpAssy )
-        self.bitmapCtrl.Bind( wx.EVT_MOTION, self._OnMouseMotionAssy )
-
-      else:  # if mode == 'core':
-#        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, None )
-#        self.bitmapCtrl.Bind( wx.EVT_MOTION, None )
-
-	super( CoreAxial2DView, self )._InitEventHandlers()
-      #end if-else
-
-      self.mode = mode
-    #end if different mode
-  #end _SetMode
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._UpdateAvgValues()		-
   #----------------------------------------------------------------------
   def _UpdateAvgValues( self, state_ndx, force = False ):
+    #XXXXX
     dset = None
     if self.avgDataSet is not None and \
         (force or (state_ndx not in self.avgValues)):

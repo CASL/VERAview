@@ -512,10 +512,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     tip_str = ''
 
-    valid = self.data.IsValid(
-        detector_index = cell_info[ 0 ],
-	state_index = self.stateIndex
-	)
+    valid = cell_info is not None and \
+        self.data.IsValid(
+            detector_index = cell_info[ 0 ],
+	    state_index = self.stateIndex
+	    )
 
     if valid:
       ds = self.data.states[ self.stateIndex ].group[ self.detectorDataSet ]

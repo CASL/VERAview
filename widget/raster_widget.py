@@ -559,6 +559,63 @@ _CreateRasterImage().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateTitleTemplate2()		-
+  #----------------------------------------------------------------------
+  def _CreateTitleTemplate2(
+      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      assembly_ndx = -1, axial_ndx = -1, additional = None
+      ):
+    """Creates the title template and default string for sizing.
+@param  pil_font	PIL font to use for sizing
+@param  ds_name		dataset name
+@param  ds_shape	dataset shape
+@param  time_ds_name	optional time dataset name
+@param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
+@param  axial_ndx	shape index for Axial, or -1 if Axial should not be
+			displayed
+@param  additional	single or tuple of items to add
+@return			( string.Template, size-tuple )
+"""
+    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    comma_flag = False
+    size_values = {}
+
+    if assembly_ndx >= 0 and ds_shape[ assembly_ndx ] > 1:
+      title_fmt += 'Assembly ${assembly}'
+      size_values[ 'assembly' ] = '99'
+      comma_flag = True
+
+    if axial_ndx >= 0 and ds_shape[ axial_ndx ] > 1:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += 'Axial ${axial}'
+      size_values[ 'axial' ] = '999.999'
+      comma_flag = True
+
+    if additional is not None:
+      if not hasattr( additional, '__iter__' ):
+        additional = [ additional ]
+      for item in additional:
+        if comma_flag:
+	  title_fmt += ', '
+        title_fmt += item
+	comma_flag = True
+    #end if
+
+    if time_ds_name:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += '%s ${time}' % time_ds_name
+      size_values[ 'time' ] = '9.99e+99'
+
+    title_templ = string.Template( title_fmt )
+    title_size = pil_font.getsize( title_templ.substitute( size_values ) )
+
+    return  title_templ, title_size
+  #end _CreateTitleTemplate2
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateToolTipText()		-
   #----------------------------------------------------------------------
   def _CreateToolTipText( self, cell_info ):

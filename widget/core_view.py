@@ -293,8 +293,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-        cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
-        cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
+        cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
+        cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -670,8 +670,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-        #cur_nxpin = min( self.data.core.npin, dset_shape[ 1 ] )
-        #cur_nypin = min( self.data.core.npin, dset_shape[ 0 ] )
+        cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
+        cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
       ds_range = self.data.GetRange( self.pinDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -729,15 +729,13 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pin_y = assy_y + 1
-	    cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
-	    cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
+	    #cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
+	    #cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
 
-	    #for pin_row in range( cur_nypin ):
 	    for pin_row in range( self.data.core.npiny ):
 	      pin_x = assy_x + 1
 
 	      cur_pin_row = min( pin_row, cur_nypin - 1 )
-	      #for pin_col in range( cur_nxpin ):
 	      for pin_col in range( self.data.core.npinx ):
 	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
 		#value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
@@ -1249,17 +1247,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         self.FireStateChange( **state_args )
     #end if cell found
   #end _OnClick
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnCopy()					-
-  #----------------------------------------------------------------------
-  def _OnCopy( self, ev ):
-    """Method that should be implemented by subclasses for a clipboard
-copy operation.  This method just calls ev.Skip().
-"""
-    ev.Skip()
-  #end _OnCopy
 
 
   #----------------------------------------------------------------------
