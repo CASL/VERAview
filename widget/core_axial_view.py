@@ -291,7 +291,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         assy_wd = region_wd / self.cellRange[ -2 ]
         pin_wd = max( 1, (assy_wd - 2) / npin )
 	assy_wd = pin_wd * npin + 1
-	axial_pix_per_cm *= region_aspect_ratio
+	#axial_pix_per_cm /= pins_to_axial_ratio
 
       print >> sys.stderr, \
           '[CoreAxial2DView._CreateDrawConfig] after scale' + \
@@ -480,7 +480,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in ):
     """Called in background task to create the PIL image for the state.
-@param  tuple_in	0-based ( state_index, assy_col_or_row )
+@param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
 """
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
@@ -517,7 +517,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	pin_range = range( self.data.core.npinx )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Row %d' % self.pinIndex
+	    additional = 'Pin Row %d' % (tuple_in[ 2 ] + 1)
 	    )
       else: # 'yz'
         assy_cell = ( min( tuple_in[ 1 ], dset_shape[ 1 ] - 1 ), -1 )
@@ -525,7 +525,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	pin_range = range( self.data.core.npiny )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Col %d' % self.pinIndex
+	    additional = 'Pin Col %d' % (tuple_in[ 2 ] + 1)
 	    )
 
 #			-- Create image
@@ -535,9 +535,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       im_draw = PIL.ImageDraw.Draw( im )
 
       assy_pen = ( 155, 155, 155, 255 )
-
-      #if core_region[ 2 ] > 350:
-        #pdb.set_trace()
 
 #			-- Loop on axial levels
 #			--
@@ -566,8 +563,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
-	  if axial_level == self.cellRange[ 3 ] - 1 and self.showLabels:
-	    label_ndx = 0 if self.mode == 'xz' else 0
+	  #if axial_level == self.cellRange[ 3 ] - 1 and self.showLabels:
+	  if ax == len( axial_levels_dy ) - 1 and self.showLabels:
+	    label_ndx = 0 if self.mode == 'xz' else 1
 	    label = self.data.core.coreLabels[ label_ndx ][ assy_col ]
 	    label_size = pil_font.getsize( label )
 	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
@@ -578,9 +576,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #end if
 
 	  if self.mode == 'xz':
-	    assy_ndx = self.data.core.coreMap[ tuple_in[ 1 ], assy_col ]
+	    assy_ndx = self.data.core.coreMap[ tuple_in[ 1 ], assy_col ] - 1
 	  else:
-	    assy_ndx = self.data.core.coreMap[ assy_col, tuple_in[ 1 ] ]
+	    assy_ndx = self.data.core.coreMap[ assy_col, tuple_in[ 1 ] ] - 1
 
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pin_x = assy_x + 1
@@ -589,11 +587,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      cur_pin_col = min( pin_col, cur_npin - 1 )
 	      if self.mode == 'xz':
 	        value = dset_array[
-		    tuple_in[ 1 ], cur_pin_col, axial_level, assy_ndx
+		    tuple_in[ 2 ], cur_pin_col, axial_level, assy_ndx
 		    ]
 	      else:
 	        value = dset_array[
-		    cur_pin_col, tuple_in[ 1 ], axial_level, assy_ndx
+		    cur_pin_col, tuple_in[ 2 ], axial_level, assy_ndx
 		    ]
 
 	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
@@ -673,7 +671,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
 #    colrow_ndx = 1 if self.mode == 'xz' else 0
 #    return  ( self.stateIndex, self.pinColRow[ colrow_ndx ] )
-    return  ( self.stateIndex, self.pinIndex )
+    if self.mode == 'xz':
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.pinColRow[ 1 ] )
+    else:
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.pinColRow[ 0 ] )
+    return  t
   #end _CreateStateTuple
 
 
@@ -966,7 +968,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
 
-      assy_ndx = cell_info[ 0 : 3 ]
+      assy_ndx = list( cell_info[ 0 : 3 ] )
       if self.mode == 'xz':
 	assy_ndx[ 2 ] = self.assemblyIndex[ 2 ]
 	pin_addr = ( cell_info[ 3 ], self.pinColRow[ 1 ] )
@@ -1071,10 +1073,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     resized = kwargs.get( 'resized', False )
 
     new_pin_index_flag = False
+    if 'assembly_index' in kwargs:
+      pdb.set_trace()
 
     if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+      #changed = True
+      resized = True
       new_pin_index_flag = True
-      changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
     if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
@@ -1085,8 +1090,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       self.avgValues.clear()
 
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+      #changed = True
+      resized = True
       new_pin_index_flag = True
-      changed = True
       self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
