@@ -84,7 +84,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 27)'
+TITLE = 'VERAView (Build 28)'
 
 TOOLBAR_ITEMS = \
   [
