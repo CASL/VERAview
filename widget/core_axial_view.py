@@ -278,7 +278,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         assy_wd = region_wd / self.cellRange[ -2 ]
         pin_wd = max( 1, (assy_wd - 2) / npin )
-	axial_pix_per_cm /= region_aspect_ratio
+	#xxxxx?
+	#axial_pix_per_cm /= region_aspect_ratio
+	axial_pix_per_cm *= region_aspect_ratio
 
 #			-- Calc sizes
 #			--
