@@ -252,15 +252,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     pins_per_axial_cm = \
         (self.data.core.GetPitch() * display_pin_count) / axial_range_cm
 
-#    axial_dists_cm = []
-#    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-#      axial_dists_cm.insert( 0, axial_mesh[ ax + 1 ] - axial_mesh[ ax ] )
-#    axial_dist_cm_max = np.max( axial_dists_cm )
-#    pins_per_axial = self.data.core.GetPitch() / axial_dist_cm_max
-
 #		-- Must calculate scale?
 #		--
-#		self.cellRange ( xy-left, z-bottom, xy-right, z-top, d-xy, dz )
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
@@ -279,12 +272,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_wd = max( 1, (assy_wd - 2) / npin )
 
 #				-- Axially
-      #axial_cm_ht = int( math.floor( region_ht / axial_range_cm ) )
       axial_pix_per_cm = region_ht / axial_range_cm
       pin_ht = int( math.floor( axial_pix_per_cm / pins_per_axial_cm ) )
 
       pixels_per_pin = max( 1, min( pin_wd, pin_ht ) )
-      #axial_pix_per_cm = pixels_per_pin * pins_per_axial_cm
 
 #			-- Calc sizes
 #			--
@@ -292,6 +283,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       core_wd = self.cellRange[ -2 ] * assy_wd
       core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
 
+#		-- Or, scale set explicitly
+#		--
     else:
       pixels_per_pin = y_pix_per_cm = kwargs.get( 'scale', 4 )
       axial_pix_per_cm = pixels_per_pin * pins_per_axial_cm
@@ -527,14 +520,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			-- Loop on axial levels
 #			--
       axial_y = core_region[ 1 ]
-      if self.mode == 'xz':
-        cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
-      else:
-        cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
-
-      for axial_level in \
-          range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-        cur_dy = axial_levels_dy[ axial_level ]
+#      for axial_level in \
+#          range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+#        cur_dy = axial_levels_dy[ axial_level - self.cellRange[ 1 ] ]
+      for ax in range( len( axial_levels_dy ) - 1, -1, -1 ):
+        cur_dy = axial_levels_dy[ ax ]
+	axial_level = ax + self.cellRange[ 1 ]
 
 #				-- Row label
 #				--
@@ -553,7 +544,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
-	  if axial_level == self.cellRange[ 3 ] -1 and self.showLabels:
+	  if axial_level == self.cellRange[ 3 ] - 1 and self.showLabels:
 	    label_ndx = 0 if self.mode == 'xz' else 0
 	    label = self.data.core.coreLabels[ label_ndx ][ assy_col ]
 	    label_size = pil_font.getsize( label )
@@ -675,8 +666,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     valid = cell_info is not None and \
         self.data.IsValid(
             assembly_index = cell_info[ 0 ],
-	    #dataset_name = self.pinDataSet,
-	    pin_colrow = cell_info[ 3 : 5 ],
+	    axial_level = cell_info[ 2 ],
 	    state_index = self.stateIndex
 	    )
 
@@ -684,11 +674,16 @@ If neither are specified, a default 'scale' value of 4 is used.
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       assy_ndx = cell_info[ 0 ]
       if dset is not None and assy_ndx < dset.shape[ 3 ]:
-        show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+        if self.mode == 'xz':
+	  assy_addr = ( cell_info[ 1 ], self.assemblyIndex[ 2 ] )
+	else:
+	  assy_addr = ( self.assemblyIndex[ 1 ], cell_info[ 1 ] )
+
+        show_assy_addr = self.data.core.CreateAssyLabel( *assy_addr )
         tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
 
-	if cell_info[ 5 ] >= 0:
-	  axial_value = self.data.CreateAxialValue( core_ndx = cell_info[ 5 ] )
+	if cell_info[ 2 ] >= 0:
+	  axial_value = self.data.CreateAxialValue( core_ndx = cell_info[ 2 ] )
 	  tip_str += ', Axial: %.2f' % axial_value[ 0 ]
 	#end if
       #end if assy_ndx in range
@@ -703,6 +698,66 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
     """
+@return  ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row )
+"""
+    result = None
+    if self.config is not None and self.data is not None and \
+        self.data.core is not None and self.data.core.coreMap is not None:
+      assy_wd = self.config[ 'assemblyWidth' ]
+      axials_dy = self.config[ 'axialLevelsDy' ]
+      core_region = self.config[ 'coreRegion' ]
+      pin_wd = self.config[ 'pinWidth' ]
+
+      off_x = ev_x - core_region[ 0 ]
+      off_y = ev_y - core_region[ 1 ]
+
+      if self.mode == 'xz':
+	assy_row = self.assemblyIndex[ 2 ]
+        assy_col = min(
+            int( off_x / assy_wd ) + self.cellRange[ 0 ],
+	    self.cellRange[ 2 ] - 1
+	    )
+        assy_col = max( self.cellRange[ 0 ], assy_col )
+	assy_col_or_row = assy_col
+
+	pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
+	if pin_col_or_row >= self.data.core.npinx: pin_col_or_row = -1
+
+      else:
+        assy_col = self.assemblyIndex[ 1 ]
+	assy_row = min(
+	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
+	    self.cellRange[ 2 ] - 1
+	    )
+	assy_row = max( self.cellRange[ 0 ], assy_row )
+	assy_col_or_row = assy_row
+
+	pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
+	if pin_col_or_row >= self.data.core.npiny: pin_col_or_row = -1
+      #end if-else
+
+      axial_level = 0
+      ax_y = 0
+      for ax in range( len( axials_dy ) - 1, -1, -1 ):
+        ax_y += axials_dy[ ax ]
+	if off_y <= ax_y:
+	  axial_level = ax + self.cellRange[ 1 ]
+	  break
+      #end for
+
+      assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
+      result = ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row )
+    #end if we have data
+
+    return  result
+  #end FindCell
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.FindCellAll()			-
+  #----------------------------------------------------------------------
+  def FindCellAll( self, ev_x, ev_y ):
+    """Not used.
 @return  ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
 """
     result = None
@@ -738,9 +793,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	pin_row = int( (off_x % assy_wd) / pin_wd )
 	if pin_row >= self.data.core.npiny: pin_row = -1
 
-      axial_level = -1
+      axial_level = 0
+      ax_y = 0
       for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-        if off_y <= axials_dy[ ax ]:
+	ax_y += axials_dy[ ax ]
+        if off_y <= ax_y:
 	  axial_level = ax
 	  break
       #end for
@@ -750,7 +807,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     #end if we have data
 
     return  result
-  #end FindCell
+  #end FindCellAll
 
 
   #----------------------------------------------------------------------
@@ -886,15 +943,22 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     cell_info = self.FindCell( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
+
       assy_ndx = cell_info[ 0 : 3 ]
+      if self.mode == 'xz':
+	assy_ndx[ 2 ] = self.assemblyIndex[ 2 ]
+	pin_addr = ( cell_info[ 3 ], self.pinColRow[ 1 ] )
+      else:
+	assy_ndx[ 1 ] = self.assemblyIndex[ 1 ]
+	pin_addr = ( self.pinColRow[ 0 ], cell_info[ 3 ] )
+
       if assy_ndx != self.assemblyIndex:
 	state_args[ 'assembly_index' ] = assy_ndx
 
-      pin_addr = cell_info[ 3 : 5 ]
       if pin_addr != self.pinColRow:
 	state_args[ 'pin_colrow' ] = pin_addr
 
-      axial_level = cell_info[ 5 ]
+      axial_level = cell_info[ 2 ]
       if axial_level != self.axialValue[ 1 ]:
         state_args[ 'axial_value' ] = \
 	    self.data.CreateAxialValue( core_ndx = axial_level )

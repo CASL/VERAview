@@ -411,11 +411,13 @@ class VeraViewFrame( wx.Frame ):
     #xxx Reject if not enough grid spaces?
     # we'll get the widget classpath from the object
     try:
+      must_fit = False
       grid_sizer = self.grid.GetSizer()
       #widget_count = len( self.grid.GetChildren() ) - 1  # - 2 + 1 (new one)
       widget_count = len( self.grid.GetChildren() ) + 1
       widget_space = grid_sizer.GetCols() * grid_sizer.GetRows()
       if widget_count > widget_space:
+	must_fit = True
 	if widget_space == 1:
           grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
 	elif grid_sizer.GetCols() > grid_sizer.GetRows():
@@ -428,7 +430,8 @@ class VeraViewFrame( wx.Frame ):
       self.grid._FreezeWidgets()
       grid_sizer.Add( con, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
       self.grid.Layout()
-      self.Fit()
+      if must_fit:
+        self.Fit()
       self.grid._FreezeWidgets( False )
 
       if refit_flag:
@@ -670,7 +673,13 @@ class VeraViewFrame( wx.Frame ):
 #    self.Center()
     pos = ( 5, 40 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
     self.SetPosition( pos )
-    self.SetSize( ( 640, 480 ) )
+    #self.SetSize( ( 640, 480 ) )
+
+    display_size = wx.DisplaySize()
+    if display_size[ 0 ] >= 1200 and display_size[ 1 ] >= 800:
+      self.SetSize( ( 800, 600 ) )
+    else:
+      self.SetSize( ( 640, 480 ) )
 
 #		-- Window Events
 #		--

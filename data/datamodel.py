@@ -346,9 +346,9 @@ Properties:
   #----------------------------------------------------------------------
   def GetPitch( self ):
     """Returns a value for the assembly pitch.
-@return			'apitch' value or a default of 1.26
+@return			'apitch' value or a default of 20.0
 """
-    return  1.26  if self.apitch == 0.0 else  self.apitch
+    return  20.0  if self.apitch == 0.0 else  self.apitch
   #end GetPitch
 
 

@@ -28,7 +28,7 @@
 #------------------------------------------------------------------------
 import math, os, string, sys, threading
 import numpy as np
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 #import time, traceback
 
 try:
@@ -909,6 +909,8 @@ This implementation is a noop.
 """
     self.bitmapCtrl.SetToolTipString( '' )
     cell_info = self.FindCell( *ev.GetPosition() )
+    print >> sys.stderr, \
+        '\n[RasterWidget._OnLeftDown] cell_info=', str( cell_info )
     if cell_info is not None:
       self.dragStartCell = cell_info
       self.dragStartPosition = ev.GetPosition()
@@ -940,6 +942,8 @@ This implementation is a noop.
       x = ev.GetX()
       y = ev.GetY()
       cell_info = self.FindCell( x, y )
+      print >> sys.stderr, \
+          '\n[RasterWidget._OnLeftUp] cell_info=', str( cell_info )
 
       if cell_info is not None:
         left = min( self.dragStartCell[ 1 ], cell_info[ 1 ] )
