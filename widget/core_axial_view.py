@@ -60,7 +60,7 @@ Properties:
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
-    self.pinOffset = 0
+    self.pinIndex = 0
 
     super( CoreAxial2DView, self ).__init__( container, id )
   #end __init__
@@ -73,6 +73,7 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
+    #XXXXX
     csv_text = None
     dset = None
     is_valid = DataModel.IsValidObj(
@@ -224,7 +225,131 @@ If neither are specified, a default 'scale' value of 4 is used.
     pilFont
     +
     assemblyWidth
-    axialLevelDy	list of pixel offsets in y dimension
+    axialLevelsDy	list of pixel offsets in y dimension
+    axialPixPerCm	used?
+    coreRegion
+    lineWidth
+    pinWidth
+"""
+    config = self._CreateBaseDrawConfig(
+        self.data.GetRange( self.pinDataSet ),
+	**kwargs
+	)
+
+    font_size = config[ 'fontSize' ]
+    label_size = config[ 'labelSize' ]
+    legend_pil_im = config[ 'legendPilImage' ]
+    legend_size = config[ 'legendSize' ]
+
+    axial_mesh = self.data.core.axialMesh
+    axial_range_cm = \
+        axial_mesh[ self.cellRange[ 3 ] ] - axial_mesh[ self.cellRange[ 1 ] ]
+    npin = \
+        self.data.core.npinx  if self.mode == 'xz' else \
+	self.data.core.npiny
+
+    display_pin_count = self.cellRange[ -2 ] * npin
+    pins_per_axial_cm = \
+        (self.data.core.GetPitch() * display_pin_count) / axial_range_cm
+
+#    axial_dists_cm = []
+#    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+#      axial_dists_cm.insert( 0, axial_mesh[ ax + 1 ] - axial_mesh[ ax ] )
+#    axial_dist_cm_max = np.max( axial_dists_cm )
+#    pins_per_axial = self.data.core.GetPitch() / axial_dist_cm_max
+
+#		-- Must calculate scale?
+#		--
+#		self.cellRange ( xy-left, z-bottom, xy-right, z-top, d-xy, dz )
+    if 'clientSize' in config:
+      wd, ht = config[ 'clientSize' ]
+
+#			-- Determine drawable region in image
+#			--
+      # l2r, label : core : font-sp : legend
+      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
+      # t2b, core : title
+      working_ht = max( ht, legend_size[ 1 ] )
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+
+#			-- Calc scale
+#			--
+#				-- Horizontally
+      assy_wd = region_wd / self.cellRange[ -2 ]
+      pin_wd = max( 1, (assy_wd - 2) / npin )
+
+#				-- Axially
+      #axial_cm_ht = int( math.floor( region_ht / axial_range_cm ) )
+      axial_pix_per_cm = region_ht / axial_range_cm
+      pin_ht = int( math.floor( axial_pix_per_cm / pins_per_axial_cm ) )
+
+      pixels_per_pin = max( 1, min( pin_wd, pin_ht ) )
+      #axial_pix_per_cm = pixels_per_pin * pins_per_axial_cm
+
+#			-- Calc sizes
+#			--
+      assy_wd = pixels_per_pin * npin + 1
+      core_wd = self.cellRange[ -2 ] * assy_wd
+      core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
+
+    else:
+      pixels_per_pin = y_pix_per_cm = kwargs.get( 'scale', 4 )
+      axial_pix_per_cm = pixels_per_pin * pins_per_axial_cm
+
+      assy_wd = pixels_per_pin * npin + 1
+      core_wd = self.cellRange[ -2 ] * assy_wd
+      core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
+
+      font_size = self._CalcFontSize( 768 )
+
+      # l2r, label : core : font-sp : legend
+      wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
+      ht = max( core_ht, legend_size[ 1 ] )
+      ht += (font_size << 1) + font_size
+
+      config[ 'clientSize' ] = ( wd, ht )
+    #end if-else
+
+    axials_dy = []
+    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+      ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
+      dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
+      axials_dy.insert( 0, dy )
+    #end for
+
+    config[ 'assemblyWidth' ] = assy_wd
+    config[ 'axialLevelsDy' ] = axials_dy
+    config[ 'axialPixPerCm' ] = axial_pix_per_cm
+    config[ 'coreRegion' ] = \
+        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
+    config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
+    config[ 'pinWidth' ] = pixels_per_pin
+
+    return  config
+  #end _CreateDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateDrawConfig_0()		-
+  #----------------------------------------------------------------------
+  def _CreateDrawConfig_0( self, **kwargs ):
+    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
+'scale' (pixels per pin) from which a size is determined.
+If neither are specified, a default 'scale' value of 4 is used.
+@param  kwargs
+    scale	pixels per cm
+    size	( wd, ht ) against which to compute the scale
+@return			config dict with keys:
+    clientSize
+    fontSize
+    labelFont
+    labelSize
+    legendPilImage
+    legendSize
+    pilFont
+    +
+    assemblyWidth
+    axialLevelsDy	list of pixel offsets in y dimension
     axialPixPerCm
     coreRegion
     lineWidth
@@ -271,27 +396,27 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- What can we draw?
       assy_border_pix = self.cellRange[ -2 ] << 1
-      x_pix_per_cm = Math.max( (region_wd - assy_border_pix) / core_wd_cm, 1 )
-      y_pix_per_cm = Math.max( int( region_ht / axial_range_cm ), 1 )
+      x_pix_per_cm = max( (region_wd - assy_border_pix) / core_wd_cm, 1 )
+      y_pix_per_cm = max( int( region_ht / axial_range_cm ), 1 )
 
       if y_pix_per_cm < x_pix_per_cm:
         x_pix_per_cm = y_pix_per_cm
 
-      pin_wd_pix = int( Math.floor( pitch * x_pix_per_cm ) )
+      pin_wd_pix = int( math.floor( pitch * x_pix_per_cm ) )
       assy_wd_pix = pin_count * pin_wd_pix + 2
       core_wd_pix = self.cellRange[ -2 ] * assy_wd_pix
 
-      core_ht_px = int( Math.floor( y_pix_per_cm * axial_range_cm ) )
+      core_ht_pix = int( math.floor( y_pix_per_cm * axial_range_cm ) )
 
     else:
       x_pix_per_cm = y_pix_per_cm = kwargs.get( 'scale', 4 )
-      print >> sys.stderr, '[CoreAxial2DView._CreateDrawConfig] pix_per_cm=%d' % x_pix_per_cm
+      print >> sys.stderr, '[CoreAxial2DView._CreateDrawConfig] x_pix_per_cm=%d' % x_pix_per_cm
 
-      pin_wd_pix = int( Math.floor( pitch * x_pix_per_cm ) )
+      pin_wd_pix = int( math.floor( pitch * x_pix_per_cm ) )
       assy_wd_pix = pin_count * pin_wd_pix
       core_wd_pix = self.cellRange[ -2 ] * assy_wd_pix
 
-      core_ht_px = int( Math.floor( y_pix_per_cm * axial_range_cm ) )
+      core_ht_pix = int( math.floor( y_pix_per_cm * axial_range_cm ) )
 
       font_size = self._CalcFontSize( 768 )
 
@@ -304,14 +429,14 @@ If neither are specified, a default 'scale' value of 4 is used.
     #end if-else
 
     axial_mesh = self.data.core.axialMesh
-    axial_dy = []
+    axials_dy = []
     for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
       ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
-      axial_dy.insert( 0, int( math.floor( y_pix_per_cm * ax_cm ) ) )
+      axials_dy.insert( 0, int( math.floor( y_pix_per_cm * ax_cm ) ) )
     #end for
 
     config[ 'assemblyWidth' ] = assy_wd_pix
-    config[ 'axialLevelDy' ] = axial_dy
+    config[ 'axialLevelsDy' ] = axials_dy
     config[ 'axialPixPerCm' ] = y_pix_per_cm
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd_pix, core_ht_pix ]
@@ -319,7 +444,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'pinWidth' ] = pin_wd_pix
 
     return  config
-  #end _CreateDrawConfig
+  #end _CreateDrawConfig_0
 
 
   #----------------------------------------------------------------------
@@ -348,14 +473,13 @@ If neither are specified, a default 'scale' value of 4 is used.
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     print >> sys.stderr, \
-        '[CoreAxial2DView._CreateRasterImage] tuple_in=s' % \
+        '[CoreAxial2DView._CreateRasterImage] tuple_in=%s' % \
 	str( tuple_in )
     im = None
 
     if self.config is not None:
       assy_wd = self.config[ 'assemblyWidth' ]
-      axial_pix_per_cm = self.config[ 'axialPixPerCm' ]
-      axial_level_dy = self.config[ 'axialLevelDy' ]
+      axial_levels_dy = self.config[ 'axialLevelsDy' ]
       im_wd, im_ht = self.config[ 'clientSize' ]
       core_region = self.config[ 'coreRegion' ]
       font_size = self.config[ 'fontSize' ]
@@ -381,15 +505,15 @@ If neither are specified, a default 'scale' value of 4 is used.
 	pin_range = range( self.data.core.npinx )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Row %d' % self.pinOffset
+	    additional = 'Pin Row %d' % self.pinIndex
 	    )
-      else # 'yz':
+      else: # 'yz'
         assy_cell = ( min( tuple_in[ 1 ], dset_shape[ 1 ] - 1 ), -1 )
 	cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
 	pin_range = range( self.data.core.npiny )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Col %d' % self.pinOffset
+	    additional = 'Pin Col %d' % self.pinIndex
 	    )
 
 #			-- Create image
@@ -410,12 +534,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       for axial_level in \
           range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-#	cur_ax_level = min( axial_level, dset_shape[ 2 ] )
-#	cur_dy_cm = \
-#	    self.data.core.axialMesh[ axial_level + 1 ] - \
-#	    self.data.core.axialMesh[ axial_level ]
-#        cur_dy = cur_dy_cm * axial_pix_per_cm
-        cur_dy = axial_level_dy[ axial_level ]
+        cur_dy = axial_levels_dy[ axial_level ]
 
 #				-- Row label
 #				--
@@ -457,11 +576,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      cur_pin_col = min( pin_col, cur_npin - 1 )
 	      if self.mode == 'xz':
 	        value = dset_array[
-		    tuple_in[ 1 ], cur_pin_col, cur_ax_level, assy_ndx
+		    tuple_in[ 1 ], cur_pin_col, axial_level, assy_ndx
 		    ]
 	      else:
 	        value = dset_array[
-		    cur_pin_col, tuple_in[ 1 ], cur_ax_level, assy_ndx
+		    cur_pin_col, tuple_in[ 1 ], axial_level, assy_ndx
 		    ]
 
 	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
@@ -503,8 +622,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Draw Title String
 #			--
-      assy_y = max( assy_y, legend_size[ 1 ] )
-      assy_y += font_size >> 2
+      axial_y = max( axial_y, legend_size[ 1 ] )
+      axial_y += font_size >> 2
 
       title_str = self._CreateTitleString(
 	  title_templ,
@@ -516,7 +635,7 @@ If neither are specified, a default 'scale' value of 4 is used.
           (core_region[ 3 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
 	  )
       im_draw.text(
-          ( title_x, assy_y ),
+          ( title_x, axial_y ),
 	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
           )
 
@@ -541,7 +660,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
 #    colrow_ndx = 1 if self.mode == 'xz' else 0
 #    return  ( self.stateIndex, self.pinColRow[ colrow_ndx ] )
-     return  ( self.stateIndex, self.pinOffset )
+    return  ( self.stateIndex, self.pinIndex )
   #end _CreateStateTuple
 
 
@@ -590,7 +709,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     if self.config is not None and self.data is not None and \
         self.data.core is not None and self.data.core.coreMap is not None:
       assy_wd = self.config[ 'assemblyWidth' ]
-      axial_dy = self.config[ 'axialLevelDy' ]
+      axials_dy = self.config[ 'axialLevelsDy' ]
       core_region = self.config[ 'coreRegion' ]
       pin_wd = self.config[ 'pinWidth' ]
 
@@ -621,7 +740,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       axial_level = -1
       for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-        if off_y <= axial_dy[ ax ]:
+        if off_y <= axials_dy[ ax ]:
 	  axial_level = ax
 	  break
       #end for
@@ -680,14 +799,14 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       result = ( 0, 0, 0, 0, 0, 0 )
 
     else:
-      xy_range = list( self.data.ExtractSymmetryExtent() )
+      result = list( self.data.ExtractSymmetryExtent() )
       if self.mode == 'yz':
-        xy_range[ 0 ] = xy_range[ 1 ]
-	xy_range[ 2 ] = xy_range[ 3 ]
-	xy_range[ 4 ] = xy_range[ 5 ]
+        result[ 0 ] = result[ 1 ]
+	result[ 2 ] = result[ 3 ]
+	result[ 4 ] = result[ 5 ]
 
-      xy_range[ 1 ] = 0
-      xy_range[ 3 ] = xy_range[ 5 ] = self.data.nax
+      result[ 1 ] = 0
+      result[ 3 ] = result[ 5 ] = self.data.core.nax
 
     return  result
   #end GetInitialCellRange
@@ -731,7 +850,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     return \
         tpl[ 0 ] == self.stateIndex and \
-	tpl[ 1 ] == self.pinOffset
+	tpl[ 1 ] == self.pinIndex
   #end IsTupleCurrent
 
 
@@ -824,7 +943,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView._UpdateAvgValues()		-
   #----------------------------------------------------------------------
   def _UpdateAvgValues( self, state_ndx, force = False ):
-    #XXXXX
     dset = None
     if self.avgDataSet is not None and \
         (force or (state_ndx not in self.avgValues)):
@@ -832,16 +950,23 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
     if dset is not None:
       dset_array = dset.value
+      dset_shape = dset_array.shape
 
-      t_nax = min( self.data.core.nax, dset_array.shape[ 2 ] )
-      t_nass = min( self.data.core.nass, dset_array.shape[ 3 ] )
-      avg_values = np.zeros( shape = ( t_nax, t_nass ) )
+#			-- Axial
+      #if dset_shape[ 0 ] == 1 and dset_shape[ 3 ] == 1
+      if dset_shape[ 3 ] == 1:
+        t_nax = min( self.data.core.nax, dset_shape[ 2 ] )
+        avg_values = np.zeros( shape = ( t_nax, ) )
+	for ax in range( t_nax ):
+	  avg_values[ ax ] = np.mean( dset_array[ :, :, ax, : ] )
 
-      for ax in range( t_nax ):  # pp_powers.shape( 2 )
-        for assy in range( t_nass ):  # pp_powers.shape( 3 )
-	  avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
-        #end for assy
-      #end for ax
+#			-- Assembly
+      else:
+        t_nax = min( self.data.core.nax, dset_shape[ 2 ] )
+        t_nass = min( self.data.core.nass, dset_shape[ 3 ] )
+	for ax in range( t_nax ):
+	  for assy in range( t_nass ):
+	    avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
 
       self.avgValues[ state_ndx ] = avg_values
     #end if
@@ -859,7 +984,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
+    new_pin_index_flag = False
+
     if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+      new_pin_index_flag = True
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
@@ -871,6 +999,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       self.avgValues.clear()
 
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+      new_pin_index_flag = True
       changed = True
       self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
 
@@ -880,6 +1009,15 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         resized = True
         self.pinDataSet = kwargs[ 'pin_dataset' ]
         self.avgValues.clear()
+
+    if new_pin_index_flag:
+      if self.mode == 'xz':
+        self.pinOffset = \
+            self.assemblyIndex[ 2 ] * self.data.core.npiny + self.pinColRow[ 1 ]
+      else:
+        self.pinOffset = \
+            self.assemblyIndex[ 1 ] * self.data.core.npinx + self.pinColRow[ 0 ]
+    #end if new_pin_index_flag
 
     if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )
@@ -893,3 +1031,29 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #end _UpdateStateValues
 
 #end CoreAxial2DView
+
+
+#------------------------------------------------------------------------
+#	CLASS:		CoreXZView					-
+#------------------------------------------------------------------------
+class CoreXZView( CoreAxial2DView ):
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, container, id = -1, **kwargs ):
+    super( CoreXZView, self ).__init__( container, id, mode = 'xz' )
+  #end __init__
+#end CoreXZView
+
+
+#------------------------------------------------------------------------
+#	CLASS:		CoreYZView					-
+#------------------------------------------------------------------------
+class CoreYZView( CoreAxial2DView ):
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, container, id = -1, **kwargs ):
+    super( CoreYZView, self ).__init__( container, id, mode = 'yz' )
+  #end __init__
+#end CoreYZView

@@ -3,8 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
-#		2016-02-29	leerw@ornl.gov				-
-#	  Special test widget_list.
+#		2016-03-01	leerw@ornl.gov				-
+#	  Added Core[XY]ZView widget.
 #		2016-02-20	leerw@ornl.gov				-
 #	  Added EVT_CHAR_HOOK to VeraViewFrame.
 #		2016-01-22	leerw@ornl.gov				-
@@ -95,6 +95,12 @@ TOOLBAR_ITEMS = \
 #'core_both_32x32.png'
     },
     {
+    'widget': 'Core XZ View', 'icon': 'CoreXZView.0.32.png', 'type': 'pin'
+    },
+    {
+    'widget': 'Core YZ View', 'icon': 'CoreYZView.0.32.png', 'type': 'pin'
+    },
+    {
     'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.0.32.png', 'type': 'pin'
 #'assy_both_32x32.png'
     },
@@ -137,6 +143,8 @@ WIDGET_MAP = \
   'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
+  'Core XZ View': 'widget.core_axial_view.CoreXZView',
+  'Core YZ View': 'widget.core_axial_view.CoreYZView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
 #  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
@@ -756,7 +764,7 @@ Must be called from the UI thread.
 
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
-#    widget_list = [ 'widget.core_view.Core2DView', 'widget.all_axial_plot.AllAxialPlot' ]
+    widget_list = [ 'widget.core_view.Core2DView', 'widget.core_axial_view.CoreXZView' ]
     axial_plot_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )
