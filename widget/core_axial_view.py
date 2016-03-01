@@ -268,19 +268,35 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       axial_pix_per_cm = region_ht / axial_range_cm
 
-#				-- Limited by height
       region_aspect_ratio = float( region_wd ) / float( region_ht )
+      fmt_str = \
+          '[CoreAxial2DView._CreateDrawConfig]' + \
+	  '\n  region=%d,%d' + \
+	  '\n  pins_to_axial_ratio=%f' + \
+	  '\n  axial_pix_per_cm=%f' + \
+	  '\n  region_aspect_ratio=%f'
+      print >> sys.stderr, fmt_str % (
+	  region_wd, region_ht, pins_to_axial_ratio, axial_pix_per_cm,
+	  region_aspect_ratio
+	  )
+
+#				-- Limited by height
       if region_aspect_ratio > pins_to_axial_ratio:
 	pin_wd = int( math.floor( axial_pix_per_cm * pins_to_axial_ratio ) )
 	assy_wd = pin_wd * npin + 1
+
 
 #				-- Limited by width
       else:
         assy_wd = region_wd / self.cellRange[ -2 ]
         pin_wd = max( 1, (assy_wd - 2) / npin )
-	#xxxxx?
-	#axial_pix_per_cm /= region_aspect_ratio
+	assy_wd = pin_wd * npin + 1
 	axial_pix_per_cm *= region_aspect_ratio
+
+      print >> sys.stderr, \
+          '[CoreAxial2DView._CreateDrawConfig] after scale' + \
+	  '\n  assy_wd=%d, pin_wd=%d\n  axial_pix_per_cm=%f' % \
+	  ( assy_wd, pin_wd, axial_pix_per_cm )
 
 #			-- Calc sizes
 #			--
@@ -385,7 +401,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       # t2b, core : title
       working_ht = max( ht, legend_size[ 1 ] )
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-      pdb.set_trace()
 
 #			-- Calc scale
 #			--
@@ -521,6 +536,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       assy_pen = ( 155, 155, 155, 255 )
 
+      #if core_region[ 2 ] > 350:
+        #pdb.set_trace()
+
 #			-- Loop on axial levels
 #			--
       axial_y = core_region[ 1 ]
@@ -585,7 +603,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        brush_color = \
 		    ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
 	        im_draw.rectangle(
-		    [ pin_x, axial_y, pin_x + pin_wd, axial_y + cur_dy ],
+		    [ pin_x, axial_y, pin_x + pin_wd + 1, axial_y + cur_dy + 1 ],
 		    fill = brush_color, outline = pen_color
 		    )
 	      #end if valid value
