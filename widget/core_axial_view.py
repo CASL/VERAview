@@ -75,7 +75,6 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    #XXXXX
     csv_text = None
     dset = None
     is_valid = DataModel.IsValidObj(
@@ -89,62 +88,80 @@ Properties:
     if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
-      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+      #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+
+      if self.mode == 'xz':
+	assy_row = self.assemblyIndex[ 2 ]
+	pin_row = self.pinColRow[ 1 ]
+	pin_count = dset_shape[ 0 ]
+      else:
+	assy_col = self.assemblyIndex[ 1 ]
+	pin_col = self.pinColRow[ 0 ]
+	pin_count = dset_shape[ 1 ]
 
       clip_shape = (
-	  #self.core.npiny * self.cellRange[ -1 ],
-          #self.core.npinx * self.cellRange[ -2 ]
-	  dset_shape[ 0 ] * self.cellRange[ -1 ],
-          dset_shape[ 1 ] * self.cellRange[ -2 ]
+          self.cellRange[ -1 ],
+	  (pin_count * self.cellRange[ -2 ]) + 1
 	  )
       clip_data = np.ndarray( clip_shape, dtype = np.float64 )
       clip_data.fill( 0.0 )
 
-      pin_row = 0
-      for assy_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-	#pin_row_to = pin_row + self.core.npiny
-	pin_row_to = pin_row + dset_shape[ 0 ]
+      #for ax in range( self.cellRange[ -1 ] ):
+      for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+	#ax_offset = ax - self.cellRange[ 1 ]
+	ax_offset = self.cellRange[ 3 ] - 1 - ax
+	clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
 
-	pin_col = 0
-	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-	  #pin_col_to = pin_col + self.core.npinx
-	  pin_col_to = pin_col + dset_shape[ 1 ]
+	pin_cell = 1
+        for assy_cell in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	  pin_cell_to = pin_cell + pin_count
+	  if self.mode == 'xz':
+	    assy_ndx = self.data.core.coreMap[ assy_row, assy_cell ] - 1
+	    if assy_ndx >= 0:
+	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
+	        dset_value[ pin_row, :, ax, assy_ndx ]
 
-          assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-#	  if assy_ndx < 0:
-#	    clip_data[ pin_row : pin_row_to, pin_col : pin_col_to ] = 0.0
-#	  else:
-	  if assy_ndx >= 0:
-	    clip_data[ pin_row : pin_row_to, pin_col : pin_col_to ] = \
-	        dset_value[ :, :, axial_level, assy_ndx ]
+	  else:
+	    assy_ndx = self.data.core.coreMap[ assy_cell, assy_col ] - 1
+	    if assy_ndx >= 0:
+	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
+	        dset_value[ :, pin_col, ax, assy_ndx ]
 
-	  #pin_col += self.core.npinx
-	  pin_col = pin_col_to
-	#end for assy cols
+	  pin_cell = pin_cell_to
+        #end for assy_cel
+      #end for axials
 
-	#pin_row += self.core.npiny
-	pin_row = pin_row_to
-      #end for assy rows
+      if self.mode == 'xz':
+        title1 = '"%s: Assy Row=%s; Pin Row=%d; %s=%.3g"' % (
+	    self.pinDataSet,
+            self.data.core.coreLabels[ 1 ][ assy_row ],
+	    pin_row + 1,
+	    self.state.timeDataSet,
+	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	    )
+        col_labels = [
+            self.data.core.coreLabels[ 0 ][ i ]
+	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+            ]
+        title2 = '"Axial; Cols=%s"' % ':'.join( col_labels )
 
-      title1 = '"%s: Axial=%.3f; %s=%.3g"' % (
-	  self.pinDataSet,
-	  self.axialValue[ 0 ],
-	  #self.data.core.axialMeshCenters[ axial_level ],
-	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-          )
-      col_labels = [
-          self.data.core.coreLabels[ 0 ][ i ]
-	  for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
-          ]
-      row_labels = [
-          self.data.core.coreLabels[ 1 ][ i ]
-	  for i in range( self.cellRange[ 1 ], self.cellRange[ 3 ] )
-	  ]
-      title2 = '"Cols=%s; Rows=%s"' % (
-	  ':'.join( col_labels ),
-	  ':'.join( row_labels )
-          )
+      else:
+        title1 = '"%s: Assy Col=%s; Pin Col=%d; %s=%.3g"' % (
+	    self.pinDataSet,
+            self.data.core.coreLabels[ 0 ][ assy_col ],
+	    pin_col + 1,
+	    self.state.timeDataSet,
+	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	    )
+        row_labels = [
+            self.data.core.coreLabels[ 1 ][ i ]
+	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+            ]
+        title2 = '"Axial; Rows=%s"' % ':'.join( row_labels )
+      #end if-else
+
+#		-- Write with axial mesh centers
+#		--
       csv_text = DataModel.ToCSV( clip_data, ( title1, title2 ) )
 
     return  csv_text
@@ -189,14 +206,21 @@ Properties:
       assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
-      #clip_shape = ( dset_shape[ 0 ], dset_shape[ 1 ] )
-      #clip_data = np.ndarray( clip_shape, dtype = np.float64 )
-      #clip_data.fill( 0.0 )
-      clip_data = dset_value[ :, :, axial_level, assy_ndx ]
+      if self.mode == 'xz':
+	pin_row = self.pinColRow[ 1 ]
+	clip_data = dset_value[ pin_row, :, axial_level, assy_ndx ]
+	pin_title = 'Pin Row=%d' % (pin_row + 1)
 
-      title = '"%s: Assembly=%d; Axial=%.3f; %s=%.3g"' % (
+      else:
+	pin_col = self.pinColRow[ 0 ]
+	clip_data = dset_value[ :, pin_col, axial_level, assy_ndx ]
+	pin_title = 'Pin Col=%d' % (pin_col + 1)
+
+      title = '"%s: Assembly=%d %s; %s; Axial=%.3f; %s=%.3g"' % (
 	  self.pinDataSet,
 	  assy_ndx + 1,
+	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  pin_title,
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -942,7 +966,68 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView._HiliteBitmap()			-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap ):
-    return  bmap
+    #return  bmap
+    result = bmap
+
+    if self.config is not None:
+      line_wd = -1
+      rect = None
+
+      rel_axial = self.axialValue[ 1 ] - self.cellRange[ 1 ]
+
+      if self.mode == 'xz':
+        rel_cell = self.assemblyIndex[ 1 ] - self.cellRange[ 0 ]
+      else:
+        rel_cell = self.assemblyIndex[ 2 ] - self.cellRange[ 0 ]
+
+      if rel_cell >= 0 and rel_cell < self.cellRange[ -2 ] and \
+          rel_axial >= 0 and rel_axial < self.cellRange[ -1 ]:
+        assy_wd = self.config[ 'assemblyWidth' ]
+        axial_levels_dy = self.config[ 'axialLevelsDy' ]
+	core_region = self.config[ 'coreRegion' ]
+	line_wd = self.config[ 'lineWidth' ]
+        #pin_wd = self.config[ 'pinWidth' ]
+
+        axial_y = core_region[ 1 ]
+        for ax in range( len( axial_levels_dy ) - 1, rel_axial, -1 ):
+	  axial_y += axial_levels_dy[ ax ]
+
+	rect = [
+	    rel_cell * assy_wd + core_region[ 0 ], axial_y,
+	    assy_wd, axial_levels_dy[ rel_axial ]
+	    ]
+      #end if selection w/in image
+
+#			-- Draw?
+#			--
+      if rect is not None:
+	new_bmap = self._CopyBitmap( bmap )
+
+        dc = wx.MemoryDC( new_bmap )
+	gc = wx.GraphicsContext.Create( dc )
+	gc.SetPen(
+	    wx.ThePenList.FindOrCreatePen(
+	        wx.Colour( 255, 255, 255, 255 ), line_wd, wx.PENSTYLE_SOLID
+		)
+	    )
+	path = gc.CreatePath()
+	path.AddRectangle( *rect )
+	gc.StrokePath( path )
+# This doesn't work on MSWIN
+#	dc.SetBrush( wx.TRANSPARENT_BRUSH )
+#        dc.SetPen(
+#	    wx.ThePenList.FindOrCreatePen(
+#	        wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
+#		)
+#	    )
+#        dc.DrawRectangle( *rect )
+	dc.SelectObject( wx.NullBitmap )
+
+	result = new_bmap
+      #end if rect
+    #end if self.config
+
+    return  result
   #end _HiliteBitmap
 
 
@@ -995,12 +1080,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
 
-      assy_ndx = list( cell_info[ 0 : 3 ] )
       if self.mode == 'xz':
-	assy_ndx[ 2 ] = self.assemblyIndex[ 2 ]
+	assy_ndx = ( cell_info[ 0 ], cell_info[ 1 ], self.assemblyIndex[ 2 ] )
 	pin_addr = ( cell_info[ 3 ], self.pinColRow[ 1 ] )
       else:
-	assy_ndx[ 1 ] = self.assemblyIndex[ 1 ]
+	assy_ndx = ( cell_info[ 0 ], self.assemblyIndex[ 1 ], cell_info[ 1 ] )
 	pin_addr = ( self.pinColRow[ 0 ], cell_info[ 3 ] )
 
       if assy_ndx != self.assemblyIndex:
