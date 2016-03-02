@@ -342,14 +342,14 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core.GetPitch()					-
+  #	METHOD:		Core.GetAssemblyPitch()				-
   #----------------------------------------------------------------------
-  def GetPitch( self ):
+  def GetAssemblyPitch( self ):
     """Returns a value for the assembly pitch.
 @return			'apitch' value or a default of 20.0
 """
-    return  20.0  if self.apitch == 0.0 else  self.apitch
-  #end GetPitch
+    return  21.5  if self.apitch == 0.0 else  self.apitch
+  #end GetAssemblyPitch
 
 
   #----------------------------------------------------------------------
