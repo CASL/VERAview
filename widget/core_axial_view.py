@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-03-02	leerw@ornl.gov				-
+#	  Scaling correctly.  Just lacking clipboard data copy.
 #		2016-02-29	leerw@ornl.gov				-
 #	  Starting with core_view.py.
 #------------------------------------------------------------------------
@@ -286,7 +288,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #				-- Limited by height
       if region_aspect_ratio > core_aspect_ratio:
-	pin_wd = int( math.floor( region_ht / axial_pin_equivs ) )
+	pin_wd = max( 1, int( math.floor( region_ht / axial_pin_equivs ) ) )
 
 #				-- Limited by width
       else:
@@ -312,7 +314,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_wd = kwargs.get( 'scale', 4 )
       axial_pix_per_cm = pin_wd / cm_per_pin
 
-      assy_wd = pixels_per_pin * npin + 1
+      assy_wd = pin_wd * npin + 1
       core_wd = self.cellRange[ -2 ] * assy_wd
       core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
 
@@ -921,9 +923,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """
-@return		4
+@return		24
 """
-    return  4
+    return  24
   #end GetPrintScale
 
 
@@ -952,9 +954,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @param  tpl		tuple of state values
 @return			True if it matches the current state, false otherwise
 """
-    return \
-        tpl[ 0 ] == self.stateIndex and \
-	tpl[ 1 ] == self.pinIndex
+    if self.mode == 'xz':
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.pinColRow[ 1 ] )
+    else:
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.pinColRow[ 0 ] )
+    return  tpl == t
   #end IsTupleCurrent
 
 
@@ -1096,8 +1100,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     resized = kwargs.get( 'resized', False )
 
     new_pin_index_flag = False
-    if 'assembly_index' in kwargs:
-      pdb.set_trace()
+    #if 'assembly_index' in kwargs:
+      #self._stopme_ = True
 
     if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
       #changed = True
