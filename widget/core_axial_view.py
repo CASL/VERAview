@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-03-04	leerw@ornl.gov				-
+#	  Single widget.
 #		2016-03-02	leerw@ornl.gov				-
 #	  Scaling correctly.  Just lacking clipboard data copy.
 #		2016-02-29	leerw@ornl.gov				-
@@ -60,7 +62,7 @@ Properties:
     self.avgValues = {}
 
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
-    self.pinColRow = None
+    self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.pinIndex = 0
 
@@ -538,6 +540,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	str( tuple_in )
     im = None
 
+    if self.pinDataSet == 'asy_pin_fueltemps':
+      pdb.set_trace()
+
     if self.config is not None:
       assy_wd = self.config[ 'assemblyWidth' ]
       axial_levels_dy = self.config[ 'axialLevelsDy' ]
@@ -562,19 +567,21 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       if self.mode == 'xz':
         assy_cell = ( -1, min( tuple_in[ 1 ], dset_shape[ 0 ] - 1 ) )
+	base_pin = min( tuple_in[ 2 ], self.data.core.npiny - 1 )
 	cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
 	pin_range = range( self.data.core.npinx )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Row %d' % (tuple_in[ 2 ] + 1)
+	    additional = 'Pin Row %d' % (base_pin + 1)
 	    )
       else: # 'yz'
         assy_cell = ( min( tuple_in[ 1 ], dset_shape[ 1 ] - 1 ), -1 )
+	base_pin = min( tuple_in[ 2 ], self.data.core.npinx - 1 )
 	cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
 	pin_range = range( self.data.core.npiny )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Col %d' % (tuple_in[ 2 ] + 1)
+	    additional = 'Pin Col %d' % (base_pin + 1)
 	    )
 
 #			-- Create image
@@ -636,11 +643,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      cur_pin_col = min( pin_col, cur_npin - 1 )
 	      if self.mode == 'xz':
 	        value = dset_array[
-		    tuple_in[ 2 ], cur_pin_col, axial_level, assy_ndx
+		    base_pin, cur_pin_col, axial_level, assy_ndx
 		    ]
 	      else:
 	        value = dset_array[
-		    cur_pin_col, tuple_in[ 2 ], axial_level, assy_ndx
+		    cur_pin_col, base_pin, axial_level, assy_ndx
 		    ]
 
 	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
@@ -1184,13 +1191,24 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     resized = kwargs.get( 'resized', False )
 
     new_pin_index_flag = False
+    if self.mode == 'xz':
+      assy_ndx = 2
+      pin_ndx = 1
+      npin = self.data.core.npiny
+    else:
+      assy_ndx = 1
+      pin_ndx = 0
+      npin = self.data.core.npinx
     #if 'assembly_index' in kwargs:
       #self._stopme_ = True
 
     if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
       #changed = True
-      resized = True
-      new_pin_index_flag = True
+      if kwargs[ 'assembly_index' ][ assy_ndx ] != self.assemblyIndex[ assy_ndx ]:
+        resized = True
+	new_pin_index_flag = True
+      else:
+        changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
     if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
@@ -1202,8 +1220,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
       #changed = True
-      resized = True
-      new_pin_index_flag = True
+      if kwargs[ 'pin_colrow' ][ pin_ndx ] != self.pinColRow[ pin_ndx ]:
+        resized = True
+	new_pin_index_flag = True
+      else:
+        changed = True
       self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
@@ -1214,12 +1235,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         self.avgValues.clear()
 
     if new_pin_index_flag:
-      if self.mode == 'xz':
-        self.pinOffset = \
-            self.assemblyIndex[ 2 ] * self.data.core.npiny + self.pinColRow[ 1 ]
-      else:
-        self.pinOffset = \
-            self.assemblyIndex[ 1 ] * self.data.core.npinx + self.pinColRow[ 0 ]
+      self.pinOffset = \
+          self.assemblyIndex[ assy_ndx ] * npin + self.pinColRow[ pin_ndx ]
     #end if new_pin_index_flag
 
     if (changed or resized) and self.config is not None:

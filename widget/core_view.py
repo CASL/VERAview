@@ -135,7 +135,7 @@ Properties:
     self.avgValues = {}
 
     self.mode = ''  # 'assy', 'core'
-    self.pinColRow = None
+    self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     super( Core2DView, self ).__init__( container, id )
