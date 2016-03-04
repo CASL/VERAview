@@ -374,143 +374,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateDrawConfig_0()		-
-  #----------------------------------------------------------------------
-  def _CreateDrawConfig_0( self, **kwargs ):
-    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
-'scale' (pixels per pin) from which a size is determined.
-If neither are specified, a default 'scale' value of 4 is used.
-@param  kwargs
-    scale	pixels per cm
-    size	( wd, ht ) against which to compute the scale
-@return			config dict with keys:
-    clientSize
-    fontSize
-    labelFont
-    labelSize
-    legendPilImage
-    legendSize
-    pilFont
-    +
-    assemblyWidth
-    axialLevelsDy	list of pixel offsets in y dimension
-    axialPixPerCm	used?
-    coreRegion
-    lineWidth
-    pinWidth
-"""
-    config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
-	**kwargs
-	)
-
-    font_size = config[ 'fontSize' ]
-    label_size = config[ 'labelSize' ]
-    legend_pil_im = config[ 'legendPilImage' ]
-    legend_size = config[ 'legendSize' ]
-
-    axial_mesh = self.data.core.axialMesh
-    axial_range_cm = \
-        axial_mesh[ self.cellRange[ 3 ] ] - axial_mesh[ self.cellRange[ 1 ] ]
-    npin = \
-        self.data.core.npinx  if self.mode == 'xz' else \
-	self.data.core.npiny
-
-    # pins width in cm versus axial height in cm
-    pins_to_axial_ratio = \
-        (self.data.core.GetAssemblyPitch() * self.cellRange[ -2 ] * npin) / \
-	axial_range_cm
-
-#		-- Must calculate scale?
-#		--
-    if 'clientSize' in config:
-      wd, ht = config[ 'clientSize' ]
-
-#			-- Determine drawable region in image
-#			--
-      # l2r, label : core : font-sp : legend
-      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      # t2b, core : title
-      working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-
-      axial_pix_per_cm = region_ht / axial_range_cm
-
-      region_aspect_ratio = float( region_wd ) / float( region_ht )
-      fmt_str = \
-          '[CoreAxial2DView._CreateDrawConfig]' + \
-	  '\n  region=%d,%d' + \
-	  '\n  pins_to_axial_ratio=%f' + \
-	  '\n  axial_pix_per_cm=%f' + \
-	  '\n  region_aspect_ratio=%f'
-      print >> sys.stderr, fmt_str % (
-	  region_wd, region_ht, pins_to_axial_ratio, axial_pix_per_cm,
-	  region_aspect_ratio
-	  )
-
-#				-- Limited by height
-      if region_aspect_ratio > pins_to_axial_ratio:
-	pin_wd = int( math.floor( axial_pix_per_cm * pins_to_axial_ratio ) )
-	assy_wd = pin_wd * npin + 1
-
-
-#				-- Limited by width
-      else:
-        assy_wd = region_wd / self.cellRange[ -2 ]
-        pin_wd = max( 1, (assy_wd - 2) / npin )
-	assy_wd = pin_wd * npin + 1
-	#axial_pix_per_cm /= pins_to_axial_ratio
-
-      print >> sys.stderr, \
-          '[CoreAxial2DView._CreateDrawConfig] after scale' + \
-	  '\n  assy_wd=%d, pin_wd=%d\n  axial_pix_per_cm=%f' % \
-	  ( assy_wd, pin_wd, axial_pix_per_cm )
-
-#			-- Calc sizes
-#			--
-      core_wd = self.cellRange[ -2 ] * assy_wd
-      core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
-
-#		-- Or, scale set explicitly
-#		--
-    else:
-      pin_wd = kwargs.get( 'scale', 4 )
-      axial_pix_per_cm = pin_wd * pins_to_axial_ratio
-
-      assy_wd = pixels_per_pin * npin + 1
-      core_wd = self.cellRange[ -2 ] * assy_wd
-      core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
-
-      font_size = self._CalcFontSize( 768 )
-
-      # l2r, label : core : font-sp : legend
-      wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
-      ht = max( core_ht, legend_size[ 1 ] )
-      ht += (font_size << 1) + font_size
-
-      config[ 'clientSize' ] = ( wd, ht )
-    #end if-else
-
-    axials_dy = []
-    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-      ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
-      dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
-      axials_dy.insert( 0, dy )
-    #end for
-
-    config[ 'assemblyWidth' ] = assy_wd
-    config[ 'axialLevelsDy' ] = axials_dy
-    config[ 'axialPixPerCm' ] = axial_pix_per_cm
-    config[ 'coreRegion' ] = \
-        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
-    config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
-    config[ 'pinWidth' ] = pin_wd
-
-    return  config
-  #end _CreateDrawConfig_0
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._CreateMenuDef()		-
   #----------------------------------------------------------------------
 #  def _CreateMenuDef( self, data_model ):
@@ -540,9 +403,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 	str( tuple_in )
     im = None
 
-    if self.pinDataSet == 'asy_pin_fueltemps':
-      pdb.set_trace()
-
     if self.config is not None:
       assy_wd = self.config[ 'assemblyWidth' ]
       axial_levels_dy = self.config[ 'axialLevelsDy' ]
@@ -566,22 +426,20 @@ If neither are specified, a default 'scale' value of 4 is used.
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       if self.mode == 'xz':
-        assy_cell = ( -1, min( tuple_in[ 1 ], dset_shape[ 0 ] - 1 ) )
-	base_pin = min( tuple_in[ 2 ], self.data.core.npiny - 1 )
+	pin_cell = min( tuple_in[ 2 ], dset_shape[ 0 ] - 1 )
 	cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
 	pin_range = range( self.data.core.npinx )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Row %d' % (base_pin + 1)
+	    additional = 'Pin Row %d' % (pin_cell + 1)
 	    )
       else: # 'yz'
-        assy_cell = ( min( tuple_in[ 1 ], dset_shape[ 1 ] - 1 ), -1 )
-	base_pin = min( tuple_in[ 2 ], self.data.core.npinx - 1 )
+	pin_cell = min( tuple_in[ 2 ], dset_shape[ 1 ] - 1 )
 	cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
 	pin_range = range( self.data.core.npiny )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Col %d' % (base_pin + 1)
+	    additional = 'Pin Col %d' % (pin_cell + 1)
 	    )
 
 #			-- Create image
@@ -594,6 +452,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Loop on axial levels
 #			--
+      last_axial_label_y = 0;
       axial_y = core_region[ 1 ]
 #      for axial_level in \
 #          range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
@@ -608,10 +467,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  label = '%02d' % (axial_level + 1)
 	  label_size = pil_font.getsize( label )
 	  label_y = axial_y + ((cur_dy - label_size[ 1 ]) >> 1)
-	  im_draw.text(
-	      ( 1, label_y ),
-	      label, fill = ( 0, 0, 0, 255 ), font = label_font
-	      )
+	  if last_axial_label_y  + label_size[ 1 ] < axial_y + cur_dy:
+	    im_draw.text(
+	        ( 1, label_y ),
+	        label, fill = ( 0, 0, 0, 255 ), font = label_font
+	        )
+	    last_axial_label_y = label_y
 
 #				-- Loop on col
 #				--
@@ -643,11 +504,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      cur_pin_col = min( pin_col, cur_npin - 1 )
 	      if self.mode == 'xz':
 	        value = dset_array[
-		    base_pin, cur_pin_col, axial_level, assy_ndx
+		    pin_cell, cur_pin_col, axial_level, assy_ndx
 		    ]
 	      else:
 	        value = dset_array[
-		    cur_pin_col, base_pin, axial_level, assy_ndx
+		    cur_pin_col, pin_cell, axial_level, assy_ndx
 		    ]
 
 	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
