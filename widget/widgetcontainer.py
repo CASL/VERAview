@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-03-06	leerw@ornl.gov				-
+#	  Using Widget.GetBitmap() for all icon images.
 #		2016-02-08	leerw@ornl.gov				-
 #	  Changed Widget.GetDataSetType() to GetDataSetTypes().
 #		2016-02-05	leerw@ornl.gov				-
@@ -210,6 +212,14 @@ Must be called on the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetControlPanel()				-
+  #----------------------------------------------------------------------
+  def GetControlPanel( self ):
+    return  self.controlPanel
+  #end GetControlPanel
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetDerivedDataSetMenu()				-
   #----------------------------------------------------------------------
   def GetDerivedDataSetMenu( self ):
@@ -331,11 +341,14 @@ Must be called on the UI thread.
     tool_button_defs = self.widget.GetToolButtonDefs( data_model )
     if tool_button_defs is not None:
       for icon, tip, handler in tool_button_defs:
-        tool_im = wx.Image(
-	    os.path.join( Config.GetResDir(), icon ),
-	    wx.BITMAP_TYPE_PNG
+#        tool_im = wx.Image(
+#	    os.path.join( Config.GetResDir(), icon ),
+#	    wx.BITMAP_TYPE_PNG
+#	    )
+#        tool_button = wx.BitmapButton( control_panel, -1, tool_im.ConvertToBitmap() )
+        tool_button = wx.BitmapButton(
+	    control_panel, -1, widget.Widget.GetBitmap( icon )
 	    )
-        tool_button = wx.BitmapButton( control_panel, -1, tool_im.ConvertToBitmap() )
         tool_button.SetToolTip( wx.ToolTip( tip ) )
         tool_button.Bind( wx.EVT_BUTTON, handler )
 	cp_sizer.Add(
@@ -372,12 +385,15 @@ Must be called on the UI thread.
     self.Bind( wx.EVT_MENU, self._OnEventsEdit, item )
     self.eventsMenu.AppendItem( item )
 
-    menu_im = wx.Image(
-        os.path.join( Config.GetResDir(), 'events_icon_16x16.png' ),
-	wx.BITMAP_TYPE_PNG
-	)
+#    menu_im = wx.Image(
+#        os.path.join( Config.GetResDir(), 'events_icon_16x16.png' ),
+#	wx.BITMAP_TYPE_PNG
+#	)
+#    self.eventsMenuButton = wx.BitmapButton(
+#        control_panel, -1, menu_im.ConvertToBitmap()
+#	)
     self.eventsMenuButton = wx.BitmapButton(
-        control_panel, -1, menu_im.ConvertToBitmap()
+        control_panel, -1, widget.Widget.GetBitmap( 'events_icon_16x16' )
 	)
     self.eventsMenuButton.SetToolTip( wx.ToolTip( 'Control Events' ) )
     self.eventsMenuButton.Bind(
@@ -418,12 +434,9 @@ Must be called on the UI thread.
         self.dataSetMenu.AppendItem( derived_item )
       #end if
 
-      menu_im = wx.Image(
-            os.path.join( Config.GetResDir(), 'data_icon_16x16.png' ),
-	    wx.BITMAP_TYPE_PNG
-	    )
-      self.dataSetMenuButton = \
-          wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
+      menu_bmap = widget.Widget.GetBitmap( 'data_icon_16x16' )
+      self.dataSetMenuButton = wx.BitmapButton( control_panel, -1, menu_bmap )
+
       self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset to View' ) )
       self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
 #     self.dataSetMenuButton.Bind(
@@ -502,12 +515,11 @@ Must be called on the UI thread.
 
 #		-- Widget menu button
 #		--
-    menu_im = wx.Image(
-          os.path.join( Config.GetResDir(), 'menu_icon_16x16.png' ),
-	  wx.BITMAP_TYPE_PNG
-	  )
-    self.widgetMenuButton = \
-        wx.BitmapButton( control_panel, -1, menu_im.ConvertToBitmap() )
+    self.widgetMenuButton = wx.BitmapButton(
+        control_panel, -1,
+	widget.Widget.GetBitmap( 'menu_icon_16x16' )
+	)
+
     self.widgetMenuButton.SetToolTip( wx.ToolTip( 'Widget Functions' ) )
     self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
     cp_sizer.Add(
@@ -517,11 +529,10 @@ Must be called on the UI thread.
 
 #		-- Close button
 #		--
-    close_im = wx.Image(
-	os.path.join( Config.GetResDir(), 'close_icon_16x16.png' ),
-	wx.BITMAP_TYPE_PNG
-        )
-    close_button = wx.BitmapButton( control_panel, -1, close_im.ConvertToBitmap() )
+    close_button = wx.BitmapButton(
+        control_panel, -1,
+	widget.Widget.GetBitmap( 'close_icon_16x16' )
+	)
     close_button.SetToolTip( wx.ToolTip( 'Close This Widget' ) )
     close_button.Bind( wx.EVT_BUTTON, self.OnClose )
     cp_sizer.Add(

@@ -3,8 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-03-05	leerw@ornl.gov				-
+#	  Single widget with tool button for toggling slice axis.
 #		2016-03-04	leerw@ornl.gov				-
-#	  Single widget.
+#	  Not redrawing on changes to the slice assembly or pin col/row.
 #		2016-03-02	leerw@ornl.gov				-
 #	  Scaling correctly.  Just lacking clipboard data copy.
 #		2016-02-29	leerw@ornl.gov				-
@@ -65,6 +67,8 @@ Properties:
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.pinIndex = 0
+
+    self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
 
     super( CoreAxial2DView, self ).__init__( container, id )
   #end __init__
@@ -429,17 +433,21 @@ If neither are specified, a default 'scale' value of 4 is used.
 	pin_cell = min( tuple_in[ 2 ], dset_shape[ 0 ] - 1 )
 	cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
 	pin_range = range( self.data.core.npinx )
+	addresses = 'Assy Row %s, Pin Row %d' % \
+	    ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], pin_cell + 1 )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Row %d' % (pin_cell + 1)
+	    additional = addresses
 	    )
       else: # 'yz'
 	pin_cell = min( tuple_in[ 2 ], dset_shape[ 1 ] - 1 )
 	cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
 	pin_range = range( self.data.core.npiny )
+	addresses = 'Assy Col %s, Pin Col %d' % \
+	    ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], pin_cell + 1 )
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
-	    additional = 'Pin Col %d' % (pin_cell + 1)
+	    additional = addresses
 	    )
 
 #			-- Create image
@@ -811,6 +819,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.GetMode()			-
+  #----------------------------------------------------------------------
+  def GetMode( self ):
+    """
+"""
+    return  self.mode
+  #end GetMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.GetPrintScale()			-
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
@@ -822,11 +840,22 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.GetToolButtonDefs()		-
+  #----------------------------------------------------------------------
+  def GetToolButtonDefs( self, data_model ):
+    """
+"""
+    return  self.toolButtonDefs
+  #end GetToolButtonDefs
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    mode_str = 'XZ' if self.mode == 'xz' else 'YZ'
-    return  'Core Axial ' + mode_str + ' View'
+    return  'Core Axial 2D View'
+    #mode_str = 'XZ' if self.mode == 'xz' else 'YZ'
+    #return  'Core Axial ' + mode_str + ' View'
   #end GetTitle
 
 
@@ -983,6 +1012,18 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._OnMode()			-
+  #----------------------------------------------------------------------
+  def _OnMode( self, ev ):
+    """Must be called from the event thread.
+"""
+    new_mode = 'xz' if self.mode == 'yz' else 'yz'
+    button = ev.GetEventObject()
+    self.SetMode( new_mode, button )
+  #end _OnMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._OnUnzoom()			-
   #----------------------------------------------------------------------
   def _OnUnzoom( self, ev ):
@@ -1004,6 +1045,55 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
       self.FireStateChange( pin_dataset = ds_name )
   #end SetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.SetMode()			-
+  #----------------------------------------------------------------------
+  def SetMode( self, mode, button = None ):
+    """May be called from any thread.
+@param  mode		either 'xz' or 'yz', defaulting to the former on
+			any other value
+@param  button		optional button to update
+"""
+    if mode != self.mode:
+      self.mode = 'yz' if mode == 'yz' else 'xz'
+      self.cellRange = list( self.GetInitialCellRange() )
+      del self.cellRangeStack[ : ]
+
+      wx.CallAfter( self._SetModeImpl, button )
+  #end SetMode
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._SetModeImpl()			-
+  #----------------------------------------------------------------------
+  def _SetModeImpl( self, button = None ):
+    """Must be called from the event thread.
+@param  mode		mode, already setjdd
+			any other value
+@param  button		optional button to update
+"""
+    if button is None:
+      for ch in self.GetParent().GetControlPanel().GetChildren():
+        if isinstance( ch, wx.BitmapButton ) and \
+	    ch.GetToolTip().GetTip().find( 'Togle Slice' ) >= 0:
+          button = ch
+	  break
+    #end if
+
+    if button is not None:
+      if self.mode == 'yz':
+        bmap = Widget.GetBitmap( 'Y_16x16' )
+      else:
+        bmap = Widget.GetBitmap( 'X_16x16' )
+      button.SetBitmapLabel( bmap )
+      button.Update()
+      self.GetParent().GetControlPanel().Layout()
+    #end if
+
+    self.Redraw()
+  #end _SetModeImpl
 
 
   #----------------------------------------------------------------------

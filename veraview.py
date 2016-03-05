@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-03-05	leerw@ornl.gov				-
+#	  Replaced Core[XY]ZView with CoreAxial2DView.
 #		2016-03-01	leerw@ornl.gov				-
 #	  Added Core[XY]ZView widget.
 #		2016-02-20	leerw@ornl.gov				-
@@ -86,7 +88,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 29)'
+TITLE = 'VERAView (Build 30)'
 
 TOOLBAR_ITEMS = \
   [
@@ -95,10 +97,7 @@ TOOLBAR_ITEMS = \
 #'core_both_32x32.png'
     },
     {
-    'widget': 'Core XZ View', 'icon': 'CoreXZView.0.32.png', 'type': 'pin'
-    },
-    {
-    'widget': 'Core YZ View', 'icon': 'CoreYZView.0.32.png', 'type': 'pin'
+    'widget': 'Core Axial 2D View', 'icon': 'CoreAxial2DView.0.32.png', 'type': 'pin'
     },
     {
     'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.0.32.png', 'type': 'pin'
@@ -143,8 +142,9 @@ WIDGET_MAP = \
   'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
-  'Core XZ View': 'widget.core_axial_view.CoreXZView',
-  'Core YZ View': 'widget.core_axial_view.CoreYZView',
+  'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
+  #'Core XZ View': 'widget.core_axial_view.CoreXZView',
+  #'Core YZ View': 'widget.core_axial_view.CoreYZView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
 #  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',

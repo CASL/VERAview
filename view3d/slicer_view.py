@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-03-05	leerw@ornl.gov				-
+#	  Tool button defs now don't have '.png' in icon name.
 #		2016-02-19	leerw@ornl.gov				-
 #	  Updated menu stuff.
 #		2016-01-15	leerw@ornl.gov				-
@@ -145,8 +147,8 @@ class Slicer3DView( Widget ):
 
     self.toolButtonDefs = \
       [
-        ( 'sync_in_16x16.png', 'Sync From Other Widgets', self._OnSyncFrom ),
-        ( 'sync_out_16x16.png', 'Sync To Other Widgets', self._OnSyncTo )
+        ( 'sync_in_16x16', 'Sync From Other Widgets', self._OnSyncFrom ),
+        ( 'sync_out_16x16', 'Sync To Other Widgets', self._OnSyncTo )
       ]
 
     self.viz = None
