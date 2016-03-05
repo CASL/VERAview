@@ -342,6 +342,17 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.GetAssemblyPitch()				-
+  #----------------------------------------------------------------------
+  def GetAssemblyPitch( self ):
+    """Returns a value for the assembly pitch.
+@return			'apitch' value or a default of 20.0
+"""
+    return  21.5  if self.apitch == 0.0 else  self.apitch
+  #end GetAssemblyPitch
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core.IsNonZero()				-
   #----------------------------------------------------------------------
   def IsNonZero( self ):
@@ -748,7 +759,7 @@ passed, Read() must be called.
   #	METHOD:		DataModel.CreateAxialValue()			-
   #----------------------------------------------------------------------
   def CreateAxialValue( self, **kwargs ):
-    """Create from 'core_ndx' or 'detector_ndx' index values.
+    """Create from 'core_ndx', 'detector_ndx', or 'value' index values.
 Parameters:
   core_ndx		0-based core axial index
   detector_ndx		0-based detector axial index
@@ -771,12 +782,12 @@ Parameters:
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
 
     elif 'core_ndx' in kwargs:
-      core_ndx = max( 0, min( kwargs[ 'core_ndx' ], self.core.nax -1 ) )
+      core_ndx = max( 0, min( kwargs[ 'core_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
 
-    elif 'pin_ndx' in kwargs:
-      pin_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax -1 ) )
+    elif 'pin_ndx' in kwargs: # huh?
+      pin_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ pin_ndx ]
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
 

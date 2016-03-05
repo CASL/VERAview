@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-02-29	leerw@ornl.gov				-
+#	  Calling Redraw() instead of _OnSize( None ).
 #		2016-02-19	leerw@ornl.gov				-
 #	  Added copy selection.
 #		2016-02-10	leerw@ornl.gov				-
@@ -1232,7 +1234,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
       self._SetMode( 'core' )
-      self._OnSize( None )
+      self.Redraw()  # self._OnSize( None )
   #end _OnUnzoom
 
 

@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-03-05	leerw@ornl.gov				-
+#	  Replaced Core[XY]ZView with CoreAxial2DView.
+#		2016-03-01	leerw@ornl.gov				-
+#	  Added Core[XY]ZView widget.
 #		2016-02-20	leerw@ornl.gov				-
 #	  Added EVT_CHAR_HOOK to VeraViewFrame.
 #		2016-01-22	leerw@ornl.gov				-
@@ -84,13 +88,16 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 28)'
+TITLE = 'VERAView (Build 30)'
 
 TOOLBAR_ITEMS = \
   [
     {
     'widget': 'Core 2D View', 'icon': 'Core2DView.0.32.png', 'type': 'pin'
 #'core_both_32x32.png'
+    },
+    {
+    'widget': 'Core Axial 2D View', 'icon': 'CoreAxial2DView.0.32.png', 'type': 'pin'
     },
     {
     'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.0.32.png', 'type': 'pin'
@@ -135,6 +142,9 @@ WIDGET_MAP = \
   'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
+  'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
+  #'Core XZ View': 'widget.core_axial_view.CoreXZView',
+  #'Core YZ View': 'widget.core_axial_view.CoreYZView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
 #  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
@@ -401,11 +411,13 @@ class VeraViewFrame( wx.Frame ):
     #xxx Reject if not enough grid spaces?
     # we'll get the widget classpath from the object
     try:
+      must_fit = False
       grid_sizer = self.grid.GetSizer()
       #widget_count = len( self.grid.GetChildren() ) - 1  # - 2 + 1 (new one)
       widget_count = len( self.grid.GetChildren() ) + 1
       widget_space = grid_sizer.GetCols() * grid_sizer.GetRows()
       if widget_count > widget_space:
+	must_fit = True
 	if widget_space == 1:
           grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
 	elif grid_sizer.GetCols() > grid_sizer.GetRows():
@@ -418,7 +430,8 @@ class VeraViewFrame( wx.Frame ):
       self.grid._FreezeWidgets()
       grid_sizer.Add( con, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
       self.grid.Layout()
-      self.Fit()
+      if must_fit:
+        self.Fit()
       self.grid._FreezeWidgets( False )
 
       if refit_flag:
@@ -660,7 +673,13 @@ class VeraViewFrame( wx.Frame ):
 #    self.Center()
     pos = ( 5, 40 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
     self.SetPosition( pos )
-    self.SetSize( ( 640, 480 ) )
+    #self.SetSize( ( 640, 480 ) )
+
+    display_size = wx.DisplaySize()
+    if display_size[ 0 ] >= 1200 and display_size[ 1 ] >= 800:
+      self.SetSize( ( 800, 600 ) )
+    else:
+      self.SetSize( ( 640, 480 ) )
 
 #		-- Window Events
 #		--
@@ -754,7 +773,9 @@ Must be called from the UI thread.
 
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
-#    widget_list = [ 'widget.core_view.Core2DView', 'widget.all_axial_plot.AllAxialPlot' ]
+#    widget_list = [
+#        'widget.core_view.Core2DView', 'widget.core_axial_view.CoreXZView'
+#	]
     axial_plot_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )

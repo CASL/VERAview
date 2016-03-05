@@ -518,13 +518,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 @param  cell_info	tuple returned from FindCell()
 """
     tip_str = ''
-    valid = self.data.IsValid(
-        assembly_index = self.assemblyIndex,
-	axial_level = self.axialValue[ 1 ],
-	#dataset_name = self.pinDataSet,
-	pin_colrow = cell_info[ 1 : 3 ],
-	state_index = self.stateIndex
-	)
+    valid = cell_info is not None and \
+        self.data.IsValid(
+            assembly_index = self.assemblyIndex,
+	    axial_level = self.axialValue[ 1 ],
+	    #dataset_name = self.pinDataSet,
+	    pin_colrow = cell_info[ 1 : 3 ],
+	    state_index = self.stateIndex
+	    )
 
     if valid:
 #      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-02-29	leerw@ornl.gov				-
+#	  Added Redraw() to call _OnSize( None ).
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
 #		2016-01-22	leerw@ornl.gov				-
@@ -26,7 +28,7 @@
 #------------------------------------------------------------------------
 import math, os, string, sys, threading
 import numpy as np
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 #import time, traceback
 
 try:
@@ -557,6 +559,63 @@ _CreateRasterImage().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateTitleTemplate2()		-
+  #----------------------------------------------------------------------
+  def _CreateTitleTemplate2(
+      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      assembly_ndx = -1, axial_ndx = -1, additional = None
+      ):
+    """Creates the title template and default string for sizing.
+@param  pil_font	PIL font to use for sizing
+@param  ds_name		dataset name
+@param  ds_shape	dataset shape
+@param  time_ds_name	optional time dataset name
+@param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
+@param  axial_ndx	shape index for Axial, or -1 if Axial should not be
+			displayed
+@param  additional	single or tuple of items to add
+@return			( string.Template, size-tuple )
+"""
+    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    comma_flag = False
+    size_values = {}
+
+    if assembly_ndx >= 0 and ds_shape[ assembly_ndx ] > 1:
+      title_fmt += 'Assembly ${assembly}'
+      size_values[ 'assembly' ] = '99'
+      comma_flag = True
+
+    if axial_ndx >= 0 and ds_shape[ axial_ndx ] > 1:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += 'Axial ${axial}'
+      size_values[ 'axial' ] = '999.999'
+      comma_flag = True
+
+    if additional is not None:
+      if not hasattr( additional, '__iter__' ):
+        additional = [ additional ]
+      for item in additional:
+        if comma_flag:
+	  title_fmt += ', '
+        title_fmt += item
+	comma_flag = True
+    #end if
+
+    if time_ds_name:
+      if comma_flag:
+        title_fmt += ', '
+      title_fmt += '%s ${time}' % time_ds_name
+      size_values[ 'time' ] = '9.99e+99'
+
+    title_templ = string.Template( title_fmt )
+    title_size = pil_font.getsize( title_templ.substitute( size_values ) )
+
+    return  title_templ, title_size
+  #end _CreateTitleTemplate2
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateToolTipText()		-
   #----------------------------------------------------------------------
   def _CreateToolTipText( self, cell_info ):
@@ -783,14 +842,14 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
   #	METHOD:		RasterWidget._LoadDataModelUI()			-
   #----------------------------------------------------------------------
   def _LoadDataModelUI( self ):
-    """This implementation calls _OnSize( None ).
+    """This implementation calls Redraw().
 Must be called on the UI thread.
 """
 #    self.axialBean.SetRange( 1, self.data.core.nax )
 #    self.axialBean.axialLevel = 0
 #    self.exposureBean.SetRange( 1, len( self.data.states ) )
 #    self.exposureBean.stateIndex = 0
-    self._OnSize( None )
+    self.Redraw()  # self._OnSize( None )
   #end _LoadDataModelUI
 
 
@@ -850,6 +909,8 @@ This implementation is a noop.
 """
     self.bitmapCtrl.SetToolTipString( '' )
     cell_info = self.FindCell( *ev.GetPosition() )
+    print >> sys.stderr, \
+        '\n[RasterWidget._OnLeftDown] cell_info=', str( cell_info )
     if cell_info is not None:
       self.dragStartCell = cell_info
       self.dragStartPosition = ev.GetPosition()
@@ -881,6 +942,8 @@ This implementation is a noop.
       x = ev.GetX()
       y = ev.GetY()
       cell_info = self.FindCell( x, y )
+      print >> sys.stderr, \
+          '\n[RasterWidget._OnLeftUp] cell_info=', str( cell_info )
 
       if cell_info is not None:
         left = min( self.dragStartCell[ 1 ], cell_info[ 1 ] )
@@ -902,7 +965,7 @@ This implementation is a noop.
     self.Refresh()
 
     if zoom_flag:
-      self._OnSize( None )
+      self.Redraw()  # self._OnSize( None )
   #end _OnLeftUp
 
 
@@ -1058,8 +1121,18 @@ This implementation is a noop.
 """
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
-      self._OnSize( None )
+      self.Redraw()  #self._OnSize( None )
   #end _OnUnzoom
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.Redraw()				-
+  #----------------------------------------------------------------------
+  def Redraw( self ):
+    """Calls _OnSize( None )
+"""
+    self._OnSize( None )
+  #end Redraw
 
 
   #----------------------------------------------------------------------
