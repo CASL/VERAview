@@ -780,7 +780,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        )
 
 	    if self.pinDataSet is not None and \
-	        self.pinDataSet.find( 'asy' ) == 0 and \
+	        self.pinDataSet.find( 'asy_' ) == 0 and \
 	        value_font is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      value_str, value_size = \
