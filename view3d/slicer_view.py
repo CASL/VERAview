@@ -2,22 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
-#		2016-03-05	leerw@ornl.gov				-
-#	  Tool button defs now don't have '.png' in icon name.
-#		2016-02-19	leerw@ornl.gov				-
-#	  Updated menu stuff.
-#		2016-01-15	leerw@ornl.gov				-
-#	  Working on the cut scene.
-#		2016-01-08	leerw@ornl.gov				-
-#	  Fixed calculation of assemblyIndex from/to slicePosition.
-#		2016-01-07	leerw@ornl.gov				-
-#	  Added autoSync field and widget menu item.  Seems to be working.
-#		2016-01-06	leerw@ornl.gov				-
-#	  Tying events to slice position changes.
-#		2016-01-05	leerw@ornl.gov				-
-#		2015-12-29	leerw@ornl.gov				-
-#	  Creating VolumeSlicer after data first defined.
-#		2015-12-08	leerw@ornl.gov				-
+#		2016-03-07	leerw@ornl.gov				-
+#	  Now just Slicer3DView with single figure.
 #------------------------------------------------------------------------
 import bisect, functools, math, os, sys
 import numpy as np
@@ -43,77 +29,6 @@ from data.datamodel import *
 from event.state import *
 from widget.widget import *
 from widget.widgetcontainer import *
-
-
-#------------------------------------------------------------------------
-#	CLASS:		Slicer3DFrame					-
-#------------------------------------------------------------------------
-class Slicer3DFrame( wx.Frame ):
-
-
-#		-- Object Methods
-#		--
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DFrame.__init__()			-
-  #----------------------------------------------------------------------
-  def __init__( self, parent, id, state ):
-    super( Slicer3DFrame, self ).__init__( parent, id )
-
-    #self.state.Load( data_model )
-    self.state = state
-
-#		-- File Menu
-#		--
-    file_menu = wx.Menu()
-    close_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Close\tCtrl+W' )
-    self.Bind( wx.EVT_MENU, self._OnClose, close_item )
-    file_menu.AppendItem( close_item )
-
-    mbar = wx.MenuBar()
-    mbar.Append( file_menu, '&File' )
-    self.SetMenuBar( mbar )
-
-#		-- Widget container
-#		--
-    self.widgetContainer = \
-        WidgetContainer( self, 'view3d.slicer_view.Slicer3DView', self.state )
-    self.SetSize( ( 700, 750 ) )
-    self.SetTitle( 'VERAView 3D View' )
-
-    #not needed self.state.AddListener( self )
-    self.widgetContainer.Bind(
-        wx.EVT_CLOSE,
-	functools.partial( self._OnCloseFrame, False )
-	)
-    self.Bind(
-        wx.EVT_CLOSE,
-	functools.partial( self._OnCloseFrame, True )
-	)
-  #end __init__
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DFrame._OnClose()			-
-  #----------------------------------------------------------------------
-  def _OnClose( self, ev ):
-    self.Close()
-  #end _OnClose
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DFrame._OnCloseFrame()			-
-  #----------------------------------------------------------------------
-  def _OnCloseFrame( self, remove_listener, ev ):
-    #self.widgetContainer.Destroy()
-    if remove_listener:
-      self.widgetContainer.OnClose( ev )
-
-    self.Destroy()
-  #end _OnCloseFrame
-
-#end Slicer3DFrame
 
 
 #------------------------------------------------------------------------

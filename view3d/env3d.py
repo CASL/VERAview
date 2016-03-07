@@ -96,7 +96,9 @@ Static properties (use accessors):
 @param  callback	optional callback invoked upon completion
 			with prototype
 			callback( bool env_loaded, errors )
+@return			whatever is returned by callback()
 """
+    result = None
     if not Environment3D.loaded_:
       loader = Environment3DLoader()
       loader.Run( callback )
@@ -248,22 +250,5 @@ Must be called in the UI thread.
 	    )
     #end if status
   #end _RunEnd
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Environment3DLoader._RunEnd1()			-
-  #----------------------------------------------------------------------
-  def _RunEnd1( self, result ):
-    """
-"""
-    status = result.get()
-    pdb.set_trace()
-
-    if status is not None:
-      dialog = status.get( 'dialog' )
-      if dialog is not None:
-	dialog.Update( 9, 'Finished!' )
-    #end if status
-  #end _RunEnd1
 
 #end Environment3DLoader

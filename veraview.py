@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-03-07	leerw@ornl.gov				-
+#	  Added Slicer3DView.
+#		2016-03-05	leerw@ornl.gov				-
 #		2016-03-05	leerw@ornl.gov				-
 #	  Replaced Core[XY]ZView with CoreAxial2DView.
 #		2016-03-01	leerw@ornl.gov				-
@@ -115,6 +118,10 @@ TOOLBAR_ITEMS = \
     'type': 'detector'
     },
     {
+    'widget': 'Volume Slicer 3D View', 'icon': 'Slicer3DView.1.32.png',
+    'type': 'pin'
+    },
+    {
     'widget': 'Axial Plots', 'icon': 'AllAxialPlot.32.png',
     'type': ''
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
@@ -139,7 +146,8 @@ WIDGET_MAP = \
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
 #  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
-  'Time Plot': 'widget.time_plot.TimePlot'
+  'Time Plot': 'widget.time_plot.TimePlot',
+  'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
   }
 
 
@@ -376,6 +384,41 @@ class VeraViewFrame( wx.Frame ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._AddWidgetContainer()		-
+  #----------------------------------------------------------------------
+  def _AddWidgetContainer( self, wc, refit_flag = True ):
+    """Called by Create[23]DWidget() to add a grid with the container.
+@param  wc		WidgetContainer instance to add
+@param  refit_flag	True to refit the window after adding
+"""
+    must_fit = False
+    grid_sizer = self.grid.GetSizer()
+    #widget_count = len( self.grid.GetChildren() ) + 1
+    widget_count = len( self.grid.GetChildren() )
+    widget_space = grid_sizer.GetCols() * grid_sizer.GetRows()
+    if widget_count > widget_space:
+      must_fit = True
+      if widget_space == 1:
+        grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
+      elif grid_sizer.GetCols() > grid_sizer.GetRows():
+	grid_sizer.SetRows( grid_sizer.GetRows() + 1 )
+      else:
+        grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
+    #end if
+
+    self.grid._FreezeWidgets()
+    grid_sizer.Add( wc, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
+    self.grid.Layout()
+    if must_fit:
+      self.Fit()
+    self.grid._FreezeWidgets( False )
+
+    if refit_flag:
+      wx.CallAfter( self._Refit )
+  #end _AddWidgetContainer
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.CloseAllWidgets()			-
   #----------------------------------------------------------------------
   def CloseAllWidgets( self ):
@@ -391,9 +434,78 @@ class VeraViewFrame( wx.Frame ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.Create2DWidget()			-
+  #----------------------------------------------------------------------
+  def Create2DWidget( self, widget_class, refit_flag = True ):
+    """Must be called on the UI thread.
+@return		widget container object
+"""
+    #print >> sys.stderr, '[VeraViewFrame.CreateWidget]'
+
+    wc = WidgetContainer( self.grid, widget_class, self.state )
+    self._AddWidgetContainer( wc, refit_flag )
+    return  wc
+  #end Create2DWidget
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.Create3DWidget()			-
+  #----------------------------------------------------------------------
+  def Create3DWidget( self, widget_class, refit_flag = True ):
+    """Must be called on the UI thread.
+"""
+    def check_3d_env( loaded, errors ):
+      if errors:
+        msg = \
+	    'Error loading 3D envrionment:' + os.linesep + \
+	    os.linesep.join( errors )
+        wx.MessageBox(
+	    msg, 'Create 3D Widget',
+	    wx.ICON_ERROR | wx.OK_DEFAULT
+	    )
+      elif loaded:
+        wc = WidgetContainer( self.grid, widget_class, self.state )
+        self._AddWidgetContainer( wc, refit_flag )
+    #end check_and_show
+
+    Environment3D.LoadAndCall( check_3d_env )
+  #end Create3DWidget
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.CreateWidget()			-
   #----------------------------------------------------------------------
   def CreateWidget( self, widget_class, refit_flag = True ):
+    """Must be called on the UI thread.  Note we are determining the need
+to load the 3D viz environment based on "3D" being in the class name.
+This is precarious but fast for now to avoid the double O(n) lookups in
+WIDGET_MAP and TOOLBAR_ITEMS
+@return		WidgetContainer object for 2D, None for a 3D widget
+"""
+    wc = None
+
+    if State.FindDataModel( self.state ) is None:
+      msg = 'A VERAOutput file must be opened'
+      wx.MessageDialog( self, msg, 'Add Widget' ).ShowWindowModal()
+
+    else:
+      try:
+        if widget_class.find( '3D' ) >= 0:
+          self.Create3DWidget( widget_class, refit_flag )
+        else:
+          wc = self.Create2DWidget( widget_class, refit_flag )
+      except Exception, ex:
+        wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
+    #end if-else
+
+    return  wc
+  #end CreateWidget
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.CreateWidget_0()			-
+  #----------------------------------------------------------------------
+  def CreateWidget_0( self, widget_class, refit_flag = True ):
     """Must be called on the UI thread.
 @return		widget container object
 """
@@ -432,7 +544,7 @@ class VeraViewFrame( wx.Frame ):
 
     except Exception, ex:
       wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
-  #end CreateWidget
+  #end CreateWidget_0
 
 
 #  #----------------------------------------------------------------------
@@ -770,7 +882,7 @@ Must be called from the UI thread.
     axial_plot_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )
-      if con.widget.GetTitle() == 'Axial Plots':
+      if con != None and con.widget.GetTitle() == 'Axial Plots':
         axial_plot_widget = con.widget
     #end for
 
@@ -1032,7 +1144,7 @@ Must be called from the UI thread.
     item = menu.FindItemById( ev.GetId() )
     if item is not None and item.GetLabel() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetLabel() ] )
-      self._Refit()
+      #self._Refit()
 
 #    menu_id = ev.GetId()
 #    for item in menu.GetMenuItems():
@@ -1154,7 +1266,7 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._OnView3DImpl()			-
   #----------------------------------------------------------------------
   def _OnView3DImpl( self ):
-    object_classpath = 'view3d.slicer_view.Slicer3DFrame'
+    object_classpath = 'view3d.slicer_view_frame.Slicer3DFrame'
     module_path, class_name = object_classpath.rsplit( '.', 1 )
 
     error = None
@@ -1197,7 +1309,7 @@ Must be called on the UI event thread.
     item = tbar.FindById( ev.GetId() )
     if item is not None and item.GetShortHelp() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetShortHelp() ] )
-      self._Refit()
+      #self._Refit()
   #end _OnWidgetTool
 
 

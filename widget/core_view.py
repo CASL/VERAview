@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-03-07	leerw@ornl.gov				-
+#	  Adding numbers for 'asy_' datasets.
 #		2016-02-29	leerw@ornl.gov				-
 #	  Calling Redraw() instead of _OnSize( None ).
 #		2016-02-25	leerw@ornl.gov				-
@@ -570,6 +572,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     lineWidth
     mode = 'core'
     pinWidth
+    valueFont
+    valueFontSize
 """
     config = self._CreateBaseDrawConfig(
         self.data.GetRange( self.pinDataSet ),
@@ -623,6 +627,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    value_font_size = assy_wd >> 1
+    value_font = \
+        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
+	if value_font_size >= 6 else None
+
     config[ 'assemblyAdvance' ] = assy_advance
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'coreRegion' ] = \
@@ -630,6 +639,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'mode' ] = 'core'
     config[ 'pinWidth' ] = pin_wd
+    config[ 'valueFont' ] = value_font
+    config[ 'valueFontSize' ] = value_font_size
 
     return  config
   #end _CreateCoreDrawConfig
@@ -660,6 +671,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       legend_pil_im = self.config[ 'legendPilImage' ]
       pil_font = self.config[ 'pilFont' ]
       pin_wd = self.config[ 'pinWidth' ]
+      value_font = self.config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
@@ -766,6 +778,23 @@ If neither are specified, a default 'scale' value of 4 is used.
 		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
 		fill = None, outline = assy_pen
 	        )
+
+	    if self.pinDataSet is not None and \
+	        self.pinDataSet.find( 'asy' ) == 0 and \
+	        value_font is not None:
+	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
+	      value_str, value_size = \
+	          self._CreateValueDisplay( value, 3, value_font, pin_wd )
+	      #if value_size[ 0 ] <= pin_wd:
+	      if True:
+		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
+		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
+                im_draw.text(
+		    ( value_x, value_y ), value_str,
+		    fill = Widget.GetContrastColor( *brush_color ),
+		    font = value_font
+                    )
+	    #end if drawing value
 	  #end if assembly referenced
 
 	  assy_x += assy_advance
