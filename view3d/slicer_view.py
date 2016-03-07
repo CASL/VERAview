@@ -60,11 +60,11 @@ class Slicer3DView( Widget ):
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
 
-    self.toolButtonDefs = \
-      [
-        ( 'sync_in_16x16', 'Sync From Other Widgets', self._OnSyncFrom ),
-        ( 'sync_out_16x16', 'Sync To Other Widgets', self._OnSyncTo )
-      ]
+#    self.toolButtonDefs = \
+#      [
+#        ( 'sync_in_16x16', 'Sync From Other Widgets', self._OnSyncFrom ),
+#        ( 'sync_out_16x16', 'Sync To Other Widgets', self._OnSyncTo )
+#      ]
 
     self.viz = None
     self.vizcontrol = None
@@ -126,15 +126,42 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView.CalcSlicePosition()		-
+  #----------------------------------------------------------------------
+  def CalcSlicePosition( self ):
+    """Calculates viz slice positions from the current state.
+@return			( z, x, y )
+"""
+    core = self.data.GetCore()
+
+#	-- Data matrix is z, x, y(reversed)
+#	--
+    z = self.meshLevels[ self.axialValue[ 1 ] ]
+
+    assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
+    x = core.npinx * assy_col + self.pinColRow[ 0 ]
+
+    assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
+    y = \
+        core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
+	self.pinColRow[ 1 ]
+
+    return  ( z, x, y )
+  #end CalcSlicePosition
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._Create3DMatrix()			-
   #----------------------------------------------------------------------
   def _Create3DMatrix( self ):
     matrix = None
 
-    if self.data is not None and self.coreExtent is not None:
+    if self.data is not None and self.coreExtent is not None and \
+        (self.data.core.npinx > 0 or self.data.core.npiny > 0):
       core = self.data.GetCore()
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_value = dset.value
+      dset_shape = dset.shape
 
       print >> sys.stderr, \
           '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
@@ -144,10 +171,10 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       #assy_range = self.data.ExtractSymmetryExtent()
 
       ax_mesh = core.axialMesh
-      #ppinch = core.apitch if core.apitch > 0 else 1.0
-      ppinch = 1.26
+      #pin_pitch = 1.26
+      pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npinx )
       self.meshLevels = [
-	  int( (ax_mesh[ i + 1 ] - ax_mesh[ 0 ]) / ppinch )
+	  int( (ax_mesh[ i + 1 ] - ax_mesh[ 0 ]) / pin_pitch )
 	  for i in range( len( ax_mesh ) - 1 )
           ]
       z_size = self.meshLevels[ -1 ]
@@ -178,9 +205,12 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 	      #for y in range( core.npiny ):
 	      pin_y2 = 0
 	      for y in range( core.npiny - 1, -1, -1 ):
+		data_y = min( y, dset_shape[ 0 ] - 1 )
+
 	        for x in range( core.npinx ):
+		  data_x = min( x, dset_shape[ 1 ] - 1 )
 	          matrix[ z, pin_x + x, pin_y + pin_y2 ] = \
-	              dset_value[ y, x, ax_level, assy_ndx ]
+	              dset_value[ data_y, data_x, ax_level, assy_ndx ]
 	        #end for x
 	        pin_y2 += 1
 	      #end for y
@@ -199,15 +229,117 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateClipboardAllData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardAllData( self ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    csv_text = None
+    matrix = self.viz.GetScalarData()
+    if matrix is not None and self.meshLevels is not None:
+      csv_text = ''
+
+      z_count = min( matrix.shape[ 0 ], len( self.meshLevels ) )
+      for z in range( z_count - 1, -1, -1 ):
+        title = '"Axial=%d"' % self.meshLevels[ z ]
+        csv_text += DataModel.ToCSV( matrix[ z ], title )
+    #end if
+
+    return  csv_text
+  #end _CreateClipboardAllData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateClipboardData()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardData( self, cur_selection_flag = False ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardSelectionData() \
+        if cur_selection_flag else \
+        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateClipboardImage()		-
+  #----------------------------------------------------------------------
+  def _CreateClipboardImage( self ):
+    """Retrieves the currently-displayed bitmap.
+@return			bitmap or None
+"""
+    bmap = None
+
+    fd, name = tempfile.mkstemp( '.png' )
+    try:
+      os.close( fd )
+      if self.CreatePrintImage( name ):
+        bmap = wx.Image( name, wx.BITMAP_TYPE_PNG ).ConvertToBitmap()
+    finally:
+      os.remove( name )
+
+    return  bmap
+  #end _CreateClipboardImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateClipboardSelectionData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardSelectionData( self ):
+    """Retrieves the data for the state, axial, and assembly.
+@return			text or None
+"""
+    csv_text = None
+
+    valid = False
+    matrix = self.viz.GetScalarData()
+    if matrix is not None and self.meshLevels is not None:
+      valid = DataModel.IsValidObj(
+	  self.data,
+	  assembly_index = self.assemblyIndex[ 0 ],
+	  axial_level = self.axialValue[ 1 ]
+          )
+
+    if valid:
+      #pos = self.CalcSlicePosition()
+      pos = self.viz.GetSlicePosition()
+      print >> sys.stderr, \
+          '[_CreateClipboardSelectionData] pos=' + str( pos )
+      csv_text = '"Axial=%d,Col=%d,Row=%d\n' % pos
+      csv_text += '%.7g' % matrix[ pos[ 2 ], pos[ 0 ], pos[ 1 ] ]
+    #end if
+
+    return  csv_text
+  #end _CreateClipboardSelectionData
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._CreateMenuDef()			-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
-    """
-"""
-    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
-    my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
-    return  menu_def + my_def
-  #end _CreateMenuDef
+#  def _CreateMenuDef( self, data_model ):
+#    """
+#"""
+#    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
+#    my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
+#    return  menu_def + my_def
+#  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView.CreatePrintImage()			-
+  #----------------------------------------------------------------------
+  def CreatePrintImage( self, file_path ):
+    result = None
+
+    if self.viz is not None:
+      mlab.savefig( file_path )
+      result = file_path
+
+    return  result
+  #end CreatePrintImage
 
 
   #----------------------------------------------------------------------
@@ -284,9 +416,9 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.GetToolButtonDefs()		-
   #----------------------------------------------------------------------
-  def GetToolButtonDefs( self, data_model ):
-    return  self.toolButtonDefs
-  #end GetToolButtonDefs
+#  def GetToolButtonDefs( self, data_model ):
+#    return  self.toolButtonDefs
+#  #end GetToolButtonDefs
 
 
   #----------------------------------------------------------------------
@@ -398,33 +530,6 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._OnSyncFrom()			-
-  #----------------------------------------------------------------------
-  def _OnSyncFrom( self, ev ):
-    self._UpdateSlicePositions()
-  #end _OnSyncFrom
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._OnSyncTo()			-
-  #----------------------------------------------------------------------
-  def _OnSyncTo( self, ev ):
-    if self.viz is not None:
-#      rec = self.CalcDataState( self.viz.GetSlicePosition() )
-#      if rec is not None:
-#        self.FireStateChange( **rec )
-      rec = \
-        {
-	'assembly_index': self.assemblyIndex,
-	'axial_value': self.axialValue,
-	'pin_colrow': self.pinColRow
-	}
-      self.FireStateChange( **rec )
-    #end if rec is not None
-  #end _OnSyncTo
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.SetDataSet()			-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
@@ -455,29 +560,8 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #	METHOD:		Slicer3DView._UpdateSlicePositions()		-
   #----------------------------------------------------------------------
   def _UpdateSlicePositions( self ):
-    core = self.data.GetCore()
-
-#	-- Data matrix is z, x, y(reversed)
-#	--
-    z = self.meshLevels[ self.axialValue[ 1 ] ]
-
-    assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
-    x = core.npinx * assy_col + self.pinColRow[ 0 ]
-
-    assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
-    #derive y =
-        #(core.npiny * self.coreExtent[ -1 ]) -
-        #core.npiny * assy_row - self.pinColRow[ 1 ]
-    y = \
-        core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
-	self.pinColRow[ 1 ]
-
-    pos = {}
-    pos[ self.viz.AXIS_INDEX[ 'x' ] ] = float( z )
-    pos[ self.viz.AXIS_INDEX[ 'y' ] ] = float( x )
-    pos[ self.viz.AXIS_INDEX[ 'z' ] ] = float( y )
-
-    self.viz.UpdateView( pos )
+    pos = self.CalcSlicePosition()
+    self.viz.UpdateView( self.CalcSlicePosition() )
   #end _UpdateSlicePositions
 
 
@@ -539,20 +623,13 @@ class VolumeSlicer( HasTraits ):
 
   AXIS_INDEX = dict( x = 0, y = 1, z = 2 )
 
-  SIDE_VIEWS = \
-    {
-    'x': (  0, 90 ),
-    'y': ( 90, 90 ),
-    'z': (  0,  0 )
-    }
-
 #			-- Must exist for reference to self.dataSource to
 #			-- invoke _dataSource_default()
   dataSource = Instance( Source )
-  dataSourceCut = Instance( Source )
-  dataSourceX = Instance( Source )
-  dataSourceY = Instance( Source )
-  dataSourceZ = Instance( Source )
+  #dataSourceCut = Instance( Source )
+  #dataSourceX = Instance( Source )
+  #dataSourceY = Instance( Source )
+  #dataSourceZ = Instance( Source )
 
 #			-- Must exist for references to
 #			-- invoke _ipw3d{XYZ}_default()()
@@ -560,57 +637,21 @@ class VolumeSlicer( HasTraits ):
   ipw3dY = Instance( PipelineBase )
   ipw3dZ = Instance( PipelineBase )
 
-  #ipwX = Instance( PipelineBase )
-  #ipwY = Instance( PipelineBase )
-  #ipwZ = Instance( PipelineBase )
-
   scene3d = Instance( MlabSceneModel, () )
-  sceneCut = Instance( MlabSceneModel, () )
-  sceneX = Instance( MlabSceneModel, () )
-  sceneY = Instance( MlabSceneModel, () )
-  sceneZ = Instance( MlabSceneModel, () )
 
   # accessible as VolumeSlicer.__view_traits__[ 'view' ]
   # type traitsui.view_elements.ViewElements
   view = View(
-      HGroup(
-          Group(
-	      # Z-Y axis (y_axes)
-	      Item(
-		  'sceneY',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      # Z-X axis (z_axes)
-	      Item(
-		  'sceneZ',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      # X-Y axis (x_axes)
-	      Item(
-		  'sceneX',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      show_labels = False
+      Group(
+          Item(
+	      'scene3d',
+	      editor = SceneEditor( scene_class = MayaviScene ),
+	      height = 300, width = 300
 	      ),
-          Group(
-	      Item(
-		  'scene3d',
-		  editor = SceneEditor( scene_class = MayaviScene ),
-		  height = 300, width = 300
-	          ),
-	      Item(
-		  'sceneCut',
-		  editor = SceneEditor( scene_class = MayaviScene ),
-		  height = 200, width = 300
-	          ),
-	      show_labels = False
-	      )
+	  show_labels = False
           ),
-      resizable = True,
-      title = 'Volume Slicer'
+      resizable = True
+      #title = 'Volume Slicer'
       )
 
 
@@ -679,104 +720,6 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.create_side_view()			-
-  #----------------------------------------------------------------------
-  def create_side_view( self, axis, pos = None ):
-    """
-"""
-    uaxis = axis.upper()
-    scene = getattr( self, 'scene' + uaxis )
-    data_source = getattr( self, 'dataSource' + uaxis )
-
-    outline = mlab.pipeline.outline(
-	#self.dataSource.mlab_source.dataset,
-	data_source,
-	figure = scene.mayavi_scene
-        )
-    setattr( self, 'outline' + uaxis, outline )
-
-    # added figure
-    ipw = mlab.pipeline.image_plane_widget(
-	outline,  # self.dataSource.mlab_source.dataset
-	#figure = scene.mayavi_scene,
-	#name = 'Side ' + axis,
-	plane_orientation = axis + '_axes',
-	vmin = self.dataRange[ 0 ],
-	vmax = self.dataRange[ 1 ]
-        )
-    setattr( self, 'ipw' + uaxis, ipw )
-
-    ipw.ipw.left_button_action = 0
-    ipw.ipw.add_observer(
-        'InteractionEvent',
-        functools.partial( self.on_slice_change, axis )
-        )
-    ipw.ipw.add_observer(
-        'StartInteractionEvent',
-        functools.partial( self.on_slice_change, axis )
-        )
-
-    print >> sys.stderr, '[create_side_view] uaxis=%s, pos=%s' % ( uaxis, pos )
-    ipw.ipw.slice_position = \
-        pos if pos is not None else \
-        0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
-
-    ipw.ipw.sync_trait(
-        'slice_position',
-	getattr( self, 'ipw3d' + uaxis ).ipw
-	)
-
-    return  ipw
-  #end create_side_view
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.create_view()			-
-  #----------------------------------------------------------------------
-  def create_view( self ):
-    view = View(
-        HGroup(
-          Group(
-	      Item(
-		  'sceneY',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      Item(
-		  'sceneZ',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      Item(
-		  'sceneX',
-		  editor = SceneEditor( scene_class = Scene ),
-		  height = 250, width = 300
-	          ),
-	      show_labels = False
-	      ),
-          Group(
-	      Item(
-		  'scene3d',
-		  editor = SceneEditor( scene_class = MayaviScene ),
-		  height = 300, width = 300
-	          ),
-	      Item(
-		  'sceneCut',
-		  editor = SceneEditor( scene_class = MayaviScene ),
-		  height = 200, width = 300
-	          ),
-	      show_labels = False
-	      )
-          ),
-        resizable = True,
-        title = 'Volume Slicer'
-        )
-
-    return  view
-  #end create_view
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		VolumeSlicer._dataSource_default()		-
   #----------------------------------------------------------------------
   def _dataSource_default( self ):
@@ -789,46 +732,6 @@ class VolumeSlicer( HasTraits ):
 #    return  field
     return  self.create_data_source( '3d' )
   #end _dataSource_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._dataSourceCut_default()		-
-  #----------------------------------------------------------------------
-  def _dataSourceCut_default( self ):
-    """Magically called when self.dataSource first referenced
-"""
-    return  self.create_data_source( 'Cut' )
-  #end _dataSourceCut_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._dataSourceX_default()		-
-  #----------------------------------------------------------------------
-  def _dataSourceX_default( self ):
-    """Magically called when self.dataSource first referenced
-"""
-    return  self.create_data_source( 'X' )
-  #end _dataSourceX_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._dataSourceY_default()		-
-  #----------------------------------------------------------------------
-  def _dataSourceY_default( self ):
-    """Magically called when self.dataSource first referenced
-"""
-    return  self.create_data_source( 'Y' )
-  #end _dataSourceY_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._dataSourceZ_default()		-
-  #----------------------------------------------------------------------
-  def _dataSourceZ_default( self ):
-    """Magically called when self.dataSource first referenced
-"""
-    return  self.create_data_source( 'Z' )
-  #end _dataSourceZ_default
 
 
   #----------------------------------------------------------------------
@@ -851,106 +754,12 @@ class VolumeSlicer( HasTraits ):
     self.scene3d.scene.background = ( 0, 0, 0 )
     self.scene3d.scene.interactor.interactor_style = \
         tvtk.InteractorStyleTerrain()
+
+#    self.scene3d.scene.interactor.add_observer(
+#	'KeyPressEvent', func
+#        )
+#    func( vtk_obj, ev ):  vtk_obj.GetKeyCode()
   #end display_scene3d
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.display_sceneCut()			-
-  #----------------------------------------------------------------------
-  @on_trait_change( 'sceneCut.activated' )
-  def display_sceneCut( self ):
-    """
-"""
-    outline = mlab.pipeline.outline(
-	self.dataSourceCut.mlab_source.dataset,
-	figure = self.sceneCut.mayavi_scene
-        )
-
-    self.ipwCut = mlab.pipeline.image_plane_widget(
-	outline,
-	plane_orientation = 'y_axes',
-        vmin = self.dataRange[ 0 ],
-        vmax = self.dataRange[ 1 ]
-        )
-
-    #self.sceneCut.mlab.view( 10, 70 )
-    self.sceneCut.mlab.xlabel( 'Z' )
-    self.sceneCut.mlab.ylabel( 'X' )
-    self.sceneCut.mlab.zlabel( 'Y' )
-    #xxself.sceneCut.scene.isometric_view()
-
-    self.sceneCut.scene.background = ( 0, 0, 0 )
-    self.sceneCut.scene.interactor.interactor_style = \
-        tvtk.InteractorStyleImage()
-  #end display_sceneCut
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.display_sceneX()			-
-  #----------------------------------------------------------------------
-  @on_trait_change( 'sceneX.activated' )
-  def display_sceneX( self ):
-    """
-"""
-    return  self.display_side_view( 'x' )
-  #end display_sceneX
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.display_sceneY()			-
-  #----------------------------------------------------------------------
-  @on_trait_change( 'sceneY.activated' )
-  def display_sceneY( self ):
-    """
-"""
-    return  self.display_side_view( 'y' )
-  #end display_sceneY
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.display_sceneZ()			-
-  #----------------------------------------------------------------------
-  @on_trait_change( 'sceneZ.activated' )
-  def display_sceneZ( self ):
-    """
-"""
-    return  self.display_side_view( 'z' )
-  #end display_sceneZ
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.display_side_view()		-
-  #----------------------------------------------------------------------
-  def display_side_view( self, axis ):
-    """
-"""
-    ipw = self.create_side_view( axis )
-    uaxis = axis.upper()
-    scene = getattr( self, 'scene' + uaxis )
-    #outline = getattr( self, 'outline' + uaxis )
-    #ipw = getattr( self, 'ipw' + uaxis )
-
-    scene.mlab.view( *self.SIDE_VIEWS[ axis ] )
-
-    if axis != 'x':
-      scene.mlab.xlabel( 'Z' )
-      scene.mlab.ylabel( 'X' )
-      scene.mlab.zlabel( 'Y' )
-
-    scene.scene.background = ( 0, 0, 0 )
-    scene.scene.interactor.interactor_style = \
-        tvtk.InteractorStyleImage()
-
-    if axis == 'x':
-      scene.scene.parallel_projection = True
-      scene.scene.camera.parallel_scale = \
-          0.4 * np.mean( self.dataSourceX.scalar_data.shape )
-#          #0.35 * np.mean( self.dataSource.scalar_data.shape )
-      print >> sys.stderr, '[display_side_view] xaxis scale=%f' % \
-          scene.scene.camera.parallel_scale
-   
-    return  ipw
-  #end display_side_view
 
 
   #----------------------------------------------------------------------
@@ -984,84 +793,14 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._ipwX_default()			-
+  #	METHOD:		VolumeSlicer.GetScalarData()			-
   #----------------------------------------------------------------------
-#  def _ipwX_default( self ):
-#    """Magically called when self.ipwX first referenced
-#Not called.
-#"""
-#    return  self.create_side_view( 'x' )
-#  #end _ipwX_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._ipwY_default()			-
-  #----------------------------------------------------------------------
-#  def _ipwY_default( self ):
-#    """Magically called when self.ipwY first referenced
-#Not called.
-#"""
-#    return  self.create_side_view( 'y' )
-#  #end _ipwY_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._ipwZ_default()			-
-  #----------------------------------------------------------------------
-#  def _ipwZ_default( self ):
-#    """Magically called when self.ipwZ first referenced
-#Not called.
-#"""
-#    return  self.create_side_view( 'z' )
-#  #end _ipwZ_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.on_slice_change()			-
-  #----------------------------------------------------------------------
-  def on_slice_change( self, axis, obj, ev ):
-    self.slicePosition = \
-    position = obj.GetCurrentCursorPosition()
-    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
-      if cur_axis != axis:
-        ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
-	ipw_3d.ipw.slice_position = position[ cur_ndx ]
-
-    if self.slicePositionListener is not None:
-      self.slicePositionListener( position )
-  #end on_slice_change
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.remove_actors()			-
-  #----------------------------------------------------------------------
-  def remove_actors( self, scene, *preserve_list ):
-    """Removes any ImagePlaneWidgets from scene.actor_list
-@param  scene           MlabSceneModel from which to remove actors
-@param  preserve_list   actor type matches for things not to remove
-@deprecated  not needed, thankfully
-"""
-    removed_flag = False
-    i = len( scene.actor_list ) - 1
-    while i >= 0:
-      type_name = str( type( scene.actor_list[ i ] ) )
-      remove_flag = True
-      for p in preserve_list:
-        if type_name.find( p ) >= 0:
-          remove_flag = False
-          break
-      #end for p
-
-      if remove_flag:
-        scene.remove_actor( scene.actor_list[ i ] )
-	removed_flag = True
-
-      i -= 1
-    #end while
-
-    if remove_flag:
-      scene.actor_removed = True
-  #end remove_actors
+  def GetScalarData( self ):
+    return  \
+        self.dataSource.scalar_data \
+	if self.dataSource is not None else \
+	None
+  #end GetScalarData
 
 
   #----------------------------------------------------------------------
@@ -1086,25 +825,19 @@ class VolumeSlicer( HasTraits ):
   def SetScalarData( self, matrix, data_range ):
     self.dataRange = data_range
 
-    for d in (
-        self.dataSource, self.dataSourceCut,
-	self.dataSourceX, self.dataSourceY, self.dataSourceZ
-	):
-      d.scalar_data = matrix
-      d.update()
-      d.data_changed = True
-      d.update_image_data = True
+#    for d in (
+#        self.dataSource, self.dataSourceCut,
+#	self.dataSourceX, self.dataSourceY, self.dataSourceZ
+#	):
+    d = self.dataSource
+    d.scalar_data = matrix
+    d.update()
+    d.data_changed = True
+    d.update_image_data = True
     #end for
 
-#    for axis in self.AXIS_INDEX:
-#      uaxis = axis.upper()
-#      ipw = getattr( self, 'ipw' + uaxis )
-#      ipw.module_manager.scalar_lut_manager.data_range = data_range
-#
-#      ipw = getattr( self, 'ipw3d' + uaxis )
-#      ipw.module_manager.scalar_lut_manager.data_range = data_range
-#    #end for
-    for uaxis in ( 'X', 'Y', 'Z', '3dX', '3dY', '3dZ', 'Cut' ):
+    #for uaxis in ( 'X', 'Y', 'Z', '3dX', '3dY', '3dZ', 'Cut' ):
+    for uaxis in ( '3dX', '3dY', '3dZ' ):
       ipw = getattr( self, 'ipw' + uaxis )
       ipw.module_manager.scalar_lut_manager.data_range = data_range
     #end for
@@ -1132,7 +865,10 @@ class VolumeSlicer( HasTraits ):
         '[UpdateView] position=' + str( position )
     for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
       ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
-      ipw_3d.ipw.slice_position = position[ cur_ndx ]
+      ipw_3d.ipw.slice_position = float( position[ cur_ndx ] )
+
+    #was set on on_slice_change()
+    self.slicePosition = tuple( position )
 
     #self.class_trait_view().trait_set( title = 'Hello World' )
     #mlab.title( 'Hello World 2' )
