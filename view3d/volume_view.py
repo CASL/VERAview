@@ -256,7 +256,8 @@ class Volume3DView( Widget ):
     result = None
 
     if self.viz is not None:
-      mlab.savefig( file_path )
+      scene = self.viz.vscene3d
+      scene.mlab.savefig( file_path, figure = scene.mayavi_scene )
       result = file_path
 
     return  result
@@ -501,14 +502,14 @@ class Volume( HasTraits ):
   #ipw3dZ = Instance( PipelineBase )
   volume3d = Instance( PipelineBase )
 
-  scene3d = Instance( MlabSceneModel, () )
+  vscene3d = Instance( MlabSceneModel, () )
 
   # accessible as VolumeSlicer.__view_traits__[ 'view' ]
   # type traitsui.view_elements.ViewElements
   view = View(
       Group(
           Item(
-	      'scene3d',
+	      'vscene3d',
 	      editor = SceneEditor( scene_class = MayaviScene ),
 	      height = 300, width = 300
 	      ),
@@ -548,35 +549,35 @@ class Volume( HasTraits ):
 """
     field = mlab.pipeline.scalar_field(
         self.matrix,
-	figure = getattr( self, 'scene3d' ).mayavi_scene
+	figure = getattr( self, 'vscene3d' ).mayavi_scene
 	)
     return  field
   #end _dataSource_default
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Volume.display_scene3d()			-
+  #	METHOD:		Volume.display_vscene3d()			-
   #----------------------------------------------------------------------
-  @on_trait_change( 'scene3d.activated' )
-  def display_scene3d( self ):
+  @on_trait_change( 'vscene3d.activated' )
+  def display_vscene3d( self ):
     """
 """
 #    outline = mlab.pipeline.outline(
 #	self.dataSource.mlab_source.dataset,
-#	figure = self.scene3d.mayavi_scene
+#	figure = self.vscene3d.mayavi_scene
 #        )
 
-    self.scene3d.mlab.view( 10, 70 )
+    self.vscene3d.mlab.view( 10, 70 )
 
-    self.scene3d.scene.background = ( 0, 0, 0 )
-    self.scene3d.scene.interactor.interactor_style = \
+    self.vscene3d.scene.background = ( 0, 0, 0 )
+    self.vscene3d.scene.interactor.interactor_style = \
         tvtk.InteractorStyleTerrain()
 
-#    self.scene3d.scene.interactor.add_observer(
+#    self.vscene3d.scene.interactor.add_observer(
 #	'KeyPressEvent', func
 #        )
 #    func( vtk_obj, ev ):  vtk_obj.GetKeyCode()
-  #end display_scene3d
+  #end display_vscene3d
 
 
   #----------------------------------------------------------------------
@@ -587,7 +588,7 @@ class Volume( HasTraits ):
 """
     vol = mlab.pipeline.volume(
 	self.dataSource,
-	figure = self.scene3d.mayavi_scene,
+	figure = self.vscene3d.mayavi_scene,
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
         )

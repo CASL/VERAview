@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-03-08	leerw@ornl.gov				-
+#	  Getting correct figure for mlab.savefig() call.
 #		2016-03-07	leerw@ornl.gov				-
 #	  Now just Slicer3DView with single figure.
 #------------------------------------------------------------------------
@@ -335,7 +337,8 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     result = None
 
     if self.viz is not None:
-      mlab.savefig( file_path )
+      scene = self.viz.scene3d
+      scene.mlab.savefig( file_path, figure = scene.mayavi_scene )
       result = file_path
 
     return  result
