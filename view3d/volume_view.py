@@ -1,9 +1,8 @@
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		slicer_view.py					-
+#	NAME:		volume_view.py					-
 #	HISTORY:							-
-#		2016-03-07	leerw@ornl.gov				-
-#	  Now just Slicer3DView with single figure.
+#		2016-03-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import bisect, functools, math, os, sys
 import numpy as np
@@ -32,10 +31,10 @@ from widget.widgetcontainer import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		Slicer3DView					-
+#	CLASS:		Volume3DView					-
 #------------------------------------------------------------------------
-class Slicer3DView( Widget ):
-  """Slicer 3D visualization widget.
+class Volume3DView( Widget ):
+  """Volume 3D visualization widget.
 """
 
 
@@ -44,7 +43,7 @@ class Slicer3DView( Widget ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.__init__()				-
+  #	METHOD:		Volume3DView.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
@@ -53,7 +52,7 @@ class Slicer3DView( Widget ):
     #self.curSize = None
     self.data = None
 
-    #self.autoSync = True
+    self.autoSync = True
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
     self.pinColRow = None
@@ -69,89 +68,12 @@ class Slicer3DView( Widget ):
     self.viz = None
     self.vizcontrol = None
 
-    super( Slicer3DView, self ).__init__( container, id )
+    super( Volume3DView, self ).__init__( container, id )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.CalcDataState()			-
-  #----------------------------------------------------------------------
-  def CalcDataState( self, slice_position ):
-    """Calculates axialValue (axial_cm, core_ndx, detector_ndx ),
-assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
-@param  slice_position	[ z, x, y ]
-@return			dict with 'axial_value', 'assembly_ndex', and
-			'pin_colrow' keys, or None if no data
-"""
-    rec = None
-
-    if self.data is not None and self.meshLevels is not None:
-      slice_z, slice_x, slice_y = slice_position
-      core = self.data.GetCore()
-
-      if slice_z >= 0:
-        ax_level = min(
-	    bisect.bisect_left( self.meshLevels, slice_z ),
-	    len( self.meshLevels ) - 1
-            )
-        axial_value = self.data.CreateAxialValue( core_ndx = ax_level )
-      else:
-        axial_value = ( -1, -1, -1 )
-
-      if slice_x >= 0 and slice_y >= 0:
-        #assy_col = int( slice_x / core.npinx )
-        #assy_row = core.nassy - 1 - int( slice_y / core.npiny )
-        assy_col = int( slice_x / core.npinx ) + self.coreExtent[ 0 ]
-        assy_row = self.coreExtent[ 3 ] - 1 - int( slice_y / core.npiny )
-	assembly_index = self.data.CreateAssemblyIndex( assy_col, assy_row )
-
-	pin_col = int( slice_x ) % core.npinx
-	pin_row = core.npiny - (int( slice_y ) % core.npiny)
-	pin_colrow = ( pin_col, pin_row )
-      else:
-        assembly_index = ( -1, -1, -1 )
-        pin_colrow = ( -1, -1 )
-      #end if-else
-
-      rec = \
-        {
-        'assembly_index': assembly_index,
-        'axial_value': axial_value,
-        'pin_colrow': pin_colrow
-        }
-    #end if data defined
-
-    return  rec
-  #end CalcDataState
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.CalcSlicePosition()		-
-  #----------------------------------------------------------------------
-  def CalcSlicePosition( self ):
-    """Calculates viz slice positions from the current state.
-@return			( z, x, y )
-"""
-    core = self.data.GetCore()
-
-#	-- Data matrix is z, x, y(reversed)
-#	--
-    z = self.meshLevels[ self.axialValue[ 1 ] ]
-
-    assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
-    x = core.npinx * assy_col + self.pinColRow[ 0 ]
-
-    assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
-    y = \
-        core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
-	self.pinColRow[ 1 ]
-
-    return  ( z, x, y )
-  #end CalcSlicePosition
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._Create3DMatrix()			-
+  #	METHOD:		Volume3DView._Create3DMatrix()			-
   #----------------------------------------------------------------------
   def _Create3DMatrix( self ):
     matrix = None
@@ -229,7 +151,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardAllData()		-
+  #	METHOD:		Volume3DView._CreateClipboardAllData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardAllData( self ):
     """Retrieves the data for the state and axial.
@@ -251,7 +173,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardData()		-
+  #	METHOD:		Volume3DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
@@ -265,7 +187,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardImage()		-
+  #	METHOD:		Volume3DView._CreateClipboardImage()		-
   #----------------------------------------------------------------------
   def _CreateClipboardImage( self ):
     """Retrieves the currently-displayed bitmap.
@@ -286,7 +208,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardSelectionData()	-
+  #	METHOD:		Volume3DView._CreateClipboardSelectionData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardSelectionData( self ):
     """Retrieves the data for the state, axial, and assembly.
@@ -304,7 +226,6 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
           )
 
     if valid:
-      #pos = self.CalcSlicePosition()
       pos = self.viz.GetSlicePosition()
       print >> sys.stderr, \
           '[_CreateClipboardSelectionData] pos=' + str( pos )
@@ -317,19 +238,19 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateMenuDef()			-
+  #	METHOD:		Volume3DView._CreateMenuDef()			-
   #----------------------------------------------------------------------
 #  def _CreateMenuDef( self, data_model ):
 #    """
 #"""
-#    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
+#    menu_def = super( Volume3DView, self )._CreateMenuDef( data_model )
 #    my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
 #    return  menu_def + my_def
 #  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.CreatePrintImage()			-
+  #	METHOD:		Volume3DView.CreatePrintImage()			-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
     result = None
@@ -343,16 +264,15 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateViz()			-
+  #	METHOD:		Volume3DView._CreateViz()			-
   #----------------------------------------------------------------------
   def _CreateViz( self, matrix, drange ):
     """Builds this wxPython component.
 """
 #		-- Create components
 #		--
-    self.viz = VolumeSlicer( matrix = matrix, dataRange = drange )
+    self.viz = Volume( matrix = matrix, dataRange = drange )
     #Do this to automatically fire state changes on slice position changes
-    #self.viz.SetSlicePositionListener( self._OnSlicePosition )
     self.vizcontrol = \
         self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
 
@@ -361,7 +281,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetAllow4DataSets()		-
+  #	METHOD:		Volume3DView.GetAllow4DataSets()		-
   #----------------------------------------------------------------------
   def GetAllow4DataSets( self ):
     return  False
@@ -369,7 +289,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetDataModel()			-
+  #	METHOD:		Volume3DView.GetDataModel()			-
   #----------------------------------------------------------------------
   def GetDataModel( self ):
     return  self.data
@@ -377,7 +297,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetDataSetTypes()			-
+  #	METHOD:		Volume3DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     return  [ 'pin' ]
@@ -385,7 +305,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetEventLockSet()			-
+  #	METHOD:		Volume3DView.GetEventLockSet()			-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     locks = set([
@@ -398,7 +318,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetMenuDef()			-
+  #	METHOD:		Volume3DView.GetMenuDef()			-
   #----------------------------------------------------------------------
 #  def GetMenuDef( self, data_model ):
 #    return  self.menuDef
@@ -406,15 +326,15 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetTitle()				-
+  #	METHOD:		Volume3DView.GetTitle()				-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Volume Slicer 3D View'
+    return  'Volume 3D View'
   #end GetTitle
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetToolButtonDefs()		-
+  #	METHOD:		Volume3DView.GetToolButtonDefs()		-
   #----------------------------------------------------------------------
 #  def GetToolButtonDefs( self, data_model ):
 #    return  self.toolButtonDefs
@@ -422,7 +342,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._InitUI()				-
+  #	METHOD:		Volume3DView._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
     """Builds this wxPython component.
@@ -451,7 +371,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._LoadDataModel()			-
+  #	METHOD:		Volume3DView._LoadDataModel()			-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
     self.data = State.FindDataModel( self.state )
@@ -480,57 +400,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._OnAutoSync()			-
-  #----------------------------------------------------------------------
-#  def _OnAutoSync( self, ev ):
-#    ev.Skip()
-#
-#    menu = ev.GetEventObject()
-#    item = menu.FindItemById( ev.GetId() )
-#    if item is not None:
-#      if item.GetLabel().startswith( 'Enable' ):
-#        item.SetText( item.GetLabel().replace( 'Enable', 'Disable' ) )
-#	self.autoSync = True
-#      else:
-#        item.SetText( item.GetLabel().replace( 'Disable', 'Enable' ) )
-#	self.autoSync = False
-#    #end if
-#  #end _OnAutoSync
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._OnSlicePosition()			-
-  #----------------------------------------------------------------------
-#  def _OnSlicePosition( self, position ):
-#    """Used if automagically firing state changes
-#"""
-#    rec = self.CalcDataState( position )
-#    #print >> sys.stderr, '[Slicer3DView._OnSlicePosition]', str( rec )
-#
-#    if rec is not None:
-#      if rec[ 'assembly_index' ] != self.assemblyIndex:
-#        self.assemblyIndex = rec[ 'assembly_index' ]
-#      else:
-#        del rec[ 'assembly_index' ]
-#
-#      if rec[ 'axial_value' ] != self.axialValue:
-#        self.axialValue = self.data.NormalizeAxialValue( rec[ 'axial_value' ] )
-#      else:
-#        del rec[ 'axial_value' ]
-#
-#      if rec[ 'pin_colrow' ] != self.pinColRow:
-#        self.pinColRow = self.data.NormalizePinColRow( rec[ 'pin_colrow' ] )
-#      else:
-#        del rec[ 'pin_colrow' ]
-#
-##      if self.autoSync and len( rec ) > 0:
-##        self.FireStateChange( **rec )
-#    #end if rec is not None
-#  #end _OnSlicePosition
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.SetDataSet()			-
+  #	METHOD:		Volume3DView.SetDataSet()			-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
     if ds_name != self.pinDataSet:
@@ -540,7 +410,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._UpdateData()			-
+  #	METHOD:		Volume3DView._UpdateData()			-
   #----------------------------------------------------------------------
   def _UpdateData( self ):
     matrix = self._Create3DMatrix()
@@ -552,21 +422,21 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       else:
         self.viz.SetScalarData( matrix, drange )
 
-      self._UpdateSlicePositions()
+      #self._UpdateSlicePositions()
   #end _UpdateData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._UpdateSlicePositions()		-
+  #	METHOD:		Volume3DView._UpdateSlicePositions()		-
   #----------------------------------------------------------------------
-  def _UpdateSlicePositions( self ):
-    pos = self.CalcSlicePosition()
-    self.viz.UpdateView( self.CalcSlicePosition() )
-  #end _UpdateSlicePositions
+#  def _UpdateSlicePositions( self ):
+#    pos = self.CalcSlicePosition()
+#    self.viz.UpdateView( self.CalcSlicePosition() )
+#  #end _UpdateSlicePositions
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.UpdateState()			-
+  #	METHOD:		Volume3DView.UpdateState()			-
   #----------------------------------------------------------------------
   def UpdateState( self, **kwargs ):
     """
@@ -574,7 +444,6 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     self._BusyBegin()
 
     try:
-      #kwargs = self._UpdateStateValues( **kwargs )
       position_changed = kwargs.get( 'position_changed', False )
       data_changed = kwargs.get( 'data_changed', False )
 
@@ -602,27 +471,20 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         self._UpdateData()
 
 #      elif position_changed and self.autoSync:
-      elif position_changed:
-        self._UpdateSlicePositions()
+#        self._UpdateSlicePositions()
     #end try
 
     finally:
       self._BusyEnd()
   #end UpdateState
 
-#end Slicer3DView
+#end Volume3DView
 
 
 #------------------------------------------------------------------------
-#	CLASS:		VolumeSlicer					-
+#	CLASS:		Volume						-
 #------------------------------------------------------------------------
-class VolumeSlicer( HasTraits ):
-
-
-#		-- Class Attributes?
-#		--   (Just copying volume_slicer{_advanced}.py example)
-
-  AXIS_INDEX = dict( x = 0, y = 1, z = 2 )
+class Volume( HasTraits ):
 
 #			-- Must exist for reference to self.dataSource to
 #			-- invoke _dataSource_default()
@@ -634,9 +496,10 @@ class VolumeSlicer( HasTraits ):
 
 #			-- Must exist for references to
 #			-- invoke _ipw3d{XYZ}_default()()
-  ipw3dX = Instance( PipelineBase )
-  ipw3dY = Instance( PipelineBase )
-  ipw3dZ = Instance( PipelineBase )
+  #ipw3dX = Instance( PipelineBase )
+  #ipw3dY = Instance( PipelineBase )
+  #ipw3dZ = Instance( PipelineBase )
+  volume3d = Instance( PipelineBase )
 
   scene3d = Instance( MlabSceneModel, () )
 
@@ -652,7 +515,7 @@ class VolumeSlicer( HasTraits ):
 	  show_labels = False
           ),
       resizable = True
-      #title = 'Volume Slicer'
+      #title = 'Volume'
       )
 
 
@@ -661,82 +524,38 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.__init__()				-
+  #	METHOD:		Volume.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, **traits ):
-    super( VolumeSlicer, self ).__init__( **traits )
+    super( Volume, self ).__init__( **traits )
 
     #self.dataRange = [ 0.0, 10.0 ]
 
-#		-- Force creation of image_plane_widgets for now
+#		-- Force creation of volume
 #		--
-    self.ipw3dX
-    self.ipw3dY
-    self.ipw3dZ
+    self.volume3d
 
-    #self.ipwCut
-    #self.ipwX
-    #self.ipwY
-    #self.ipwZ
-
-    #self.outlineX = None
-    #self.outlineY = None
-    #self.outlineZ = None
-
-    self.slicePosition = [ -1, -1, -1 ]
-    self.slicePositionListener = None
+    #self.slicePosition = [ -1, -1, -1 ]
+    #self.slicePositionListener = None
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.create_3d_ipw()			-
-  #----------------------------------------------------------------------
-  def create_3d_ipw( self, axis ):
-    """
-"""
-    ipw = mlab.pipeline.image_plane_widget(
-	self.dataSource,
-	figure = self.scene3d.mayavi_scene,
-	name = 'Cut ' + axis,
-	plane_orientation = axis + '_axes',
-	vmin = self.dataRange[ 0 ],
-	vmax = self.dataRange[ 1 ]
-        )
-    return  ipw
-  #end create_3d_ipw
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.create_data_source()		-
-  #----------------------------------------------------------------------
-  def create_data_source( self, uaxis ):
-    """Magically called when self.dataSource first referenced
-"""
-    field = mlab.pipeline.scalar_field(
-        self.matrix,
-	figure = getattr( self, 'scene' + uaxis ).mayavi_scene
-	)
-    return  field
-  #end create_data_source
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._dataSource_default()		-
+  #	METHOD:		Volume._dataSource_default()			-
   #----------------------------------------------------------------------
   def _dataSource_default( self ):
     """Magically called when self.dataSource first referenced
 """
-#    field = mlab.pipeline.scalar_field(
-#        self.matrix,
-#	figure = self.scene3d.mayavi_scene
-#	)
-#    return  field
-    return  self.create_data_source( '3d' )
+    field = mlab.pipeline.scalar_field(
+        self.matrix,
+	figure = getattr( self, 'scene3d' ).mayavi_scene
+	)
+    return  field
   #end _dataSource_default
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.display_scene3d()			-
+  #	METHOD:		Volume.display_scene3d()			-
   #----------------------------------------------------------------------
   @on_trait_change( 'scene3d.activated' )
   def display_scene3d( self ):
@@ -748,9 +567,6 @@ class VolumeSlicer( HasTraits ):
 #        )
 
     self.scene3d.mlab.view( 10, 70 )
-
-    for ipw in ( self.ipw3dX, self.ipw3dY, self.ipw3dZ ):
-      ipw.ipw.interaction = 0
 
     self.scene3d.scene.background = ( 0, 0, 0 )
     self.scene3d.scene.interactor.interactor_style = \
@@ -764,37 +580,23 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._ipw3dX_default()			-
+  #	METHOD:		Volume._volume3d_default()			-
   #----------------------------------------------------------------------
-  def _ipw3dX_default( self ):
-    """Magically called when self.ipw3dX first referenced
+  def _volume3d_default( self ):
+    """Magically called when self.volume3d first referenced
 """
-    return  self.create_3d_ipw( 'x' )
-  #end _ipw3dX_default
+    vol = mlab.pipeline.volume(
+	self.dataSource,
+	figure = self.scene3d.mayavi_scene,
+	vmin = self.dataRange[ 0 ],
+	vmax = self.dataRange[ 1 ]
+        )
+    return  vol
+  #end _volume3d_default
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._ipw3dY_default()			-
-  #----------------------------------------------------------------------
-  def _ipw3dY_default( self ):
-    """Magically called when self.ipw3dY first referenced
-"""
-    return  self.create_3d_ipw( 'y' )
-  #end _ipw3dY_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer._ipw3dZ_default()			-
-  #----------------------------------------------------------------------
-  def _ipw3dZ_default( self ):
-    """Magically called when self.ipw3dZ first referenced
-"""
-    return  self.create_3d_ipw( 'z' )
-  #end _ipw3dZ_default
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.GetScalarData()			-
+  #	METHOD:		Volume.GetScalarData()				-
   #----------------------------------------------------------------------
   def GetScalarData( self ):
     return  \
@@ -805,74 +607,61 @@ class VolumeSlicer( HasTraits ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.GetSlicePosition()			-
+  #	METHOD:		Volume.GetSlicePosition()			-
   #----------------------------------------------------------------------
-  def GetSlicePosition( self ):
-    return  self.slicePosition
-  #end GetSlicePosition
+#  def GetSlicePosition( self ):
+#    return  self.slicePosition
+#  #end GetSlicePosition
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.GetSlicePositionListener()		-
+  #	METHOD:		Volume.GetSlicePositionListener()		-
   #----------------------------------------------------------------------
-  def GetSlicePositionListener( self ):
-    return  self.slicePositionListener
-  #end GetSlicePositionListener
+#  def GetSlicePositionListener( self ):
+#    return  self.slicePositionListener
+#  #end GetSlicePositionListener
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.SetScalarData()			-
+  #	METHOD:		Volume.SetScalarData()				-
   #----------------------------------------------------------------------
   def SetScalarData( self, matrix, data_range ):
     self.dataRange = data_range
 
-#    for d in (
-#        self.dataSource, self.dataSourceCut,
-#	self.dataSourceX, self.dataSourceY, self.dataSourceZ
-#	):
     d = self.dataSource
     d.scalar_data = matrix
     d.update()
     d.data_changed = True
     d.update_image_data = True
-    #end for
 
-    #for uaxis in ( 'X', 'Y', 'Z', '3dX', '3dY', '3dZ', 'Cut' ):
-    for uaxis in ( '3dX', '3dY', '3dZ' ):
-      ipw = getattr( self, 'ipw' + uaxis )
-      ipw.module_manager.scalar_lut_manager.data_range = data_range
-    #end for
+    vol = getattr( self, 'volume3d' )
+    vol.module_manager.scalar_lut_manager.data_range = data_range
   #end SetScalarData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.SetSlicePositionListener()		-
+  #	METHOD:		Volume.SetSlicePositionListener()		-
   #----------------------------------------------------------------------
-  def SetSlicePositionListener( self, listener ):
-    """
-@param  listener	func( slice_position ), can be None
-"""
-    self.slicePositionListener = listener
-  #end SetSlicePositionListener
+#  def SetSlicePositionListener( self, listener ):
+#    """
+#@param  listener	func( slice_position ), can be None
+#"""
+#    self.slicePositionListener = listener
+#  #end SetSlicePositionListener
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VolumeSlicer.UpdateView()			-
+  #	METHOD:		Volume.UpdateView()				-
   #----------------------------------------------------------------------
-  def UpdateView( self, position ):
-    #position = obj.GetCurrentCursorPosition()
-    #xxx compute pinRowCol or axialIndex
-    print >> sys.stderr, \
-        '[UpdateView] position=' + str( position )
-    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
-      ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
-      ipw_3d.ipw.slice_position = float( position[ cur_ndx ] )
+#  def UpdateView( self, position ):
+#    print >> sys.stderr, \
+#        '[UpdateView] position=' + str( position )
+#    for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
+#      ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
+#      ipw_3d.ipw.slice_position = float( position[ cur_ndx ] )
+#
+#    #was set on on_slice_change()
+#    self.slicePosition = tuple( position )
+#  #end UpdateView
 
-    #was set on on_slice_change()
-    self.slicePosition = tuple( position )
-
-    #self.class_trait_view().trait_set( title = 'Hello World' )
-    #mlab.title( 'Hello World 2' )
-  #end UpdateView
-
-#end VolumeSlicer
+#end Volume

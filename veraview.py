@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-03-08	leerw@ornl.gov				-
+#	  Added Volume3DView, separators in the toolbar, and the CASL
+#	  logo.
 #		2016-03-07	leerw@ornl.gov				-
 #	  Added Slicer3DView.
 #		2016-03-05	leerw@ornl.gov				-
@@ -91,7 +94,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 31)'
+TITLE = 'VERAView (Build 32)'
 
 TOOLBAR_ITEMS = \
   [
@@ -106,6 +109,7 @@ TOOLBAR_ITEMS = \
     'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.1.32.png',
     'type': 'pin'
     },
+    { 'widget': 'separator' },
     {
     'widget': 'Channel Core 2D View', 'icon': 'Channel2DView.1.32.png',
     'type': 'channel'
@@ -113,14 +117,21 @@ TOOLBAR_ITEMS = \
     {
     'widget': 'Channel Assembly 2D View', 'icon': 'ChannelAssembly2DView.1.32.png', 'type': 'channel'
     },
+    { 'widget': 'separator' },
     {
     'widget': 'Detector 2D View', 'icon': 'Detector2DView.1.32.png',
     'type': 'detector'
     },
+    { 'widget': 'separator' },
     {
     'widget': 'Volume Slicer 3D View', 'icon': 'Slicer3DView.1.32.png',
     'type': 'pin'
     },
+    {
+    'widget': 'Volume 3D View', 'icon': 'Volume3DView.1.32.png',
+    'type': 'pin'
+    },
+    { 'widget': 'separator' },
     {
     'widget': 'Axial Plots', 'icon': 'AllAxialPlot.32.png',
     'type': ''
@@ -147,6 +158,7 @@ WIDGET_MAP = \
 #  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
 #  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
   'Time Plot': 'widget.time_plot.TimePlot',
+  'Volume 3D View': 'view3d.volume_view.Volume3DView',
   'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
   }
 
@@ -695,22 +707,31 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #		-- Widget Tool Bar
 #		--
     # wx.{NO,RAISED,SIMPLE,SUNKEN}_BORDER
+    tbar_panel = wx.Panel( self )
     widget_tbar = \
-        wx.ToolBar( self, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
+      wx.ToolBar( tbar_panel, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
+        #wx.ToolBar( self, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
     self.widgetToolBar = widget_tbar
 
     ti_count = 1
     for ti in TOOLBAR_ITEMS:
-      widget_name = ti[ 'widget' ]
-      widget_im = wx.Image(
-          os.path.join( Config.GetResDir(), ti[ 'icon' ] ),
-	  wx.BITMAP_TYPE_PNG
-	  )
-      widget_tbar.AddTool(
-          ti_count, widget_im.ConvertToBitmap(),
-	  shortHelpString = widget_name
-	  )
-      self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+      widget_icon = ti.get( 'icon' )
+      if widget_icon is None:
+        widget_tbar.AddSeparator()
+
+      else:
+        widget_name = ti[ 'widget' ]
+        widget_im = wx.Image(
+            os.path.join( Config.GetResDir(), widget_icon ),
+	    wx.BITMAP_TYPE_PNG
+	    )
+        widget_tbar.AddTool(
+            ti_count, widget_im.ConvertToBitmap(),
+	    shortHelpString = widget_name
+	    )
+        self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+      #end if-else
+
       ti_count += 1
     #end for
 
@@ -724,6 +745,18 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
 
     widget_tbar.Realize()
+
+    logo_im = wx.Image(
+        os.path.join( Config.GetResDir(), 'casl-logo.32.png' ),
+	wx.BITMAP_TYPE_PNG
+	)
+    tbar_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    tbar_sizer.Add( widget_tbar, 1, wx.ALL | wx.EXPAND )
+    tbar_sizer.Add(
+	wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() ),
+	0, wx.ALL | wx.ALIGN_RIGHT
+        )
+    tbar_panel.SetSizer( tbar_sizer )
 
 #		-- Status Bar
 #		--
@@ -765,7 +798,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
     inside_panel.SetSizer( inside_sizer )
 
     vbox = wx.BoxSizer( wx.VERTICAL )
-    vbox.Add( widget_tbar, 0, wx.EXPAND, 0 )
+    #vbox.Add( widget_tbar, 0, wx.EXPAND, 0 )
+    vbox.Add( tbar_panel, 0, wx.EXPAND, 0 )
     vbox.Add( inside_panel, 1, wx.EXPAND, 0 )
     vbox.Add( self.exposureBean, 0, wx.ALL | wx.EXPAND, 1 )
     self.SetSizer( vbox )
