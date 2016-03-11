@@ -893,10 +893,10 @@ Must be called from the UI thread.
 #		-- Pin Mode
 #		--
     if len( data.GetDataSetNames()[ 'pin' ] ) > 0:
-      widget_list.append( 'widget.assembly_view.Assembly2DView' )
       if data.core.nax > 1:
 	axial_plot_types.add( 'pin' )
-        #widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
+        widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
+      widget_list.append( 'widget.assembly_view.Assembly2DView' )
 
 #		-- Axial Plot?
 #		--

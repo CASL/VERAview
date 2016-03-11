@@ -1039,7 +1039,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	gc = wx.GraphicsContext.Create( dc )
 	gc.SetPen(
 	    wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 255, 255, 255 ), line_wd, wx.PENSTYLE_SOLID
+	        wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
 		)
 	    )
 	path = gc.CreatePath()

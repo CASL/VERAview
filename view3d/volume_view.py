@@ -569,7 +569,7 @@ class Volume( HasTraits ):
 
     self.vscene3d.mlab.view( 10, 70 )
 
-    self.vscene3d.scene.background = ( 0, 0, 0 )
+    self.vscene3d.scene.background = ( 0.925, 0.925, 0.925 )
     self.vscene3d.scene.interactor.interactor_style = \
         tvtk.InteractorStyleTerrain()
 
@@ -591,6 +591,7 @@ class Volume( HasTraits ):
 	figure = self.vscene3d.mayavi_scene,
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
+	#opacity = 1.0
         )
     return  vol
   #end _volume3d_default

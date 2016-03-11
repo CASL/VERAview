@@ -126,7 +126,8 @@ Properties:
         self.axline.set_visible( False )
 
       self.fig.savefig(
-          file_path, dpi = 144, format = 'png', orientation = 'landscape'
+          file_path, dpi = 144, format = 'png', orientation = 'landscape',
+	  facecolor = self.fig.get_facecolor()
 	  )
       result = file_path
 
@@ -216,7 +217,7 @@ are axial values.
 """
     dpis = wx.ScreenDC().GetPPI()
     size = ( WIDGET_PREF_SIZE[ 0 ] / dpis[ 0 ], WIDGET_PREF_SIZE[ 1 ] / dpis[ 0 ] )
-    self.fig = Figure( figsize = size, dpi = dpis[ 0 ] )
+    self.fig = Figure( facecolor = '#ececec', figsize = size, dpi = dpis[ 0 ] )
 
     self._InitAxes()
 #    if two_axes:

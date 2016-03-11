@@ -755,7 +755,8 @@ class VolumeSlicer( HasTraits ):
     for ipw in ( self.ipw3dX, self.ipw3dY, self.ipw3dZ ):
       ipw.ipw.interaction = 0
 
-    self.scene3d.scene.background = ( 0, 0, 0 )
+    #self.scene3d.scene.background = ( 0, 0, 0 )
+    self.scene3d.scene.background = ( 0.925, 0.925, 0.925 )
     self.scene3d.scene.interactor.interactor_style = \
         tvtk.InteractorStyleTerrain()
 
