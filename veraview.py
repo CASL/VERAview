@@ -66,7 +66,7 @@
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import argparse, os, sys, threading, traceback
-#import pdb  # set_trace()
+import pdb  # set_trace()
 
 try:
   import wx
@@ -421,6 +421,8 @@ class VeraViewFrame( wx.Frame ):
     self.grid._FreezeWidgets()
     grid_sizer.Add( wc, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
     self.grid.Layout()
+#		-- If you don't call Fit() here, the window will not grow
+#		-- with the addition of new widgets
     if must_fit:
       self.Fit()
     self.grid._FreezeWidgets( False )
@@ -916,10 +918,14 @@ Must be called from the UI thread.
     axial_plot_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )
-      if con != None and con.widget.GetTitle() == 'Axial Plots':
+      print >> sys.stderr, \
+          '[VeraViewFrame.LoadDataModel] added="%s", size=%s' % \
+	  ( w, str( self.grid.GetSize() ) )
+      if con is not None and con.widget.GetTitle() == 'Axial Plots':
         axial_plot_widget = con.widget
     #end for
 
+    #xxxxx this must be called other places when CreateWidget() is called
     if axial_plot_widget is not None:
       axial_plot_widget.InitDataSetSelections( axial_plot_types )
     #end if
@@ -1599,6 +1605,10 @@ class VeraViewGrid( wx.Panel ):
     item_ht = int( math.floor( size[ 1 ] / sizer.GetRows() ) )
 
     temp_wd = int( math.floor( item_ht * WIDGET_PREF_RATIO ) )
+#    if temp_wd > item_wd:
+#      item_wd = temp_wd
+#    else:
+#      item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
     if temp_wd > item_wd:
       item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
     else:
