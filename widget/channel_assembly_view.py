@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added _OnFindMax().
 #		2016-02-19	leerw@ornl.gov				-
 #	  Added copy selection.
 #		2016-02-10	leerw@ornl.gov				-
@@ -852,7 +854,18 @@ attributes/properties that aren't already set in _LoadDataModel():
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget._OnTogglePins()			-
+  #	METHOD:		ChannelAssembly2DView._OnFindMax()		-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Calls _OnFindMaxChannel().
+"""
+    if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
+      self._OnFindMaxChannel( state_mode, self.channelDataSet )
+  #end _OnFindMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView._OnTogglePins()		-
   #----------------------------------------------------------------------
   def _OnTogglePins( self, ev ):
     """Must be called on the UI thread.

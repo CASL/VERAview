@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added xx.
 #		2016-02-12	leerw@ornl.gov				-
 #		2016-02-10	leerw@ornl.gov				-
 #	  Fixed bug where core.npinx and core.npiny were not being assigned
@@ -756,6 +758,23 @@ passed, Read() must be called.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateAssemblyIndexFromIndex()	-
+  #----------------------------------------------------------------------
+  def CreateAssemblyIndexFromIndex( self, assy_ndx ):
+    """Creates tuple from the column and row indexes.
+@param  assy_ndx	0-based assembly index
+@return			0-based ( assy_ndx, col, row )
+"""
+    result = ( -1, -1 -1 )
+    places = np.argwhere( self.core.coreMap == assy_ndx + 1 )
+    if len( places ) > 0:
+      place = places[ -1 ]
+      result = ( assy_ndx, place[ 1 ], place[ 0 ] )
+    return  result
+  #end CreateAssemblyIndexFromIndex
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.CreateAxialValue()			-
   #----------------------------------------------------------------------
   def CreateAxialValue( self, **kwargs ):
@@ -929,6 +948,39 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateDetectorIndex()			-
+  #----------------------------------------------------------------------
+  def CreateDetectorIndex( self, col, row ):
+    """Creates tuple from the column and row indexes.
+@param  col		0-based column index
+@param  row		0-based row index
+@return			0-based ( det_ndx, col, row )
+"""
+    return \
+        ( self.core.detectorMap[ row, col ], col, row ) \
+	if self.core is not None else \
+	( -1, -1, -1 )
+  #end CreateDetectorIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateDetectorIndexFromIndex()	-
+  #----------------------------------------------------------------------
+  def CreateDetectorIndexFromIndex( self, det_ndx ):
+    """Creates tuple from the column and row indexes.
+@param  det_ndx		0-based detector index
+@return			0-based ( det_ndx, col, row )
+"""
+    result = ( -1, -1 -1 )
+    places = np.argwhere( self.core.detectorMap == det_ndx + 1 )
+    if len( places ) > 0:
+      place = places[ -1 ]
+      result = ( det_ndx, place[ 1 ], place[ 0 ] )
+    return  result
+  #end CreateDetectorIndexFromIndex
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.ExtractSymmetryExtent()		-
   #----------------------------------------------------------------------
   def ExtractSymmetryExtent( self ):
@@ -1033,6 +1085,45 @@ descending.
 
     return  match_ndx
   #end FindListIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindMaxValueAddr()			-
+  #----------------------------------------------------------------------
+  def FindMaxValueAddr( self, ds_name, state_ndx ):
+    """Finds the first address of the max value
+@param  ds_name		name of dataset to search
+@param  state_ndx	0-based state point index, or -1 for all states
+@return			( addr indices or None, state_ndx )
+"""
+    addr = None
+
+    if ds_name is None:
+      pass
+
+    elif state_ndx >= 0:
+      dset = self.GetStateDataSet( state_ndx, ds_name )
+      if dset:
+        x = np.nanargmax( dset.value )
+	addr = np.unravel_index( x, dset.shape )
+
+    else:
+      max_value = -sys.float_info.max
+      for st in range( len( self.states ) ):
+        dset = self.GetStateDataSet( st, ds_name )
+	if dset:
+	  x = np.nanargmax( dset.value )
+	  cur_addr = np.unravel_index( x, dset.shape )
+	  cur_max = dset.value[ cur_addr ]
+	  if cur_max > max_value:
+	    addr = cur_addr
+	    state_ndx = st
+	    max_value = cur_max
+      #end for
+    #end else all states
+
+    return  addr, state_ndx
+  #end FindMaxValueAddr
 
 
   #----------------------------------------------------------------------

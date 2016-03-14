@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		exposure_slider.py				-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Setting page size.
 #		2016-02-20	leerw@ornl.gov				-
 #	  Added {Decr,Incr}ement() methods.
 #		2015-03-11	leerw@ornl.gov				-
@@ -150,6 +152,7 @@ Attributes/properties:
 	pos = wx.DefaultPosition, size = ( -1, -1 ),
 	style = wx.SL_HORIZONTAL | wx.SL_AUTOTICKS | wx.SL_LABELS
 	)
+    self.fSlider.SetPageSize( 1 )
     self.fSlider.Bind( wx.EVT_SCROLL, self._OnSlider )
     self.fSlider.Disable()
 

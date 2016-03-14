@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added _OnFindMax().
 #		2016-03-07	leerw@ornl.gov				-
 #	  Adding numbers for 'asy_' datasets.
 #		2016-02-29	leerw@ornl.gov				-
@@ -1291,6 +1293,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     else:
       self._SetMode( 'core' )
   #end _OnDragFinished
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnFindMax()				-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Calls _OnFindMaxPin().
+"""
+    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+      self._OnFindMaxPin( state_mode, self.pinDataSet )
+  #end _OnFindMax
 
 
   #----------------------------------------------------------------------

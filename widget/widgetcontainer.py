@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added _CreateMenuFromDef() for recursive menu definition.
 #		2016-03-06	leerw@ornl.gov				-
 #	  Using Widget.GetBitmap() for all icon images.
 #		2016-02-08	leerw@ornl.gov				-
@@ -198,6 +200,45 @@ Must be called on the UI thread.
 
     return  file_path
   #end _CheckAndPromptForAnimatedImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateMenuFromDef()				-
+  #----------------------------------------------------------------------
+  def _CreateMenuFromDef( self, menu, menu_def ):
+    """Given a menu definition, creates the menu with any necessary
+pullrights.  Can be called recursively.  A menu definition is a list
+of tuples defining entries.  A tuple has two entries, the first of which
+is the name.  The special name '-' specifies a separator.  The second
+entry in the tuple can be a handle function for an item or another
+definition array for a pullright.
+
+@param  menu		wxMenu to populate or None to create one
+@param  menu_def	menu definition list
+@return			menu or created menu
+"""
+    if menu_def is not None:
+      if menu is None:
+        menu = wx.Menu()
+
+      for label, handler_or_def, in menu_def:
+        if label == '-':
+	  menu.AppendSeparator()
+
+        elif isinstance( handler_or_def, list ):
+	  pullright = self._CreateMenuFromDef( None, handler_or_def )
+	  item = wx.MenuItem( menu, wx.ID_ANY, label, subMenu = pullright )
+	  menu.AppendItem( item )
+
+        else:
+          item = wx.MenuItem( menu, wx.ID_ANY, label )
+          self.Bind( wx.EVT_MENU, handler_or_def, item )
+	  menu.AppendItem( item )
+      #end for
+    #end if menu_def not None
+
+    return  menu
+  #end _CreateMenuFromDef
 
 
   #----------------------------------------------------------------------
@@ -503,15 +544,18 @@ Must be called on the UI thread.
     widget_menu_def = self.widget.GetMenuDef( data_model )
     if widget_menu_def is not None:
       self.widgetMenu.AppendSeparator()
-      for label, handler in widget_menu_def:
-	if label == '-':
-          self.widgetMenu.AppendSeparator()
-	else:
-          item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
-          self.Bind( wx.EVT_MENU, handler, item )
-	  self.widgetMenu.AppendItem( item )
-      #end for
-    #end if widget_menu_def exists
+      self._CreateMenuFromDef( self.widgetMenu, widget_menu_def )
+#    if widget_menu_def is not None:
+#      self.widgetMenu.AppendSeparator()
+#      for label, handler in widget_menu_def:
+#	if label == '-':
+#          self.widgetMenu.AppendSeparator()
+#	else:
+#          item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
+#          self.Bind( wx.EVT_MENU, handler, item )
+#	  self.widgetMenu.AppendItem( item )
+#      #end for
+#    #end if widget_menu_def exists
 
 #		-- Widget menu button
 #		--

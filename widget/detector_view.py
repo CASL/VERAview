@@ -572,8 +572,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    )
 	cell_y = max( self.cellRange[ 1 ], cell_y )
 
-	det_ndx = self.data.core.detectorMap[ cell_y, cell_x ] - 1
-	result = ( det_ndx, cell_x, cell_y )
+	result = self.data.CreateDetectorIndex( cell_x, cell_y )
+	#det_ndx = self.data.core.detectorMap[ cell_y, cell_x ] - 1
+	#result = ( det_ndx, cell_x, cell_y )
       #end if event within display
     #end if we have data
 
@@ -737,6 +738,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       self.FireStateChange( detector_index = det )
     #end if valid
   #end _OnClick
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DView._OnFindMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Calls _OnFindMaxDetector().
+"""
+    if DataModel.IsValidObj( self.data ) and self.detectorDataSet is not None:
+      self._OnFindMaxDetector( state_mode, self.detectorDataSet )
+  #end _OnFindMax
 
 
   #----------------------------------------------------------------------

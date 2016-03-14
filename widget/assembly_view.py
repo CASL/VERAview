@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added _OnFindMax().
 #		2016-02-18	leerw@ornl.gov				-
 #	  Added copy selection.
 #		2016-02-10	leerw@ornl.gov				-
@@ -809,6 +811,17 @@ attributes/properties that aren't already set in _LoadDataModel():
         self.FireStateChange( pin_colrow = pin_addr )
     #end if valid
   #end _OnClick
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._OnFindMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Calls _OnFindMaxPin().
+"""
+    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+      self._OnFindMaxPin( state_mode, self.pinDataSet )
+  #end _OnFindMax
 
 
   #----------------------------------------------------------------------

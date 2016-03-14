@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added _OnFindMax().
 #		2016-03-05	leerw@ornl.gov				-
 #	  Single widget with tool button for toggling slice axis.
 #		2016-03-04	leerw@ornl.gov				-
@@ -1009,6 +1011,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     pass
   #end _OnDragFinished
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._OnFindMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Calls _OnFindMaxPin().
+"""
+    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+      self._OnFindMaxPin( state_mode, self.pinDataSet )
+  #end _OnFindMax
 
 
   #----------------------------------------------------------------------

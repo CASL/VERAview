@@ -349,18 +349,7 @@ or append items.
     """Populates self.popupMenu from self.GetMenuDef().
 Must be called from the UI thread.
 """
-    popup_menu = wx.Menu()
-
-    for label, handler in self.GetMenuDef( None ):
-      if label == '-':
-        popup_menu.AppendSeparator()
-      else:
-        item = wx.MenuItem( popup_menu, wx.ID_ANY, label )
-        self.Bind( wx.EVT_MENU, handler, item )
-        popup_menu.AppendItem( item )
-    #end for
-
-    return  popup_menu
+    return  self.container._CreateMenuFromDef( None, self.GetMenuDef( None ) )
   #end _CreatePopupMenu
 
 

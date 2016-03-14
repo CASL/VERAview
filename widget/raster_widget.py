@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added menu options to find maximum values.
 #		2016-02-29	leerw@ornl.gov				-
 #	  Added Redraw() to call _OnSize( None ).
 #		2016-01-25	leerw@ornl.gov				-
@@ -26,7 +28,7 @@
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
-import math, os, string, sys, threading
+import functools, math, os, string, sys, threading
 import numpy as np
 import pdb  #pdb.set_trace()
 #import time, traceback
@@ -352,8 +354,19 @@ specified, a default scale value of 8 is used.
     """
 """
     menu_def = super( RasterWidget, self )._CreateMenuDef( data_model )
+
+    find_max_def = \
+      [
+        ( 'All State Points',
+	   functools.partial( self._OnFindMax, 'all' ) ),
+        ( 'Current State Point',
+	   functools.partial( self._OnFindMax, 'current' ) )
+      ]
+
     raster_def = \
       [
+	( '-', None ),
+	( 'Find Maximum', find_max_def ),
 	( '-', None ),
 	( 'Hide Labels', self._OnToggleLabels ),
 	( 'Hide Legend', self._OnToggleLegend ),
@@ -899,6 +912,141 @@ This implementation is a noop.
 """
     pass
   #end _OnDragFinished
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._OnFindMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Must be handled in subclasses.  This implementation is a noop.
+Note subclasses can override to call _OnFindMaxChannel(), _OnFindMaxDetector(),
+or _OnFindMaxPin().
+@param  state_mode	either 'all' or 'current'
+@param  ev		menu event
+"""
+    pass
+  #end _OnFindMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._OnFindMaxChannel()		-
+  #----------------------------------------------------------------------
+  def _OnFindMaxChannel( self, state_mode, ds_name ):
+    """Handles 'channel' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, channel_colrow, and/or
+state_index changes.
+@param  state_mode	either 'all' or 'current'
+@param  ds_name		name of dataset
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      addr, state_ndx = self.data.FindMaxValueAddr(
+          ds_name,
+	  -1 if state_mode == 'all' else self.stateIndex
+	  )
+
+    if addr is not None:
+      if addr[ 3 ] != self.assemblyIndex[ 0 ]:
+        assy_ndx = self.data.CreateAssemblyIndexFromIndex( addr[ 3 ] )
+	if assy_ndx[ 0 ] >= 0:
+	  update_args[ 'assembly_index' ] = assy_ndx
+
+      if addr[ 0 ] != self.channelColRow[ 1 ] or \
+          addr[ 1 ] != self.channelColRow[ 0 ]:
+        update_args[ 'channel_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+
+      if addr[ 2 ] != self.axialValue[ 1 ]:
+	axial_value = self.data.CreateAxialValue( core_ndx = addr[ 2 ] )
+	if axial_value[ 0 ] >= 0.0:
+          update_args[ 'axial_value' ] = axial_value
+
+      if state_ndx != self.stateIndex:
+        update_args[ 'state_index' ] = state_ndx
+    #end if addr not None
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxChannel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._OnFindMaxDetector()		-
+  #----------------------------------------------------------------------
+  def _OnFindMaxDetector( self, state_mode, ds_name ):
+    """Handles 'channel' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, channel_colrow, and/or
+state_index changes.
+@param  state_mode	either 'all' or 'current'
+@param  ds_name		name of dataset
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      addr, state_ndx = self.data.FindMaxValueAddr(
+          ds_name,
+	  -1 if state_mode == 'all' else self.stateIndex
+	  )
+
+    if addr is not None:
+      if addr[ 1 ] != self.detectorIndex[ 0 ]:
+        det_ndx = self.data.CreateDetectorIndexFromIndex( addr[ 1 ] )
+	if det_ndx[ 0 ] >= 0:
+	  update_args[ 'detector_index' ] = det_ndx
+
+      if addr[ 0 ] != self.axialValue[ 2 ]:
+	axial_value = self.data.CreateAxialValue( detector_ndx = addr[ 0 ] )
+	if axial_value[ 0 ] >= 0.0:
+          update_args[ 'axial_value' ] = axial_value
+
+      if state_ndx != self.stateIndex:
+        update_args[ 'state_index' ] = state_ndx
+    #end if addr not None
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxDetector
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._OnFindMaxPin()			-
+  #----------------------------------------------------------------------
+  def _OnFindMaxPin( self, state_mode, ds_name ):
+    """Handles 'pin' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, pin_colrow, and/or
+state_index changes.
+@param  state_mode	either 'all' or 'current'
+@param  ds_name		name of dataset
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      addr, state_ndx = self.data.FindMaxValueAddr(
+          ds_name,
+	  -1 if state_mode == 'all' else self.stateIndex
+	  )
+
+    if addr is not None:
+      if addr[ 3 ] != self.assemblyIndex[ 0 ]:
+        assy_ndx = self.data.CreateAssemblyIndexFromIndex( addr[ 3 ] )
+	if assy_ndx[ 0 ] >= 0:
+	  update_args[ 'assembly_index' ] = assy_ndx
+
+      if addr[ 0 ] != self.pinColRow[ 1 ] or addr[ 1 ] != self.pinColRow[ 0 ]:
+        update_args[ 'pin_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+
+      if addr[ 2 ] != self.axialValue[ 1 ]:
+	axial_value = self.data.CreateAxialValue( core_ndx = addr[ 2 ] )
+	if axial_value[ 0 ] >= 0.0:
+          update_args[ 'axial_value' ] = axial_value
+
+      if state_ndx != self.stateIndex:
+        update_args[ 'state_index' ] = state_ndx
+    #end if addr not None
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxPin
 
 
   #----------------------------------------------------------------------

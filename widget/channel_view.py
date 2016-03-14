@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-03-14	leerw@ornl.gov				-
+#	  Added _OnFindMax().
 #		2016-02-29	leerw@ornl.gov				-
 #	  Calling Redraw() instead of _OnSize( None ).
 #		2016-02-19	leerw@ornl.gov				-
@@ -1153,6 +1155,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     else:
       self._SetMode( 'core' )
   #end _OnDragFinished
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView._OnFindMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, state_mode, ev ):
+    """Calls _OnFindMaxChannel().
+"""
+    if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
+      self._OnFindMaxChannel( state_mode, self.channelDataSet )
+  #end _OnFindMax
 
 
   #----------------------------------------------------------------------
