@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-03-16	leerw@ornl.gov				-
+#	  Playing with grid sizing when adding widgets, might finally
+#	  have a workable solution.
 #		2016-03-08	leerw@ornl.gov				-
 #	  Added Volume3DView, separators in the toolbar, and the CASL
 #	  logo.
@@ -400,16 +403,18 @@ class VeraViewFrame( wx.Frame ):
   #----------------------------------------------------------------------
   def _AddWidgetContainer( self, wc, refit_flag = True ):
     """Called by Create[23]DWidget() to add a grid with the container.
+The hackit deal is pure ugliness but seems necessary given the weirdess
+in GridSizer when adding grids.
 @param  wc		WidgetContainer instance to add
 @param  refit_flag	True to refit the window after adding
 """
-    must_fit = False
+#    grow_flag = False
+    grow_flag = True
     grid_sizer = self.grid.GetSizer()
-    #widget_count = len( self.grid.GetChildren() ) + 1
     widget_count = len( self.grid.GetChildren() )
     widget_space = grid_sizer.GetCols() * grid_sizer.GetRows()
     if widget_count > widget_space:
-      must_fit = True
+#      grow_flag = True
       if widget_space == 1:
         grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
       elif grid_sizer.GetCols() > grid_sizer.GetRows():
@@ -422,13 +427,15 @@ class VeraViewFrame( wx.Frame ):
     grid_sizer.Add( wc, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
     self.grid.Layout()
 #		-- If you don't call Fit() here, the window will not grow
-#		-- with the addition of new widgets
-    if must_fit:
+#		-- with the addition of the new widget
+    if grow_flag:
       self.Fit()
-    self.grid._FreezeWidgets( False )
+    #self.grid._FreezeWidgets( False )
 
     if refit_flag:
-      wx.CallAfter( self._Refit )
+      wx.CallAfter( self._Refit, False, self.grid._FreezeWidgets, False )
+    else:
+      self.grid._FreezeWidgets( False )
   #end _AddWidgetContainer
 
 
@@ -552,7 +559,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
       self.grid._FreezeWidgets( False )
 
       if refit_flag:
-        wx.CallAfter( self._Refit )
+        wx.CallAfter( self._Refit, False )
 
       return  con
 
@@ -913,8 +920,14 @@ Must be called from the UI thread.
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
 #    widget_list = [
-#        'widget.core_view.Core2DView', 'widget.core_axial_view.CoreXZView'
-#	]
+#        'widget.core_view.Core2DView',
+#	'widget.core_axial_view.CoreAxial2DView',
+#	'widget.assembly_view.Assembly2DView',
+#	'widget.channel_view.Channel2DView',
+#	'widget.channel_assembly_view.ChannelAssembly2DView',
+#        'widget.all_axial_plot.AllAxialPlot',
+#        'widget.time_plot.TimePlot',
+#        ]
     axial_plot_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )
@@ -939,7 +952,7 @@ Must be called from the UI thread.
 
 #		-- Refit
 #		--
-    self._Refit()
+    self._Refit( True )
     self.GetStatusBar().SetStatusText( 'Data model loaded' )
 
 #		-- Set bean ranges
@@ -1043,7 +1056,7 @@ Must be called from the UI thread.
 
     tbar = ev.GetEventObject()
     if ev.GetId() == ID_REFIT_WINDOW:
-      self._Refit()
+      self._Refit( True )
   #end _OnControlTool
 
 
@@ -1157,8 +1170,7 @@ Must be called from the UI thread.
       if proceed:
         grid_sizer.SetRows( new_size[ 0 ] )
         grid_sizer.SetCols( new_size[ 1 ] )
-        #self.grid.FitWidgets()
-	self._Refit()
+	self._Refit( True )
     #end if different size
   #end _OnGridResize
 
@@ -1184,17 +1196,6 @@ Must be called from the UI thread.
     item = menu.FindItemById( ev.GetId() )
     if item is not None and item.GetLabel() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetLabel() ] )
-      #self._Refit()
-
-#    menu_id = ev.GetId()
-#    for item in menu.GetMenuItems():
-#      if item.GetId() == menu_id:
-#        title = item.GetLabel()
-#	break
-#    #end for
-
-#    if title is not None and title in WIDGET_MAP:
-#      self.CreateWidget( WIDGET_MAP[ title ] )
   #end _OnNew
 
 
@@ -1349,7 +1350,6 @@ Must be called on the UI event thread.
     item = tbar.FindById( ev.GetId() )
     if item is not None and item.GetShortHelp() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetShortHelp() ] )
-      #self._Refit()
   #end _OnWidgetTool
 
 
@@ -1487,9 +1487,19 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._Refit()				-
   #----------------------------------------------------------------------
-  def _Refit( self ):
-    self.grid.FitWidgets()
+  def _Refit( self, apply_widget_ratio = False, *additionals ):
+    display_size = wx.DisplaySize()
+    new_size = self.GetSize()
+    if new_size[ 0 ] > display_size[ 0 ] or \
+        new_size[ 1 ] > display_size[ 1 ]:
+      if not self.IsMaximized():
+        self.Maximize()
+
+    self.grid.FitWidgets( apply_widget_ratio )
     self.Fit()
+
+    if additionals:
+      additionals[ 0 ]( *additionals[ 1 : ] )
   #end _Refit
 
 
@@ -1596,7 +1606,7 @@ class VeraViewGrid( wx.Panel ):
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewGrid.CalcWidgetSize()			-
   #----------------------------------------------------------------------
-  def CalcWidgetSize( self ):
+  def CalcWidgetSize( self, apply_widget_ratio = False ):
     sizer = self.GetSizer()
     size = self.GetClientSize()
 
@@ -1604,15 +1614,13 @@ class VeraViewGrid( wx.Panel ):
     item_wd = int( math.floor( size[ 0 ] / sizer.GetCols() ) )
     item_ht = int( math.floor( size[ 1 ] / sizer.GetRows() ) )
 
-    temp_wd = int( math.floor( item_ht * WIDGET_PREF_RATIO ) )
-#    if temp_wd > item_wd:
-#      item_wd = temp_wd
-#    else:
-#      item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
-    if temp_wd > item_wd:
-      item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
-    else:
-      item_wd = temp_wd
+    if apply_widget_ratio:
+      temp_wd = int( math.floor( item_ht * WIDGET_PREF_RATIO ) )
+      if temp_wd > item_wd:
+        item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
+      else:
+        item_wd = temp_wd
+    #end if apply_widget_ratio
 
     return  ( item_wd, item_ht )
   #end CalcWidgetSize
@@ -1639,31 +1647,9 @@ class VeraViewGrid( wx.Panel ):
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewGrid.FitWidgets()			-
   #----------------------------------------------------------------------
-  def FitWidgets( self ):
-    self._ResizeWidgets( self.CalcWidgetSize() )
+  def FitWidgets( self, apply_widget_ratio = False ):
+    self._ResizeWidgets( self.CalcWidgetSize( apply_widget_ratio ) )
   #end FitWidgets
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewGrid.FitWidgets_orig()			-
-  #----------------------------------------------------------------------
-  def FitWidgets_orig( self ):
-    sizer = self.GetSizer()
-    #size = self.GetSize()
-    size = self.GetClientSize()
-
-#		-- Works b/c there's no border or margin
-    item_wd = int( math.floor( size[ 0 ] / sizer.GetCols() ) )
-    item_ht = int( math.floor( size[ 1 ] / sizer.GetRows() ) )
-
-    temp_wd = int( math.floor( item_ht * WIDGET_PREF_RATIO ) )
-    if temp_wd > item_wd:
-      item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
-    else:
-      item_wd = temp_wd
-
-    self._ResizeWidgets( ( item_wd, item_ht ) )
-  #end FitWidgets_orig
 
 
   #----------------------------------------------------------------------
