@@ -82,13 +82,16 @@ class AnimatorThreads( object ):
 """
     fnames = glob.glob( os.path.join( temp_dir, '*.png' ) )
     for f in sorted( fnames ):
+      #xxxx Use PIL
       # subprocess.call() fails on Windows
       os.system( 'convert "%s" "%s.gif"' % ( f, f ) )
 
     os.system(
-        'convert -dispose Background -delay 50 -loop 99 "%s" "%s"' % \
+        'gifsicle --disposal=background --delay=50 --loop "%s" -o "%s"' % \
         ( os.path.join( temp_dir, '*.gif' ), file_path )
         )
+#        'convert -dispose Background -delay 50 -loop 99 "%s" "%s"'
+# gifsicle --disposal=background --delay=50 --loop "%s" -o "%s"
 
 #               -- Create HTML file
 #               --

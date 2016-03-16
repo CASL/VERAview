@@ -14,10 +14,20 @@ set CanopyUserDir=%userprofile%\AppData\Local\Enthought\Canopy\User
 if exist "%CanopyUserDir%\python.exe" goto found
 echo msgbox "Canopy installation not found.  Edit this script to set the CanopyUserDir variable." > %temp%\msg.vbs
 call "%temp%\msg.vbs"
+goto finished
 
 
 :found
+if "%PROCESSOR_ARCHITECTURE%" = "x86" goto x86
+path=%VERAViewDir%ImageMagick\win.64;%path%
+goto launch
+:x86
+path=%VERAViewDir%ImageMagick\win.32;%path%
+
+:launch
 set PYTHONPATH=%VERAViewDir%;%PYTHONPATH%
 "%CanopyUserDir%\python" "%VERAViewDir%veraview.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
 
+
+:finished
 endlocal

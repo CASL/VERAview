@@ -11,6 +11,8 @@ CanopyUserBinDir=$HOME/Enthought/Canopy_64bit/User/bin
 
 if [ -x "${CanopyUserBinDir}/python" ]; then
   export ETS_TOOLKIT=wx
+  export LD_LIBRARY_PATH="${VERAViewDir}/ImageMagick/linux64/lib:${LD_LIBRARY_PATH}"
+  export PATH="${VERAViewDir}/ImageMagick/linux64:${PATH}"
   export PYTHONPATH=${VERAViewDir}:${PYTHONPATH}
   exec ${CanopyUserBinDir}/python "${VERAViewDir}/veraview.py" "$@"
 

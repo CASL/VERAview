@@ -402,22 +402,14 @@ Must be called from the UI thread.
   #	METHOD:		RasterWidget.CreatePrintImage()			-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
-#    wx_im = None
-
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
     pil_im = self._CreateRasterImage( self._CreateStateTuple() )
-#    wx_im = wx.EmptyImage( *pil_im.size )
 
-#    pil_im_data_str = pil_im.convert( 'RGB' ).tobytes()
-#    wx_im.SetData( pil_im_data_str )
-
-#    pil_im_data_str = pil_im.convert( 'RGBA' ).tobytes()
-#    wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
-#    #return  wx_im
-
-#    wx_im.SaveFile( file_path, wx.BITMAP_TYPE_PNG )
     if pil_im is not None:
       pil_im.save( file_path, 'PNG' )
+#      pil_im2 = PIL.Image.new( "RGBA", pil_im.size, ( 236, 236, 236, 255 ) )
+#      pil_im2.paste( pil_im, ( 0, 0 ), pil_im )
+#      pil_im2.save( file_path.replace( '.png', '.gif' ), 'GIF' )
     return  file_path
   #end CreatePrintImage
 
