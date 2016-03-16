@@ -743,11 +743,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		Detector2DView._OnFindMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMax( self, state_mode, ev ):
+  def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxDetector().
 """
     if DataModel.IsValidObj( self.data ) and self.detectorDataSet is not None:
-      self._OnFindMaxDetector( state_mode, self.detectorDataSet )
+      self._OnFindMaxDetector( self.detectorDataSet, all_states_flag )
   #end _OnFindMax
 
 

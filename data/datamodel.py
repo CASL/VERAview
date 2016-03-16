@@ -3,8 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-03-16	leerw@ornl.gov				-
+#	  Moved FindMax() methods from RasterWidget to here, where it
+#	  belongs.
 #		2016-03-14	leerw@ornl.gov				-
-#	  Added xx.
 #		2016-02-12	leerw@ornl.gov				-
 #		2016-02-10	leerw@ornl.gov				-
 #	  Fixed bug where core.npinx and core.npiny were not being assigned
@@ -1027,6 +1029,133 @@ dimensions.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindChannelMaxValue()			-
+  #----------------------------------------------------------------------
+  def FindChannelMaxValue( self, ds_name, state_ndx, cur_obj = None ):
+    """Creates a dict with channel addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'channel' dataset.
+If cur_state is provided, only differences with the current state are
+returned.  Calls FindMaxValueAddr().
+@param  ds_name		name of dataset
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyIndex, axialValue,
+			channelColRow, stateIndex
+@return			dict with possible keys: 'assembly_index',
+			'axial_value', 'channel_colrow', 'state_index'
+"""
+    results = {}
+
+    addr, state_ndx = self.FindMaxValueAddr( ds_name, state_ndx )
+
+    if addr is None:
+      pass
+
+    elif cur_obj is None:
+      assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
+      if assy_ndx[ 0 ] >= 0:
+        results[ 'assembly_index' ] = assy_ndx
+
+      axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
+      if axial_value[ 0 ] >= 0.0:
+        results[ 'axial_value' ] = axial_value
+
+      results[ 'channel_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+      results[ 'state_index' ] = state_ndx
+
+    else:
+      skip = hasattr( cur_obj, 'assemblyIndex' ) and \
+          getattr( cur_obj, 'assemblyIndex' )[ 0 ] == addr[ 3 ]
+      if not skip:
+	assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
+	if assy_ndx[ 0 ] >= 0:
+          results[ 'assembly_index' ] = assy_ndx
+
+      skip = hasattr( cur_obj, 'axialValue' ) and \
+          getattr( cur_obj, 'axialValue' )[ 1 ] == addr[ 2 ]
+      if not skip:
+        axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
+	if axial_value[ 0 ] >= 0.0:
+          results[ 'axial_value' ] = axial_value
+
+      skip = False
+      if hasattr( cur_obj, 'channelColRow' ):
+        chan_colrow = getattr( cur_obj, 'channelColRow' )
+	skip = chan_colrow[ 1 ] == addr[ 0 ] and chan_colrow[ 0 ] == addr[ 1 ]
+      if not skip:
+        results[ 'channel_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+
+      skip = hasattr( cur_obj, 'stateIndex' ) and \
+          getattr( cur_obj, 'stateIndex' ) == state_ndx
+      if not skip:
+        results[ 'state_index' ] = state_ndx
+    #end else cur_obj not None
+
+    return  results
+  #end FindChannelMaxValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindDetectorMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindDetectorMaxValue( self, ds_name, state_ndx, cur_obj = None ):
+    """Creates dict with detector addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'detector' dataset.
+Calls FindMaxValueAddr().
+@param  ds_name		name of dataset
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: axialValue,
+			detectorIndex, stateIndex
+@return			dict with possible keys: 'axial_value',
+			'detector_index', 'state_index'
+"""
+    results = {}
+
+    addr, state_ndx = self.FindMaxValueAddr( ds_name, state_ndx )
+
+    if addr is None:
+      pass
+
+    elif cur_obj is None:
+      axial_value = self.CreateAxialValue( detector_ndx = addr[ 0 ] )
+      if axial_value[ 0 ] >= 0.0:
+        results[ 'axial_value' ] = axial_value
+
+      det_ndx = self.CreateDetectorIndexFromIndex( addr[ 1 ] )
+      if det_ndx[ 0 ] >= 0:
+        results[ 'detector_index' ] = det_ndx
+
+      results[ 'state_index' ] = state_ndx
+
+    else:
+      skip = hasattr( cur_obj, 'axialValue' ) and \
+          getattr( cur_obj, 'axialValue' )[ 2 ] == addr[ 0 ]
+      if not skip:
+	axial_value = self.CreateAxialValue( detector_ndx = addr[ 0 ] )
+        if axial_value[ 0 ] >= 0.0:
+          results[ 'axial_value' ] = axial_value
+
+      skip = hasattr( cur_obj, 'detectorIndex' ) and \
+          getattr( cur_obj, 'detectorIndex' )[ 0 ] == addr[ 1 ]
+      if not skip:
+	det_ndx = self.CreateDetectorIndexFromIndex( addr[ 1 ] )
+	if det_ndx[ 0 ] >= 0:
+          results[ 'detector_index' ] = det_ndx
+
+      skip = hasattr( cur_obj, 'stateIndex' ) and \
+          getattr( cur_obj, 'stateIndex' ) == state_ndx
+      if not skip:
+        results[ 'state_index' ] = state_ndx
+    #end else cur_obj not None
+
+    return  results
+  #end FindDetectorMaxValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.FindFirstDetector()			-
   #----------------------------------------------------------------------
   def FindFirstDetector( self ):
@@ -1124,6 +1253,74 @@ descending.
 
     return  addr, state_ndx
   #end FindMaxValueAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindPinMaxValue()			-
+  #----------------------------------------------------------------------
+  def FindPinMaxValue( self, ds_name, state_ndx, cur_obj = None ):
+    """Creates dict with detector addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'pin' dataset.
+If cur_state is provided, only differences with the current state are
+returned.  Calls FindMaxValueAddr().
+@param  ds_name		name of dataset
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyIndex, axialValue,
+			pinColRow, stateIndex
+@return			dict with possible keys: 'assembly_index',
+			'axial_value', 'pin_colrow', 'state_index'
+"""
+    results = {}
+
+    addr, state_ndx = self.FindMaxValueAddr( ds_name, state_ndx )
+
+    if addr is None:
+      pass
+
+    elif cur_obj is None:
+      assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
+      if assy_ndx[ 0 ] >= 0:
+        results[ 'assembly_index' ] = assy_ndx
+
+      axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
+      if axial_value[ 0 ] >= 0.0:
+        results[ 'axial_value' ] = axial_value
+
+      results[ 'pin_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+      results[ 'state_index' ] = state_ndx
+
+    else:
+      skip = hasattr( cur_obj, 'assemblyIndex' ) and \
+          getattr( cur_obj, 'assemblyIndex' )[ 0 ] == addr[ 3 ]
+      if not skip:
+	assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
+	if assy_ndx[ 0 ] >= 0:
+          results[ 'assembly_index' ] = assy_ndx
+
+      skip = hasattr( cur_obj, 'axialValue' ) and \
+          getattr( cur_obj, 'axialValue' )[ 1 ] == addr[ 2 ]
+      if not skip:
+        axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
+        if axial_value[ 0 ] >= 0.0:
+          results[ 'axial_value' ] = axial_value
+
+      skip = False
+      if hasattr( cur_obj, 'pinColRow' ):
+        pin_colrow = getattr( cur_obj, 'pinColRow' )
+	skip = pin_colrow[ 1 ] == addr[ 0 ] and pin_colrow[ 0 ] == addr[ 1 ]
+      if not skip:
+        results[ 'pin_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+
+      skip = hasattr( cur_obj, 'stateIndex' ) and \
+          getattr( cur_obj, 'stateIndex' ) == state_ndx
+      if not skip:
+        results[ 'state_index' ] = state_ndx
+    #end else cur_obj not None
+   
+    return  results
+  #end FindPinMaxValue
 
 
   #----------------------------------------------------------------------

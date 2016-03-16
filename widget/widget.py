@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-03-16	leerw@ornl.gov				-
+#	  Moved _OnFixMaxXxx() methods from RasterWidget.
 #		2016-02-19	leerw@ornl.gov				-
 #	  Solved black background image copy by forcing a white background
 #	  image in _OnCopyImage().
@@ -716,6 +718,92 @@ it to the clipboard.
       #end if-else
     #end if data exist
   #end _OnCopyImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMax()				-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, all_states_flag, ev ):
+    """Must be handled in subclasses.  This implementation is a noop.
+Note subclasses can override to call _OnFindMaxChannel(), _OnFindMaxDetector(),
+or _OnFindMaxPin().
+@param  all_states_flag	True for all states, False for current state
+@param  ev		menu event
+"""
+    pass
+  #end _OnFindMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMaxChannel()			-
+  #----------------------------------------------------------------------
+  def _OnFindMaxChannel( self, ds_name, all_states_flag ):
+    """Handles 'channel' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, channel_colrow, and/or
+state_index changes.
+@param  ds_name		name of dataset
+@param  all_states_flag	True for all states, False for current state
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      update_args = self.data.FindChannelMaxValue(
+          ds_name,
+	  -1 if all_states_flag else self.stateIndex,
+	  self
+	  )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxChannel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMaxDetector()			-
+  #----------------------------------------------------------------------
+  def _OnFindMaxDetector( self, ds_name, all_states_flag ):
+    """Handles 'channel' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, channel_colrow, and/or
+state_index changes.
+@param  all_states_flag	True for all states, False for current state
+@param  ds_name		name of dataset
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      update_args = self.data.FindDetectorMaxValue(
+          ds_name,
+	  -1 if all_states_flag else self.stateIndex,
+	  self
+	  )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxDetector
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMaxPin()				-
+  #----------------------------------------------------------------------
+  def _OnFindMaxPin( self, ds_name, all_states_flag ):
+    """Handles 'pin' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, pin_colrow, and/or
+state_index changes.
+@param  all_states_flag	True for all states, False for current state
+@param  ds_name		name of dataset
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      update_args = self.data.FindPinMaxValue(
+	  ds_name,
+	  -1 if all_states_flag else self.stateIndex,
+	  self
+          )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxPin
 
 
   #----------------------------------------------------------------------

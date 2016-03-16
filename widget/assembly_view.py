@@ -816,11 +816,11 @@ attributes/properties that aren't already set in _LoadDataModel():
   #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._OnFindMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMax( self, state_mode, ev ):
+  def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxPin().
 """
     if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
-      self._OnFindMaxPin( state_mode, self.pinDataSet )
+      self._OnFindMaxPin( self.pinDataSet, all_states_flag )
   #end _OnFindMax
 
 

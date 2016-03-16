@@ -321,13 +321,27 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._CreateMenuDef()			-
   #----------------------------------------------------------------------
-#  def _CreateMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
-#    my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
-#    return  menu_def + my_def
-#  #end _CreateMenuDef
+  def _CreateMenuDef( self, data_model ):
+    """
+"""
+    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
+    #my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
+
+    find_max_def = \
+      [
+        ( 'All State Points',
+	   functools.partial( self._OnFindMax, True ) ),
+        ( 'Current State Point',
+	   functools.partial( self._OnFindMax, False ) )
+      ]
+
+    my_def = \
+      [
+	( '-', None ),
+	( 'Find Maximum', find_max_def )
+      ]
+    return  menu_def + my_def
+  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
@@ -499,6 +513,17 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 #	self.autoSync = False
 #    #end if
 #  #end _OnAutoSync
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._OnFindMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMax( self, all_states_flag, ev ):
+    """Calls _OnFindMaxPin().
+"""
+    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+      self._OnFindMaxPin( self.pinDataSet, all_states_flag )
+  #end _OnFindMax
 
 
   #----------------------------------------------------------------------

@@ -1160,11 +1160,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		Channel2DView._OnFindMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMax( self, state_mode, ev ):
+  def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxChannel().
 """
     if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
-      self._OnFindMaxChannel( state_mode, self.channelDataSet )
+      self._OnFindMaxChannel( self.channelDataSet, all_states_flag )
   #end _OnFindMax
 
 
