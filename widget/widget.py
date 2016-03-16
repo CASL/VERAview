@@ -288,7 +288,8 @@ ready for a clipboard copy.  This implementation returns None.
     """For now this is linear only.
 @param  value_range	( min, max )
 """
-    legend = Legend2( Widget.GetColorTuple, value_range, 10, font_size )
+    #was 10
+    legend = Legend2( Widget.GetColorTuple, value_range, 8, font_size )
     return  legend.image
   #end _CreateLegendPilImage
 
