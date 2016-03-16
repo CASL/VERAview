@@ -6,6 +6,8 @@
 #		2016-03-16	leerw@ornl.gov				-
 #	  Playing with grid sizing when adding widgets, might finally
 #	  have a workable solution.
+#	  Removed status bar since we're not using it and it eats
+#	  vertical screen real estate.
 #		2016-03-08	leerw@ornl.gov				-
 #	  Added Volume3DView, separators in the toolbar, and the CASL
 #	  logo.
@@ -238,7 +240,7 @@ unnecessary.
     #else:
     elif self.firstLoop:
       self.firstLoop = False
-      self.frame.GetStatusBar().SetStatusText( '' )
+      #self.frame.GetStatusBar().SetStatusText( '' )
 
       if self.filepath is not None and os.path.exists( self.filepath ):
         self.frame.OpenFile( self.filepath )
@@ -769,8 +771,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
 #		-- Status Bar
 #		--
-    status_bar = self.CreateStatusBar()
-    status_bar.SetStatusText( 'Creating...' )
+    #status_bar = self.CreateStatusBar()
+    #status_bar.SetStatusText( 'Creating...' )
 
 #		-- Icons
 #    icon_fname = os.path.join( os.path.dirname( __file__ ), 'reactor_icon.iconset', 'test128.gif' )
@@ -849,7 +851,7 @@ Must be called from the UI thread.
     self.CloseAllWidgets()
     self.SetRepresentedFilename( file_path )
 
-    self.GetStatusBar().SetStatusText( 'Loading data model...' )
+    #self.GetStatusBar().SetStatusText( 'Loading data model...' )
 
 #		-- Re-create Time DataSet Menu
 #		--
@@ -953,7 +955,7 @@ Must be called from the UI thread.
 #		-- Refit
 #		--
     self._Refit( True )
-    self.GetStatusBar().SetStatusText( 'Data model loaded' )
+    #self.GetStatusBar().SetStatusText( 'Data model loaded' )
 
 #		-- Set bean ranges
 #		--
