@@ -1227,6 +1227,8 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
+    if self.state.dataModel is not None:
+      self.state.dataModel.Close()
     #self.Close()
     #self.app.ExitMainLoop()
     wx.App.Get().ExitMainLoop()

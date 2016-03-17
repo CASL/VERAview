@@ -8,7 +8,7 @@
 #		2015-08-31	leerw@ornl.gov				-
 #		2015-08-29	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import glob, os, shutil, sys, time, tempfile, threading
+import glob, os, shutil, subprocess, sys, time, tempfile, threading
 #import pdb
 
 try:
@@ -33,7 +33,7 @@ import widget
 #	CLASS:		AnimatorThreads					-
 #------------------------------------------------------------------------
 class AnimatorThreads( object ):
-  """Animator base class.
+  """Animator base class.  NOT USED.
 """
 
 
@@ -254,13 +254,23 @@ class Animator( object ):
 """
     fnames = glob.glob( os.path.join( temp_dir, '*.png' ) )
     for f in sorted( fnames ):
-      # subprocess.call() fails on Windows
-      os.system( 'convert "%s" "%s.gif"' % ( f, f ) )
+#      # subprocess.call() fails on Windows
+#      os.system( 'convert "%s" "%s.gif"' % ( f, f ) )
+      png_im = PIL.Image.open( f )
+      gif_im = PIL.Image.new( "RGBA", png_im.size, ( 236, 236, 236, 255 ) )
+      gif_im.paste( png_im, ( 0, 0 ), png_im )
+      gif_im.save( f + '.gif', 'GIF' )
 
-    os.system(
-        'convert -dispose Background -delay 50 -loop 99 "%s" "%s"' % \
-        ( os.path.join( temp_dir, '*.gif' ), file_path )
-        )
+    args = \
+        [ 'gifsicle', '--disposal=background', '--delay=50', '--loop' ] + \
+        glob.glob( os.path.join( temp_dir, '*.gif' ) ) + \
+	[ '-o', file_path ]
+    proc = subprocess.Popen( args )
+    proc.wait()
+#    os.system(
+#        'convert -dispose Background -delay 50 -loop 99 "%s" "%s"' % \
+#        ( os.path.join( temp_dir, '*.gif' ), file_path )
+#        )
 
 #               -- Create HTML file
 #               --

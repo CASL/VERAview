@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-03-16	leerw@ornl.gov				-
+#	  New animations based on gifsicle.
 #		2016-03-14	leerw@ornl.gov				-
 #	  Added _CreateMenuFromDef() for recursive menu definition.
 #		2016-03-06	leerw@ornl.gov				-
@@ -182,9 +184,9 @@ Must be called on the UI thread.
 @return			file path if selected, None if canceled or
 			animated images cannot be created
 """
-    if not Config.HaveImageMagick():
+    if not Config.HaveGifsicle():
       wx.MessageBox(
-	  'Cannot find ImageMagick tools for animated image creation',
+	  'Cannot find "gifsicle" for animated image creation',
 	  'Save Animated Image', wx.OK_DEFAULT, self
 	  )
       file_path = None
@@ -486,7 +488,6 @@ definition array for a pullright.
     anim_indexes = self.widget.GetAnimationIndexes()
     if anim_indexes is not None:
       self.animateMenu = wx.Menu()
-      anim_indexes = self.widget.GetAnimationIndexes()
 
       if 'axial:detector' in anim_indexes and \
           data_model.GetCore().ndetax > 1 and \

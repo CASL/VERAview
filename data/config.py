@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2016-03-17	leerw@ornl.gov				-
+#	  We now care about gifsicle instead of ImageMagick.
 #		2016-01-15	leerw@ornl.gov				-
 #	  Better way to find ImageMagick convert.
 #		2015-08-29	leerw@ornl.gov				-
@@ -34,7 +36,8 @@ Static properties (use accessors):
 #		--
 
   defaultDataSetName_ = 'pin_powers'
-  haveImageMagick_ = None
+  haveGifsicle_ = None
+  #haveImageMagick_ = None
   resDir_ = ''
   rootDir_ = ''
 
@@ -71,30 +74,37 @@ Static properties (use accessors):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HaveImageMagick()				-
+  #	METHOD:		HaveGifsicle()					-
   #----------------------------------------------------------------------
   @staticmethod
-  def HaveImageMagick():
+  def HaveGifsicle():
     """
 @return			True or False
 """
-    if Config.haveImageMagick_ is None:
-      path = find_executable( 'convert' )
-      Config.haveImageMagick_ = path is not None
-#      proc = subprocess.Popen(
-#          [ 'convert', '-h' ],
-#	  shell = True, stdout = subprocess.PIPE
-#	  )
-#      line = proc.stdout.readline()
-#      proc.stdout.readlines()
-#      proc.wait()
-#
-#      Config.haveImageMagick_ = \
-#        line is not None and line.lower().find( 'version: imagemagick' ) == 0
+    if Config.haveGifsicle_ is None:
+      path = find_executable( 'gifsicle' )
+      Config.haveGifsicle_ = path is not None
     #end if
 
-    return  Config.haveImageMagick_
-  #end HaveImageMagick
+    return  Config.haveGifsicle_
+  #end HaveGifsicle
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		HaveImageMagick()				-
+  #----------------------------------------------------------------------
+#  @staticmethod
+#  def HaveImageMagick():
+#    """
+#@return			True or False
+#"""
+#    if Config.haveImageMagick_ is None:
+#      path = find_executable( 'convert' )
+#      Config.haveImageMagick_ = path is not None
+#    #end if
+#
+#    return  Config.haveImageMagick_
+#  #end HaveImageMagick
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-03-17	leerw@ornl.gov				-
+#	  Calling Close() from DataModel.__del__().
 #		2016-03-16	leerw@ornl.gov				-
 #	  Moved FindMax() methods from RasterWidget to here, where it
 #	  belongs.
@@ -611,17 +613,9 @@ Properties:
   #	METHOD:		DataModel.__del__()				-
   #----------------------------------------------------------------------
   def __del__( self ):
-#    if self.h5ExtraFile is not None:
-#      self.h5ExtraFile.close()
-    if hasattr( self, 'derivedFile' ):
-      der_file = getattr( self, 'derivedFile' )
-      if der_file:
-	fname = der_file.filename
-        der_file.close()
-        #x os.remove( fname )
-
-    if self.h5File is not None:
-      self.h5File.close()
+    self.Close()
+#    if self.h5File is not None:
+#      self.h5File.close()
   #end __del__
 
 
@@ -737,6 +731,14 @@ passed, Read() must be called.
   #	METHOD:		DataModel.Close()				-
   #----------------------------------------------------------------------
   def Close( self ):
+    if hasattr( self, 'derivedFile' ):
+      der_file = getattr( self, 'derivedFile' )
+      if der_file:
+	fname = der_file.filename
+        der_file.close()
+        os.remove( fname )
+    #end if
+
     if self.h5File:
       self.h5File.close()
     self.Clear()
