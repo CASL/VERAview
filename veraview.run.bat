@@ -19,10 +19,10 @@ goto finished
 
 :found
 if "%PROCESSOR_ARCHITECTURE%" == "x86" goto x86
-path=%VERAViewDir%bin\win.64;%path%
+path=%VERAViewDir%bin\win64;%path%
 goto launch
 :x86
-path=%VERAViewDir%bin\win.32;%path%
+path=%VERAViewDir%bin\win32;%path%
 
 
 :launch
