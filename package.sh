@@ -11,6 +11,7 @@ zip -r ${name} \
     --exclude='.*.swp' \
     --exclude='canopy.run.sh' \
     veraview/bean \
+    veraview/bin \
     veraview/data \
     veraview/event \
     veraview/res \
