@@ -398,9 +398,10 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in ):
+  def _CreateRasterImage( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
+@param  config		optional config to use instead of self.config
 """
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
@@ -409,16 +410,18 @@ If neither are specified, a default 'scale' value of 4 is used.
 	str( tuple_in )
     im = None
 
-    if self.config is not None:
-      assy_wd = self.config[ 'assemblyWidth' ]
-      axial_levels_dy = self.config[ 'axialLevelsDy' ]
-      im_wd, im_ht = self.config[ 'clientSize' ]
-      core_region = self.config[ 'coreRegion' ]
-      font_size = self.config[ 'fontSize' ]
-      label_font = self.config[ 'labelFont' ]
-      legend_pil_im = self.config[ 'legendPilImage' ]
-      pil_font = self.config[ 'pilFont' ]
-      pin_wd = self.config[ 'pinWidth' ]
+    if config is None:
+      config = self.config
+    if config is not None:
+      assy_wd = config[ 'assemblyWidth' ]
+      axial_levels_dy = config[ 'axialLevelsDy' ]
+      im_wd, im_ht = config[ 'clientSize' ]
+      core_region = config[ 'coreRegion' ]
+      font_size = config[ 'fontSize' ]
+      label_font = config[ 'labelFont' ]
+      legend_pil_im = config[ 'legendPilImage' ]
+      pil_font = config[ 'pilFont' ]
+      pin_wd = config[ 'pinWidth' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
 
@@ -569,8 +572,9 @@ If neither are specified, a default 'scale' value of 4 is used.
           )
       title_size = pil_font.getsize( title_str )
       title_x = max(
-	  0,
-          (core_region[ 3 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
+	  font_size,
+	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
+#(core_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
 	  )
       im_draw.text(
           ( title_x, axial_y ),
@@ -578,7 +582,7 @@ If neither are specified, a default 'scale' value of 4 is used.
           )
 
       del im_draw
-    #end if self.config exists
+    #end if config exists
     elapsed_time = timeit.default_timer() - start_time
     print >> sys.stderr, \
         '\n[CoreAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
@@ -835,9 +839,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """
-@return		24
+@return		8
 """
-    return  24
+    return  4
   #end GetPrintScale
 
 

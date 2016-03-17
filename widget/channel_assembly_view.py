@@ -359,9 +359,10 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		ChannelAssembly2DView._CreateRasterImage()	-
   #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in ):
+  def _CreateRasterImage( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, axial_level, assy_ndx )
+@param  config		optional config to use instead of self.config
 """
     state_ndx = tuple_in[ 0 ]
     assy_ndx = tuple_in[ 1 ]
@@ -376,16 +377,19 @@ Must be called from the UI thread.
 	axial_level = axial_level,
 	state_index = state_ndx
 	)
-    if self.config is not None and tuple_valid:
-      assy_region = self.config[ 'assemblyRegion' ]
-      chan_gap = self.config[ 'channelGap' ]
-      chan_wd = self.config[ 'channelWidth' ]
-      im_wd, im_ht = self.config[ 'clientSize' ]
-      font_size = self.config[ 'fontSize' ]
-      label_font = self.config[ 'labelFont' ]
-      legend_pil_im = self.config[ 'legendPilImage' ]
-      pil_font = self.config[ 'pilFont' ]
-      value_font = self.config[ 'valueFont' ]
+
+    if config is None:
+      config = self.config
+    if config is not None and tuple_valid:
+      assy_region = config[ 'assemblyRegion' ]
+      chan_gap = config[ 'channelGap' ]
+      chan_wd = config[ 'channelWidth' ]
+      im_wd, im_ht = config[ 'clientSize' ]
+      font_size = config[ 'fontSize' ]
+      label_font = config[ 'labelFont' ]
+      legend_pil_im = config[ 'legendPilImage' ]
+      pil_font = config[ 'pilFont' ]
+      value_font = config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       #ds_value = dset.value if dset is not None else None
@@ -539,8 +543,9 @@ Must be called from the UI thread.
           )
       title_size = pil_font.getsize( title_str )
       title_x = max(
-	  0,
-          (assy_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
+	  font_size,
+	  (assy_region[ 0 ] + assy_region[ 2 ] - title_size[ 0 ]) >> 1
+#(assy_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
 	  )
 
       im_draw.text(
@@ -549,7 +554,7 @@ Must be called from the UI thread.
           )
 
       del im_draw
-    #end if self.config exists
+    #end if config exists
 
     #return  im
     return  im if im is not None else self.emptyPilImage

@@ -403,7 +403,7 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
-    pil_im = self._CreateRasterImage( self._CreateStateTuple() )
+    pil_im = self._CreateRasterImage( self._CreateStateTuple(), config )
 
     if pil_im is not None:
       pil_im.save( file_path, 'PNG' )
@@ -417,11 +417,12 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateRasterImage()		-
   #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in ):
+  def _CreateRasterImage( self, tuple_in, config_in = None ):
     """Called in background task to create the PIL image for the state.
 The config and data attributes are good to go.
 This implementation returns None and must be overridden by subclasses.
 @param  tuple_in	state tuple
+@param  config_in	optional config to use instead of self.config
 @return			PIL image
 """
     return  None

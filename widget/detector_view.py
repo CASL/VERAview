@@ -274,9 +274,10 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   #	METHOD:		Detector2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in ):
+  def _CreateRasterImage( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index )
+@param  config		optional config to use instead of self.config
 """
     state_ndx = tuple_in[ 0 ]
     print >> sys.stderr, \
@@ -284,18 +285,21 @@ If neither are specified, a default 'scale' value of 4 is used.
     im = None
 
     tuple_valid = DataModel.IsValidObj( self.data, state_index = state_ndx )
-    if self.config is not None and tuple_valid and \
+
+    if config is None:
+      config = self.config
+    if config is not None and tuple_valid and \
 	self.data.core.detectorMeshCenters is not None and \
 	len( self.data.core.detectorMeshCenters ) > 0:
-      im_wd, im_ht = self.config[ 'clientSize' ]
-      core_region = self.config[ 'coreRegion' ]
-      det_gap = self.config[ 'detectorGap' ]
-      det_wd = self.config[ 'detectorWidth' ]
-      font_size = self.config[ 'fontSize' ]
-      label_font = self.config[ 'labelFont' ]
-      legend_pil_im = self.config[ 'legendPilImage' ]
-      pil_font = self.config[ 'pilFont' ]
-      #value_font = self.config[ 'valueFont' ]
+      im_wd, im_ht = config[ 'clientSize' ]
+      core_region = config[ 'coreRegion' ]
+      det_gap = config[ 'detectorGap' ]
+      det_wd = config[ 'detectorWidth' ]
+      font_size = config[ 'fontSize' ]
+      label_font = config[ 'labelFont' ]
+      legend_pil_im = config[ 'legendPilImage' ]
+      pil_font = config[ 'pilFont' ]
+      #value_font = config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.detectorDataSet )
       #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
@@ -475,8 +479,9 @@ If neither are specified, a default 'scale' value of 4 is used.
           )
       title_size = pil_font.getsize( title_str )
       title_x = max(
-	  0,
-          (core_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
+	  font_size,
+	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
+#(core_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
 	  )
 
       im_draw.text(
@@ -485,7 +490,7 @@ If neither are specified, a default 'scale' value of 4 is used.
           )
 
       del im_draw
-    #end if self.config exists
+    #end if config exists
 
     #return  im
     return  im if im is not None else self.emptyPilImage

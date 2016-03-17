@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		animators.py				        -
 #	HISTORY:							-
+#		2016-03-17	leerw@ornl.gov				-
+#	  Using PIL and gifsicle instead of ImageMagick.
 #		2015-08-31	leerw@ornl.gov				-
 #		2015-08-29	leerw@ornl.gov				-
 #------------------------------------------------------------------------
@@ -14,6 +16,12 @@ try:
   import wx.lib.delayedresult as wxlibdr
 except Exception:
   raise ImportError( "The wxPython module is required" )
+
+try:
+  import PIL.Image
+  #import PIL.Image, PIL.ImageDraw, PIL.ImageFont
+except Exception:
+  raise ImportError, 'The Python Imaging Library (PIL) required for this component'
 
 from data.config import Config
 from data.datamodel import *
@@ -82,16 +90,18 @@ class AnimatorThreads( object ):
 """
     fnames = glob.glob( os.path.join( temp_dir, '*.png' ) )
     for f in sorted( fnames ):
-      #xxxx Use PIL
-      # subprocess.call() fails on Windows
-      os.system( 'convert "%s" "%s.gif"' % ( f, f ) )
+#      # subprocess.call() fails on Windows
+#      os.system( 'convert "%s" "%s.gif"' % ( f, f ) )
+      png_im = PIL.Image.open( f )
+      gif_im = PIL.Image.new( "RGBA", png_im.size, ( 236, 236, 236, 255 ) )
+      gif_im.paste( png_im, ( 0, 0 ), png_im )
+      gif_im.save( f + '.gif', 'GIF' )
 
     os.system(
         'gifsicle --disposal=background --delay=50 --loop "%s" -o "%s"' % \
         ( os.path.join( temp_dir, '*.gif' ), file_path )
         )
 #        'convert -dispose Background -delay 50 -loop 99 "%s" "%s"'
-# gifsicle --disposal=background --delay=50 --loop "%s" -o "%s"
 
 #               -- Create HTML file
 #               --
@@ -402,8 +412,9 @@ Must be called on the UI thread.
     #continue_flag = self.nextStep < self.data.GetCore().ndetax
     continue_flag = self.nextStep < self.totalSteps
 
+    axial_level = self.totalSteps -1 - self.nextStep
     axial_value = \
-        self.data.CreateAxialValue( detector_ndx = self.nextStep ) \
+        self.data.CreateAxialValue( detector_ndx = axial_level ) \
         if continue_flag else \
         self.restoreValue
     self.widget.UpdateState( axial_value = axial_value )
@@ -451,8 +462,9 @@ Must be called on the UI thread.
     #continue_flag = self.nextStep < self.data.GetCore().nax
     continue_flag = self.nextStep < self.totalSteps
 
+    axial_level = self.totalSteps -1 - self.nextStep
     axial_value = \
-        self.data.CreateAxialValue( core_ndx = self.nextStep ) \
+        self.data.CreateAxialValue( core_ndx = axial_level ) \
         if continue_flag else \
         self.restoreValue
     self.widget.UpdateState( axial_value = axial_value )

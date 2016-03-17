@@ -246,11 +246,11 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		CreateAnimateImages()				-
   #----------------------------------------------------------------------
-  def CreateAnimateImages( self, temp_dir, over = 'axial' ):
-    """
-"""
-    return  False
-  #end CreateAnimateImages
+#  def CreateAnimateImages( self, temp_dir, over = 'axial' ):
+#    """
+#"""
+#    return  False
+#  #end CreateAnimateImages
 
 
   #----------------------------------------------------------------------
