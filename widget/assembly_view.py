@@ -383,6 +383,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
 
+      nodata_pen_color = ( 155, 155, 155, 255 )
+
 #			-- Loop on rows
 #			--
       pin_y = assy_region[ 1 ]
@@ -455,7 +457,13 @@ If neither are specified, a default 'scale' value of 24 is used.
 		    font = value_font
                     )
 	    #end if value_font defined
-	  #end if value > 0
+
+	  else:
+	    im_draw.rectangle(
+	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	        fill = None, outline = nodata_pen_color
+	        )
+	  #end else is nodata
 
 	  pin_x += pin_wd + pin_gap
 	#end for pin_col

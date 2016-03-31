@@ -99,7 +99,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView (Build 34)'
+TITLE = 'VERAView Version 1.0 (Build 35)'
 
 TOOLBAR_ITEMS = \
   [
@@ -891,6 +891,14 @@ Must be called from the UI thread.
         #widget_list.append( 'widget.detector_axial_plot.DetectorAxialPlot' )
         #widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
 
+#		-- Pin Mode
+#		--
+    if len( data.GetDataSetNames()[ 'pin' ] ) > 0:
+      if data.core.nax > 1:
+	axial_plot_types.add( 'pin' )
+        widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
+      widget_list.append( 'widget.assembly_view.Assembly2DView' )
+
 #		-- Channel Mode
 #		--
     if len( data.GetDataSetNames()[ 'channel' ] ) > 0:
@@ -900,14 +908,6 @@ Must be called from the UI thread.
       if data.core.nax > 1:
 	axial_plot_types.add( 'channel' )
         #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
-
-#		-- Pin Mode
-#		--
-    if len( data.GetDataSetNames()[ 'pin' ] ) > 0:
-      if data.core.nax > 1:
-	axial_plot_types.add( 'pin' )
-        widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
-      widget_list.append( 'widget.assembly_view.Assembly2DView' )
 
 #		-- Axial Plot?
 #		--

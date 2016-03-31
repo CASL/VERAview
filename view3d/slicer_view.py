@@ -200,10 +200,12 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
           assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
           if assy_ndx >= 0:
 	    for z in range( z_size ):
+	      #xxx is this off by one?
 	      ax_level = min(
 	          bisect.bisect_left( self.meshLevels, z ),
 		  len( self.meshLevels ) - 1
 		  )
+              #print >> sys.stderr, '[XX] z=%d, ax_level=%d' % ( z, ax_level )
 	      #for y in range( core.npiny ):
 	      pin_y2 = 0
 	      for y in range( core.npiny - 1, -1, -1 ):
