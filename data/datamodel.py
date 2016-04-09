@@ -490,6 +490,7 @@ Properties:
 
 #		-- Optional detector_map
 #		--
+    #xxxx if no detector_map, assume each assembly is a detector
     item = self._FindInGroup( 'detector_map', core_group, in_core_group )
     #if item is not None and item.value.shape == self.coreMap.shape:
     if item is not None:
