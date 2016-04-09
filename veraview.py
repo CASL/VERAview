@@ -99,7 +99,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView Version 1.0 (Build 35)'
+TITLE = 'VERAView Version 1.0.36'
 
 TOOLBAR_ITEMS = \
   [
@@ -117,6 +117,10 @@ TOOLBAR_ITEMS = \
     { 'widget': 'separator' },
     {
     'widget': 'Channel Core 2D View', 'icon': 'Channel2DView.1.32.png',
+    'type': 'channel'
+    },
+    {
+    'widget': 'Channel Axial 2D View', 'icon': 'ChannelAxial2DView.1.32.png',
     'type': 'channel'
     },
     {
@@ -155,6 +159,7 @@ WIDGET_MAP = \
   'Axial Plots': 'widget.all_axial_plot.AllAxialPlot',
   'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
+  'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
   #'Core XZ View': 'widget.core_axial_view.CoreXZView',
@@ -907,6 +912,7 @@ Must be called from the UI thread.
       widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
       if data.core.nax > 1:
 	axial_plot_types.add( 'channel' )
+        widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
         #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
 #		-- Axial Plot?
@@ -922,11 +928,9 @@ Must be called from the UI thread.
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
 #    widget_list = [
-#        'widget.core_view.Core2DView',
-#	'widget.core_axial_view.CoreAxial2DView',
-#	'widget.assembly_view.Assembly2DView',
 #	'widget.channel_view.Channel2DView',
 #	'widget.channel_assembly_view.ChannelAssembly2DView',
+#	'widget.channel_axial_view.ChannelAxial2DView',
 #        'widget.all_axial_plot.AllAxialPlot',
 #        'widget.time_plot.TimePlot',
 #        ]

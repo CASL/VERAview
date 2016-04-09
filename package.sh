@@ -2,10 +2,9 @@
 
 pushd ..
 
-#17
-#name=veraview-build-20151125.zip
-name=veraview-build-34.zip
-name=veraview-1.0.zip
+#name=veraview-1.0.zip
+#1.0 == build-35
+name=veraview-build-36.zip
 
 [ -f ${name} ] && unlink ${name}
 zip -r ${name} \

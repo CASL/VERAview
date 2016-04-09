@@ -1,18 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		core_axial_view.py				-
+#	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
-#		2016-03-14	leerw@ornl.gov				-
-#	  Added _OnFindMax().
-#		2016-03-05	leerw@ornl.gov				-
-#	  Single widget with tool button for toggling slice axis.
-#		2016-03-04	leerw@ornl.gov				-
-#	  Not redrawing on changes to the slice assembly or pin col/row.
-#		2016-03-02	leerw@ornl.gov				-
-#	  Scaling correctly.  Just lacking clipboard data copy.
-#		2016-02-29	leerw@ornl.gov				-
-#	  Starting with core_view.py.
+#		2016-04-09	leerw@ornl.gov				-
+#	  Starting with core_axial_view.py.
 #------------------------------------------------------------------------
 import math, os, sys, threading, time, timeit, traceback
 import numpy as np
@@ -41,9 +33,9 @@ from widget import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		CoreAxial2DView					-
+#	CLASS:		ChannelAxial2DView				-
 #------------------------------------------------------------------------
-class CoreAxial2DView( RasterWidget ):
+class ChannelAxial2DView( RasterWidget ):
   """Pin-by-pin assembly view across axials and states.
 
 Properties:
@@ -58,25 +50,23 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.__init__()			-
+  #	METHOD:		ChannelAxial2DView.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.avgDataSet = None
-    self.avgValues = {}
+    self.channelColRow = None
+    self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
 
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
-    self.pinColRow = ( -1, -1 )
-    self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
 
-    super( CoreAxial2DView, self ).__init__( container, id )
+    super( ChannelAxial2DView, self ).__init__( container, id )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateClipboardAllData()	-
+  #	METHOD:		ChannelAxial2DView._CreateClipboardAllData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardAllData( self ):
     """Retrieves the data for the state and axial.
@@ -90,7 +80,7 @@ Properties:
 	state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
 
     if dset is not None:
       dset_value = dset.value
@@ -99,16 +89,16 @@ Properties:
 
       if self.mode == 'xz':
 	assy_row = self.assemblyIndex[ 2 ]
-	pin_row = self.pinColRow[ 1 ]
-	pin_count = dset_shape[ 0 ]
+	chan_row = self.channelColRow[ 1 ]
+	chan_count = dset_shape[ 0 ]
       else:
 	assy_col = self.assemblyIndex[ 1 ]
-	pin_col = self.pinColRow[ 0 ]
-	pin_count = dset_shape[ 1 ]
+	chan_col = self.channelColRow[ 0 ]
+	chan_count = dset_shape[ 1 ]
 
       clip_shape = (
           self.cellRange[ -1 ],
-	  (pin_count * self.cellRange[ -2 ]) + 1
+	  (chan_count * self.cellRange[ -2 ]) + 1
 	  )
       clip_data = np.ndarray( clip_shape, dtype = np.float64 )
       clip_data.fill( 0.0 )
@@ -119,30 +109,30 @@ Properties:
 	ax_offset = self.cellRange[ 3 ] - 1 - ax
 	clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
 
-	pin_cell = 1
+	chan_cell = 1
         for assy_cell in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-	  pin_cell_to = pin_cell + pin_count
+	  chan_cell_to = chan_cell + chan_count
 	  if self.mode == 'xz':
 	    assy_ndx = self.data.core.coreMap[ assy_row, assy_cell ] - 1
 	    if assy_ndx >= 0:
-	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
-	        dset_value[ pin_row, :, ax, assy_ndx ]
+	      clip_data[ ax_offset, chan_cell : chan_cell_to ] = \
+	        dset_value[ chan_row, :, ax, assy_ndx ]
 
 	  else:
 	    assy_ndx = self.data.core.coreMap[ assy_cell, assy_col ] - 1
 	    if assy_ndx >= 0:
-	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
-	        dset_value[ :, pin_col, ax, assy_ndx ]
+	      clip_data[ ax_offset, chan_cell : chan_cell_to ] = \
+	        dset_value[ :, chan_col, ax, assy_ndx ]
 
-	  pin_cell = pin_cell_to
+	  chan_cell = chan_cell_to
         #end for assy_cel
       #end for axials
 
       if self.mode == 'xz':
-        title1 = '"%s: Assy Row=%s; Pin Row=%d; %s=%.3g"' % (
-	    self.pinDataSet,
+        title1 = '"%s: Assy Row=%s; Chan Row=%d; %s=%.3g"' % (
+	    self.channelDataSet,
             self.data.core.coreLabels[ 1 ][ assy_row ],
-	    pin_row + 1,
+	    chan_row + 1,
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 	    )
@@ -154,9 +144,9 @@ Properties:
 
       else:
         title1 = '"%s: Assy Col=%s; Pin Col=%d; %s=%.3g"' % (
-	    self.pinDataSet,
+	    self.channelDataSet,
             self.data.core.coreLabels[ 0 ][ assy_col ],
-	    pin_col + 1,
+	    chan_col + 1,
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 	    )
@@ -176,7 +166,7 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateClipboardData()		-
+  #	METHOD:		ChannelAxial2DView._CreateClipboardData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
@@ -190,7 +180,7 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateClipboardSelectionData()	-
+  #	METHOD:	ChannelAxial2DView._CreateClipboardSelectionData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardSelectionData( self ):
     """Retrieves the data for the state, axial, and assembly.
@@ -205,7 +195,7 @@ Properties:
 	state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
 
     if dset is not None:
       dset_value = dset.value
@@ -214,20 +204,20 @@ Properties:
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       if self.mode == 'xz':
-	pin_row = self.pinColRow[ 1 ]
-	clip_data = dset_value[ pin_row, :, axial_level, assy_ndx ]
-	pin_title = 'Pin Row=%d' % (pin_row + 1)
+	chan_row = self.channelColRow[ 1 ]
+	clip_data = dset_value[ chan_row, :, axial_level, assy_ndx ]
+	chan_title = 'Chan Row=%d' % (chan_row + 1)
 
       else:
-	pin_col = self.pinColRow[ 0 ]
-	clip_data = dset_value[ :, pin_col, axial_level, assy_ndx ]
-	pin_title = 'Pin Col=%d' % (pin_col + 1)
+	chan_col = self.channelColRow[ 0 ]
+	clip_data = dset_value[ :, chan_col, axial_level, assy_ndx ]
+	chan_title = 'Chan Col=%d' % (chan_col + 1)
 
       title = '"%s: Assembly=%d %s; %s; Axial=%.3f; %s=%.3g"' % (
-	  self.pinDataSet,
+	  self.channelDataSet,
 	  assy_ndx + 1,
 	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
-	  pin_title,
+	  chan_title,
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -239,11 +229,11 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateDrawConfig()		-
+  #	METHOD:		ChannelAxial2DView._CreateDrawConfig()		-
   #----------------------------------------------------------------------
   def _CreateDrawConfig( self, **kwargs ):
     """Creates a draw configuration based on imposed 'size' (wd, ht ) or
-'scale' (pixels per pin) from which a size is determined.
+'scale' (pixels per channel) from which a size is determined.
 If neither are specified, a default 'scale' value of 4 is used.
 @param  kwargs
     scale	pixels per cm
@@ -260,12 +250,12 @@ If neither are specified, a default 'scale' value of 4 is used.
     assemblyWidth
     axialLevelsDy	list of pixel offsets in y dimension
     axialPixPerCm	used?
+    channelWidth
     coreRegion
     lineWidth
-    pinWidth
 """
     config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
+        self.data.GetRange( self.channelDataSet ),
 	**kwargs
 	)
 
@@ -306,7 +296,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       region_aspect_ratio = float( region_wd ) / float( region_ht )
       fmt_str = \
-          '[CoreAxial2DView._CreateDrawConfig]' + \
+          '[ChannelAxial2DView._CreateDrawConfig]' + \
 	  '\n  region=%d,%d' + \
 	  '\n  region_aspect_ratio=%f' + \
 	  '\n  cm_per_pin=%f' + \
@@ -319,20 +309,20 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #				-- Limited by height
       if region_aspect_ratio > core_aspect_ratio:
-	pin_wd = max( 1, int( math.floor( region_ht / axial_pin_equivs ) ) )
+	chan_wd = max( 1, int( math.floor( region_ht / axial_pin_equivs ) ) )
 
 #				-- Limited by width
       else:
         assy_wd = region_wd / self.cellRange[ -2 ]
-        pin_wd = max( 1, (assy_wd - 2) / npin )
+        chan_wd = max( 1, (assy_wd - 2) / (npin + 1) )
 
-      assy_wd = pin_wd * npin + 1
-      axial_pix_per_cm = pin_wd / cm_per_pin
+      assy_wd = chan_wd * (npin + 1) + 1
+      axial_pix_per_cm = chan_wd / cm_per_pin
 
       print >> sys.stderr, \
-          '[CoreAxial2DView._CreateDrawConfig] after scale' + \
-	  '\n  assy_wd=%d, pin_wd=%d\n  axial_pix_per_cm=%f' % \
-	  ( assy_wd, pin_wd, axial_pix_per_cm )
+          '[ChannelAxial2DView._CreateDrawConfig] after scale' + \
+	  '\n  assy_wd=%d, chan_wd=%d\n  axial_pix_per_cm=%f' % \
+	  ( assy_wd, chan_wd, axial_pix_per_cm )
 
 #			-- Calc sizes
 #			--
@@ -342,10 +332,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 #		-- Or, scale set explicitly
 #		--
     else:
-      pin_wd = kwargs.get( 'scale', 4 )
-      axial_pix_per_cm = pin_wd / cm_per_pin
+      chan_wd = kwargs.get( 'scale', 4 )
+      axial_pix_per_cm = chan_wd / cm_per_pin
 
-      assy_wd = pin_wd * npin + 1
+      assy_wd = chan_wd * (npin + 1) + 1
       core_wd = self.cellRange[ -2 ] * assy_wd
       core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
 
@@ -369,22 +359,22 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'axialLevelsDy' ] = axials_dy
     config[ 'axialPixPerCm' ] = axial_pix_per_cm
+    config[ 'channelWidth' ] = chan_wd
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
-    config[ 'pinWidth' ] = pin_wd
 
     return  config
   #end _CreateDrawConfig
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateMenuDef()		-
+  #	METHOD:		ChannelAxial2DView._CreateMenuDef()		-
   #----------------------------------------------------------------------
 #  def _CreateMenuDef( self, data_model ):
 #    """
 #"""
-#    menu_def = super( CoreAxial2DView, self )._CreateMenuDef( data_model )
+#    menu_def = super( ChannelAxial2DView, self )._CreateMenuDef( data_model )
 #    other_def = \
 #      [
 #        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
@@ -395,7 +385,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateRasterImage()		-
+  #	METHOD:		ChannelAxial2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
@@ -405,7 +395,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     print >> sys.stderr, \
-        '[CoreAxial2DView._CreateRasterImage] tuple_in=%s' % \
+        '[ChannelAxial2DView._CreateRasterImage] tuple_in=%s' % \
 	str( tuple_in )
     im = None
 
@@ -415,14 +405,14 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = config[ 'assemblyWidth' ]
       axial_levels_dy = config[ 'axialLevelsDy' ]
       im_wd, im_ht = config[ 'clientSize' ]
+      chan_wd = config[ 'channelWidth' ]
       core_region = config[ 'coreRegion' ]
       font_size = config[ 'fontSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
-      pin_wd = config[ 'pinWidth' ]
 
-      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
 
       if dset is None:
         dset_array = None
@@ -430,27 +420,27 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-      ds_range = self.data.GetRange( self.pinDataSet )
+      ds_range = self.data.GetRange( self.channelDataSet )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       if self.mode == 'xz':
-	pin_cell = min( tuple_in[ 2 ], dset_shape[ 0 ] - 1 )
-	cur_npin = min( self.data.core.npinx, dset_shape[ 1 ] )
-	pin_range = range( self.data.core.npinx )
-	addresses = 'Assy Row %s, Pin Row %d' % \
-	    ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], pin_cell + 1 )
+	chan_cell = min( tuple_in[ 2 ], dset_shape[ 0 ] - 1 )
+	cur_nchan = min( self.data.core.npinx + 1, dset_shape[ 1 ] )
+	chan_range = range( self.data.core.npinx + 1 )
+	addresses = 'Assy Row %s, Chan Row %d' % \
+	    ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], chan_cell + 1 )
         title_templ, title_size = self._CreateTitleTemplate2(
-	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	    pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
 	    additional = addresses
 	    )
       else: # 'yz'
-	pin_cell = min( tuple_in[ 2 ], dset_shape[ 1 ] - 1 )
-	cur_npin = min( self.data.core.npiny, dset_shape[ 0 ] )
-	pin_range = range( self.data.core.npiny )
-	addresses = 'Assy Col %s, Pin Col %d' % \
-	    ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], pin_cell + 1 )
+	chan_cell = min( tuple_in[ 2 ], dset_shape[ 1 ] - 1 )
+	cur_nchan = min( self.data.core.npiny + 1, dset_shape[ 0 ] )
+	chan_range = range( self.data.core.npiny + 1 )
+	addresses = 'Assy Col %s, Chan Col %d' % \
+	    ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], chan_cell + 1 )
         title_templ, title_size = self._CreateTitleTemplate2(
-	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	    pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
 	    additional = addresses
 	    )
 
@@ -510,31 +500,32 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    assy_ndx = self.data.core.coreMap[ assy_col, tuple_in[ 1 ] ] - 1
 
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    pin_x = assy_x + 1
+	    chan_x = assy_x + 1
 
-	    for pin_col in pin_range:
-	      cur_pin_col = min( pin_col, cur_npin - 1 )
+	    for chan_col in chan_range:
+	      cur_chan_col = min( chan_col, cur_nchan - 1 )
 	      if self.mode == 'xz':
 	        value = dset_array[
-		    pin_cell, cur_pin_col, axial_level, assy_ndx
+		    chan_cell, cur_chan_col, axial_level, assy_ndx
 		    ]
 	      else:
 	        value = dset_array[
-		    cur_pin_col, pin_cell, axial_level, assy_ndx
+		    cur_chan_col, chan_cell, axial_level, assy_ndx
 		    ]
 
-	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	        pen_color = Widget.GetColorTuple(
+	      if not self.data.IsNoDataValue( self.channelDataSet, value ):
+	        chan_color = Widget.GetColorTuple(
 	            value - ds_range[ 0 ], value_delta, 255
 	            )
 	        brush_color = \
-		    ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+		    ( chan_color[ 0 ], chan_color[ 1 ], chan_color[ 2 ], 255 )
 	        im_draw.rectangle(
-		    [ pin_x, axial_y, pin_x + pin_wd + 1, axial_y + cur_dy + 1 ],
-		    fill = brush_color, outline = pen_color
+		    [ chan_x, axial_y,
+		      chan_x + chan_wd + 1, axial_y + cur_dy + 1 ],
+		    fill = brush_color, outline = chan_color
 		    )
 	      #end if valid value
-	      pin_x += pin_wd
+	      chan_x += chan_wd
 	    #end for pin cols
 
 	    im_draw.rectangle(
@@ -584,7 +575,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     #end if config exists
     elapsed_time = timeit.default_timer() - start_time
     print >> sys.stderr, \
-        '\n[CoreAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
+        '\n[ChannelAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
 	( elapsed_time, im is None )
 
     #return  im
@@ -593,7 +584,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateStateTuple()		-
+  #	METHOD:		ChannelAxial2DView._CreateStateTuple()		-
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
     """
@@ -602,15 +593,15 @@ If neither are specified, a default 'scale' value of 4 is used.
 #    colrow_ndx = 1 if self.mode == 'xz' else 0
 #    return  ( self.stateIndex, self.pinColRow[ colrow_ndx ] )
     if self.mode == 'xz':
-      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.pinColRow[ 1 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.channelColRow[ 1 ] )
     else:
-      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.pinColRow[ 0 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.channelColRow[ 0 ] )
     return  t
   #end _CreateStateTuple
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateToolTipText()		-
+  #	METHOD:		ChannelAxial2DView._CreateToolTipText()		-
   #----------------------------------------------------------------------
   def _CreateToolTipText( self, cell_info ):
     """Create a tool tip.
@@ -625,7 +616,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    )
 
     if valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
       assy_ndx = cell_info[ 0 ]
       if dset is not None and assy_ndx < dset.shape[ 3 ]:
         if self.mode == 'xz':
@@ -648,11 +639,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.FindCell()			-
+  #	METHOD:		ChannelAxial2DView.FindCell()			-
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
     """
-@return  ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row )
+@return  ( assy_ndx, assy_col_or_row, axial_level, chan_col_or_row )
 """
     result = None
     if self.config is not None and self.data is not None and \
@@ -660,7 +651,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = self.config[ 'assemblyWidth' ]
       axials_dy = self.config[ 'axialLevelsDy' ]
       core_region = self.config[ 'coreRegion' ]
-      pin_wd = self.config[ 'pinWidth' ]
+      chan_wd = self.config[ 'channelWidth' ]
 
       off_x = ev_x - core_region[ 0 ]
       off_y = ev_y - core_region[ 1 ]
@@ -674,8 +665,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         assy_col = max( self.cellRange[ 0 ], assy_col )
 	assy_col_or_row = assy_col
 
-	pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
-	if pin_col_or_row >= self.data.core.npinx: pin_col_or_row = -1
+	chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
+	if chan_col_or_row >= self.data.core.npinx + 1: chan_col_or_row = -1
 
       else:
         assy_col = self.assemblyIndex[ 1 ]
@@ -686,8 +677,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	assy_row = max( self.cellRange[ 0 ], assy_row )
 	assy_col_or_row = assy_row
 
-	pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
-	if pin_col_or_row >= self.data.core.npiny: pin_col_or_row = -1
+	chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
+	if chan_col_or_row >= self.data.core.npiny: chan_col_or_row = -1
       #end if-else
 
       axial_level = 0
@@ -700,7 +691,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       #end for
 
       assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-      result = ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row )
+      result = ( assy_ndx, assy_col_or_row, axial_level, chan_col_or_row )
     #end if we have data
 
     return  result
@@ -708,11 +699,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.FindCellAll()			-
+  #	METHOD:		ChannelAxial2DView.FindCellAll()		-
   #----------------------------------------------------------------------
   def FindCellAll( self, ev_x, ev_y ):
     """Not used.
-@return  ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
+@return  ( assy_ndx, assy_col, assy_row, chan_col, chan_row, axial_level )
 """
     result = None
     if self.config is not None and self.data is not None and \
@@ -720,32 +711,32 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = self.config[ 'assemblyWidth' ]
       axials_dy = self.config[ 'axialLevelsDy' ]
       core_region = self.config[ 'coreRegion' ]
-      pin_wd = self.config[ 'pinWidth' ]
+      chan_wd = self.config[ 'channelWidth' ]
 
       off_x = ev_x - core_region[ 0 ]
       off_y = ev_y - core_region[ 1 ]
 
       if self.mode == 'xz':
 	assy_row = self.assemblyIndex[ 2 ]
-        pin_row = self.pinColRow[ 1 ]
+        chan_row = self.pinColRow[ 1 ]
         assy_col = min(
             int( off_x / assy_wd ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
 	    )
         assy_col = max( self.cellRange[ 0 ], assy_col )
-	pin_col = int( (off_x % assy_wd) / pin_wd )
-	if pin_col >= self.data.core.npinx: pin_col = -1
+	chan_col = int( (off_x % assy_wd) / chan_wd )
+	if chan_col >= self.data.core.npinx: chan_col = -1
 
       else:
         assy_col = self.assemblyIndex[ 1 ]
-	pin_col = self.pinColRow[ 0 ]
+	chan_col = self.pinColRow[ 0 ]
 	assy_row = min(
 	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
 	    )
 	assy_row = max( self.cellRange[ 0 ], assy_row )
-	pin_row = int( (off_x % assy_wd) / pin_wd )
-	if pin_row >= self.data.core.npiny: pin_row = -1
+	chan_row = int( (off_x % assy_wd) / chan_wd )
+	if chan_row >= self.data.core.npiny: chan_row = -1
 
       axial_level = 0
       ax_y = 0
@@ -757,7 +748,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       #end for
 
       assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-      result = ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
+      result = ( assy_ndx, assy_col, assy_row, chan_col, chan_row, axial_level )
     #end if we have data
 
     return  result
@@ -765,7 +756,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetAnimationIndexes()		-
+  #	METHOD:		ChannelAxial2DView.GetAnimationIndexes()	-
   #----------------------------------------------------------------------
   def GetAnimationIndexes( self ):
     """Accessor for the list of indexes over which this widget can be
@@ -777,22 +768,23 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetDataSetTypes()		-
+  #	METHOD:		ChannelAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:axial' ]
+    return  [ 'channel' ]
+    #return  [ 'pin', 'pin:assembly', 'pin:axial' ]
   #end GetDataSetTypes
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetEventLockSet()		-
+  #	METHOD:		ChannelAxial2DView.GetEventLockSet()		-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     """
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -800,7 +792,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetInitialCellRange()		-
+  #	METHOD:		ChannelAxial2DView.GetInitialCellRange()	-
   #----------------------------------------------------------------------
   def GetInitialCellRange( self ):
     """Creates the range using y for the axial.
@@ -824,7 +816,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetMode()			-
+  #	METHOD:		ChannelAxial2DView.GetMode()			-
   #----------------------------------------------------------------------
   def GetMode( self ):
     """
@@ -834,7 +826,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetPrintScale()			-
+  #	METHOD:		ChannelAxial2DView.GetPrintScale()		-
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """
@@ -845,7 +837,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetToolButtonDefs()		-
+  #	METHOD:		ChannelAxial2DView.GetToolButtonDefs()		-
   #----------------------------------------------------------------------
   def GetToolButtonDefs( self, data_model ):
     """
@@ -855,17 +847,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetTitle()			-
+  #	METHOD:		ChannelAxial2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Core Axial 2D View'
+    return  'Channel Axial 2D View'
     #mode_str = 'XZ' if self.mode == 'xz' else 'YZ'
     #return  'Core Axial ' + mode_str + ' View'
   #end GetTitle
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._HiliteBitmap()			-
+  #	METHOD:		ChannelAxial2DView._HiliteBitmap()		-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap ):
     #return  bmap
@@ -888,7 +880,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         axial_levels_dy = self.config[ 'axialLevelsDy' ]
 	core_region = self.config[ 'coreRegion' ]
 	line_wd = self.config[ 'lineWidth' ]
-        #pin_wd = self.config[ 'pinWidth' ]
+        #chan_wd = self.config[ 'channelWidth' ]
 
         axial_y = core_region[ 1 ]
         for ax in range( len( axial_levels_dy ) - 1, rel_axial, -1 ):
@@ -934,7 +926,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.IsTupleCurrent()		-
+  #	METHOD:		ChannelAxial2DView.IsTupleCurrent()		-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
     """
@@ -942,35 +934,36 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			True if it matches the current state, false otherwise
 """
     if self.mode == 'xz':
-      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.pinColRow[ 1 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.channelColRow[ 1 ] )
     else:
-      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.pinColRow[ 0 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.channelColRow[ 0 ] )
     return  tpl == t
   #end IsTupleCurrent
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._LoadDataModelValues()		-
+  #	METHOD:		ChannelAxial2DView._LoadDataModelValues()	-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """
 """
-    self.avgValues.clear()
     self.assemblyIndex = self.state.assemblyIndex
-    self.pinDataSet = self.state.pinDataSet
-    self.pinColRow = self.state.pinColRow
+    self.channelDataSet = self.state.channelDataSet
+    self.channelColRow = self.state.channelColRow
 
     if self.mode == 'xz':
-      self.pinOffset = \
-          self.assemblyIndex[ 2 ] * self.data.core.npiny + self.pinColRow[ 1 ]
+      self.channelOffset = \
+          self.assemblyIndex[ 2 ] * (self.data.core.npiny + 1) + \
+	  self.channelColRow[ 1 ]
     else:
-      self.pinOffset = \
-          self.assemblyIndex[ 1 ] * self.data.core.npinx + self.pinColRow[ 0 ]
+      self.channelOffset = \
+          self.assemblyIndex[ 1 ] * (self.data.core.npinx + 1) + \
+	  self.channelColRow[ 0 ]
   #end _LoadDataModelValues
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnClick()			-
+  #	METHOD:		ChannelAxial2DView._OnClick()			-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
     """
@@ -984,16 +977,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
       if self.mode == 'xz':
 	assy_ndx = ( cell_info[ 0 ], cell_info[ 1 ], self.assemblyIndex[ 2 ] )
-	pin_addr = ( cell_info[ 3 ], self.pinColRow[ 1 ] )
+	chan_addr = ( cell_info[ 3 ], self.channelColRow[ 1 ] )
       else:
 	assy_ndx = ( cell_info[ 0 ], self.assemblyIndex[ 1 ], cell_info[ 1 ] )
-	pin_addr = ( self.pinColRow[ 0 ], cell_info[ 3 ] )
+	chan_addr = ( self.channelColRow[ 0 ], cell_info[ 3 ] )
 
       if assy_ndx != self.assemblyIndex:
 	state_args[ 'assembly_index' ] = assy_ndx
 
-      if pin_addr != self.pinColRow:
-	state_args[ 'pin_colrow' ] = pin_addr
+      if chan_addr != self.channelColRow:
+	state_args[ 'channel_colrow' ] = chan_addr
 
       axial_level = cell_info[ 2 ]
       if axial_level != self.axialValue[ 1 ]:
@@ -1007,7 +1000,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnDragFinished()		-
+  #	METHOD:		ChannelAxial2DView._OnDragFinished()		-
   #----------------------------------------------------------------------
   def _OnDragFinished( self, left, top, right, bottom ):
     """Do post drag things after drag processing.
@@ -1017,18 +1010,18 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnFindMax()			-
+  #	METHOD:		ChannelAxial2DView._OnFindMax()			-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxPin().
 """
-    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
-      self._OnFindMaxPin( self.pinDataSet, all_states_flag )
+    if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
+      self._OnFindMaxChannel( self.channelDataSet, all_states_flag )
   #end _OnFindMax
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnMode()			-
+  #	METHOD:		ChannelAxial2DView._OnMode()			-
   #----------------------------------------------------------------------
   def _OnMode( self, ev ):
     """Must be called from the event thread.
@@ -1040,7 +1033,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnUnzoom()			-
+  #	METHOD:		ChannelAxial2DView._OnUnzoom()			-
   #----------------------------------------------------------------------
   def _OnUnzoom( self, ev ):
     """
@@ -1052,19 +1045,19 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.SetDataSet()			-
+  #	METHOD:		ChannelAxial2DView.SetDataSet()			-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
     """May be called from any thread.
 """
-    if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
-      self.FireStateChange( pin_dataset = ds_name )
+    if ds_name != self.channelDataSet:
+      wx.CallAfter( self.UpdateState, channel_dataset = ds_name )
+      self.FireStateChange( channel_dataset = ds_name )
   #end SetDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.SetMode()			-
+  #	METHOD:		ChannelAxial2DView.SetMode()			-
   #----------------------------------------------------------------------
   def SetMode( self, mode, button = None ):
     """May be called from any thread.
@@ -1082,7 +1075,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._SetModeImpl()			-
+  #	METHOD:		ChannelAxial2DView._SetModeImpl()		-
   #----------------------------------------------------------------------
   def _SetModeImpl( self, button = None ):
     """Must be called from the event thread.
@@ -1113,59 +1106,25 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._UpdateAvgValues()		-
-  #----------------------------------------------------------------------
-  def _UpdateAvgValues( self, state_ndx, force = False ):
-    dset = None
-    if self.avgDataSet is not None and \
-        (force or (state_ndx not in self.avgValues)):
-      dset = self.data.GetStateDataSet( state_ndx, self.avgDataSet )
-
-    if dset is not None:
-      dset_array = dset.value
-      dset_shape = dset_array.shape
-
-#			-- Axial
-      #if dset_shape[ 0 ] == 1 and dset_shape[ 3 ] == 1
-      if dset_shape[ 3 ] == 1:
-        t_nax = min( self.data.core.nax, dset_shape[ 2 ] )
-        avg_values = np.zeros( shape = ( t_nax, ) )
-	for ax in range( t_nax ):
-	  avg_values[ ax ] = np.mean( dset_array[ :, :, ax, : ] )
-
-#			-- Assembly
-      else:
-        t_nax = min( self.data.core.nax, dset_shape[ 2 ] )
-        t_nass = min( self.data.core.nass, dset_shape[ 3 ] )
-	for ax in range( t_nax ):
-	  for assy in range( t_nass ):
-	    avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
-
-      self.avgValues[ state_ndx ] = avg_values
-    #end if
-  #end _UpdateAvgValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._UpdateStateValues()		-
+  #	METHOD:		ChannelAxial2DView._UpdateStateValues()		-
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
     """
 @return			kwargs with 'changed' and/or 'resized'
 """
-    kwargs = super( CoreAxial2DView, self )._UpdateStateValues( **kwargs )
+    kwargs = super( ChannelAxial2DView, self )._UpdateStateValues( **kwargs )
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
-    new_pin_index_flag = False
+    new_chan_index_flag = False
     if self.mode == 'xz':
       assy_ndx = 2
-      pin_ndx = 1
-      npin = self.data.core.npiny
+      chan_ndx = 1
+      npin = self.data.core.npiny + 1
     else:
       assy_ndx = 1
-      pin_ndx = 0
-      npin = self.data.core.npinx
+      chan_ndx = 0
+      npin = self.data.core.npinx + 1
     #if 'assembly_index' in kwargs:
       #self._stopme_ = True
 
@@ -1173,41 +1132,41 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       #changed = True
       if kwargs[ 'assembly_index' ][ assy_ndx ] != self.assemblyIndex[ assy_ndx ]:
         resized = True
-	new_pin_index_flag = True
+	new_chan_index_flag = True
       else:
         changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
-    if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
-      changed = True
-      self.avgDataSet = kwargs[ 'avg_dataset' ]
-      if self.avgDataSet == '':
-        self.avgDataSet = None
-      self.avgValues.clear()
+#    if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
+#      changed = True
+#      self.avgDataSet = kwargs[ 'avg_dataset' ]
+#      if self.avgDataSet == '':
+#        self.avgDataSet = None
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
       #changed = True
-      if kwargs[ 'pin_colrow' ][ pin_ndx ] != self.pinColRow[ pin_ndx ]:
+      if kwargs[ 'channel_colrow' ][ chan_ndx ] != self.channelColRow[ chan_ndx ]:
         resized = True
-	new_pin_index_flag = True
+	new_chan_index_flag = True
       else:
         changed = True
-      self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+      self.channelColRow = \
+          self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
 
-    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
-      ds_type = self.data.GetDataSetType( kwargs[ 'pin_dataset' ] )
+    if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
+      ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-        self.pinDataSet = kwargs[ 'pin_dataset' ]
-        self.avgValues.clear()
+        self.channelDataSet = kwargs[ 'channel_dataset' ]
 
-    if new_pin_index_flag:
-      self.pinOffset = \
-          self.assemblyIndex[ assy_ndx ] * npin + self.pinColRow[ pin_ndx ]
+    if new_chan_index_flag:
+      self.channelOffset = \
+          self.assemblyIndex[ assy_ndx ] * (npin + 1) + \
+	  self.channelColRow[ chan_ndx ]
     #end if new_pin_index_flag
 
-    if (changed or resized) and self.config is not None:
-      self._UpdateAvgValues( self.stateIndex )
+#    if (changed or resized) and self.config is not None:
+#      self._UpdateAvgValues( self.stateIndex )
 
     if changed:
       kwargs[ 'changed' ] = True
@@ -1217,30 +1176,30 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     return  kwargs
   #end _UpdateStateValues
 
-#end CoreAxial2DView
+#end ChannelAxial2DView
 
 
 #------------------------------------------------------------------------
-#	CLASS:		CoreXZView					-
+#	CLASS:		ChannelXZView					-
 #------------------------------------------------------------------------
-class CoreXZView( CoreAxial2DView ):
+class ChannelXZView( ChannelAxial2DView ):
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.__init__()			-
-  #----------------------------------------------------------------------
-  def __init__( self, container, id = -1, **kwargs ):
-    super( CoreXZView, self ).__init__( container, id, mode = 'xz' )
-  #end __init__
-#end CoreXZView
-
-
-#------------------------------------------------------------------------
-#	CLASS:		CoreYZView					-
-#------------------------------------------------------------------------
-class CoreYZView( CoreAxial2DView ):
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.__init__()			-
+  #	METHOD:		ChannelAxial2DView.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    super( CoreYZView, self ).__init__( container, id, mode = 'yz' )
+    super( ChannelXZView, self ).__init__( container, id, mode = 'xz' )
   #end __init__
-#end CoreYZView
+#end ChannelXZView
+
+
+#------------------------------------------------------------------------
+#	CLASS:		ChannelYZView					-
+#------------------------------------------------------------------------
+class ChannelYZView( ChannelAxial2DView ):
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAxial2DView.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, container, id = -1, **kwargs ):
+    super( ChannelYZView, self ).__init__( container, id, mode = 'yz' )
+  #end __init__
+#end ChannelYZView
