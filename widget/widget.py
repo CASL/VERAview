@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-04-11	leerw@ornl.gov				-
+#	  Changed _CalcFontSize() to make minimum label size 6 instead
+#	  of 8.
 #		2016-03-16	leerw@ornl.gov				-
 #	  Moved _OnFixMaxXxx() methods from RasterWidget.
 #		2016-02-19	leerw@ornl.gov				-
@@ -227,7 +230,8 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   def _CalcFontSize( self, display_wd ):
     #limits = ( 280, 8, 1280, 28 )
-    limits = ( 280, 8, 1280, 32 )
+    #limits = ( 280, 8, 1280, 32 )
+    limits = ( 280, 6, 1280, 32 )
     if display_wd >= limits[ 2 ]:
       size = limits[ 3 ]
     elif display_wd < limits[ 0 ]:

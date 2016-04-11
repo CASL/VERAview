@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-04-11	leerw@ornl.gov				-
+#	  Labeling channels, not pins.
 #		2016-03-14	leerw@ornl.gov				-
 #	  Added _OnFindMax().
 #		2016-02-19	leerw@ornl.gov				-
@@ -415,18 +417,31 @@ Must be called from the UI thread.
 #			--
       chan_y = assy_region[ 1 ]
       for chan_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-
 #				-- Row label
 #				--
-	if self.showLabels and chan_row < self.data.core.npin:
+	if self.showLabels and chan_row < self.data.core.npiny:
 	  label = '%d' % (chan_row + 1)
 	  label_size = label_font.getsize( label )
-	  #label_y = chan_y + ((chan_wd - label_size[ 1 ]) >> 1)
-	  label_y = chan_y + chan_wd + ((chan_gap - label_size[ 1 ]) >> 1)
+	  #Channel labeling
+	  label_y = chan_y + ((chan_wd - label_size[ 1 ]) >> 1)
+	  #Pin labeling
+	  #label_y = chan_y + chan_wd + ((chan_gap - label_size[ 1 ]) >> 1)
 	  im_draw.text(
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
 	      )
+
+	  #Channel labeling
+	  if chan_row == min( self.data.core.npiny, self.cellRange[ 3 ] ) - 1:
+	    label = '%d' % (chan_row + 2)
+	    label_size = label_font.getsize( label )
+	    label_y = chan_y + + chan_wd + chan_gap + \
+	        ((chan_wd - label_size[ 1 ]) >> 1)
+	    im_draw.text(
+	        ( 1, label_y ),
+	        label, fill = ( 0, 0, 0, 255 ), font = label_font
+	        )
+	  #end if
 
 #				-- Loop on col
 #				--
@@ -436,15 +451,29 @@ Must be called from the UI thread.
 #					--
 	  #if chan_row == self.cellRange[ 1 ] and self.showLabels:
 	  if self.showLabels and chan_row == self.cellRange[ 1 ] and \
-	      chan_col < self.data.core.npin:
+	      chan_col < self.data.core.npinx:
 	    label = '%d' % (chan_col + 1)
 	    label_size = label_font.getsize( label )
-	    #label_x = chan_x + ((chan_wd - label_size[ 0 ]) >> 1)
-	    label_x = chan_x + chan_wd + ((chan_gap - label_size[ 0 ]) >> 1)
+	    #Channel labeling
+	    label_x = chan_x + ((chan_wd - label_size[ 0 ]) >> 1)
+	    #Pin labeling
+	    #label_x = chan_x + chan_wd + ((chan_gap - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ),
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
+
+	    #Channel labeling
+	    if chan_col == min( self.cellRange[ 2 ], self.data.core.npinx ) - 1:
+	      label = '%d' % (chan_col + 2)
+	      label_size = label_font.getsize( label )
+	      label_x = chan_x + chan_wd + chan_gap + \
+	          ((chan_wd - label_size[ 0 ]) >> 1)
+	      im_draw.text(
+	          ( label_x, 1 ),
+	          label, fill = ( 0, 0, 0, 255 ), font = label_font
+	          )
+	    #end if
 	  #end if writing column label
 
 	  #value = 0.0

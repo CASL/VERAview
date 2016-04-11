@@ -4,7 +4,7 @@ pushd ..
 
 #name=veraview-1.0.zip
 #1.0 == build-35
-name=veraview-build-36.zip
+name=veraview-build-37.zip
 
 [ -f ${name} ] && unlink ${name}
 zip -r ${name} \

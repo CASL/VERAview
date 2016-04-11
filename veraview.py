@@ -99,7 +99,7 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
-TITLE = 'VERAView Version 1.0.36'
+TITLE = 'VERAView Version 1.0.37'
 
 TOOLBAR_ITEMS = \
   [
@@ -929,7 +929,7 @@ Must be called from the UI thread.
 #		--
 #    widget_list = [
 #	'widget.channel_view.Channel2DView',
-#	'widget.channel_assembly_view.ChannelAssembly2DView',
+#	'widget.channel_assembly_view.ChannelAssembly2DView'
 #	'widget.channel_axial_view.ChannelAxial2DView',
 #        'widget.all_axial_plot.AllAxialPlot',
 #        'widget.time_plot.TimePlot',
