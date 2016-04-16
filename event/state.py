@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-04-16	leerw@ornl.gov				-
+#	  Added scaleMode.
 #		2015-12-08	leerw@ornl.gov				-
 #	  Managing events and changes on the State object.
 #		2015-06-15	leerw@ornl.gov				-
@@ -56,6 +58,7 @@ STATE_CHANGE_detectorIndex = 0x1 << 9
 STATE_CHANGE_channelDataSet = 0x1 << 10
 STATE_CHANGE_channelColRow = 0x1 << 11
 STATE_CHANGE_timeDataSet = 0x1 << 12
+STATE_CHANGE_scaleMode = 0x1 << 13
 #STATE_CHANGE_ALL = 0x1fff
 
 LOCKABLE_STATES = \
@@ -70,6 +73,7 @@ LOCKABLE_STATES = \
   STATE_CHANGE_pinColRow,
   STATE_CHANGE_pinDataSet,
   STATE_CHANGE_scalarDataSet,
+  STATE_CHANGE_scaleMode,
   STATE_CHANGE_stateIndex,
   STATE_CHANGE_timeDataSet
   )
@@ -93,6 +97,7 @@ All indices are 0-based.
   pinColRow			( int column, int row )
   pinDataSet			str name
   scalarDataSet			str name
+  scaleMode			'all' or 'state'
   stateIndex			int index
   timeDataSet			state dataset to be used for "time"
 """
@@ -117,6 +122,7 @@ All indices are 0-based.
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = 'pin_powers'
     self.scalarDataSet = 'keff'
+    self.scaleMode = 'all'
     self.stateIndex = -1
     self.timeDataSet = 'state'
 
@@ -140,6 +146,8 @@ All indices are 0-based.
       self.pinDataSet = kwargs[ 'pin_dataset' ]
     if 'scalar_dataset' in kwargs:
       self.scalarDataSet = kwargs[ 'scalar_dataset' ]
+    if 'scale_mode' in kwargs:
+      self.scaleMode = kwargs[ 'scale_mode' ]
     if 'state_index' in kwargs:
       self.stateIndex = kwargs[ 'state_index' ]
     if 'time_dataset' in kwargs:
@@ -195,8 +203,9 @@ Keys passed and the corresponding state bit are:
   detector_index	STATE_CHANGE_detectorIndex
   pin_colrow		STATE_CHANGE_pinColRow
   pin_dataset		STATE_CHANGE_pinDataSet
-  state_index		STATE_CHANGE_stateIndex
   scalar_dataset	STATE_CHANGE_scalarDataSet
+  scale_mode		STATE_CHANGE_scaleMode
+  state_index		STATE_CHANGE_stateIndex
   time_dataset		STATE_CHANGE_timeDataSet
 @return			change reason mask
 """
@@ -244,6 +253,10 @@ Keys passed and the corresponding state bit are:
     if 'scalar_dataset' in kwargs and locks[ STATE_CHANGE_scalarDataSet ]:
       self.scalarDataSet = kwargs[ 'scalar_dataset' ]
       reason |= STATE_CHANGE_scalarDataSet
+
+    if 'scale_mode' in kwargs and locks[ STATE_CHANGE_scaleMode ]:
+      self.scaleMode = kwargs[ 'scale_mode' ]
+      reason |= STATE_CHANGE_scaleMode
 
     if 'state_index' in kwargs and locks[ STATE_CHANGE_stateIndex ]:
       self.stateIndex = kwargs[ 'state_index' ]
@@ -319,6 +332,9 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_scalarDataSet) > 0:
       update_args[ 'scalar_dataset' ] = self.scalarDataSet
 
+    if (reason & STATE_CHANGE_scaleMode) > 0:
+      update_args[ 'scale_mode' ] = self.scaleMode
+
     if (reason & STATE_CHANGE_stateIndex) > 0:
       update_args[ 'state_index' ] = self.stateIndex
 
@@ -370,6 +386,7 @@ Keys passed and the corresponding state bit are:
     undefined2 = ( -1, -1 )
     undefined3 = ( -1, -1, -1 )
     self.dataModel = data_model
+    self.scaleMode = 'all'
 
     if data_model is not None:
       self.assemblyIndex = data_model.NormalizeAssemblyIndex( undefined3 )
@@ -452,6 +469,7 @@ Keys passed and the corresponding state bit are:
 		STATE_CHANGE_pinColRow,
 		STATE_CHANGE_pinDataSet,
 		STATE_CHANGE_scalarDataSet,
+		STATE_CHANGE_scaleMode,
 		STATE_CHANGE_stateIndex
 		STATE_CHANGE_timeDataSet
 """

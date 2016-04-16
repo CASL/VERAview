@@ -687,10 +687,32 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.Bind( wx.EVT_MENU, self._OnCopy, copy_item )
     edit_menu.AppendItem( copy_item )
 
-    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets...' )
-    self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
-    edit_menu.AppendItem( datasets_item )
+#    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets...' )
+#    self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
+#    edit_menu.AppendItem( datasets_item )
 
+#		 	-- Scale Mode
+    scale_mode_menu = wx.Menu()
+    check_item = None
+    for label, mode in (
+        ( 'All State Points', 'all' ), ( 'Current State Point', 'state' )
+	):
+      item = wx.MenuItem( scale_mode_menu, wx.ID_ANY, label, kind = wx.ITEM_RADIO )
+      item._mode = mode
+      if mode == 'all':
+	check_item = item
+      self.Bind( wx.EVT_MENU, self._OnScaleMode, item )
+      scale_mode_menu.AppendItem( item )
+    #end for
+    if check_item:
+      check_item.Check()
+    scale_mode_item = wx.MenuItem(
+        edit_menu, wx.ID_ANY, 'Select Scale Mode',
+	subMenu = scale_mode_menu
+	)
+    edit_menu.AppendItem( scale_mode_item )
+
+#		 	-- Time Dataset
     self.timeDataSetMenu = wx.Menu()
     time_item = wx.MenuItem(
         edit_menu, wx.ID_ANY, 'Select Time Dataset',
@@ -1113,28 +1135,28 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnManageDataSets()		-
   #----------------------------------------------------------------------
-  def _OnManageDataSets( self, ev ):
-    ev.Skip()
-
-    msg = None
-    data_model = self.GetDataModel()
-
-    if data_model is None:
-      msg = 'No VERAOutput file has been read'
-
-    elif len( data_model.GetStates() ) == 0:
-      msg = 'No state points read from VERAOutput file'
-
-    if msg is not None:
-      wx.MessageDialog( self, msg, 'Manage Extra DataSets' ).ShowWindowModal()
-
-    else:
-      dialog = DataSetManagerDialog( self, data_model = data_model )
-      dialog.ShowModal()
-      data_model.ReadExtraDataSets()
-      dialog.Destroy()
-    #end if-else
-  #end _OnManageDataSets
+#  def _OnManageDataSets( self, ev ):
+#    ev.Skip()
+#
+#    msg = None
+#    data_model = self.GetDataModel()
+#
+#    if data_model is None:
+#      msg = 'No VERAOutput file has been read'
+#
+#    elif len( data_model.GetStates() ) == 0:
+#      msg = 'No state points read from VERAOutput file'
+#
+#    if msg is not None:
+#      wx.MessageDialog( self, msg, 'Manage Extra DataSets' ).ShowWindowModal()
+#
+#    else:
+#      dialog = DataSetManagerDialog( self, data_model = data_model )
+#      dialog.ShowModal()
+#      data_model.ReadExtraDataSets()
+#      dialog.Destroy()
+#    #end if-else
+#  #end _OnManageDataSets
 
 
   #----------------------------------------------------------------------
@@ -1261,6 +1283,23 @@ Must be called on the UI event thread.
 #	break
 #    #end for
 #  #end _OnSaveWindow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnScaleMode()			-
+  #----------------------------------------------------------------------
+  def _OnScaleMode( self, ev ):
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+
+    if item is not None:
+      mode = getattr( item, '_mode' ) if hasattr( item, '_mode' ) else 'all'
+      #title = item.GetLabel()
+      reason = self.state.Change( self.eventLocks, scale_mode = mode )
+      self.state.FireStateChange( reason )
+    #end if
+  #end _OnScaleMode
 
 
   #----------------------------------------------------------------------

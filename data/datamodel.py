@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-04-16	leerw@ornl.gov				-
+#	  Added per-statept dataset ranges, rangesByStatePt.
 #		2016-03-17	leerw@ornl.gov				-
 #	  Calling Close() from DataModel.__del__().
 #		2016-03-16	leerw@ornl.gov				-
@@ -595,6 +597,7 @@ Properties:
   derivedStates		list of DerivedState instances
   h5File		h5py.File
   ranges		dict of ranges ( min, max ) by dataset
+  rangesByStatePt	list by statept index of dicts by dataset of ranges 
   rangesLock		threading.RLock for ranges dict
   states		list of State instances
 """
@@ -724,6 +727,7 @@ passed, Read() must be called.
     self.derivedStates = None
     self.h5File = None
     self.ranges = None
+    self.rangesByStatePt = None
     self.states = None
   #end Clear
 
@@ -1180,7 +1184,7 @@ Calls FindMaxValueAddr().
   #----------------------------------------------------------------------
   def FindListIndex( self, values, value ):
     """Values in the list are assumed to be in order, either ascending or
-descending.
+descending.  Note bisect only does ascending.
 @param  values		list of values
 @param  value		value to search
 @return			0-based index N, values[ N ]
@@ -1518,7 +1522,52 @@ derived datasets.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetRange()				-
   #----------------------------------------------------------------------
-  def GetRange( self, ds_name ):
+  def GetRange( self, ds_name, state_ndx = -1 ):
+    """Gets the range for the specified dataset, calculating
+if necessary.  Note all requests for range should flow through this method,
+although Python doesn't allow us to enforce this.  We'll need to adopt
+the properties construct for this class soon.
+@param  ds_name		dataset name
+@param  state_ndx	optional 0-based statept index to use, or -1
+			for global range
+@return			( min, max ), possible the range of floating point values
+"""
+    ds_range = None
+
+    self.rangesLock.acquire()
+    try:
+      if state_ndx < 0:
+        range_dict = self.ranges
+
+      elif state_ndx >= self.GetStatesCount():
+        raise  Exception( 'State index %d is out of range' % state_ndx )
+
+      else:
+        range_dict = self.rangesByStatePt[ state_ndx ]
+	if range_dict is None:
+	  range_dict = {}
+	  self.rangesByStatePt[ state_ndx ] = range_dict
+      #end if-else
+
+      ds_range = range_dict.get( ds_name )
+      if ds_range is None:
+        ds_range = self._ReadDataSetRange( ds_name, state_ndx )
+        range_dict[ ds_name ] = ds_range
+
+    finally:
+      self.rangesLock.release()
+
+    if ds_range is None:
+      ds_range = DataModel.DEFAULT_range
+
+    return  ds_range
+  #end GetRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetRange_orig()			-
+  #----------------------------------------------------------------------
+  def GetRange_orig( self, ds_name ):
     """Gets the range for the specified dataset, calculating
 if necessary.  Note all requests for range should flow through this method,
 although Python doesn't allow us to enforce this.  We'll need to adopt
@@ -1541,7 +1590,7 @@ the properties construct for this class soon.
       ds_range = DataModel.DEFAULT_range
 
     return  ds_range
-  #end GetRange
+  #end GetRange_orig
 
 
   #----------------------------------------------------------------------
@@ -1884,80 +1933,39 @@ for NaN.  For now, we just assume 0.0 is "no data".
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.LoadExtraDataSet()			-
   #----------------------------------------------------------------------
-  def LoadExtraDataSet( self, ds_name, src_name = 'core', state_ndx = -1 ):
-    """Retrieves an extra dataset.
-@param  ds_name		name of dataset to load, required
-@param  src_name	optional name of source dataset for a time-based
-			dataset when combined with state_ndx, otherwise
-			defaults to 'core'
-@param  state_ndx	optional 0-based state point index when combined with
-			src_name
-@return			h5py.Dataset object or None if not found
-
-Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
-if both 'src_name' and 'state_ndx' are specified, the dataset is searched
-using the fully-qualified name in the specified state point (if 'state_ndx'
-is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
-to be 'core', and the dataset is not associated with a state point.
-"""
-    dset = None
-
-    if self.h5ExtraFile is not None and ds_name is not None:
-      qname = src_name + '.' + ds_name
-
-      if state_ndx < 0:
-        if qname in self.h5ExtraFile:
-	  dset = self.h5ExtraFile[ qname ]
-      else:
-        st = self.GetExtraState( state_ndx )
-	if st is not None and qname in st.GetGroup():
-	  dset = st.GetDataSet( qname )
-      #end if-else core or state point
-    #end if file exists
-
-    return  dset
-  #end LoadExtraDataSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.LoadExtraDataSet_0()			-
-  #----------------------------------------------------------------------
-  def LoadExtraDataSet_0( self, *argc, **kwargs ):
-    """Retrieves an extra dataset.
-@param  kwargs		parameters:
-  'ds_name'		name of dataset to store, required
-  'src_name'		name of source dataset for a time-based dataset if
-			specified with 'state_ndx', otherwise 'core' is assumed
-			as the source name
-  'state_ndx'		0-based state point index
-@return			h5py.Dataset object or None if not found
-
-Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
-if both 'src_name' and 'state_ndx' are specified, the dataset is searched
-using the fully-qualified name in the specified state point (if 'state_ndx'
-is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
-to be 'core', and the dataset is not associated with a state point.
-"""
-    dset = None
-    ds_name = kwargs.get( 'ds_name' )
-
-    if self.h5ExtraFile is not None and ds_name is not None:
-      src_name = kwargs.get( 'src_name', 'core' )
-      state_ndx = kwargs.get( 'state_ndx', -1 )
-      qname = src_name + '.' + ds_name
-
-      if state_ndx < 0:
-        if qname in self.h5ExtraFile:
-	  dset = self.h5ExtraFile[ qname ]
-      else:
-        st = self.GetExtraState( state_ndx )
-	if st is not None and qname in st.GetGroup():
-	  dset = st.GetDataSet( qname )
-      #end if-else core or state point
-    #end if file exists
-
-    return  dset
-  #end LoadExtraDataSet_0
+#  def LoadExtraDataSet( self, ds_name, src_name = 'core', state_ndx = -1 ):
+#    """Retrieves an extra dataset.
+#@param  ds_name		name of dataset to load, required
+#@param  src_name	optional name of source dataset for a time-based
+#			dataset when combined with state_ndx, otherwise
+#			defaults to 'core'
+#@param  state_ndx	optional 0-based state point index when combined with
+#			src_name
+#@return			h5py.Dataset object or None if not found
+#
+#Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
+#if both 'src_name' and 'state_ndx' are specified, the dataset is searched
+#using the fully-qualified name in the specified state point (if 'state_ndx'
+#is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
+#to be 'core', and the dataset is not associated with a state point.
+#"""
+#    dset = None
+#
+#    if self.h5ExtraFile is not None and ds_name is not None:
+#      qname = src_name + '.' + ds_name
+#
+#      if state_ndx < 0:
+#        if qname in self.h5ExtraFile:
+#	  dset = self.h5ExtraFile[ qname ]
+#      else:
+#        st = self.GetExtraState( state_ndx )
+#	if st is not None and qname in st.GetGroup():
+#	  dset = st.GetDataSet( qname )
+#      #end if-else core or state point
+#    #end if file exists
+#
+#    return  dset
+#  #end LoadExtraDataSet
 
 
   #----------------------------------------------------------------------
@@ -2094,6 +2102,7 @@ to be 'core', and the dataset is not associated with a state point.
         self._ResolveDataSets( self.core, st_group )
 
     self.ranges = {}
+    self.rangesByStatePt = [ {} ] * len( self.states )
 
 #		-- Special check for pin_factors
 #		--
@@ -2129,33 +2138,39 @@ to be 'core', and the dataset is not associated with a state point.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.ReadExtraDataSets()			-
   #----------------------------------------------------------------------
-  def ReadExtraDataSets( self ):
-    """
-"""
-    if self.h5ExtraFile is None:
-      self.dataSetNames[ 'extra' ] = []
-      self.extraStates = None
-
-    else:
-      self.dataSetNames[ 'extra' ], self.extraStates = \
-          ExtraState.ReadAll( self.h5ExtraFile )
-  #end ReadExtraDataSets
+#  def ReadExtraDataSets( self ):
+#    """
+#"""
+#    if self.h5ExtraFile is None:
+#      self.dataSetNames[ 'extra' ] = []
+#      self.extraStates = None
+#
+#    else:
+#      self.dataSetNames[ 'extra' ], self.extraStates = \
+#          ExtraState.ReadAll( self.h5ExtraFile )
+#  #end ReadExtraDataSets
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModel._ReadDataSetRange()			-
   #----------------------------------------------------------------------
-  def _ReadDataSetRange( self, ds_name ):
+  def _ReadDataSetRange( self, ds_name, state_ndx = -1 ):
     """Scans the data for the range.  Could be very time consuming.
 @param  ds_name		dataset name, where a prefix of 'extra:' means it's
 			an extra dataset
+@param  state_ndx	optional 0-based statept index in which to search
 """
     range_min = sys.float_info.min
     range_max = sys.float_info.max
 
     if ds_name:
       vmin = vmax = float( 'nan' )
-      for i in range( len( self.GetStates() ) ):
+      #for i in range( len( self.GetStates() ) ):
+      search_range = \
+          range( self.GetStatesCount() )  if state_ndx < 0 else \
+	  range( state_ndx, state_ndx + 1 )
+
+      for i in search_range:
         st = self.GetState( i )
 	derived_st = self.GetDerivedState( i )
 
@@ -2243,26 +2258,26 @@ to be 'core', and the dataset is not associated with a state point.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.RemoveExtraDataSet()			-
   #----------------------------------------------------------------------
-  def RemoveExtraDataSet( self, full_ds_name ):
-    """Removes the named dataset from all extra states.
-Note the fully-qualified name of a caculated dataset is 'source.name',
-where 'source' is the name of the dataset from which the extra dataset was
-calculated.
-@param  full_ds_name	fully-qualified dataset name
-"""
-    if self.HasExtraDataSet( full_ds_name ):
-      if full_ds_name.startswith( 'core' ):
-        del self.h5ExtraFile[ full_ds_name ]
-
-      else:
-        for st in self.GetExtraStates():
-	  st.RemoveDataSet( full_ds_name )
-	#end for
-      #end if-else
-
-      self.h5ExtraFile.flush()
-    #end if
-  #end RemoveExtraDataSet
+#  def RemoveExtraDataSet( self, full_ds_name ):
+#    """Removes the named dataset from all extra states.
+#Note the fully-qualified name of a caculated dataset is 'source.name',
+#where 'source' is the name of the dataset from which the extra dataset was
+#calculated.
+#@param  full_ds_name	fully-qualified dataset name
+#"""
+#    if self.HasExtraDataSet( full_ds_name ):
+#      if full_ds_name.startswith( 'core' ):
+#        del self.h5ExtraFile[ full_ds_name ]
+#
+#      else:
+#        for st in self.GetExtraStates():
+#	  st.RemoveDataSet( full_ds_name )
+#	#end for
+#      #end if-else
+#
+#      self.h5ExtraFile.flush()
+#    #end if
+#  #end RemoveExtraDataSet
 
 
   #----------------------------------------------------------------------
@@ -2381,141 +2396,73 @@ ds_names	dict of dataset names by dataset type
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.StoreExtraDataSet()			-
   #----------------------------------------------------------------------
-  def StoreExtraDataSet( self, ds_name, data, src_name = 'core', state_ndx = -1 ):
-    """Adds or replaces an extra dataset.
-@param  ds_name		name of dataset to store, required
-@param  data		numpy.ndarray containing data to store, required
-@param  src_name	optional name of source dataset for a time-based
-			dataset when combined with state_ndx, otherwise
-			defaults to 'core'
-@param  state_ndx	optional 0-based state point index when combined with
-			src_name
-@return			h5py.Dataset object added
-
-Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
-if both 'src_name' and 'state_ndx' are specified, the dataset is stored
-using the fully-qualified name in the specified state point (if 'state_ndx'
-is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
-to be 'core', and the dataset is not associated with a state point.
-"""
-    dset = None
-
-#		-- Create Extra File if Necessary
-#		--
-    if self.h5ExtraFile is None:
-      self._CreateExtraH5File( self )
-
-#		-- Assert on required params
-#		--
-    if ds_name is None or data is None:
-      raise  Exception( 'ds_name and data are required' )
-
-#		-- State point dataset?
-#		--
-    st = self.GetExtraState( state_ndx )
-    if src_name != 'core':
-#			-- Assert on index
-      if st is None:
-        raise  Exception( '"state_ndx" out of range' )
-
-      qname = src_name + '.' + ds_name
-      #st = self.GetExtraState( state_ndx )
-      st.RemoveDataSet( qname )
-      dset = st.CreateDataSet( qname, data )
-
-      if 'extra' not in self.dataSetNames:
-        self.dataSetNames[ 'extra' ] = []
-      if qname not in self.dataSetNames[ 'extra' ]:
-        self.dataSetNames[ 'extra' ].append( qname )
-        self.dataSetNames[ 'extra' ].sort()
-
-    else:
-      qname = 'core.' + ds_name
-      if qname in self.h5ExtraFile:
-        del self.h5ExtraFile[ qname ]
-
-      dset = self.h5ExtraFile.create_dataset( qname, data = data )
-    #end if-else core or state point
-
-    self.h5ExtraFile.flush()
-    return  dset
-  #end StoreExtraDataSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.StoreExtraDataSet_0()			-
-  #----------------------------------------------------------------------
-  def StoreExtraDataSet_0( self, *argc, **kwargs ):
-    """Adds or replaces an extra dataset.
-@param  kwargs		parameters:
-  'data'		numpy.ndarray containing data to store, required
-  'ds_name'		name of dataset to store, required
-  'src_name'		name of source dataset for a time-based dataset if
-			specified with 'state_ndx', otherwise 'core' is assumed
-			as the source name
-  'state_ndx'		0-based state point index
-@return			h5py.Dataset object added
-
-Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
-if both 'src_name' and 'state_ndx' are specified, the dataset is stored
-using the fully-qualified name in the specified state point (if 'state_ndx'
-is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
-to be 'core', and the dataset is not associated with a state point.
-"""
-    dset = None
-
-#		-- Create Extra File if Necessary
-#		--
-    if self.h5ExtraFile is None:
-      self._CreateExtraH5File( self )
-
-#		-- Assert on required params
-#		--
-    if 'data' not in kwargs and 'ds_name' not in kwargs:
-      raise  Exception( '"data" and "ds_name" are required' )
-
-    data_in = kwargs.get( 'data' )
-    ds_name = kwargs.get( 'ds_name' )
-
-    src_name = kwargs.get( 'src_name', 'core' )
-    state_ndx = kwargs.get( 'state_ndx', -1 )
-
-#		-- State point dataset?
-#		--
-    st = self.GetExtraState( state_ndx )
-    if src_name != 'core':
-#			-- Assert on index
-      if st is None:
-        raise  Exception( '"state_ndx" out of range' )
-
-      qname = src_name + '.' + ds_name
-      #st = self.GetExtraState( state_ndx )
-      st.RemoveDataSet( qname )
-      dset = st.CreateDataSet( qname, data_in )
-
-      if 'extra' not in self.dataSetNames:
-        self.dataSetNames[ 'extra' ] = []
-      if qname not in self.dataSetNames[ 'extra' ]:
-        self.dataSetNames[ 'extra' ].append( qname )
-        self.dataSetNames[ 'extra' ].sort()
-
-    else:
-      qname = 'core.' + ds_name
-      if qname in self.h5ExtraFile:
-        del self.h5ExtraFile[ qname ]
-
-      dset = self.h5ExtraFile.create_dataset( qname, data = data_in )
-    #end if-else core or state point
-
-    self.h5ExtraFile.flush()
-    return  dset
-  #end StoreExtraDataSet_0
+#  def StoreExtraDataSet( self, ds_name, data, src_name = 'core', state_ndx = -1 ):
+#    """Adds or replaces an extra dataset.
+#@param  ds_name		name of dataset to store, required
+#@param  data		numpy.ndarray containing data to store, required
+#@param  src_name	optional name of source dataset for a time-based
+#			dataset when combined with state_ndx, otherwise
+#			defaults to 'core'
+#@param  state_ndx	optional 0-based state point index when combined with
+#			src_name
+#@return			h5py.Dataset object added
+#
+#Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
+#if both 'src_name' and 'state_ndx' are specified, the dataset is stored
+#using the fully-qualified name in the specified state point (if 'state_ndx'
+#is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
+#to be 'core', and the dataset is not associated with a state point.
+#"""
+#    dset = None
+#
+##		-- Create Extra File if Necessary
+##		--
+#    if self.h5ExtraFile is None:
+#      self._CreateExtraH5File( self )
+#
+##		-- Assert on required params
+##		--
+#    if ds_name is None or data is None:
+#      raise  Exception( 'ds_name and data are required' )
+#
+##		-- State point dataset?
+##		--
+#    st = self.GetExtraState( state_ndx )
+#    if src_name != 'core':
+##			-- Assert on index
+#      if st is None:
+#        raise  Exception( '"state_ndx" out of range' )
+#
+#      qname = src_name + '.' + ds_name
+#      #st = self.GetExtraState( state_ndx )
+#      st.RemoveDataSet( qname )
+#      dset = st.CreateDataSet( qname, data )
+#
+#      if 'extra' not in self.dataSetNames:
+#        self.dataSetNames[ 'extra' ] = []
+#      if qname not in self.dataSetNames[ 'extra' ]:
+#        self.dataSetNames[ 'extra' ].append( qname )
+#        self.dataSetNames[ 'extra' ].sort()
+#
+#    else:
+#      qname = 'core.' + ds_name
+#      if qname in self.h5ExtraFile:
+#        del self.h5ExtraFile[ qname ]
+#
+#      dset = self.h5ExtraFile.create_dataset( qname, data = data )
+#    #end if-else core or state point
+#
+#    self.h5ExtraFile.flush()
+#    return  dset
+#  #end StoreExtraDataSet
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.ToJson()				-
   #----------------------------------------------------------------------
   def ToJson( self ):
+    """Placeholder for some day.
+"""
     obj = {}
 
     if self.core is not None:
