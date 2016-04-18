@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-04-18	leerw@ornl.gov				-
+#	  Using State.scaleMode.
 #		2016-03-14	leerw@ornl.gov				-
 #	  Added _OnFindMax().
 #		2016-03-05	leerw@ornl.gov				-
@@ -264,10 +266,11 @@ If neither are specified, a default 'scale' value of 4 is used.
     lineWidth
     pinWidth
 """
-    config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
-	**kwargs
+    ds_range = self.data.GetRange(
+        self.pinDataSet,
+	self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
+    config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
@@ -430,7 +433,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-      ds_range = self.data.GetRange( self.pinDataSet )
+      ds_range = self.data.GetRange(
+          self.pinDataSet,
+	  state_ndx if self.state.scaleMode == 'state' else -1
+	  )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       if self.mode == 'xz':

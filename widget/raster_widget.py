@@ -1154,6 +1154,9 @@ Calls _UpdateStateValues().
 """
     self._BusyBegin()
 
+    if 'scale_mode' in kwargs:
+      kwargs[ 'resized' ] = True
+
     kwargs = self._UpdateStateValues( **kwargs )
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
@@ -1220,7 +1223,11 @@ are handled.  Subclasses should override and call this first.
       self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
     if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
-      changed = True
+      #changed = True
+      if self.state.scaleMode == 'state':
+        resized = True
+      else:
+        changed = True
       self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
 
     if 'time_dataset' in kwargs:

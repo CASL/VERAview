@@ -99,6 +99,12 @@ from widget.bean.exposure_slider import *
 
 ID_REFIT_WINDOW = 1000
 
+SCALE_MODES = \
+  {
+  'All State Points': 'all',
+  'Current State Point': 'state'
+  }
+
 TITLE = 'VERAView Version 1.0.37'
 
 TOOLBAR_ITEMS = \
@@ -694,12 +700,9 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #		 	-- Scale Mode
     scale_mode_menu = wx.Menu()
     check_item = None
-    for label, mode in (
-        ( 'All State Points', 'all' ), ( 'Current State Point', 'state' )
-	):
+    for label in sorted( SCALE_MODES.keys() ):
       item = wx.MenuItem( scale_mode_menu, wx.ID_ANY, label, kind = wx.ITEM_RADIO )
-      item._mode = mode
-      if mode == 'all':
+      if SCALE_MODES.get( label ) == 'all':
 	check_item = item
       self.Bind( wx.EVT_MENU, self._OnScaleMode, item )
       scale_mode_menu.AppendItem( item )
@@ -1294,8 +1297,7 @@ Must be called on the UI event thread.
     item = menu.FindItemById( ev.GetId() )
 
     if item is not None:
-      mode = getattr( item, '_mode' ) if hasattr( item, '_mode' ) else 'all'
-      #title = item.GetLabel()
+      mode = SCALE_MODES.get( item.GetLabel(), 'all' )
       reason = self.state.Change( self.eventLocks, scale_mode = mode )
       self.state.FireStateChange( reason )
     #end if

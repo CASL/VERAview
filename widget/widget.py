@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-04-18	leerw@ornl.gov				-
+#	  In GetColorTuple() accounting for values above max.
 #		2016-04-11	leerw@ornl.gov				-
 #	  Changed _CalcFontSize() to make minimum label size 6 instead
 #	  of 8.
@@ -970,7 +972,8 @@ http://www.particleincell.com/blog/2014/colormap/
       '[Widget.GetColorTuple] value=%f, max_value=%f' % \
       ( value, max_value )
 
-    f = float( value ) / max_value  if max_value != 0.0  else 0.0
+    use_value = min( value, max_value )
+    f = float( use_value ) / max_value  if max_value != 0.0  else 0.0
     a = (1.0 - f) / 0.25
     x = int( math.floor( a ) )
     y = int( math.floor( 255 * (a - x) ) )

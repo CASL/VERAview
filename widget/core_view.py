@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-04-18	leerw@ornl.gov				-
+#	  Using State.scaleMode.
 #		2016-03-14	leerw@ornl.gov				-
 #	  Added _OnFindMax().
 #		2016-03-07	leerw@ornl.gov				-
@@ -201,10 +203,11 @@ If neither are specified, a default 'scale' value of 24 is used.
     pinGap
     pinWidth
 """
-    config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
-	**kwargs
+    ds_range = self.data.GetRange(
+        self.pinDataSet,
+	self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
+    config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
@@ -302,7 +305,10 @@ If neither are specified, a default 'scale' value of 24 is used.
         dset_shape = dset.shape
         cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
         cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
-      ds_range = self.data.GetRange( self.pinDataSet )
+      ds_range = self.data.GetRange(
+          self.pinDataSet,
+	  state_ndx if self.state.scaleMode == 'state' else -1
+	  )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
@@ -582,10 +588,11 @@ If neither are specified, a default 'scale' value of 4 is used.
     valueFont
     valueFontSize
 """
-    config = self._CreateBaseDrawConfig(
-        self.data.GetRange( self.pinDataSet ),
-	**kwargs
+    ds_range = self.data.GetRange(
+        self.pinDataSet,
+	self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
+    config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
@@ -693,7 +700,11 @@ If neither are specified, a default 'scale' value of 4 is used.
         dset_shape = dset.shape
         cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
         cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
-      ds_range = self.data.GetRange( self.pinDataSet )
+
+      ds_range = self.data.GetRange(
+          self.pinDataSet,
+	  state_ndx if self.state.scaleMode == 'state' else -1
+	  )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
@@ -1103,6 +1114,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_scaleMode,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
