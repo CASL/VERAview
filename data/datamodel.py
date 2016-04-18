@@ -2102,7 +2102,6 @@ for NaN.  For now, we just assume 0.0 is "no data".
         self._ResolveDataSets( self.core, st_group )
 
     self.ranges = {}
-    #self.rangesByStatePt = [ {} ] * len( self.states )
     self.rangesByStatePt = [ dict() for i in range( len( self.states ) ) ]
 
 #		-- Special check for pin_factors

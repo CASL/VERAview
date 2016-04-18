@@ -423,11 +423,21 @@ calls self.ax.grid() and can be called by subclasses.
 #			--
       if top_ds_name is not None and self.ax2 is not None:
         self.ax2.set_xlabel( top_ds_name, fontsize = label_font_size )
-        self.ax2.set_xlim( *self.data.GetRange( top_ds_name ) )
+        #self.ax2.set_xlim( *self.data.GetRange( top_ds_name ) )
+	ds_range = self.data.GetRange(
+	    top_ds_name,
+	    self.stateIndex if self.state.scaleMode == 'state' else -1
+	    )
+        self.ax2.set_xlim( *ds_range )
 	self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
       self.ax.set_xlabel( bottom_ds_name, fontsize = label_font_size )
-      self.ax.set_xlim( *self.data.GetRange( bottom_ds_name ) )
+      #self.ax.set_xlim( *self.data.GetRange( bottom_ds_name ) )
+      ds_range = self.data.GetRange(
+	  bottom_ds_name,
+	  self.stateIndex if self.state.scaleMode == 'state' else -1
+	  )
+      self.ax.set_xlim( *ds_range )
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
       self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 

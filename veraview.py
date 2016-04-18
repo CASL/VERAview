@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-04-16	leerw@ornl.gov				-
+#	  Added "Select Scale Mode" pullright on the Edit menu.
 #		2016-03-16	leerw@ornl.gov				-
 #	  Playing with grid sizing when adding widgets, might finally
 #	  have a workable solution.
@@ -105,7 +107,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.37'
+TITLE = 'VERAView Version 1.0.38'
 
 TOOLBAR_ITEMS = \
   [

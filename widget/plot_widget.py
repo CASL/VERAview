@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-04-18	leerw@ornl.gov				-
+#	  Using State.scaleMode.
 #		2016-01-25	leerw@ornl.gov				-
 #	  Cleaning up the menu mess.
 #		2016-01-23	leerw@ornl.gov				-
@@ -472,6 +474,9 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
+    if 'scale_mode' in kwargs:
+      kwargs[ 'replot' ] = True
+
     kwargs = self._UpdateStateValues( **kwargs )
     redraw = kwargs.get( 'redraw', False )
     replot = kwargs.get( 'replot', False )
