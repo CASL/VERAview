@@ -700,6 +700,7 @@ definition array for a pullright.
 """
     ev.Skip()
 
+    #xxx may have multiple dataset types, how to determine the category?
     try:
       menu = ev.GetEventObject()
       item = menu.FindItemById( ev.GetId() )
@@ -928,6 +929,7 @@ Must be called from the UI event thread
   #----------------------------------------------------------------------
   def _UpdateDataSetMenu( self ):
     """Handles (re)creation of the dataset menu.
+xxx Move this to Widget() to allow override to multiple dataset display?
 """
 #		-- Check need for update
 #		--
@@ -1023,6 +1025,7 @@ Must be called from the UI event thread
 
 #		-- Populate derived label submenus
 #		--
+      #xxx: can have multiple ds_category
       ds_category = self.widget.GetDataSetTypes()[ 0 ]
       labels = data_model.GetDerivedLabels( ds_category )
       names = data_model.GetDataSetNames( ds_category )
