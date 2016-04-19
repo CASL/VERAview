@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-04-19	leerw@ornl.gov				-
+#	  Added GetDisplaysMultiDataSets() and IsDataSetVisible().
 #		2016-04-18	leerw@ornl.gov				-
 #	  In GetColorTuple() accounting for values above max.
 #		2016-04-11	leerw@ornl.gov				-
@@ -109,7 +111,6 @@ class Widget( wx.Panel ):
     self.busy = False
     #self.busyCursor = None
     self.container = container
-    self.multiDataSets = []  # should always be sorted ascending
     self.state = None
 
     self.menuDef = None
@@ -461,6 +462,18 @@ implementation returns an empty list and must be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetDisplaysMultiDataSets()			-
+  #----------------------------------------------------------------------
+  def GetDisplaysMultiDataSets( self ):
+    """Accessor specifying if the widget displays multiple datasets.
+Subclasses should override as necessary.
+@return			False
+"""
+    return  False
+  #end GetDisplaysMultiDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetEventLockSet()				-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
@@ -501,19 +514,6 @@ by subclasses.
       self.menuDef = self._CreateMenuDef( data_model )
     return  self.menuDef
   #end GetMenuDef
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		GetMultiDataSetType()				-
-  #----------------------------------------------------------------------
-  def GetMultiDataSetType( self ):
-    """Accessor specifying the type of datasets which can be toggled
-on/off for this widget.  The type is one of 'axial' or None.
-Subclasses should override as this implementation returns None
-@return			dataset_type
-"""
-    return  None
-  #end GetMultiDataSetType
 
 
   #----------------------------------------------------------------------
@@ -619,6 +619,18 @@ Returning None means no tool buttons, which is the default implemented here.
   def IsBusy( self ):
     return  self.busy
   #end IsBusy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		IsDataSetVisible()				-
+  #----------------------------------------------------------------------
+  def IsDataSetVisible( self, ds_name ):
+    """True if the specified dataset is currently displayed, false otherwise.
+@param  ds_name		dataset name
+@return			False
+"""
+    return  False
+  #end IsDataSetVisible
 
 
   #----------------------------------------------------------------------
@@ -728,6 +740,56 @@ it to the clipboard.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnDataSetMenuItem()			-
+  #----------------------------------------------------------------------
+#x  def _OnDataSetMenuItem( self, ev ):
+#x    """
+#x"""
+#x    ev.Skip()
+#x
+#x    menu = ev.GetEventObject()
+#x    item = menu.FindItemById( ev.GetId() )
+#x    if item is not None:
+#x      self._BusyBegin()
+#x      self.SetDataSet( item.GetLabel() )
+#x      self._BusyEnd()
+#x  #end _OnDataSetMenuItem
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnDerivedDataSetMenuItem()		-
+  #----------------------------------------------------------------------
+#x  def _OnDerivedDataSetMenuItem( self, ev ):
+#x    """
+#x"""
+#x    ev.Skip()
+#x
+#x    #xxx may have multiple dataset types, how to determine the category?
+#x    try:
+#x      menu = ev.GetEventObject()
+#x      item = menu.FindItemById( ev.GetId() )
+#x      if item is not None:
+#x        self._BusyBegin()
+#x
+#x        ds_name = item.GetLabel().replace( ' *', '' )
+#x        ds_menu = item.GetMenu()
+#x        data_model = State.FindDataModel( self.state )
+#x        name = data_model.ResolveDerivedDataSet(
+#x            self.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
+#x	    )
+#x        if name:
+#x          self.SetDataSet( name )
+#x        self._BusyEnd()
+#x
+#x    except Exception, ex:
+#x      wx.MessageBox(
+#x	  str( ex ), 'Calculate Derived Dataset',
+#x	  wx.OK_DEFAULT, self
+#x	  )
+#x  #end _OnDerivedDataSetMenuItem
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMax()				-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
@@ -814,7 +876,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		SetDataSet()					-
+  #	METHOD:		Widget.SetDataSet()				-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
     pass
@@ -822,7 +884,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		SetState()					-
+  #	METHOD:		Widget.SetState()				-
   #----------------------------------------------------------------------
   def SetState( self, state ):
     self.state = state
@@ -831,45 +893,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ShowMultiDataSet()				-
-  #----------------------------------------------------------------------
-  def ShowMultiDataSet( self, name, visible, update_menu = True ):
-    """Subclasses should call this when programmatically toggling a dataset.
-"""
-#    already_visible = name in self.multiDataSets
-#    if visible ^ already_visible:
-
-    changed = False
-    if visible:
-      if name not in self.multiDataSets:
-        changed = True
-        self.multiDataSets.append( name )
-        self.multiDataSets.sort()
-
-    elif name in self.multiDataSets:
-      changed = True
-      self.multiDataSets.remove( name )
-
-    if changed:
-      self._ShowMultiDataSetImpl( name, visible )
-      if update_menu:
-        self.container.UpdateMultiDataSetMenu( name, visible )
-    #end if changing
-  #end ShowMultiDataSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_ShowMultiDataSetImpl()				-
-  #----------------------------------------------------------------------
-  def _ShowMultiDataSetImpl( self, name, visible ):
-    """Subclasses should override this.
-"""
-    pass
-  #end _ShowMultiDataSetImpl
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		UpdateState()					-
+  #	METHOD:		Widget.UpdateState()				-
   #----------------------------------------------------------------------
   def UpdateState( self, **kwargs ):
     """Must be implemented by extensions.  This is a noop implementation
@@ -879,7 +903,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateVisibilityMenuItems()			-
+  #	METHOD:		Widget._UpdateVisibilityMenuItems()		-
   #----------------------------------------------------------------------
   def _UpdateVisibilityMenuItems( self, menu, *suffixes_and_flags ):
     """Must be called on the UI event thread.
@@ -914,7 +938,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetBitmap()					-
+  #	METHOD:		Widget.GetBitmap()				-
   #----------------------------------------------------------------------
   @staticmethod
   def GetBitmap( name ):
@@ -935,7 +959,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetColor()					-
+  #	METHOD:		Widget.GetColor()				-
   #----------------------------------------------------------------------
   @staticmethod
   def GetColor( value, max_value, alpha = 255 ):
@@ -946,7 +970,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetColorLuminance()				-
+  #	METHOD:		Widget.GetColorLuminance()			-
   #----------------------------------------------------------------------
   @staticmethod
   def GetColorLuminance( r, g, b ):
@@ -959,7 +983,7 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetColorTuple()					-
+  #	METHOD:		Widget.GetColorTuple()				-
   #----------------------------------------------------------------------
   @staticmethod
   def GetColorTuple( value, max_value, alpha = 255, debug = False ):
@@ -1013,7 +1037,7 @@ http://www.particleincell.com/blog/2014/colormap/
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetContrastColor()				-
+  #	METHOD:		Widget.GetContrastColor()			-
   #----------------------------------------------------------------------
   @staticmethod
   def GetContrastColor( r, g, b, alpha = 255 ):
@@ -1026,7 +1050,7 @@ http://www.particleincell.com/blog/2014/colormap/
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetContrastRedColor()				-
+  #	METHOD:		Widget.GetContrastRedColor()			-
   #----------------------------------------------------------------------
   @staticmethod
   def GetContrastRedColor( r, g, b, alpha = 255 ):
@@ -1039,7 +1063,7 @@ http://www.particleincell.com/blog/2014/colormap/
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDarkerColor()				-
+  #	METHOD:		Widget.GetDarkerColor()				-
   #----------------------------------------------------------------------
   @staticmethod
   def GetDarkerColor( tuple_in, alpha = 255 ):
@@ -1051,7 +1075,7 @@ http://www.particleincell.com/blog/2014/colormap/
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		InvertColor()					-
+  #	METHOD:		Widget.InvertColor()				-
   #----------------------------------------------------------------------
   @staticmethod
   def InvertColor( color ):
@@ -1063,7 +1087,7 @@ http://www.particleincell.com/blog/2014/colormap/
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		InvertColorTuple()				-
+  #	METHOD:		Widget.InvertColorTuple()			-
   #----------------------------------------------------------------------
   @staticmethod
   def InvertColorTuple( r, g, b ):

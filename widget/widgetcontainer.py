@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-04-19	leerw@ornl.gov				-
+#	  Starting to support multiple dataset display.
 #		2016-03-16	leerw@ornl.gov				-
 #	  New animations based on gifsicle.
 #		2016-03-14	leerw@ornl.gov				-
@@ -474,7 +476,7 @@ definition array for a pullright.
           self.dataSetMenuButton, 0,
 	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	  )
-    #end if dataset_type
+    #end if dataset_types
 
 #		-- Widget menu
 #		--
@@ -645,34 +647,34 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   #	METHOD:		_OnDataSetMenuExtraItem()			-
   #----------------------------------------------------------------------
-  def _OnDataSetMenuExtraItem( self, ev ):
-    """
-@deprecated
-"""
-    ev.Skip()
-
-    data_model = State.FindDataModel( self.state )
-    if data_model is not None:
-      matching_ds_names = data_model.GetExtra4DDataSets()
-
-      if len( matching_ds_names ) == 0:
-        wx.MessageBox(
-	    'No matching extra datasets',
-	    'Save Animated Image', wx.OK_DEFAULT, self
-	    )
-      else:
-        dialog = wx.SingleChoiceDialog(
-	    self, 'Select', 'Select Extra Dataset',
-	    matching_ds_names
-	    )
-        status = dialog.ShowModal()
-	if status == wx.ID_OK:
-	  name = dialog.GetStringSelection()
-	  if name is not None:
-	    self.widget.SetDataSet( 'extra:' + dialog.GetStringSelection() )
-      #end if-else
-    #end if data_model exists
-  #end _OnDataSetMenuExtraItem
+#  def _OnDataSetMenuExtraItem( self, ev ):
+#    """
+#@deprecated
+#"""
+#    ev.Skip()
+#
+#    data_model = State.FindDataModel( self.state )
+#    if data_model is not None:
+#      matching_ds_names = data_model.GetExtra4DDataSets()
+#
+#      if len( matching_ds_names ) == 0:
+#        wx.MessageBox(
+#	    'No matching extra datasets',
+#	    'Save Animated Image', wx.OK_DEFAULT, self
+#	    )
+#      else:
+#        dialog = wx.SingleChoiceDialog(
+#	    self, 'Select', 'Select Extra Dataset',
+#	    matching_ds_names
+#	    )
+#        status = dialog.ShowModal()
+#	if status == wx.ID_OK:
+#	  name = dialog.GetStringSelection()
+#	  if name is not None:
+#	    self.widget.SetDataSet( 'extra:' + dialog.GetStringSelection() )
+#      #end if-else
+#    #end if data_model exists
+#  #end _OnDataSetMenuExtraItem
 
 
   #----------------------------------------------------------------------
@@ -941,19 +943,16 @@ xxx Move this to Widget() to allow override to multiple dataset display?
           '[WidgetContainer._UpdateDataSetMenu] version from=%d, to=%d' % \
 	  ( self.dataSetMenuVersion, data_model.GetDataSetNamesVersion() )
 
+      self.widget.UpdateDataSetMenu( self.dataSetMenu, data_model )
+
 #			-- Remove existing items
 #			--
       rlist = []
       for item in self.dataSetMenu.GetMenuItems():
-        if item.GetLabel() not in ( 'Derived', 'Other' ):
+        if item.GetLabel() not in ( 'Derived', 'Other', 'Selected' ):
 	  rlist.append( item )
       for item in rlist:
         self.dataSetMenu.DestroyItem( item )
-#      while self.dataSetMenu.GetMenuItemCount() > 0:
-#	item = self.dataSetMenu.FindItemByPosition( 0 )
-#	if item.GetLabel() not in ( 'Derived', 'Other' ):
-#	  self.dataSetMenu.DestroyItem( item )
-#      #end while
 
 #			-- Must have datasets
 #			--
