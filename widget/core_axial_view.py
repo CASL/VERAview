@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-04-20	leerw@ornl.gov				-
+#	  GetDataSetTypes() changed so pin:assembly is the only derived
+#	  type.
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-03-14	leerw@ornl.gov				-
@@ -786,7 +789,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:axial' ]
+    return  [ 'pin', 'pin:assembly' ]
   #end GetDataSetTypes
 
 

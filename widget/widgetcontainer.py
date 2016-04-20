@@ -708,7 +708,6 @@ definition array for a pullright.
 """
     ev.Skip()
 
-    #xxx may have multiple dataset types, how to determine the category?
     try:
       menu = ev.GetEventObject()
       item = menu.FindItemById( ev.GetId() )
@@ -949,7 +948,6 @@ Must be called from the UI event thread
   #----------------------------------------------------------------------
   def _UpdateDataSetMenu( self ):
     """Handles (re)creation of the dataset menu.
-xxx Move this to Widget() to allow override to multiple dataset display?
 """
 #		-- Check need for update
 #		--
@@ -1047,7 +1045,6 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 #		-- Populate derived label submenus
 #		--
       label_cat_ds_names_map = {}
-      pdb.set_trace()
       for ds_type in self.widget.GetDataSetTypes():
         ndx = ds_type.find( ':' )
 	if ndx > 0:
@@ -1069,7 +1066,6 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 	#end if ndx
       #end for ds_type
 
-      #xxxx not working
       if label_cat_ds_names_map:
 	item_kind = \
 	    wx.ITEM_CHECK if self.widget.GetDisplaysMultiDataSets() else \
@@ -1096,13 +1092,18 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 	          item.Check()
 	    #end for name
 	  #end for cat, names
-	#end for label
 
-        label_item = wx.MenuItem(
-            self.derivedDataSetMenu, wx.ID_ANY, label,
-	    subMenu = ds_menu
-	    )
-	self.derivedDataSetMenu.AppendItem( label_item )
+	  if empty:
+	    empty = False
+	  else:
+	    self.derivedDataSetMenu.AppendSeparator();
+
+          label_item = wx.MenuItem(
+              self.derivedDataSetMenu, wx.ID_ANY, label,
+	      subMenu = ds_menu
+	      )
+	  self.derivedDataSetMenu.AppendItem( label_item )
+	#end for label
       #end if label_cat_ds_names_map
     #end if we have a derived submenu
   #end _UpdateDerivedDataSetMenu

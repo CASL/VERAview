@@ -772,56 +772,6 @@ it to the clipboard.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnDataSetMenuItem()			-
-  #----------------------------------------------------------------------
-#x  def _OnDataSetMenuItem( self, ev ):
-#x    """
-#x"""
-#x    ev.Skip()
-#x
-#x    menu = ev.GetEventObject()
-#x    item = menu.FindItemById( ev.GetId() )
-#x    if item is not None:
-#x      self._BusyBegin()
-#x      self.SetDataSet( item.GetLabel() )
-#x      self._BusyEnd()
-#x  #end _OnDataSetMenuItem
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnDerivedDataSetMenuItem()		-
-  #----------------------------------------------------------------------
-#x  def _OnDerivedDataSetMenuItem( self, ev ):
-#x    """
-#x"""
-#x    ev.Skip()
-#x
-#x    #xxx may have multiple dataset types, how to determine the category?
-#x    try:
-#x      menu = ev.GetEventObject()
-#x      item = menu.FindItemById( ev.GetId() )
-#x      if item is not None:
-#x        self._BusyBegin()
-#x
-#x        ds_name = item.GetLabel().replace( ' *', '' )
-#x        ds_menu = item.GetMenu()
-#x        data_model = State.FindDataModel( self.state )
-#x        name = data_model.ResolveDerivedDataSet(
-#x            self.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
-#x	    )
-#x        if name:
-#x          self.SetDataSet( name )
-#x        self._BusyEnd()
-#x
-#x    except Exception, ex:
-#x      wx.MessageBox(
-#x	  str( ex ), 'Calculate Derived Dataset',
-#x	  wx.OK_DEFAULT, self
-#x	  )
-#x  #end _OnDerivedDataSetMenuItem
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMax()				-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
