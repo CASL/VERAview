@@ -115,6 +115,7 @@ class Widget( wx.Panel ):
     self.container = container
     self.state = None
 
+    self.derivedLabels = None
     self.menuDef = None
     self.popupMenu = None
 
@@ -453,16 +454,39 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     """Accessor specifying the types of datasets which can be single-selected
-for this widget.  The types are defined in datamodel and include 'channel',
-'detector', 'pin', and 'scalar' as well as derived types such as
-'pin:assembly'.  The first type in the list should be the primary type or
-"category", one of 'channel', 'detector', 'pin', or 'scalar'.  This
-implementation returns an empty list and must be overridden by subclasses.
+for this widget, including derived types.  The types are defined in
+datamodel.DATASET_DEFS and include primary types 'channel', 'detector', 'pin',
+and 'scalar' as well as derived types such as 'pin:assembly'.  Derived
+labels (e.g., 'assembly') that can be produced by this widget will be
+determined from this value.  This implementation returns an empty list and must
+be overridden by subclasses.
 
 @return			list of dataset types, cannot be None
 """
     return  []
   #end GetDataSetTypes
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetDerivedLabels()			-
+  #----------------------------------------------------------------------
+  def GetDerivedLabels( self ):
+    """Lazily creates the list of derived labels supported by this
+widget from the types returned by GetDataSetTypes().
+
+@return			set of derived labels, possibly empty, not None
+"""
+    if self.derivedLabels is None:
+      self.derivedLabels = set()
+      for t in self.GetDataSetTypes():
+        ndx = t.find( ':' )
+	if ndx >= 0:
+	  self.derivedLabels.add( t[ ndx + 1 : ] )
+      #end for
+    #end if
+
+    return  self.derivedLabels
+  #end GetDerivedLabels
 
 
   #----------------------------------------------------------------------

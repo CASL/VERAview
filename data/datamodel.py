@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-04-20	leerw@ornl.gov				-
+#	  Added DataModel.derivedLabelsByType to cache results for
+#	  GetDerivedLabels().
 #		2016-04-16	leerw@ornl.gov				-
 #	  Added per-statept dataset ranges, rangesByStatePt.
 #		2016-03-17	leerw@ornl.gov				-
@@ -594,6 +597,7 @@ Properties:
   dataSetNamesVersion	counter to indicate changes
   #derivedDataMgr	DerivedDataMgr instance
   derivedFile		h5py.File for derived data
+  derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
   h5File		h5py.File
   ranges		dict of ranges ( min, max ) by dataset
@@ -724,6 +728,7 @@ passed, Read() must be called.
     self.dataSetNames = None
     self.dataSetNamesVersion = 0
     self.derivedFile = None
+    self.derivedLabelsByType = None
     self.derivedStates = None
     self.h5File = None
     self.ranges = None
@@ -1450,19 +1455,22 @@ returned.  Calls FindMaxValueAddr().
   #----------------------------------------------------------------------
   def GetDerivedLabels( self, ds_category ):
     """For the specified category, returns all the labels for possible
-derived datasets.
+derived datasets.  Lazily created and cached.
 """
-    labels = []
+    labels = self.derivedLabelsByType.get( ds_category )
+    if labels is None:
+      labels = []
+      for def_name, def_item in self.dataSetDefs.iteritems():
+        if def_name.startswith( ds_category ):
+          ndx = def_name.find( ':' )
+	  if ndx >= 0:
+	    labels.append( def_name[ ndx + 1 : ] )
+      #end for
 
-    #xxxx must look up prefix in def
-    for def_name, def_item in self.dataSetDefs.iteritems():
-      if def_name.startswith( ds_category ):
-        ndx = def_name.find( ':' )
-	if ndx >= 0:
-	  labels.append( def_name[ ndx + 1 : ] )
-    #end for
+      labels.sort()
+      self.derivedLabelsByType[ ds_category ] = labels
+    #end if
 
-    labels.sort()
     return  labels
   #end GetDerivedLabels
 
@@ -2100,6 +2108,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 #		--
     self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
         self._ResolveDataSets( self.core, st_group )
+    self.derivedLabelsByType = {}
 
     self.ranges = {}
     self.rangesByStatePt = [ dict() for i in range( len( self.states ) ) ]

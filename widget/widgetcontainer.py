@@ -1046,54 +1046,45 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 
 #		-- Populate derived label submenus
 #		--
-#      ds_category = self.widget.GetDataSetTypes()[ 0 ]
-#      labels = data_model.GetDerivedLabels( ds_category )
-#      names = data_model.GetDataSetNames( ds_category )
+      label_cat_ds_names_map = {}
+      pdb.set_trace()
+      for ds_type in self.widget.GetDataSetTypes():
+        ndx = ds_type.find( ':' )
+	if ndx > 0:
+	  cat = ds_type[ 0 : ndx ]
+	  der_label = ds_type[ ndx + 1 : ]
 
-#      if labels and names:
-#        for label in labels:
-#	  ds_menu = wx.Menu()
-#	  ds_menu._derivedLabel = label
-#	  for name in names:
-#	    if data_model.HasDerivedDataSet( ds_category, label, name ):
-#	      name += ' *'
-#
-#	    item = wx.MenuItem( ds_menu, wx.ID_ANY, name )
-#	    self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
-#	    ds_menu.AppendItem( item )
-#	  #end for
-#
-#	  label_item = wx.MenuItem(
-#            self.derivedDataSetMenu, wx.ID_ANY, label,
-#	    subMenu = ds_menu
-#	    )
-#	  self.derivedDataSetMenu.AppendItem( label_item )
-#	#end for label
+	  if der_label in data_model.GetDerivedLabels( cat ):
+	    cat_names_map = label_cat_ds_names_map.get( der_label )
+	    if cat_names_map is None:
+	      cat_names_map = {}
+	      label_cat_ds_names_map[ der_label ] = cat_names_map
 
-      der_labels_set = set()
-      #ds_names_set = set()
-      ds_category_names = {}
-      for cat in self.widget.GetDataSetTypes():
-        if cat.find( ':' ) < 0:
-          der_labels_set.update( data_model.GetDerivedLabels( cat ) )
-	  ds_category_names[ cat ] = data_model.GetDataSetNames( cat )
-      #end for
+	    cat_names = cat_names_map.get( cat )
+	    if cat_names is None:
+	      cat_names = []
+	      cat_names_map[ cat ] = cat_names
+	    cat_names += data_model.GetDataSetNames( cat )
+	  #end if der_label
+	#end if ndx
+      #end for ds_type
 
-      if der_labels_set and ds_category_names:
+      #xxxx not working
+      if label_cat_ds_names_map:
 	item_kind = \
 	    wx.ITEM_CHECK if self.widget.GetDisplaysMultiDataSets() else \
 	    wx.ITEM_NORMAL
-
-        for label in sorted( der_labels_set ):
+        for label in sorted( label_cat_ds_names_map.keys() ):
 	  ds_menu = wx.Menu()
 	  ds_menu._derivedLabel = label
 
-	  for cat in sorted( ds_category_names.keys() ):
-	    for name in sorted( ds_category_names[ cat ] ):
+	  empty = True
+	  cat_names_map = label_cat_ds_names_map[ label ]
+	  for cat, names in cat_names_map.iteritems():
+	    for name in sorted( names ):
 	      item_label = name
 	      if data_model.HasDerivedDataSet( cat, label, name ):
 	        item_label += ' *'
-
 	      item = wx.MenuItem( ds_menu, wx.ID_ANY, item_label, kind = item_kind )
 	      self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
 	      ds_menu.AppendItem( item )
@@ -1104,15 +1095,15 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 		    self.widget.IsDataSetVisible( der_names[ 2 ] ):
 	          item.Check()
 	    #end for name
-	  #end for cat
+	  #end for cat, names
+	#end for label
 
-	  label_item = wx.MenuItem(
+        label_item = wx.MenuItem(
             self.derivedDataSetMenu, wx.ID_ANY, label,
 	    subMenu = ds_menu
 	    )
-	  self.derivedDataSetMenu.AppendItem( label_item )
-	#end for label
-      #end if we have labels and names
+	self.derivedDataSetMenu.AppendItem( label_item )
+      #end if label_cat_ds_names_map
     #end if we have a derived submenu
   #end _UpdateDerivedDataSetMenu
 
