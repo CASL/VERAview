@@ -529,9 +529,7 @@ Must pass the 'ds_names' parameter.
     else:
       ds_names = None
 
-    style = kwargs.get( 'style' )
-    if style is None:
-      style = wx.DEFAULT_DIALOG_STYLE
+    style = kwargs.get( 'style', wx.DEFAULT_DIALOG_STYLE )
     style |= wx.RESIZE_BORDER
     kwargs[ 'style' ] = style
 

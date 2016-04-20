@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-04-20	leerw@ornl.gov				-
+#	  Added ToggleDataSetVisible().
 #		2016-04-19	leerw@ornl.gov				-
 #	  Added GetDisplaysMultiDataSets() and IsDataSetVisible().
 #		2016-04-18	leerw@ornl.gov				-
@@ -93,7 +95,7 @@ class Widget( wx.Panel ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		__eq__()					-
+  #	METHOD:		Widget.__eq__()					-
   #----------------------------------------------------------------------
   def __eq__( self, other ):
     """Equality must be the very same object instance.
@@ -103,7 +105,7 @@ class Widget( wx.Panel ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		__init__()					-
+  #	METHOD:		Widget.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1 ):
     super( Widget, self ).__init__( container, id )
@@ -124,7 +126,7 @@ class Widget( wx.Panel ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyBegin()					-
+  #	METHOD:		Widget._BusyBegin()				-
   #----------------------------------------------------------------------
   def _BusyBegin( self ):
     """Show indication of being busy.  Must call _EndBusy().
@@ -138,11 +140,12 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyBegin_cursor()				-
+  #	METHOD:		Widget._BusyBegin_cursor()			-
   #----------------------------------------------------------------------
   def _BusyBegin_cursor( self ):
     """Show indication of being busy.  Must call _EndBusy().
 Must be called from the UI thread.
+Not being used.
 """
     if self.busyCursor is None:
       self.busyCursor = wx.BusyCursor()
@@ -152,7 +155,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyBeginOp()					-
+  #	METHOD:		Widget._BusyBeginOp()				-
   #----------------------------------------------------------------------
   def _BusyBeginOp( self, func, *args ):
     """Show indication of being busy.  Must call _EndBusy().
@@ -166,7 +169,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyDoOp()					-
+  #	METHOD:		Widget._BusyDoOp()				-
   #----------------------------------------------------------------------
   def _BusyDoOp( self, func, *args ):
     """Show some indication of being busy, make the call, then restore from
@@ -184,7 +187,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyEnd()					-
+  #	METHOD:		Widget._BusyEnd()				-
   #----------------------------------------------------------------------
   def _BusyEnd( self ):
     """End indication of being busy.
@@ -198,11 +201,12 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyEnd_cursor()				-
+  #	METHOD:		Widget._BusyEnd_cursor()			-
   #----------------------------------------------------------------------
   def _BusyEnd_cursor( self ):
     """End indication of being busy.
 Must be called from the UI thread.
+Not being used.
 """
     if self.busyCursor is not None:
       self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_green ) )
@@ -213,7 +217,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_BusyEndOp()					-
+  #	METHOD:		Widget._BusyEndOp()				-
   #----------------------------------------------------------------------
   def _BusyEndOp( self, func, *args ):
     """End indication of being busy.
@@ -229,7 +233,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CalcFontSize()					-
+  #	METHOD:		Widget._CalcFontSize()				-
   #----------------------------------------------------------------------
   def _CalcFontSize( self, display_wd ):
     #limits = ( 280, 8, 1280, 28 )
@@ -251,7 +255,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CreateAnimateImages()				-
+  #	METHOD:		Widget.CreateAnimateImages()			-
   #----------------------------------------------------------------------
 #  def CreateAnimateImages( self, temp_dir, over = 'axial' ):
 #    """
@@ -261,7 +265,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateClipboardData()				-
+  #	METHOD:		Widget._CreateClipboardData()			-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
     """Method that should be overridden by subclasses to create a text
@@ -276,7 +280,7 @@ Note what determines the selection is up to the subclass.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateClipboardImage()				-
+  #	METHOD:		Widget._CreateClipboardImage()			-
   #----------------------------------------------------------------------
   def _CreateClipboardImage( self ):
     """Method that should be overridden by subclasses to create a bitmap
@@ -289,7 +293,7 @@ ready for a clipboard copy.  This implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateLegendPilImage()				-
+  #	METHOD:		Widget._CreateLegendPilImage()			-
   #----------------------------------------------------------------------
   def _CreateLegendPilImage( self, value_range, font_size = 16 ):
     """For now this is linear only.
@@ -302,7 +306,7 @@ ready for a clipboard copy.  This implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateLegendPilImage_0()			-
+  #	METHOD:		Widget._CreateLegendPilImage_0()		-
   #----------------------------------------------------------------------
   def _CreateLegendPilImage_0( self, value_range, font_size = 16 ):
     """For now this is linear only.
@@ -333,7 +337,7 @@ ready for a clipboard copy.  This implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateMenuDef()				-
+  #	METHOD:		Widget._CreateMenuDef()				-
   #----------------------------------------------------------------------
   def _CreateMenuDef( self, data_model ):
     """List of (label, handler) pairs to present in a menu.
@@ -353,7 +357,7 @@ or append items.
 
 
   #----------------------------------------------------------------------
-  #     METHOD:         _CreatePopupMenu()				-
+  #     METHOD:         Widget._CreatePopupMenu()			-
   #----------------------------------------------------------------------
   def _CreatePopupMenu( self ):
     """Populates self.popupMenu from self.GetMenuDef().
@@ -364,7 +368,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CreatePrintImage()				-
+  #	METHOD:		Widget.CreatePrintImage()			-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
     """
@@ -379,7 +383,7 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_FindListIndex()				-
+  #	METHOD:		Widget._FindListIndex()				-
   #----------------------------------------------------------------------
 #  def _FindListIndex( self, values, value ):
 #    """Values in the list are assumed in ascending order.
@@ -405,7 +409,7 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		FireStateChange()				-
+  #	METHOD:		Widget.FireStateChange()			-
   #----------------------------------------------------------------------
   def FireStateChange( self, **kwargs ):
     self.container.FireStateChange( **kwargs )
@@ -413,7 +417,7 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetAllow4DDataSets()				-
+  #	METHOD:		Widget.GetAllow4DDataSets()			-
   #----------------------------------------------------------------------
   def GetAllow4DDataSets( self ):
     """Accessor specifying if the widget can visualize any dataset with a
@@ -425,7 +429,7 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetAnimationIndexes()				-
+  #	METHOD:		Widget.GetAnimationIndexes()			-
   #----------------------------------------------------------------------
   def GetAnimationIndexes( self ):
     """Accessor for the list of indexes over which this widget can be
@@ -437,7 +441,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetContainer()					-
+  #	METHOD:		Widget.GetContainer()				-
   #----------------------------------------------------------------------
   def GetContainer( self ):
     return  self.container
@@ -445,7 +449,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataSetTypes()				-
+  #	METHOD:		Widget.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     """Accessor specifying the types of datasets which can be single-selected
@@ -462,11 +466,13 @@ implementation returns an empty list and must be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDisplaysMultiDataSets()			-
+  #	METHOD:		Widget.GetDisplaysMultiDataSets()		-
   #----------------------------------------------------------------------
   def GetDisplaysMultiDataSets( self ):
     """Accessor specifying if the widget displays multiple datasets.
-Subclasses should override as necessary.
+This implementation returns False, but
+subclasses should override as necessary.  If True is returned, a subclass
+should also override IsDataSetVisible() and ToggleDataSetVisible().
 @return			False
 """
     return  False
@@ -474,7 +480,7 @@ Subclasses should override as necessary.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetEventLockSet()				-
+  #	METHOD:		Widget.GetEventLockSet()			-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     """By default, all locks are enabled except
@@ -491,7 +497,7 @@ Subclasses should override as necessary.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetInitialSize()				-
+  #	METHOD:		Widget.GetInitialSize()				-
   #----------------------------------------------------------------------
   def GetInitialSize( self ):
     """Returns None.
@@ -501,7 +507,7 @@ Subclasses should override as necessary.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetMenuDef()					-
+  #	METHOD:		Widget.GetMenuDef()				-
   #----------------------------------------------------------------------
   def GetMenuDef( self, data_model ):
     """List of (label, handler) pairs to present in a menu.
@@ -517,7 +523,7 @@ by subclasses.
 
 
   #----------------------------------------------------------------------
-  #     METHOD:         GetPopupMenu()					-
+  #     METHOD:         Widget.GetPopupMenu()				-
   #----------------------------------------------------------------------
   def GetPopupMenu( self ):
     """Lazily creates calling _CreatePopupMenu().
@@ -530,7 +536,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetState()					-
+  #	METHOD:		Widget.GetState()				-
   #----------------------------------------------------------------------
   def GetState( self ):
     return  self.state
@@ -538,7 +544,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetTitle()					-
+  #	METHOD:		Widget.GetTitle()				-
   #----------------------------------------------------------------------
   def GetTitle( self ):
     return  'unnamed'
@@ -546,7 +552,7 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetToolButtonDefs()				-
+  #	METHOD:		Widget.GetToolButtonDefs()			-
   #----------------------------------------------------------------------
   def GetToolButtonDefs( self, data_model ):
     """List of (icon, tip, handler) triples from which to build tool bar
@@ -560,7 +566,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleMenuItem()				-
+  #	METHOD:		Widget.HandleMenuItem()				-
   #----------------------------------------------------------------------
   def HandleMenuItem( self, id ):
     """Menu handler.  Noop implemented here
@@ -571,7 +577,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		HandleStateChange()				-
+  #	METHOD:		Widget.HandleStateChange()			-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
     """Note value difference checks must occur in UpdateState()
@@ -604,7 +610,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_InitUI()					-
+  #	METHOD:		Widget._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
     """Implementation classes must override.
@@ -614,7 +620,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		IsBusy()                                        -
+  #	METHOD:		Widget.IsBusy()					-
   #----------------------------------------------------------------------
   def IsBusy( self ):
     return  self.busy
@@ -622,10 +628,12 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		IsDataSetVisible()				-
+  #	METHOD:		Widget.IsDataSetVisible()			-
   #----------------------------------------------------------------------
   def IsDataSetVisible( self, ds_name ):
-    """True if the specified dataset is currently displayed, false otherwise.
+    """True if the specified dataset is currently displayed, False otherwise.
+This is meant for subclasses that override GetDisplaysMultiDataSets() to
+return True, in which case ToggleDataSetVisible() should also be overridden.
 @param  ds_name		dataset name
 @return			False
 """
@@ -634,7 +642,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_LoadDataModel()				-
+  #	METHOD:		Widget._LoadDataModel()				-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
     """Must be implemented by extensions.  This is a noop implementation
@@ -644,7 +652,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnContextMenu()				-
+  #	METHOD:		Widget._OnContextMenu()				-
   #----------------------------------------------------------------------
   def _OnContextMenu( self, ev ):
     """
@@ -658,7 +666,7 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnCopyData()					-
+  #	METHOD:		Widget._OnCopyData()				-
   #----------------------------------------------------------------------
   def _OnCopyData( self, selection_flag, ev ):
     """Handler for a Copy Data action.  Calls _CreateClipboardData() to get
@@ -693,7 +701,7 @@ the clipboard.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnCopyImage()					-
+  #	METHOD:		Widget._OnCopyImage()				-
   #----------------------------------------------------------------------
   def _OnCopyImage( self, ev ):
     """Handler for a Copy Image action.  Calls _CreateClipboardImage() to get
@@ -890,6 +898,20 @@ state_index changes.
     self.state = state
     self.HandleStateChange( STATE_CHANGE_init )
   #end SetState
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.ToggleDataSetVisible()			-
+  #----------------------------------------------------------------------
+  def ToggleDataSetVisible( self, ds_name ):
+    """Toggle the visibility of the named dataset if this supports
+multi dataset display.
+This implementation is a noop, but subclasses should override if
+GetDisplaysMultiDataSets() returns True.
+@param  ds_name		dataset name
+"""
+    pass
+  #end ToggleDataSetVisible
 
 
   #----------------------------------------------------------------------

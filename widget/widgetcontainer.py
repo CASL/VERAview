@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-04-20	leerw@ornl.gov				-
 #		2016-04-19	leerw@ornl.gov				-
 #	  Starting to support multiple dataset display.
 #		2016-03-16	leerw@ornl.gov				-
@@ -689,7 +690,12 @@ definition array for a pullright.
     item = menu.FindItemById( ev.GetId() )
     if item is not None:
       self.widget._BusyBegin()
-      self.widget.SetDataSet( item.GetLabel() )
+
+      #self.widget.SetDataSet( item.GetLabel() )
+      if item.GetKind() == wx.ITEM_CHECK:
+        self.widget.ToggleDataSetVisible( item.GetLabel() )
+      else:
+        self.widget.SetDataSet( item.GetLabel() )
       self.widget._BusyEnd()
   #end _OnDataSetMenuItem
 
@@ -709,14 +715,26 @@ definition array for a pullright.
       if item is not None:
         self.widget._BusyBegin()
 
+	der_ds_name = None
+
         ds_name = item.GetLabel().replace( ' *', '' )
         ds_menu = item.GetMenu()
+
         data_model = State.FindDataModel( self.state )
-        name = data_model.ResolveDerivedDataSet(
-            self.widget.GetDataSetTypes()[ 0 ], ds_menu._derivedLabel, ds_name
-	    )
-        if name:
-          self.widget.SetDataSet( name )
+	ds_category = data_model.GetDataSetType( ds_name )
+
+	if ds_category:
+	  der_ds_name = data_model.ResolveDerivedDataSet(
+	      #self.widget.GetDataSetTypes()[ 0 ]
+              ds_category, ds_menu._derivedLabel, ds_name
+	      )
+        if der_ds_name:
+          #self.widget.SetDataSet( name )
+	  if item.GetKind() == wx.ITEM_CHECK:
+            self.widget.ToggleDataSetVisible( der_ds_name )
+	  else:
+            self.widget.SetDataSet( der_ds_name )
+	#end if der_ds_name
         self.widget._BusyEnd()
 
     except Exception, ex:
@@ -943,8 +961,6 @@ xxx Move this to Widget() to allow override to multiple dataset display?
           '[WidgetContainer._UpdateDataSetMenu] version from=%d, to=%d' % \
 	  ( self.dataSetMenuVersion, data_model.GetDataSetNamesVersion() )
 
-      self.widget.UpdateDataSetMenu( self.dataSetMenu, data_model )
-
 #			-- Remove existing items
 #			--
       rlist = []
@@ -969,12 +985,17 @@ xxx Move this to Widget() to allow override to multiple dataset display?
       if len( dataset_names ) > 0:
 	dataset_names.sort()
 
+	item_kind = \
+	    wx.ITEM_CHECK if self.widget.GetDisplaysMultiDataSets() else \
+	    wx.ITEM_NORMAL
 	ndx = 0
         for name in dataset_names:
-          item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
+          item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name, kind = item_kind )
           self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
 	  #self.dataSetMenu.AppendItem( item )
 	  self.dataSetMenu.InsertItem( ndx, item )
+	  if item_kind == wx.ITEM_CHECK and self.widget.IsDataSetVisible( name ):
+	    item.Check()
 	  ndx += 1
         #end for
 
@@ -1001,7 +1022,8 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 	  self._UpdateDerivedDataSetMenu( data_model )
       #end if dataset names
 
-      self.dataSetMenuVersion = data_model.GetDataSetNamesVersion()
+      if not self.widget.GetDisplaysMultiDataSets():
+        self.dataSetMenuVersion = data_model.GetDataSetNamesVersion()
     #end if must update
   #end _UpdateDataSetMenu
 
@@ -1024,25 +1046,65 @@ xxx Move this to Widget() to allow override to multiple dataset display?
 
 #		-- Populate derived label submenus
 #		--
-      #xxx: can have multiple ds_category
-      ds_category = self.widget.GetDataSetTypes()[ 0 ]
-      labels = data_model.GetDerivedLabels( ds_category )
-      names = data_model.GetDataSetNames( ds_category )
+#      ds_category = self.widget.GetDataSetTypes()[ 0 ]
+#      labels = data_model.GetDerivedLabels( ds_category )
+#      names = data_model.GetDataSetNames( ds_category )
 
-      if labels and names:
-        for label in labels:
-	  ds_type = ds_category + ':' + label
+#      if labels and names:
+#        for label in labels:
+#	  ds_menu = wx.Menu()
+#	  ds_menu._derivedLabel = label
+#	  for name in names:
+#	    if data_model.HasDerivedDataSet( ds_category, label, name ):
+#	      name += ' *'
+#
+#	    item = wx.MenuItem( ds_menu, wx.ID_ANY, name )
+#	    self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
+#	    ds_menu.AppendItem( item )
+#	  #end for
+#
+#	  label_item = wx.MenuItem(
+#            self.derivedDataSetMenu, wx.ID_ANY, label,
+#	    subMenu = ds_menu
+#	    )
+#	  self.derivedDataSetMenu.AppendItem( label_item )
+#	#end for label
+
+      der_labels_set = set()
+      #ds_names_set = set()
+      ds_category_names = {}
+      for cat in self.widget.GetDataSetTypes():
+        if cat.find( ':' ) < 0:
+          der_labels_set.update( data_model.GetDerivedLabels( cat ) )
+	  ds_category_names[ cat ] = data_model.GetDataSetNames( cat )
+      #end for
+
+      if der_labels_set and ds_category_names:
+	item_kind = \
+	    wx.ITEM_CHECK if self.widget.GetDisplaysMultiDataSets() else \
+	    wx.ITEM_NORMAL
+
+        for label in sorted( der_labels_set ):
 	  ds_menu = wx.Menu()
 	  ds_menu._derivedLabel = label
 
-	  for name in names:
-	    if data_model.HasDerivedDataSet( ds_category, label, name ):
-	      name += ' *'
+	  for cat in sorted( ds_category_names.keys() ):
+	    for name in sorted( ds_category_names[ cat ] ):
+	      item_label = name
+	      if data_model.HasDerivedDataSet( cat, label, name ):
+	        item_label += ' *'
 
-	    item = wx.MenuItem( ds_menu, wx.ID_ANY, name )
-	    self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
-	    ds_menu.AppendItem( item )
-	  #end for
+	      item = wx.MenuItem( ds_menu, wx.ID_ANY, item_label, kind = item_kind )
+	      self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
+	      ds_menu.AppendItem( item )
+
+	      if item_kind == wx.ITEM_CHECK:
+		der_names = data_model._CreateDerivedNames( cat, label, name )
+	        if self.widget.IsDataSetVisible( der_names[ 1 ] ) or \
+		    self.widget.IsDataSetVisible( der_names[ 2 ] ):
+	          item.Check()
+	    #end for name
+	  #end for cat
 
 	  label_item = wx.MenuItem(
             self.derivedDataSetMenu, wx.ID_ANY, label,

@@ -164,7 +164,8 @@ TOOLBAR_ITEMS = \
 WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
-  'Axial Plots': 'widget.all_axial_plot.AllAxialPlot',
+  #'Axial Plots': 'widget.all_axial_plot.AllAxialPlot',
+  'Axial Plots': 'widget.axial_plot.AxialPlot',
   'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
@@ -945,7 +946,8 @@ Must be called from the UI thread.
 #		-- Axial Plot?
 #		--
     if len( axial_plot_types ) > 0:
-      widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
+      widget_list.append( 'widget.axial_plot.AxialPlot' )
+      #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
 #		-- Time Plot?
 #		--
