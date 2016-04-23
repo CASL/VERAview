@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-04-23	leerw@ornl.gov				-
+#	  Calling DataModel.ResolveTimeDataSetName() in Load().
 #		2016-04-16	leerw@ornl.gov				-
 #	  Added scaleMode.
 #		2015-12-08	leerw@ornl.gov				-
@@ -400,9 +402,7 @@ Keys passed and the corresponding state bit are:
 	  data_model.GetFirstDataSet( 'pin' )
       self.scalarDataSet = data_model.GetFirstDataSet( 'scalar' )
       self.stateIndex = data_model.NormalizeStateIndex( -1 )
-      self.timeDataSet = 'exposure' \
-          if 'exposure' in data_model.GetDataSetNames( 'time' ) else \
-	  'state'
+      self.timeDataSet = data_model.ResolveTimeDataSetName()
 
     else:
       self.assemblyIndex = undefined3

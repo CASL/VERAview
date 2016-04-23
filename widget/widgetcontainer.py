@@ -1009,7 +1009,6 @@ Must be called from the UI event thread
         #end for
       #end if
 
-
 #				-- Populate dataset items
 #				--
       if len( dataset_names ) > 0:

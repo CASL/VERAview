@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-04-23	leerw@ornl.gov				-
+#	  Added ResolveTimeDataSetName().
+#	  In _ResolveDataSets() added hook to define core.detectorMap as
+#	  core.coreMap if it wasn't explicitly provided.
 #		2016-04-20	leerw@ornl.gov				-
 #	  Added DataModel.derivedLabelsByType to cache results for
 #	  GetDerivedLabels().
@@ -595,7 +599,6 @@ Properties:
 			  ( 'channel', 'derived', 'detector',
 			     'pin', 'scalar' )
   dataSetNamesVersion	counter to indicate changes
-  #derivedDataMgr	DerivedDataMgr instance
   derivedFile		h5py.File for derived data
   derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
@@ -1027,12 +1030,6 @@ dimensions.
 	left = 0
 	top = 0
 
-#NO
-#      if (self.core.nassx % 2) == 0 and left > 0:
-#        left += 1
-#      if (self.core.nassy % 2) == 0 and top > 0:
-#        top += 1
-
       result = ( left, top, right, bottom, right - left, bottom - top )
     #end if
 
@@ -1347,17 +1344,6 @@ returned.  Calls FindMaxValueAddr().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetDataSetChangeEvent()		-
-  #----------------------------------------------------------------------
-#  def GetDataSetChangeEvent( self ):
-#    """Accessor the 'dataSetChangeEvent' property
-#@return			reference
-#"""
-#    return  self.dataSetChangeEvent
-#  #end GetDataSetChangeEvent
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetDef()			-
   #----------------------------------------------------------------------
   def GetDataSetDef( self, ds_type = None ):
@@ -1423,6 +1409,9 @@ returned.  Calls FindMaxValueAddr().
   #	METHOD:		DataModel.GetDataSetNamesVersion()		-
   #----------------------------------------------------------------------
   def GetDataSetNamesVersion( self ):
+    """Used to determine the generation of dataset changes for menus and
+lists that must be rebuilt when the sets of available datasets change.
+"""
     return  self.dataSetNamesVersion
   #end GetDataSetNamesVersion
 
@@ -1437,17 +1426,6 @@ returned.  Calls FindMaxValueAddr().
     ddef = self.dataSetDefsByName.get( ds_name )
     return  ddef[ 'type' ]  if ddef  else None
   #end GetDataSetType
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetDerivedDataMgr()			-
-  #----------------------------------------------------------------------
-#  def GetDerivedDataMgr( self ):
-#    """Accessor for the 'derivedDataMgr' property.
-#@return			reference
-#"""
-#    return  self.derivedDataMgr
-#  #end GetDerivedDataMgr
 
 
   #----------------------------------------------------------------------
@@ -1698,32 +1676,6 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetStateDataSet_old()			-
-  #----------------------------------------------------------------------
-#  def GetStateDataSet_old( self, state_ndx, ds_name ):
-#    """Retrieves a normal or extra dataset.
-#@param  state_ndx	0-based state point index
-#@param  ds_name		dataset name, where a prefix of 'derived:' or 'extra:'
-#			means a derived or extra dataset respectively
-#@return			h5py.Dataset object if found or None
-#"""
-#    if ds_name is None:
-#      st = None
-#    elif ds_name.startswith( 'derived:' ):
-#      st = self.derivedDataMgr.GetState( state_ndx )
-#      use_name = ds_name
-#    elif ds_name.startswith( 'extra:' ):
-#      st = self.GetExtraState( state_ndx )
-#      use_name = ds_name[ 6 : ]
-#    else:
-#      st = self.GetState( state_ndx )
-#      use_name = ds_name
-#
-#    return  st.GetDataSet( use_name ) if st is not None else None
-#  #end GetStateDataSet_old
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetStates()				-
   #----------------------------------------------------------------------
   def GetStates( self ):
@@ -1819,9 +1771,6 @@ the properties construct for this class soon.
         match = der_names[ 2 ]
 
     return  match
-
-#    name = self.derivedDataMgr.GetDerivedName( category, derived_label, ds_name )
-#    return  name is not None and len( name ) > 0
   #end HasDerivedDataSet
 
 
@@ -2215,56 +2164,6 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel._ReadDataSetRange_old()		-
-  #----------------------------------------------------------------------
-  def _ReadDataSetRange_old( self, ds_name ):
-    """Scans the data for the range.  Could be very time consuming.
-@param  ds_name		dataset name, where a prefix of 'extra:' means it's
-			an extra dataset
-"""
-    range_min = sys.float_info.min
-    range_max = sys.float_info.max
-
-    if not ds_name:
-      use_states = None
-#    elif ds_name.startswith( 'derived:' ):
-#      use_states = self.derivedDataMgr.GetStates()
-#      use_name = ds_name
-#    elif ds_name.startswith( 'extra:' ):
-#      use_states = self.GetExtraStates()
-#      use_name = ds_name[ 6 : ]
-    else:
-      use_states = self.GetStates()
-      use_name = ds_name
-
-    if use_states is not None:
-      vmin = vmax = float( 'nan' )
-      for st in use_states:
-	if st.HasDataSet( use_name ):
-	  cur_ds = st.GetDataSet( use_name ).value
-	  cur_max = np.amax( cur_ds )
-	  if math.isnan( vmax ) or cur_max > vmax:
-	    vmax = cur_max
-
-	  cur_ds_nz = cur_ds[ np.nonzero( cur_ds ) ]
-	  if len( cur_ds_nz ) > 0:
-	    cur_min = np.amin( cur_ds_nz )
-	    if math.isnan( vmin ) or cur_min < vmin:
-	      vmin = cur_min
-	#end if ds_name in st
-      #end for states
-
-      if not math.isnan( vmin ):
-        range_min = vmin
-      if not math.isnan( vmax ):
-        range_max = vmax
-    #end if
-
-    return  ( range_min, range_max )
-  #end _ReadDataSetRange_old
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.RemoveExtraDataSet()			-
   #----------------------------------------------------------------------
 #  def RemoveExtraDataSet( self, full_ds_name ):
@@ -2359,6 +2258,10 @@ ds_names	dict of dataset names by dataset type
 	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
 
+#				-- Resolve detector_map if necessary
+          if core.detectorMap is None:
+	    core.detectorMap = core.coreMap
+
 #			-- Not a scalar
 #			--
 	else:
@@ -2372,12 +2275,6 @@ ds_names	dict of dataset names by dataset type
 	      break
 	  #end for
         #end if-else on shape
-
-#			-- Old 'axial' check
-#			--
-#        if ( len( cur_shape ) == 4 and cur_shape[ 2 ] == core.nax ) or \
-#	    ( len( cur_shape ) == 2 and cur_shape[ 0 ] == core.ndetax ):
-#	  ds_names[ 'axial' ].append( cur_name )
     #end for st_group keys
 
 #		-- Sort names
@@ -2397,9 +2294,31 @@ ds_names	dict of dataset names by dataset type
     if not match_name:
       match_name = self._CreateDerivedDataSet( ds_category, derived_label, ds_name )
     return  match_name
-#    return \
-#        self.derivedDataMgr.CreateDataSet( category, derived_label, ds_name )
   #end ResolveDerivedDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ResolveTimeDataSetName()		-
+  #----------------------------------------------------------------------
+  def ResolveTimeDataSetName( self ):
+    result = None
+
+    time_names = self.GetDataSetNames( 'time' )
+    if 'boron' in time_names:
+      result = 'boron'
+
+    else:
+      for name in sorted( time_names ):
+        if name.find( 'boron' ) >= 0:
+	  result = name
+	  break
+    #end if-else
+
+    if not result:
+      result = 'exposure' if 'exposure' in time_names else 'state'
+
+    return  result
+  #end ResolveTimeDataSetName
 
 
   #----------------------------------------------------------------------
