@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-04-23	leerw@ornl.gov				-
+#	  Adding 'Selected ' dataset support.  Moved
+#	  _GetSelectedDataSetName() to Widget.
 #		2016-04-20	leerw@ornl.gov				-
 #		2016-02-19	leerw@ornl.gov				-
 #	  Added copy selection.
@@ -627,14 +630,14 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		AxialPlot.GetDisplaysMultiDataSets()		-
+  #	METHOD:		AxialPlot.GetDataSetDisplayMode()		-
   #----------------------------------------------------------------------
-  def GetDisplaysMultiDataSets( self ):
-    """Returns True.
-@return			True
+  def GetDataSetDisplayMode( self ):
+    """Returns 'selected'
+@return			'selected'
 """
-    return  True
-  #end GetDisplaysMultiDataSets
+    return  'selected'
+  #end GetDataSetDisplayMode
 
 
   #----------------------------------------------------------------------
@@ -652,17 +655,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	])
     return  locks
   #end GetEventLockSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_GetSelectedDataSetName()			-
-  #----------------------------------------------------------------------
-  def _GetSelectedDataSetName( self, dtype ):
-    """
-@param  dtype		dataset type/category
-"""
-    return  'Selected ' + dtype + ' dataset'
-  #end _GetSelectedDataSetName
 
 
   #----------------------------------------------------------------------
@@ -693,7 +685,7 @@ XXX size according to how many datasets selected?
 """
     axis = 'bottom'
     for dtype in sorted( list( ds_types ) ):
-      self.dataSetSelections[ self._GetSelectedDataSetName( dtype ) ] = \
+      self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
         { 'axis': axis, 'scale': 1.0, 'visible': True }
       axis = 'top' if axis == 'bottom' else ''
   #end InitDataSetSelections
@@ -780,7 +772,7 @@ to be passed to UpdateState().  Assume self.data is valid.
         ds_names = self.data.GetDataSetNames( 'axial' )
 	for dtype in ( 'channel', 'detector', 'pin' ):
 	  if len( self.data.GetDataSetNames( dtype ) ) > 0:
-	    ds_names.append( self._GetSelectedDataSetName( dtype ) )
+	    ds_names.append( self.GetSelectedDataSetName( dtype ) )
 	    #ds_names.append( '_' + dtype + 'DataSet_' )
 	#end for
 	self.dataSetDialog = DataSetChooserDialog( self, ds_names = ds_names )
@@ -851,7 +843,7 @@ to be passed to UpdateState().  Assume self.data is valid.
   def ToggleDataSetVisible( self, ds_name ):
     """Toggles the visibility of the named dataset.
 Must be called from the event thread.
-@param  ds_name		dataset name
+@param  ds_name		dataset name, possibly with 'Selected ' prefix
 """
     if ds_name in self.dataSetSelections:
       rec = self.dataSetSelections[ ds_name ]
@@ -1000,7 +992,7 @@ Must be called from the UI thread.
 
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       self.channelDataSet = kwargs[ 'channel_dataset' ]
-      select_name = self._GetSelectedDataSetName( 'channel' )
+      select_name = self.GetSelectedDataSetName( 'channel' )
       #if '_channelDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
@@ -1009,7 +1001,7 @@ Must be called from the UI thread.
 
     if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
       self.detectorDataSet = kwargs[ 'detector_dataset' ]
-      select_name = self._GetSelectedDataSetName( 'detector' )
+      select_name = self.GetSelectedDataSetName( 'detector' )
       #if '_detectorDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
@@ -1028,7 +1020,7 @@ Must be called from the UI thread.
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       self.pinDataSet = kwargs[ 'pin_dataset' ]
-      select_name = self._GetSelectedDataSetName( 'pin' )
+      select_name = self.GetSelectedDataSetName( 'pin' )
       #if '_pinDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-04-23	leerw@ornl.gov				-
+#	  Moved GetSelectedDataSetName() from AxialPlot.
+#	  Replaced GetDisplaysMultiDataSets() with GetDataSetDisplayMode().
 #		2016-04-20	leerw@ornl.gov				-
 #	  Added ToggleDataSetVisible().
 #		2016-04-19	leerw@ornl.gov				-
@@ -450,6 +453,24 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetDataSetDisplayMode()			-
+  #----------------------------------------------------------------------
+  def GetDataSetDisplayMode( self ):
+    """Accessor specifying the dataset display mode.
+This implementation returns '', but subclasses should override as necessary.
+If not '', the subclass should implement IsDataSetVisible() and
+ToggleDataSetVisible().
+@return			mode
+  'selected'	displays multiple datasets and the "selected" datasets for
+		the base types/categories
+  'multi'	displays multiple datasets
+  ''		displays one dataset at a time
+"""
+    return  ''
+  #end GetDataSetDisplayMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
@@ -492,15 +513,15 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.GetDisplaysMultiDataSets()		-
   #----------------------------------------------------------------------
-  def GetDisplaysMultiDataSets( self ):
-    """Accessor specifying if the widget displays multiple datasets.
-This implementation returns False, but
-subclasses should override as necessary.  If True is returned, a subclass
-should also override IsDataSetVisible() and ToggleDataSetVisible().
-@return			False
-"""
-    return  False
-  #end GetDisplaysMultiDataSets
+#  def GetDisplaysMultiDataSets( self ):
+#    """Accessor specifying if the widget displays multiple datasets.
+#This implementation returns False, but
+#subclasses should override as necessary.  If True is returned, a subclass
+#should also override IsDataSetVisible() and ToggleDataSetVisible().
+#@return			False
+#"""
+#    return  False
+#  #end GetDisplaysMultiDataSets
 
 
   #----------------------------------------------------------------------
@@ -557,6 +578,17 @@ Must be called from the UI thread.
       self.popupMenu = self._CreatePopupMenu()
     return  self.popupMenu
   #end GetPopupMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetSelectedDataSetName()			-
+  #----------------------------------------------------------------------
+  def GetSelectedDataSetName( self, ds_type ):
+    """
+@param  ds_type		dataset type/category
+"""
+    return  'Selected ' + ds_type + ' dataset'
+  #end GetSelectedDataSetName
 
 
   #----------------------------------------------------------------------

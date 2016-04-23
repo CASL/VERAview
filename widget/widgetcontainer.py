@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-04-23	leerw@ornl.gov				-
 #		2016-04-20	leerw@ornl.gov				-
 #		2016-04-19	leerw@ornl.gov				-
 #	  Starting to support multiple dataset display.
@@ -451,8 +452,15 @@ definition array for a pullright.
 
 #			-- Derived pullright
 #			--
-      derived_labels = data_model.GetDerivedLabels( dataset_types[ 0 ] )
-      if derived_labels:
+      #derived_labels = data_model.GetDerivedLabels( dataset_types[ 0 ] )
+      #if derived_labels:
+      have_derived_labels = False
+      for ds_type in dataset_types:
+        derived_labels = data_model.GetDerivedLabels( ds_type )
+	if derived_labels:
+	  have_derived_labels = True
+	  break
+      if have_derived_labels:
         self.derivedDataSetMenu = wx.Menu()
         derived_item = wx.MenuItem(
             self.dataSetMenu, wx.ID_ANY, 'Derived',
@@ -460,6 +468,22 @@ definition array for a pullright.
 	    )
         self.dataSetMenu.AppendItem( derived_item )
       #end if
+
+#			-- "Selected" items
+#			--
+#      if self.widget.GetDataSetDisplayMode() == 'selected':
+#        for ds_type in dataset_types:
+#	  if ds_type.find( ':' ) < 0 and \
+#	      len( data_model.GetDataSetNames( ds_type ) ) > 0:
+#            item = wx.MenuItem(
+#	        self.dataSetMenu, wx.ID_ANY,
+#		self.widget.GetSelectedDataSetName( ds_type ),
+#		kind = wx.ITEM_CHECK
+#		)
+#            self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+#            self.dataSetMenu.AppendItem( item )
+#	#end for
+#      #end if
 
       menu_bmap = widget.Widget.GetBitmap( 'data_icon_16x16' )
       self.dataSetMenuButton = wx.BitmapButton( control_panel, -1, menu_bmap )
@@ -695,7 +719,10 @@ definition array for a pullright.
       if item.GetKind() == wx.ITEM_CHECK:
         self.widget.ToggleDataSetVisible( item.GetLabel() )
       else:
-        self.widget.SetDataSet( item.GetLabel() )
+	name = item.GetLabel()
+	if name.startswith( 'Selected ' ):
+	  name = name[ 9 : ]
+        self.widget.SetDataSet( name )
       self.widget._BusyEnd()
   #end _OnDataSetMenuItem
 
@@ -963,28 +990,37 @@ Must be called from the UI event thread
 #			--
       rlist = []
       for item in self.dataSetMenu.GetMenuItems():
-        if item.GetLabel() not in ( 'Derived', 'Other', 'Selected' ):
+        #if item.GetLabel() not in ( 'Derived', 'Other', 'Selected' ):
+        if item.GetSubMenu() is None:
 	  rlist.append( item )
       for item in rlist:
         self.dataSetMenu.DestroyItem( item )
 
 #			-- Must have datasets
 #			--
-#      dataset_type = self.widget.GetDataSetType()
-#      if dataset_type is not None and data_model.HasDataSetCategory( dataset_type ):
-#        dataset_names = data_model.GetDataSetNames( dataset_type )
+      selected_ds_names = []
+      selected_flag = self.widget.GetDataSetDisplayMode() == 'selected'
       dataset_names = []
-      if self.widget.GetDataSetTypes() is not None:
+      if self.widget.GetDataSetTypes():
         for dtype in self.widget.GetDataSetTypes():
 	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
+	  if dtype.find( ':' ) < 0 and data_model.HasDataSetType( dtype ):
+	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
+        #end for
+      #end if
+
 
 #				-- Populate dataset items
 #				--
       if len( dataset_names ) > 0:
 	dataset_names.sort()
 
+	if selected_ds_names:
+	  selected_ds_names.sort()
+	  dataset_names += selected_ds_names
+
 	item_kind = \
-	    wx.ITEM_CHECK if self.widget.GetDisplaysMultiDataSets() else \
+	    wx.ITEM_CHECK if self.widget.GetDataSetDisplayMode() else \
 	    wx.ITEM_NORMAL
 	ndx = 0
         for name in dataset_names:
@@ -1020,7 +1056,7 @@ Must be called from the UI event thread
 	  self._UpdateDerivedDataSetMenu( data_model )
       #end if dataset names
 
-      if not self.widget.GetDisplaysMultiDataSets():
+      if not self.widget.GetDataSetDisplayMode():
         self.dataSetMenuVersion = data_model.GetDataSetNamesVersion()
     #end if must update
   #end _UpdateDataSetMenu
@@ -1068,7 +1104,7 @@ Must be called from the UI event thread
 
       if label_cat_ds_names_map:
 	item_kind = \
-	    wx.ITEM_CHECK if self.widget.GetDisplaysMultiDataSets() else \
+	    wx.ITEM_CHECK if self.widget.GetDataSetDisplayMode() else \
 	    wx.ITEM_NORMAL
         for label in sorted( label_cat_ds_names_map.keys() ):
 	  ds_menu = wx.Menu()
