@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plot.py					-
 #	HISTORY:							-
+#		2016-04-23	leerw@ornl.gov				-
+#	  Initializing scalarDataSet from state in _LoadDataModelValues().
 #		2016-02-19	leerw@ornl.gov				-
 #	  Added copy selection.
 #		2016-02-08	leerw@ornl.gov				-
@@ -80,7 +82,9 @@ Properties:
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    self.scalarDataSet = 'keff'
+    #self.scalarDataSet = 'keff'
+    self.scalarDataSet = None
+
     self.scalarValues = []
     self.timeDataSet = 'state'
 
@@ -235,7 +239,8 @@ to be passed to UpdateState().  Assume self.data is valid.
     if self.data is not None and self.data.HasData():
       update_args = \
         {
-	'scalar_dataset': self.scalarDataSet,
+	#'scalar_dataset': self.scalarDataSet,
+	'scalar_dataset': self.state.scalarDataSet,
 	'state_index': max( 0, self.state.stateIndex ),
 	'time_dataset': self.state.timeDataSet
 	}

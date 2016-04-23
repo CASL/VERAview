@@ -4,7 +4,7 @@
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
 #		2016-04-23	leerw@ornl.gov				-
-#	  Added ResolveTimeDataSetName().
+#	  Added GetDefaultScalarDataSet().
 #	  In _ResolveDataSets() added hook to define core.detectorMap as
 #	  core.coreMap if it wasn't explicitly provided.
 #		2016-04-20	leerw@ornl.gov				-
@@ -1429,6 +1429,34 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDefaultScalarDataSet()		-
+  #----------------------------------------------------------------------
+  def GetDefaultScalarDataSet( self ):
+    """Tries to find boron, defaulting to the first 'scalar' dataset or
+'keff' if none are found.
+@return			dataset name
+"""
+    result = None
+
+    ds_names = self.GetDataSetNames( 'scalar' )
+    if 'boron' in ds_names:
+      result = 'boron'
+
+    else:
+      for name in sorted( ds_names ):
+        if name.find( 'boron' ) >= 0:
+	  result = name
+	  break
+    #end if-else
+
+    if not result:
+      result = ds_names[ 0 ] if len( ds_names ) > 0 else 'keff'
+
+    return  result
+  #end GetDefaultScalarDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDerivedLabels()			-
   #----------------------------------------------------------------------
   def GetDerivedLabels( self, ds_category ):
@@ -2295,30 +2323,6 @@ ds_names	dict of dataset names by dataset type
       match_name = self._CreateDerivedDataSet( ds_category, derived_label, ds_name )
     return  match_name
   #end ResolveDerivedDataSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.ResolveTimeDataSetName()		-
-  #----------------------------------------------------------------------
-  def ResolveTimeDataSetName( self ):
-    result = None
-
-    time_names = self.GetDataSetNames( 'time' )
-    if 'boron' in time_names:
-      result = 'boron'
-
-    else:
-      for name in sorted( time_names ):
-        if name.find( 'boron' ) >= 0:
-	  result = name
-	  break
-    #end if-else
-
-    if not result:
-      result = 'exposure' if 'exposure' in time_names else 'state'
-
-    return  result
-  #end ResolveTimeDataSetName
 
 
   #----------------------------------------------------------------------
