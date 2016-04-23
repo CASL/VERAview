@@ -4,11 +4,12 @@ pushd ..
 
 #name=veraview-1.0.zip
 #1.0 == build-35
-name=veraview-build-38.zip
+name=veraview-build-39.zip
 
 [ -f ${name} ] && unlink ${name}
 zip -r ${name} \
     --exclude='.*.swp' \
+    --exclude='*.[12]' \
     --exclude='canopy.run.sh' \
     veraview/bean \
     veraview/bin \

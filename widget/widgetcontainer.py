@@ -1004,7 +1004,8 @@ Must be called from the UI event thread
       if self.widget.GetDataSetTypes():
         for dtype in self.widget.GetDataSetTypes():
 	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
-	  if dtype.find( ':' ) < 0 and data_model.HasDataSetType( dtype ):
+	  if selected_flag and dtype.find( ':' ) < 0 and \
+	      data_model.HasDataSetType( dtype ):
 	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
         #end for
       #end if
