@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-04-25	leerw@ornl.gov				-
+#	  Starting support for secondary pinColRow selections.
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-03-14	leerw@ornl.gov				-
@@ -99,6 +101,7 @@ Attrs/properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
+    self.auxPinColRows = []
     self.pinColRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
@@ -708,6 +711,7 @@ Subclasses should override as needed.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
+    #xxxxx auxPinColRows
     if self.config is not None:
       rel_col = self.pinColRow[ 0 ] - self.cellRange[ 0 ]
       rel_row = self.pinColRow[ 1 ] - self.cellRange[ 1 ]
@@ -796,12 +800,16 @@ attributes/properties that aren't already set in _LoadDataModel():
     """
 """
     #ev.Skip()
+    is_aux = self.state.IsAuxiliaryEvent( ev )
 
 #		-- Validate
 #		--
     valid = False
     pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr is not None and pin_addr != self.pinColRow:
+
+    #if pin_addr is not None and pin_addr != self.pinColRow:
+    if pin_addr is not None and pin_addr != self.pinColRow and \
+	not (is_aux and pin_addr in self.auxPinColRows):
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
@@ -810,11 +818,6 @@ attributes/properties that aren't already set in _LoadDataModel():
 	  )
 
     if valid:
-#      ds = self.data.states[ self.stateIndex ].group[ self.pinDataSet ]
-#      ds_value = ds[
-#          pin_addr[ 1 ], pin_addr[ 0 ],
-#          self.axialValue[ 1 ], self.assemblyIndex[ 0 ] \
-#	  ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
       value = 0.0
@@ -825,9 +828,14 @@ attributes/properties that aren't already set in _LoadDataModel():
 	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      #if value > 0.0:
       if not self.data.IsNoDataValue( self.pinDataSet, value ):
-        self.FireStateChange( pin_colrow = pin_addr )
+        #self.FireStateChange( pin_colrow = pin_addr )
+	if is_aux:
+	  addrs = list( self.auxPinColRows )
+	  addrs.append( pin_addr )
+	  self.FireStateChange( aux_pin_colrows = addrs )
+	else:
+          self.FireStateChange( pin_colrow = pin_addr )
     #end if valid
   #end _OnClick
 

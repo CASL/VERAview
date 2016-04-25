@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-04-25	leerw@ornl.gov				-
+#	  Added aux{Channel,Pin}ColRows attributes and associated
+#	  STATE_CHANGE_ mask bits.
 #		2016-04-23	leerw@ornl.gov				-
 #	  Calling DataModel.GetDefaultScalarDataSet() in Load().
 #		2016-04-16	leerw@ornl.gov				-
@@ -61,12 +64,16 @@ STATE_CHANGE_channelDataSet = 0x1 << 10
 STATE_CHANGE_channelColRow = 0x1 << 11
 STATE_CHANGE_timeDataSet = 0x1 << 12
 STATE_CHANGE_scaleMode = 0x1 << 13
+STATE_CHANGE_auxChannelColRows = 0x1 << 14
+STATE_CHANGE_auxPinColRows = 0x1 << 15
 #STATE_CHANGE_ALL = 0x1fff
 
 LOCKABLE_STATES = \
   (
   STATE_CHANGE_assemblyIndex,
   #STATE_CHANGE_axialLevel,
+  STATE_CHANGE_auxChannelColRows,
+  STATE_CHANGE_auxPinColRows,
   STATE_CHANGE_axialValue,
   STATE_CHANGE_channelColRow,
   STATE_CHANGE_channelDataSet,
@@ -88,20 +95,23 @@ class State( object ):
   """Event state object.  State attributes currently in use are as follows.
 All indices are 0-based.
 
-  assemblyIndex			( int index, int column, int row )
-  axialValue			( float value(cm), int core-index, int detector-index )
-  channelColRow			str name
-  channelDataSet		str name
-  dataModel			DataModel object
-  detectorDataSet		str name
-  detectorIndex			( int index, int column, int row )
-  listeners			list of objects to notify on change events
-  pinColRow			( int column, int row )
-  pinDataSet			str name
-  scalarDataSet			str name
-  scaleMode			'all' or 'state'
-  stateIndex			int index
-  timeDataSet			state dataset to be used for "time"
+  assemblyIndex		( int index, int column, int row )  ("assembly_index")
+  auxChannelColRows	list of ( col, row )  ("aux_channel_colrows")
+  auxPinColRows		list of ( col, row )  ("aux_pin_colrows")
+  axialValue		( float value(cm), int core-index, int detector-index )
+			("axial_value")
+  channelColRow		str name  ("channel_colrow")
+  channelDataSet	str name  ("channel_dataset")
+  dataModel		DataModel object  ("data_model")
+  detectorDataSet	str name  ("detector_dataset")
+  detectorIndex		( int index, int column, int row )  ("detector_index")
+  listeners		list of objects to notify on change events
+  pinColRow		( int column, int row )  ("pin_colrow")
+  pinDataSet		str name  ("pin_dataset")
+  scalarDataSet		str name  ("scalar_dataset")
+  scaleMode		'all' or 'state'  ("scale_mode")
+  stateIndex		int index  ("state_index")
+  timeDataSet		state dataset to be used for "time"  ("time_dataset")
 """
 
 #		-- Object Methods
@@ -114,6 +124,8 @@ All indices are 0-based.
   def __init__( self, *args, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
     #self.axialLevel = -1
+    self.auxChannelColRows = []
+    self.auxPinColRows = []
     self.axialValue = ( 0.0, -1, -1 )
     self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
@@ -130,6 +142,10 @@ All indices are 0-based.
 
     if 'assembly_index' in kwargs:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
+    if 'aux_channel_colrows' in kwargs:
+      self.auxChannelColRows = kwargs[ 'aux_channel_colrows' ]
+    if 'aux_pin_colrows' in kwargs:
+      self.auxPinColRows = kwargs[ 'aux_pin_colrows' ]
     if 'axial_value' in kwargs:
       self.axialValue = kwargs[ 'axial_value' ]
     if 'channel_colrow' in kwargs:
@@ -197,6 +213,8 @@ by locks.
 
 Keys passed and the corresponding state bit are:
   assembly_index	STATE_CHANGE_assemblyIndex
+  aux_channel_colrows	STATE_CHANGE_auxChannelColRows
+  aux_pin_colrows	STATE_CHANGE_auxPinColRows
   axial_value		STATE_CHANGE_axialValue
   data_model		STATE_CHANGE_dataModel
   channel_colrow	STATE_CHANGE_channelColRow
@@ -216,6 +234,12 @@ Keys passed and the corresponding state bit are:
     if 'assembly_index' in kwargs and locks[ STATE_CHANGE_assemblyIndex ]:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
       reason |= STATE_CHANGE_assemblyIndex
+
+    if 'aux_channel_colrows' in kwargs and locks[ STATE_CHANGE_auxChannelColRows ]:
+      self.auxChannelColRows = kwargs[ 'aux_channel_colrows' ]
+
+    if 'aux_pin_colrows' in kwargs and locks[ STATE_CHANGE_auxPinColRows ]:
+      self.auxPinColRows = kwargs[ 'aux_pin_colrows' ]
 
     if 'axial_value' in kwargs and locks[ STATE_CHANGE_axialValue ]:
       self.axialValue = kwargs[ 'axial_value' ]
@@ -307,6 +331,12 @@ Keys passed and the corresponding state bit are:
 #      if hasattr( self, 'assemblyIndex' ) and \
 #          self.state.assemblyIndex != self.assemblyIndex:
 
+    if (reason & STATE_CHANGE_auxChannelColRows) > 0:
+      update_args[ 'aux_channel_colrows' ] = self.auxChannelColRows
+
+    if (reason & STATE_CHANGE_auxPinColRows) > 0:
+      update_args[ 'aux_pin_colrows' ] = self.auxPinColRows
+
     if (reason & STATE_CHANGE_axialValue) > 0:
       update_args[ 'axial_value' ] = self.axialValue
 
@@ -378,6 +408,20 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		IsAuxiliaryEvent()				-
+  #----------------------------------------------------------------------
+  def IsAuxiliaryEvent( self, ev ):
+    """Assumes ev implements KeyboardState and checks for Control/Cmd(Meta)
+modifiers.
+@param  ev		mouse event
+@return			True if auxiliary keys are pressed, False otherwise
+"""
+    mask = ev.GetModifiers() & (wx.MOD_CONTROL | wx.MOD_META)
+    return  mask > 0
+  #end IsAuxiliaryEvent
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Load()						-
   #----------------------------------------------------------------------
   def Load( self, data_model = None ):
@@ -394,6 +438,7 @@ Keys passed and the corresponding state bit are:
       self.assemblyIndex = data_model.NormalizeAssemblyIndex( undefined3 )
       self.axialValue = data_model.NormalizeAxialValue( undefined_ax )
       self.channelDataSet = data_model.GetFirstDataSet( 'channel' )
+      self.channelColRow = data_model.NormalizePinColRow( undefined2 )
       self.detectorDataSet = data_model.GetFirstDataSet( 'detector' )
       self.detectorIndex = data_model.NormalizeDetectorIndex( undefined3 )
       self.pinColRow = data_model.NormalizePinColRow( undefined2 )
@@ -411,6 +456,7 @@ Keys passed and the corresponding state bit are:
     else:
       self.assemblyIndex = undefined3
       self.axialValue = undefined_ax
+      self.channelColRow = undefined2
       self.channelDataSet = None
       self.detectorDataSet = None
       self.detectorIndex = undefined3
@@ -419,6 +465,9 @@ Keys passed and the corresponding state bit are:
       self.scalarDataSet = None
       self.stateIndex = -1
       self.timeDataSet = 'state'
+
+    self.auxChannelColRows = []
+    self.auxPinColRows = []
   #end Load
 
 
@@ -466,7 +515,10 @@ Keys passed and the corresponding state bit are:
     """
 @return		dict with all True for
 		STATE_CHANGE_assemblyIndex,
+		STATE_CHANGE_auxChannelColRows,
+		STATE_CHANGE_auxPinColRows,
 		STATE_CHANGE_axialValue,
+		STATE_CHANGE_channelColRow,
 		STATE_CHANGE_channelDataSet,
 		STATE_CHANGE_detectorDataSet,
 		STATE_CHANGE_detectorIndex,
