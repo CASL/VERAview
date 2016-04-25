@@ -684,6 +684,20 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.IsAuxiliaryEvent()			-
+  #----------------------------------------------------------------------
+  def IsAuxiliaryEvent( self, ev ):
+    """Assumes ev implements KeyboardState and checks for Control/Cmd(Meta)
+modifiers.
+@param  ev		mouse event
+@return			True if auxiliary keys are pressed, False otherwise
+"""
+    mask = ev.GetModifiers() & (wx.MOD_CONTROL | wx.MOD_META)
+    return  mask > 0
+  #end IsAuxiliaryEvent
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.IsDataSetVisible()			-
   #----------------------------------------------------------------------
   def IsDataSetVisible( self, ds_name ):

@@ -237,9 +237,11 @@ Keys passed and the corresponding state bit are:
 
     if 'aux_channel_colrows' in kwargs and locks[ STATE_CHANGE_auxChannelColRows ]:
       self.auxChannelColRows = kwargs[ 'aux_channel_colrows' ]
+      reason |= STATE_CHANGE_auxChannelColRows
 
     if 'aux_pin_colrows' in kwargs and locks[ STATE_CHANGE_auxPinColRows ]:
       self.auxPinColRows = kwargs[ 'aux_pin_colrows' ]
+      reason |= STATE_CHANGE_auxPinColRows
 
     if 'axial_value' in kwargs and locks[ STATE_CHANGE_axialValue ]:
       self.axialValue = kwargs[ 'axial_value' ]
@@ -405,20 +407,6 @@ Keys passed and the corresponding state bit are:
 """
     return  self.dataModel
   #end GetDataModel
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		IsAuxiliaryEvent()				-
-  #----------------------------------------------------------------------
-  def IsAuxiliaryEvent( self, ev ):
-    """Assumes ev implements KeyboardState and checks for Control/Cmd(Meta)
-modifiers.
-@param  ev		mouse event
-@return			True if auxiliary keys are pressed, False otherwise
-"""
-    mask = ev.GetModifiers() & (wx.MOD_CONTROL | wx.MOD_META)
-    return  mask > 0
-  #end IsAuxiliaryEvent
 
 
   #----------------------------------------------------------------------

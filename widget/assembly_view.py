@@ -669,7 +669,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """By default, all locks are enabled except
 """
     locks = set([
-        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
+        STATE_CHANGE_assemblyIndex,
+        STATE_CHANGE_auxPinColRows, STATE_CHANGE_axialValue,
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
@@ -712,6 +713,77 @@ Subclasses should override as needed.
     result = bmap
 
     #xxxxx auxPinColRows
+    if self.config is not None:
+      addr_list = list( self.auxPinColRows )
+      addr_list.insert( 0, self.pinColRow )
+
+      new_bmap = None
+      dc = None
+
+      assy_region = self.config[ 'assemblyRegion' ]
+      pin_gap = self.config[ 'pinGap' ]
+      pin_wd = self.config[ 'pinWidth' ]
+      pin_adv = pin_gap + pin_wd
+      line_wd = self.config[ 'lineWidth' ]
+
+      for i in range( len( addr_list ) ):
+	addr = addr_list[ i ]
+        rel_col = addr[ 0 ] - self.cellRange[ 0 ]
+        rel_row = addr[ 1 ] - self.cellRange[ 1 ]
+
+        if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
+            rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
+	  if new_bmap is None:
+	    new_bmap = self._CopyBitmap( bmap )
+            dc = wx.MemoryDC( new_bmap )
+	    gc = wx.GraphicsContext.Create( dc )
+	    gc.SetPen(
+	        wx.ThePenList.FindOrCreatePen(
+	            wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+		    )
+	        )
+	  elif i == 1:
+	    gc.SetPen(
+	        wx.ThePenList.FindOrCreatePen(
+	            wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+		    )
+	        )
+        #end if addr within range
+
+	rect = \
+	  [
+	    rel_col * pin_adv + assy_region[ 0 ],
+	    rel_row * pin_adv + assy_region[ 1 ],
+	    pin_wd + 1, pin_wd + 1
+	  ]
+	path = gc.CreatePath()
+	path.AddRectangle( *rect )
+	gc.StrokePath( path )
+# This doesn't work on MSWIN
+#	 dc.SetBrush( wx.TRANSPARENT_BRUSH )
+#        dc.SetPen(
+#	     wx.ThePenList.FindOrCreatePen(
+#	         wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
+#	 	 )
+#	     )
+      #end for i
+
+      if dc is not None:
+        dc.SelectObject( wx.NullBitmap )
+      if new_bmap is not None:
+        result = new_bmap
+    #end if self.config is not None:
+
+    return  result
+  #end _HiliteBitmap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._HiliteBitmap_0()		-
+  #----------------------------------------------------------------------
+  def _HiliteBitmap_0( self, bmap ):
+    result = bmap
+
     if self.config is not None:
       rel_col = self.pinColRow[ 0 ] - self.cellRange[ 0 ]
       rel_row = self.pinColRow[ 1 ] - self.cellRange[ 1 ]
@@ -758,7 +830,7 @@ Subclasses should override as needed.
     #end if self.config is not None:
 
     return  result
-  #end _HiliteBitmap
+  #end _HiliteBitmap_0
 
 
   #----------------------------------------------------------------------
@@ -800,16 +872,16 @@ attributes/properties that aren't already set in _LoadDataModel():
     """
 """
     #ev.Skip()
-    is_aux = self.state.IsAuxiliaryEvent( ev )
+    is_aux = self.IsAuxiliaryEvent( ev )
 
 #		-- Validate
 #		--
     valid = False
     pin_addr = self.FindPin( *ev.GetPosition() )
 
-    #if pin_addr is not None and pin_addr != self.pinColRow:
-    if pin_addr is not None and pin_addr != self.pinColRow and \
-	not (is_aux and pin_addr in self.auxPinColRows):
+    #if pin_addr is not None and pin_addr != self.pinColRow and \
+	#not (is_aux and pin_addr in self.auxPinColRows):
+    if pin_addr is not None and pin_addr != self.pinColRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
@@ -832,10 +904,15 @@ attributes/properties that aren't already set in _LoadDataModel():
         #self.FireStateChange( pin_colrow = pin_addr )
 	if is_aux:
 	  addrs = list( self.auxPinColRows )
-	  addrs.append( pin_addr )
+	  if pin_addr in addrs:
+	    addrs.remove( pin_addr )
+	  else:
+	    addrs.append( pin_addr )
 	  self.FireStateChange( aux_pin_colrows = addrs )
+
 	else:
-          self.FireStateChange( pin_colrow = pin_addr )
+          self.FireStateChange( pin_colrow = pin_addr, aux_pin_colrows = [] )
+      #end if not nodata value
     #end if valid
   #end _OnClick
 
@@ -877,6 +954,12 @@ attributes/properties that aren't already set in _LoadDataModel():
     if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
+
+    if 'aux_pin_colrows' in kwargs and \
+        kwargs[ 'aux_pin_colrows' ] not in self.auxPinColRows:
+      changed = True
+      self.auxPinColRows = self.data.\
+          NormalizePinColRows( kwargs[ 'aux_pin_colrows' ] )
 
     if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
       changed = True

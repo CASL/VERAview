@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-04-25	leerw@ornl.gov				-
+#	  Added Normalize{Channel,Pin}ColRows() (for aux lists).
 #		2016-04-23	leerw@ornl.gov				-
 #	  Added GetDefaultScalarDataSet().
 #	  In _ResolveDataSets() added hook to define core.detectorMap as
@@ -2003,6 +2005,21 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.NormalizeChannelColRows()		-
+  #----------------------------------------------------------------------
+  def NormalizeChannelColRows( self, chan_rc_list ):
+    result = []
+    for chan_rc in chan_rc_list:
+      result.append( (
+          max( 0, min( chan_rc[ 0 ], self.core.npin ) ),
+          max( 0, min( chan_rc[ 1 ], self.core.npin ) )
+	  ) )
+
+    return  result
+  #end NormalizeChannelColRows
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizeDetectorIndex()		-
   #----------------------------------------------------------------------
   def NormalizeDetectorIndex( self, det_ndx ):
@@ -2021,12 +2038,28 @@ for NaN.  For now, we just assume 0.0 is "no data".
   #----------------------------------------------------------------------
   def NormalizePinColRow( self, pin_rc ):
     result = \
-      (
-      max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
-      max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
-      )
+        (
+        max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
+        max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
+        )
+
     return  result
   #end NormalizePinColRow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.NormalizePinColRows()			-
+  #----------------------------------------------------------------------
+  def NormalizePinColRows( self, pin_rc_list ):
+    result = []
+    for pin_rc in pin_rc_list:
+      result.append( (
+          max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
+          max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
+	  ) )
+
+    return  result
+  #end NormalizePinColRows
 
 
   #----------------------------------------------------------------------
