@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-04-28	leerw@ornl.gov				-
+# 	  Added DataModel.ToAddrString().
 #		2016-04-25	leerw@ornl.gov				-
 #	  Added Normalize{Channel,Pin}ColRows() (for aux lists).
 #		2016-04-23	leerw@ornl.gov				-
@@ -2476,13 +2478,13 @@ ds_names	dict of dataset names by dataset type
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.IsExtra()				-
   #----------------------------------------------------------------------
-  @staticmethod
-  def IsExtra( ds_name ):
-    """Checks for the 'extra:' prefix.
-@return			True if ds_name is an extra dataset, False otherwise
-"""
-    return  ds_name.startswith( 'extra:' )
-  #end IsExtra
+#  @staticmethod
+#  def IsExtra( ds_name ):
+#    """Checks for the 'extra:' prefix.
+#@return			True if ds_name is an extra dataset, False otherwise
+#"""
+#    return  ds_name.startswith( 'extra:' )
+#  #end IsExtra
 
 
   #----------------------------------------------------------------------
@@ -2494,6 +2496,22 @@ ds_names	dict of dataset names by dataset type
 """
     return  data is not None and data.IsValid( **kwargs )
   #end IsValidObj
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ToAddrString()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ToAddrString( col, row ):
+    """Convenience method to convert from 0-based indices to Fortran
+1-based indices.
+@param  col		0-based column index
+@param  row		0-based row index
+@return			"( col + 1, row + 1 )"
+"""
+    #return  str( ( col + 1, row + 1 ) )
+    return  '(%d,%d)' % ( col + 1, row + 1 )
+  #end ToAddrString
 
 
   #----------------------------------------------------------------------

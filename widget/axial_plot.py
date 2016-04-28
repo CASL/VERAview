@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-04-28	leerw@ornl.gov				-
+#	  Supporting auxPinColRow.
 #		2016-04-23	leerw@ornl.gov				-
 #	  Adding 'Selected ' dataset support.  Moved
 #	  _GetSelectedDataSetName() to Widget.
@@ -124,6 +126,7 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
+    self.auxPinColRows = []
     self.axialValue = ( 0.0, -1, -1 )
     self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
@@ -486,33 +489,68 @@ configuring the grid, plotting, and creating self.axline.
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
-	if ds_name in self.data.GetDataSetNames( 'detector' ):
+	#ds_def = self.data.GetDataSetDefByName( ds_name )
+	#ds_type = ds_def[ 'type' ] if ds_def else ''
+	ds_type = self.data.GetDataSetType( ds_name )
+	axial_values = self.data.core.axialMeshCenters
+	#if ds_name in self.data.GetDataSetNames( 'detector' ):
+	if ds_type.startswith( 'detector' ):
 	  axial_values = self.data.core.detectorMeshCenters
 	  plot_type = '.'
-#	elif self.dataSetValues[ k ].size != self.data.core.axialMeshCenters.size:
-#	  axial_values = None
-	else:
-	  axial_values = self.data.core.axialMeshCenters
+	#elif ds_name in self.data.GetDataSetNames( 'channel' ):
+	elif ds_type.startswith( 'channel' ):
+	  plot_type = '--'
+	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
+	else:
+	  plot_type = ':'
 
 	if axial_values is not None:
-	  if self.dataSetValues[ k ].size == axial_values.size:
-	    cur_values = self.dataSetValues[ k ]
-	  else:
-	    cur_values = np.ndarray( axial_values.shape, dtype = np.float64 )
-	    cur_values.fill( 0.0 )
-	    cur_values[ 0 : self.dataSetValues[ k ].shape[ 0 ] ] = \
-	        self.dataSetValues[ k ]
+	  data_set_item = self.dataSetValues[ k ]
+	  if not isinstance( data_set_item, dict ):
+	    data_set_item = { '': data_set_item }
 
-	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
-	  cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
-	  cur_axis.plot(
-	      cur_values * scale, axial_values, plot_mode,
-	      label = legend_label, linewidth = 2
-	      )
+	  for rc, values in sorted( data_set_item.iteritems() ):
+	    if values.size == axial_values.size:
+	      cur_values = values
+	    else:
+	      cur_values = np.ndarray( axial_values.shape, dtype = np.float64 )
+	      cur_values.fill( 0.0 )
+	      cur_values[ 0 : values.shape[ 0 ] ] = values
+
+	    cur_label = \
+	        legend_label + '@' + DataModel.ToAddrString( *rc ) \
+	        if rc else legend_label
+
+	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+	    cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
+	    cur_axis.plot(
+	        cur_values * scale, axial_values, plot_mode,
+	        label = cur_label, linewidth = 2
+	        )
+
+	    count += 1
+	  #end for rc, values
 	#end if axial_values is not None:
 
-	count += 1
+#o	if axial_values is not None:
+#o	  if self.dataSetValues[ k ].size == axial_values.size:
+#o	    cur_values = self.dataSetValues[ k ]
+#o	  else:
+#o	    cur_values = np.ndarray( axial_values.shape, dtype = np.float64 )
+#o	    cur_values.fill( 0.0 )
+#o	    cur_values[ 0 : self.dataSetValues[ k ].shape[ 0 ] ] = \
+#o	        self.dataSetValues[ k ]
+#o
+#o	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+#o	  cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
+#o	  cur_axis.plot(
+#o	      cur_values * scale, axial_values, plot_mode,
+#o	      label = legend_label, linewidth = 2
+#o	      )
+#o
+#o	  count += 1
+#o	#end if axial_values is not None:
       #end for
 
 #			-- Create legend
@@ -647,7 +685,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """By default, all locks are enabled except
 """
     locks = set([
-        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
+        STATE_CHANGE_assemblyIndex,
+        STATE_CHANGE_auxPinColRows, STATE_CHANGE_axialValue,
 	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
 	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
@@ -872,6 +911,9 @@ Must be called from the event thread.
     if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
       axial_ds_names = self.data.GetDataSetNames( 'axial' )
 
+      pin_colrow_list = list( self.auxPinColRows )
+      pin_colrow_list.insert( 0, self.pinColRow )
+
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
@@ -889,6 +931,7 @@ Must be called from the event thread.
 	  if dset_array is None:
 	    pass
 
+#					-- Channel
 	  elif ds_type.startswith( 'channel' ):
 	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
 	    chan_col = min( self.channelColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
@@ -909,39 +952,40 @@ Must be called from the event thread.
 #	          ]
 #              self.dataSetTypes.add( 'channel' )
 
+#					-- Detector
 	  elif ds_type.startswith( 'detector' ):
 	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
 	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
             self.dataSetTypes.add( 'detector' )
 
-#	  elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
-#	    if self.data.IsValid( detector_index = self.detectorIndex[ 0 ] ):
-#	      self.dataSetValues[ k ] = dset_array[ :, self.detectorIndex[ 0 ] ]
-#              self.dataSetTypes.add( 'detector' )
-
-#	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
-#	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
-#	      ds_display_name in self.data.GetDataSetNames( 'other' ):
-#	    valid = self.data.IsValidForShape(
-#		dset.shape,
-#		assembly_index = self.assemblyIndex[ 0 ],
-#		pin_colrow = self.pinColRow
-#	        )
-#	    if valid:
-#	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
-#	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
-#	      self.dataSetValues[ k ] = dset_array[
-#	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-#	          0 : temp_nax, assy_ndx
-#	          ]
-#              self.dataSetTypes.add( 'other' )
-
+#					-- Pin
 	  elif ds_type.startswith( 'pin' ):
 	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-	    pin_col = min( self.pinColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
-	    pin_row = min( self.pinColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
-	    self.dataSetValues[ k ] = \
-	        dset_array[ pin_row, pin_col, :, assy_ndx ]
+#o	    pin_col = min( self.pinColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
+#o	    pin_row = min( self.pinColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
+#o	    self.dataSetValues[ k ] = \
+#o	        dset_array[ pin_row, pin_col, :, assy_ndx ]
+#o            self.dataSetTypes.add( 'pin' )
+#						-- Lazy creation
+	    if pin_colrow_list is None:
+              pin_colrow_list = list( self.auxPinColRows )
+              pin_colrow_list.insert( 0, self.pinColRow )
+
+	    pin_colrow_set = set()
+	    for colrow in pin_colrow_list:
+	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
+	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
+	      pin_colrow_set.add( ( col, row ) )
+              #valid = self.data.IsValidForShape(
+	          #dset_array.shape, pin_colrow = self.pinColRow
+		  #)
+	    #end for
+	    ds_values_dict = {}
+	    for colrow in sorted( pin_colrow_set ):
+	      ds_values_dict[ colrow ] = \
+	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
+
+	    self.dataSetValues[ k ] = ds_values_dict
             self.dataSetTypes.add( 'pin' )
 
 #	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
@@ -979,6 +1023,12 @@ Must be called from the UI thread.
       replot = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
     #end if
+
+    if 'aux_pin_colrows' in kwargs and \
+        kwargs[ 'aux_pin_colrows' ] not in self.auxPinColRows:
+      replot = True
+      self.auxPinColRows = self.data.\
+          NormalizePinColRows( kwargs[ 'aux_pin_colrows' ] )
 
     if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
       replot = True
