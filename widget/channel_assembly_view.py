@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-05-04	leerw@ornl.gov				-
+#	  Adding support for secondary channelColRow selections.
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-04-11	leerw@ornl.gov				-
@@ -76,6 +78,7 @@ Attrs/properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
+    self.auxChannelColRows = []
     self.channelColRow = None
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
     self.showPins = True
@@ -724,6 +727,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
+	STATE_CHANGE_auxChannelColRows,
 	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
@@ -778,6 +782,77 @@ Subclasses should override as needed.
     result = bmap
 
     if self.config is not None:
+      addr_list = list( self.auxChannelColRows )
+      addr_list.insert( 0, self.channelColRow )
+
+      new_bmap = None
+      dc = None
+
+      assy_region = self.config[ 'assemblyRegion' ]
+      chan_gap = self.config[ 'channelGap' ]
+      chan_wd = self.config[ 'channelWidth' ]
+      chan_adv = chan_gap + chan_wd
+      line_wd = self.config[ 'lineWidth' ]
+
+      for i in range( len( addr_list ) ):
+        addr = addr_list[ i ]
+        rel_col = addr[ 0 ] - self.cellRange[ 0 ]
+        rel_row = addr[ 1 ] - self.cellRange[ 1 ]
+
+        if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
+            rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
+	  if new_bmap is None:
+	    new_bmap = self._CopyBitmap( bmap )
+            dc = wx.MemoryDC( new_bmap )
+	    gc = wx.GraphicsContext.Create( dc )
+	    gc.SetPen(
+	        wx.ThePenList.FindOrCreatePen(
+	            wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+		    )
+	        )
+	  elif i == 1:
+	    gc.SetPen(
+	        wx.ThePenList.FindOrCreatePen(
+	            wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+		    )
+	        )
+
+	  rect = \
+	    [
+	      rel_col * chan_adv + assy_region[ 0 ],
+	      rel_row * chan_adv + assy_region[ 1 ],
+	      chan_wd + 1, chan_wd + 1
+	    ]
+	  path = gc.CreatePath()
+	  path.AddRectangle( *rect )
+	  gc.StrokePath( path )
+# This doesn't work on MSWIN
+#	   dc.SetBrush( wx.TRANSPARENT_BRUSH )
+#          dc.SetPen(
+#	       wx.ThePenList.FindOrCreatePen(
+#	           wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
+#	 	   )
+#	       )
+        #end if within range
+      #end for i
+
+      if dc is not None:
+        dc.SelectObject( wx.NullBitmap )
+      if new_bmap is not None:
+        result = new_bmap
+    #end if self.config is not None:
+
+    return  result
+  #end _HiliteBitmap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView._HiliteBitmap_0()		-
+  #----------------------------------------------------------------------
+  def _HiliteBitmap_0( self, bmap ):
+    result = bmap
+
+    if self.config is not None:
       rel_col = self.channelColRow[ 0 ] - self.cellRange[ 0 ]
       rel_row = self.channelColRow[ 1 ] - self.cellRange[ 1 ]
 
@@ -823,7 +898,7 @@ Subclasses should override as needed.
     #end if self.config is not None:
 
     return  result
-  #end _HiliteBitmap
+  #end _HiliteBitmap_0
 
 
   #----------------------------------------------------------------------
@@ -865,11 +940,13 @@ attributes/properties that aren't already set in _LoadDataModel():
     """
 """
     #ev.Skip()
+    is_aux = self.IsAuxiliaryEvent( ev )
 
 #		-- Validate
 #		--
     valid = False
     chan_addr = self.FindChannel( *ev.GetPosition() )
+
     if chan_addr is not None and chan_addr != self.channelColRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
@@ -879,16 +956,32 @@ attributes/properties that aren't already set in _LoadDataModel():
 	  )
 
     if valid:
-      #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
-      if dset is not None:
+      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
+      value = 0.0
+      if chan_addr[ 1 ] < dset_shape[ 0 ] and chan_addr[ 0 ] < dset_shape[ 1 ]:
         value = dset[
-	    chan_addr[ 1 ], chan_addr[ 0 ],
-	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+            chan_addr[ 1 ], chan_addr[ 0 ],
+	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
+	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
-        #if value > 0.0:
-        if not self.data.IsNoDataValue( self.channelDataSet, value ):
-          self.FireStateChange( channel_colrow = chan_addr )
+
+      if not self.data.IsNoDataValue( self.channelDataSet, value ):
+        #self.FireStateChange( pin_colrow = pin_addr )
+	if is_aux:
+	  addrs = list( self.auxChannelColRows )
+	  if chan_addr in addrs:
+	    addrs.remove( chan_addr )
+	  else:
+	    addrs.append( chan_addr )
+	  self.FireStateChange( aux_channel_colrows = addrs )
+
+	else:
+          self.FireStateChange(
+	      channel_colrow = chan_addr,
+	      aux_channel_colrows = []
+	      )
+      #end if not nodata value
     #end if valid
   #end _OnClick
 
@@ -968,6 +1061,12 @@ attributes/properties that aren't already set in _LoadDataModel():
     if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
+
+    if 'aux_channel_colrows' in kwargs and \
+        kwargs[ 'aux_channel_colrows' ] not in self.auxChannelColRows:
+      changed = True
+      self.auxChannelColRows = self.data.\
+          NormalizeChannelColRows( kwargs[ 'aux_channel_colrows' ] )
 
     if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
       changed = True

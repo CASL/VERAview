@@ -3,8 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-05-04	leerw@ornl.gov				-
+#	  Supporting auxChannelColRows.
 #		2016-04-28	leerw@ornl.gov				-
-#	  Supporting auxPinColRow.
+#	  Supporting auxPinColRows.
 #		2016-04-23	leerw@ornl.gov				-
 #	  Adding 'Selected ' dataset support.  Moved
 #	  _GetSelectedDataSetName() to Widget.
@@ -126,6 +128,7 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
+    self.auxChannelColRows = []
     self.auxPinColRows = []
     self.axialValue = ( 0.0, -1, -1 )
     self.channelColRow = ( -1, -1 )
@@ -686,7 +689,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex,
-        STATE_CHANGE_auxPinColRows, STATE_CHANGE_axialValue,
+        STATE_CHANGE_auxChannelColRows, STATE_CHANGE_auxPinColRows,
+	STATE_CHANGE_axialValue,
 	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
 	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
@@ -911,8 +915,12 @@ Must be called from the event thread.
     if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
       axial_ds_names = self.data.GetDataSetNames( 'axial' )
 
-      pin_colrow_list = list( self.auxPinColRows )
-      pin_colrow_list.insert( 0, self.pinColRow )
+      #chan_colrow_list = list( self.auxChannelColRows )
+      #chan_colrow_list.insert( 0, self.channelColRow )
+      #pin_colrow_list = list( self.auxPinColRows )
+      #pin_colrow_list.insert( 0, self.pinColRow )
+      chan_colrow_list = None
+      pin_colrow_list = None
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
@@ -934,10 +942,31 @@ Must be called from the event thread.
 #					-- Channel
 	  elif ds_type.startswith( 'channel' ):
 	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-	    chan_col = min( self.channelColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
-	    chan_row = min( self.channelColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
-	    self.dataSetValues[ k ] = \
-	        dset_array[ chan_row, chan_col, :, assy_ndx ]
+#o	    chan_col = min( self.channelColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
+#o	    chan_row = min( self.channelColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
+#o	    self.dataSetValues[ k ] = \
+#o	        dset_array[ chan_row, chan_col, :, assy_ndx ]
+#o            self.dataSetTypes.add( 'channel' )
+#						-- Lazy creation
+	    if chan_colrow_list is None:
+              chan_colrow_list = list( self.auxChannelColRows )
+              chan_colrow_list.insert( 0, self.channelColRow )
+
+	    chan_colrow_set = set()
+	    for colrow in chan_colrow_list:
+	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
+	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
+	      chan_colrow_set.add( ( col, row ) )
+              #valid = self.data.IsValidForShape(
+	          #dset_array.shape, pin_colrow = self.pinColRow
+		  #)
+	    #end for
+	    ds_values_dict = {}
+	    for colrow in sorted( chan_colrow_set ):
+	      ds_values_dict[ colrow ] = \
+	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
+
+	    self.dataSetValues[ k ] = ds_values_dict
             self.dataSetTypes.add( 'channel' )
 
 #	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
@@ -961,11 +990,6 @@ Must be called from the event thread.
 #					-- Pin
 	  elif ds_type.startswith( 'pin' ):
 	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-#o	    pin_col = min( self.pinColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
-#o	    pin_row = min( self.pinColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
-#o	    self.dataSetValues[ k ] = \
-#o	        dset_array[ pin_row, pin_col, :, assy_ndx ]
-#o            self.dataSetTypes.add( 'pin' )
 #						-- Lazy creation
 	    if pin_colrow_list is None:
               pin_colrow_list = list( self.auxPinColRows )
@@ -1024,8 +1048,14 @@ Must be called from the UI thread.
       self.assemblyIndex = kwargs[ 'assembly_index' ]
     #end if
 
+    if 'aux_channel_colrows' in kwargs and \
+        kwargs[ 'aux_channel_colrows' ] != self.auxChannelColRows:
+      replot = True
+      self.auxChannelColRows = self.data.\
+          NormalizeChannelColRows( kwargs[ 'aux_channel_colrows' ] )
+
     if 'aux_pin_colrows' in kwargs and \
-        kwargs[ 'aux_pin_colrows' ] not in self.auxPinColRows:
+        kwargs[ 'aux_pin_colrows' ] != self.auxPinColRows:
       replot = True
       self.auxPinColRows = self.data.\
           NormalizePinColRows( kwargs[ 'aux_pin_colrows' ] )
