@@ -40,6 +40,7 @@ Attributes/properties:
 			  'axis': 'top', 'bottom', or ''
 			  'scale': float
 			  'visible': boolean
+@deprecated
 """
 
 
@@ -485,6 +486,7 @@ class DataSetChooserDialog( wx.Dialog ):
   """
 Properties:
   bean			DataSetChooserBean reference
+@deprecated
 """
 
 
