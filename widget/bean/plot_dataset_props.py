@@ -39,7 +39,9 @@ bottom axis check, and scale value text control.
 	    ulc.ULC_HAS_VARIABLE_ROW_HEIGHT
 	)
 
-    self.InsertColumn( 0, "Dataset" )
+    #wx.LIST_AUTOSIZE only works the first time
+    #wx.LIST_AUTOSIZE_FILL(-3)
+    self.InsertColumn( 0, "Dataset", width = 164 )
     self.InsertColumn( 1, "Top Axis" )
     self.InsertColumn( 2, "Bottom Axis" )
     self.InsertColumn( 3, "Scale", width = 128 )

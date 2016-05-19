@@ -6,6 +6,7 @@
 #		2016-05-19	leerw@ornl.gov				-
 #	  Fixed _CreateToolTipText() and _FindDataSetValues() to handle
 #	  the new auxiliary selections.
+#	  Creating PlotDataSetPropsDialog instead of DataSetChooserDialog.
 #		2016-05-04	leerw@ornl.gov				-
 #	  Supporting auxChannelColRows.
 #		2016-04-28	leerw@ornl.gov				-
@@ -81,7 +82,8 @@ try:
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
 
-from bean.dataset_chooser import *
+#from bean.dataset_chooser import *
+from bean.plot_dataset_props import *
 from event.state import *
 
 from legend import *
@@ -142,15 +144,6 @@ Properties:
     self.dataSetValues = {}  # keyed by dataset name or pseudo name
     self.detectorDataSet = 'detector_respose'
     self.detectorIndex = ( -1, -1, -1 )
-
-#Old Way
-#    self.menuDef = \
-#      [
-#	( 'Copy Data', self._OnCopyData ),
-#	( 'Copy Image', self._OnCopyImage ),
-#	( '-', None ),
-#        ( 'Select Datasets', self._OnSelectDataSets )
-#      ]
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
@@ -362,7 +355,8 @@ Properties:
     more_def = \
       [
 	( '-', None ),
-        ( 'Select Datasets', self._OnSelectDataSets )
+        ( 'Edit Dataset Properties', self._OnEditDataSetProps )
+        #( 'Select Datasets', self._OnSelectDataSets )
       ]
     return  menu_def + more_def
   #end _CreateMenuDef
@@ -406,10 +400,10 @@ configuring the grid, plotting, and creating self.axline.
 """
     super( AxialPlot, self )._DoUpdatePlot( wd, ht )
 
-    self.fig.suptitle(
-        'Axial Plot',
-	fontsize = 'medium', fontweight = 'bold'
-	)
+#    self.fig.suptitle(
+#        'Axial Plot',
+#	fontsize = 'medium', fontweight = 'bold'
+#	)
 
     label_font_size = 14
     tick_font_size = 12
@@ -546,25 +540,6 @@ configuring the grid, plotting, and creating self.axline.
 	    count += 1
 	  #end for rc, values
 	#end if axial_values is not None:
-
-#o	if axial_values is not None:
-#o	  if self.dataSetValues[ k ].size == axial_values.size:
-#o	    cur_values = self.dataSetValues[ k ]
-#o	  else:
-#o	    cur_values = np.ndarray( axial_values.shape, dtype = np.float64 )
-#o	    cur_values.fill( 0.0 )
-#o	    cur_values[ 0 : self.dataSetValues[ k ].shape[ 0 ] ] = \
-#o	        self.dataSetValues[ k ]
-#o
-#o	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
-#o	  cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
-#o	  cur_axis.plot(
-#o	      cur_values * scale, axial_values, plot_mode,
-#o	      label = legend_label, linewidth = 2
-#o	      )
-#o
-#o	  count += 1
-#o	#end if axial_values is not None:
       #end for
 
 #			-- Create legend
@@ -585,8 +560,9 @@ configuring the grid, plotting, and creating self.axline.
 #	  bbox_to_anchor = ( 1.05, 1 ), borderaxespad = 0., loc = 2
 #	  )
 
+      #xxxplacement orig=0.925, tried=0.975
       self.fig.text(
-          0.1, 0.925, title_str,
+          0.1, 0.985, title_str,
 	  horizontalalignment = 'left', verticalalignment = 'top'
 	  )
 
@@ -611,15 +587,10 @@ configuring the grid, plotting, and creating self.axline.
     results = {}
     for k in self.dataSetValues:
       ds_name = self._GetDataSetName( k )
-      print >> sys.stderr, 'XX.1 ds_name=', ds_name
 
       data_set_item = self.dataSetValues[ k ]
-      print >> sys.stderr, 'XX k=', k, ' data_set_item=', str( data_set_item )
       if not isinstance( data_set_item, dict ):
         data_set_item = { '': data_set_item }
-
-      sample = data_set_item.itervalues().next()
-      print >> sys.stderr, 'XX.2 sample=', sample
 
       ndx = -1
       if ds_name in self.data.GetDataSetNames( 'detector' ):
@@ -628,14 +599,11 @@ configuring the grid, plotting, and creating self.axline.
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
 
-#      if ndx >= 0 and len( self.dataSetValues[ k ] ) > ndx:
-#        values[ ds_name ] = self.dataSetValues[ k ][ ndx ]
+      sample = data_set_item.itervalues().next()
       if ndx >= 0 and len( sample ) > ndx:
 	cur_dict = {}
         for rc, values in data_set_item.iteritems():
-          print >> sys.stderr, 'XX.3 rc=', rc, ', values=', str( values )
 	  cur_dict[ rc ] = values[ ndx ]
-        print >> sys.stderr, 'XX.4 cur_dict=', str( cur_dict )
 
 	results[ ds_name ] = cur_dict
       #end if ndx in range
@@ -744,7 +712,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """Initialize axes, 'ax', and 'ax2'.
 XXX size according to how many datasets selected?
 """
-    self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
+    #xxxplacement
+    #self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
+    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.7 ])
     self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
@@ -816,6 +786,32 @@ to be passed to UpdateState().  Assume self.data is valid.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnEditDataSetProps()				-
+  #----------------------------------------------------------------------
+  def _OnEditDataSetProps( self, ev ):
+    """Must be called from the UI thread.
+"""
+    if self.dataSetDialog is None:
+      self.dataSetDialog = PlotDataSetPropsDialog( self )
+
+    if self.dataSetDialog is not None:
+      self.dataSetDialog.ShowModal( self.dataSetSelections )
+      selections = self.dataSetDialog.GetProps()
+      if selections:
+        for name in self.dataSetSelections:
+	  if name in selections:
+	    ds_rec = self.dataSetSelections[ name ]
+	    sel_rec = selections[ name ]
+	    ds_rec[ 'axis' ] = sel_rec[ 'axis' ]
+	    ds_rec[ 'scale' ] = sel_rec[ 'scale' ]
+	#end for
+
+	self.UpdateState( replot = True )
+    #end if
+  #end _OnEditDataSetProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnMplMouseRelease()				-
   #----------------------------------------------------------------------
   def _OnMplMouseRelease( self, ev ):
@@ -836,6 +832,7 @@ to be passed to UpdateState().  Assume self.data is valid.
   #----------------------------------------------------------------------
   def _OnSelectDataSets( self, ev ):
     """Must be called from the UI thread.
+@deprecated
 """
     if self.dataSetDialog is None:
       if self.data is None:
