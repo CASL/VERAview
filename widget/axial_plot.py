@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-05-19	leerw@ornl.gov				-
+#	  Fixed _CreateToolTipText() and _FindDataSetValues() to handle
+#	  the new auxiliary selections.
 #		2016-05-04	leerw@ornl.gov				-
 #	  Supporting auxChannelColRows.
 #		2016-04-28	leerw@ornl.gov				-
@@ -376,11 +379,19 @@ Properties:
     ds_values = self._FindDataSetValues( ev.ydata )
     if ds_values is not None:
       tip_str = 'Axial=%.3g' % ev.ydata
-#      ds_keys = ds_values.keys()
-#      ds_keys.sort()
-#      for k in ds_keys:
       for k in sorted( ds_values.keys() ):
-        tip_str += '\n%s=%.3g' % ( k, ds_values[ k ] )
+#        tip_str += '\n%s=%.3g' % ( k, ds_values[ k ] )
+        data_set_item = ds_values[ k ]
+	#if not isinstance( data_set_item, dict ):
+	  #data_set_item = { '': data_set_item }
+	for rc, value in sorted( data_set_item.iteritems() ):
+	  cur_label = \
+	      k + '@' + DataModel.ToAddrString( *rc ) \
+	      if rc else k
+	  tip_str += '\n%s=%.3g' % ( cur_label, value )
+	#end for rc, value
+      #end for k
+    #end if ds_values is not None:
 
     return  tip_str
   #end _CreateToolTipText
@@ -597,22 +608,40 @@ configuring the grid, plotting, and creating self.axline.
 @return			dict by real dataset name (not pseudo name) of
 			dataset values or None if no matches
 """
-
-    values = {}
+    results = {}
     for k in self.dataSetValues:
-      ndx = -1
       ds_name = self._GetDataSetName( k )
+      print >> sys.stderr, 'XX.1 ds_name=', ds_name
 
+      data_set_item = self.dataSetValues[ k ]
+      print >> sys.stderr, 'XX k=', k, ' data_set_item=', str( data_set_item )
+      if not isinstance( data_set_item, dict ):
+        data_set_item = { '': data_set_item }
+
+      sample = data_set_item.itervalues().next()
+      print >> sys.stderr, 'XX.2 sample=', sample
+
+      ndx = -1
       if ds_name in self.data.GetDataSetNames( 'detector' ):
         if self.data.core.detectorMeshCenters is not None:
 	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
-      if ndx >= 0 and len( self.dataSetValues[ k ] ) > ndx:
-        values[ ds_name ] = self.dataSetValues[ k ][ ndx ]
-    #end for
 
-    return  values
+#      if ndx >= 0 and len( self.dataSetValues[ k ] ) > ndx:
+#        values[ ds_name ] = self.dataSetValues[ k ][ ndx ]
+      if ndx >= 0 and len( sample ) > ndx:
+	cur_dict = {}
+        for rc, values in data_set_item.iteritems():
+          print >> sys.stderr, 'XX.3 rc=', rc, ', values=', str( values )
+	  cur_dict[ rc ] = values[ ndx ]
+        print >> sys.stderr, 'XX.4 cur_dict=', str( cur_dict )
+
+	results[ ds_name ] = cur_dict
+      #end if ndx in range
+    #end for k
+
+    return  results
   #end _FindDataSetValues
 
 
