@@ -130,7 +130,8 @@ All indices are 0-based.
     #self.axialLevel = -1
     self.auxChannelColRows = []
     self.auxPinColRows = []
-    self.axialValue = ( 0.0, -1, -1, -1 )
+    self.axialValue = DataModel.CreateEmptyAxialValue()
+    #self.axialValue = ( 0.0, -1, -1, -1 )
     self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataModel = None
@@ -143,7 +144,7 @@ All indices are 0-based.
     self.scaleMode = 'all'
     self.stateIndex = -1
     self.timeDataSet = 'state'
-    self.vanadiumDataSet = None
+    self.vanadiumDataSet = 'vanadium_response'
 
     if 'assembly_index' in kwargs:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
@@ -431,7 +432,8 @@ Keys passed and the corresponding state bit are:
     """
 @param  data_model	if None, use the current dataModel
 """
-    undefined_ax = ( 0.0, -1, -1 )
+    undefined_ax = DataModel.CreateEmptyAxialValue()
+    #undefined_ax = ( 0.0, -1, -1 )
     undefined2 = ( -1, -1 )
     undefined3 = ( -1, -1, -1 )
     self.dataModel = data_model

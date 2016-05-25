@@ -384,7 +384,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
-	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
+	    ( assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
+	      assy_region[ 1 ] )
 	    )
 	legend_size = legend_pil_im.size
       else:
@@ -482,7 +483,6 @@ If neither are specified, a default 'scale' value of 24 is used.
       title1 = '"%s: Axial=%.3f; %s=%.3g"' % (
 	  self.pinDataSet,
 	  self.axialValue[ 0 ],
-	  #self.data.core.axialMeshCenters[ axial_level ],
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
@@ -828,7 +828,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
-	    ( core_region[ 2 ] + 2 + font_size, core_region[ 1 ] )
+	    ( core_region[ 0 ] + core_region[ 2 ] + 2 + font_size,
+	      core_region[ 1 ] )
 	    )
 	legend_size = legend_pil_im.size
       else:

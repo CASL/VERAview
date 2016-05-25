@@ -71,8 +71,8 @@ Properties:
   #	METHOD:		RasterWidget.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    #x self.assemblyIndex = ( -1, -1, -1 )
-    self.axialValue = ( 0.0, -1, -1 )
+    self.axialValue = DataModel.CreateEmptyAxialValue()
+    #self.axialValue = ( 0.0, -1, -1 )
     self.bitmapThreadArgs = None
     self.bitmaps = {}  # key is (row,col)
     self.bitmapsLock = threading.RLock()
@@ -159,7 +159,6 @@ Paired to _BitmapThreadStart().
 	  self.bitmapsLock.release()
       #end else pil_im not None
 
-#      if cur_pair[ 0 ] == self.stateIndex and cur_pair[ 1 ] == self.axialValue[ 1 ]:
       if self.IsTupleCurrent( cur_tuple ):
         self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
         self.bitmapCtrl.Update()

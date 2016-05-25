@@ -6,6 +6,7 @@
 #		2016-05-25	leerw@ornl.gov				-
 #	  Special "vanadium" dataset type.
 #	  Fixed handling of "detector_mesh" to get detectorMeshCenters.
+#	  Added DataModel.CreateEmptyAxialValue() static method.
 #		2016-04-28	leerw@ornl.gov				-
 # 	  Added DataModel.ToAddrString().
 #		2016-04-25	leerw@ornl.gov				-
@@ -462,6 +463,7 @@ Properties:
     self.coreMap = core_map_item.value
     self.nassy = self.coreMap.shape[ 0 ]
     self.nassx = self.coreMap.shape[ 1 ]
+    self.nass = np.amax( self.coreMap )
 
 #		-- Labels
 #		--
@@ -505,7 +507,8 @@ Properties:
       self.npinx = self.pinVolumes.shape[ 1 ]
       if self.nax == 0:
         self.nax = self.pinVolumes.shape[ 2 ]
-      self.nass = self.pinVolumes.shape[ 3 ]
+      if self.nass == 0:
+        self.nass = self.pinVolumes.shape[ 3 ]
 
     item = self._FindInGroup( 'rated_flow', core_group, in_core_group )
     if item is not None:
@@ -525,21 +528,25 @@ Properties:
     if item is not None:
       self.detectorMap = item.value
       self.ndet = np.amax( item.value )
-
-#			-- Optional detector_mesh
-#			--
-      item = self._FindInGroup( 'detector_mesh', core_group )
-      if item is not None:
-#				-- Numpy magic
-        t = np.copy( item.value )
-        t2 = np.r_[ t, np.roll( t, -1 ) ]
-        self.detectorMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
-
-        self.ndetax = item.shape[ 0 ] - 1
-      else:
-        self.detectorMeshCenters = self.axialMeshCenters
-        self.ndetax = self.nax
+    else:
+      self.detectorMap = self.coreMap
+      self.ndet = self.nass
     #end if detector_map
+
+#		-- Optional detector_mesh
+#		-- (was inside detector_map if-block)
+    item = self._FindInGroup( 'detector_mesh', core_group )
+    if item is not None:
+#				-- Numpy magic
+      t = np.copy( item.value )
+      t2 = np.r_[ t, np.roll( t, -1 ) ]
+      self.detectorMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+
+      self.ndetax = item.shape[ 0 ] - 1
+    else:
+      self.detectorMeshCenters = self.axialMeshCenters
+      self.ndetax = self.nax
+    #end if detector_mesh
 
 #			-- Optional vanadium_axial_mesh
 #			--
@@ -841,7 +848,7 @@ Parameters:
     core_ndx = -1
     det_ndx = -1
     van_ndx = -1
-    axial_cm = -1
+    axial_cm = 0.0
 
     if 'value' in kwargs:
       axial_cm = kwargs[ 'value' ]
@@ -2029,7 +2036,8 @@ for NaN.  For now, we just assume 0.0 is "no data".
       (
       axial_value[ 0 ],
       max( 0, min( axial_value[ 1 ], self.core.nax -1 ) ),
-      max( 0, min( axial_value[ 2 ], self.core.ndetax -1 ) )
+      max( 0, min( axial_value[ 2 ], self.core.ndetax -1 ) ),
+      max( 0, min( axial_value[ 3 ], self.core.nvanax -1 ) )
       )
     return  result
   #end NormalizeAxialValue
@@ -2160,6 +2168,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
 #		-- Resolve everything
 #		--
+#xxxxx return messages about datasets ignored due to bad shapes, beavrs.h5
     self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
         self._ResolveDataSets( self.core, st_group )
     self.derivedLabelsByType = {}
@@ -2359,27 +2368,30 @@ ds_names	dict of dataset names by dataset type
 #			--
 	#elif cur_name == 'detector_response' and \
 	    #cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+#xxx message about shape inconsistency?
 	elif cur_name == 'detector_response':
-	  ds_names[ 'detector' ].append( cur_name )
-	  ds_names[ 'axial' ].append( cur_name )
-	  ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
+	  if cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+	    ds_names[ 'detector' ].append( cur_name )
+	    ds_names[ 'axial' ].append( cur_name )
+	    ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
 
 #				-- Resolve detector_map if necessary
-          if core.detectorMap is None:
-	    core.detectorMap = core.coreMap
+#now in Core.ReadImpl()
+#          if core.detectorMap is None:
+#	    core.detectorMap = core.coreMap
 
 #				-- Resolve detector_mesh if necessary
-          if core.detectorMeshCenters is None:
-            core.detectorMeshCenters = core.axialMeshCenters
-            core.ndetax = core.nax
-            core.ndet = core.nass
-          #elif cur_shape != ds_defs[ 'detector' ][ 'shape' ]:
+#now in Core.ReadImpl()
+#          if core.detectorMeshCenters is None:
+#            core.detectorMeshCenters = core.axialMeshCenters
+#            core.ndetax = core.nax
+#            core.ndet = core.nass
 
 #			-- Vanadium is special case
 #			--
 	elif cur_name == 'vanadium_response' and \
 	    cur_shape == ds_defs[ 'vanadium' ][ 'shape' ] and \
-	    core.vanadiumMeshCenters:
+	    core.vanadiumMeshCenters is not None:
 	  ds_names[ 'vanadium' ].append( cur_name )
 	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'vanadium' ]
@@ -2502,6 +2514,19 @@ ds_names	dict of dataset names by dataset type
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateEmptyAxialValue()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CreateEmptyAxialValue():
+    """
+@return			( axial_cm, core_ndx, detector_ndx, vanadium_ndx ) as
+			( 0.0, -1, -1, -1 )
+"""
+    return  ( 0.0, -1, -1, -1 )
+  #end CreateEmptyAxialValue
 
 
   #----------------------------------------------------------------------
@@ -2745,9 +2770,10 @@ Fields:
         self.group[ 'detector_operable' ].shape[ 0 ] != core.ndet:
       missing.append( '%s DETECTOR_OPERABLE shape is not consistent with NDET' % self.name )
 
-    if 'detector_response' in self.group and \
-        self.group[ 'detector_response' ].shape != ( core.ndetax, core.ndet ):
-      missing.append( '%s DETECTOR_RESPONSE shape is not consistent with NDETAX and NDET' % self.name )
+# Come back to this with beavrs.h5, errors vs warnings where dataset not used
+#    if 'detector_response' in self.group and \
+#        self.group[ 'detector_response' ].shape != ( core.ndetax, core.ndet ):
+#      missing.append( '%s DETECTOR_RESPONSE shape is not consistent with NDETAX and NDET' % self.name )
 
     return  missing
   #end Check

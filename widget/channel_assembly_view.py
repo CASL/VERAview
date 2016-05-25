@@ -558,11 +558,11 @@ Must be called from the UI thread.
 
 #			-- Draw Legend Image
 #			--
-#      im.paste( legend_pil_im, ( assy_region[ 2 ] + font_size, 0 ) )
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
-	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
+	    ( assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
+	      assy_region[ 1 ] )
 	    )
 	legend_size = legend_pil_im.size
       else:

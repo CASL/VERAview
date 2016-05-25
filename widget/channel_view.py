@@ -322,11 +322,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Draw Legend Image
 #			--
-#      im.paste( legend_pil_im, ( assy_wd + font_size, 1 ) )
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
-	    ( assy_region[ 2 ] + 2 + font_size, assy_region[ 1 ] )
+	    ( assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
+	      assy_region[ 1 ] )
 	    )
 	legend_size = legend_pil_im.size
       else:
@@ -731,7 +731,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
-	    ( core_region[ 2 ] + 2 + font_size, core_region[ 1 ] )
+	    ( core_region[ 0 ] + core_region[ 2 ] + 2 + font_size,
+	      core_region[ 1 ] )
 	    )
 	legend_size = legend_pil_im.size
       else:

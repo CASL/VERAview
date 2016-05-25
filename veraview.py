@@ -4,7 +4,8 @@
 #	NAME:		veraview.py					-
 #	HISTORY:							-
 #		2016-05-25	leerw@ornl.gov				-
-# 	  Special "vanadium" dataset.
+# 	  Special "vanadium" dataset.  Calling
+#	  DataModel.CreateEmptyAxialValue()
 #		2016-04-16	leerw@ornl.gov				-
 #	  Added "Select Scale Mode" pullright on the Edit menu.
 #		2016-03-16	leerw@ornl.gov				-
@@ -109,7 +110,8 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.42 (vanadium)'
+#TITLE = 'VERAView Version 1.0.42 (vanadium)'
+TITLE = 'VERAView Version 1.0.43'
 
 TOOLBAR_ITEMS = \
   [
@@ -348,8 +350,8 @@ unnecessary.
       if args.assembly is not None and args.assembly > 0:
         state.assemblyIndex = ( args.assembly - 1, 0, 0 )
       if args.axial is not None and args.axial > 0:
-        state.axialValue = ( 0.0, args.axial - 1, -1 )
-#        state.axialLevel = args.axial - 1
+        state.axialValue = DataModel.CreateEmptyAxialValue()
+        #state.axialValue = ( 0.0, args.axial - 1, -1, -1 )
       elif args.state is not None and args.state > 0:
         state.stateIndex = args.state - 1
 
@@ -924,11 +926,11 @@ Must be called from the UI thread.
 	axial_plot_types.add( 'detector' )
 	axial_plot_types.add( 'pin' )
 
-#    elif len( data.GetDataSetNames()[ 'vanadium' ] ) > 0:
-#      widget_list.append( 'widget.detector_view.Detector2DView' )
-#      if data.core.ndetax > 1:
-#	axial_plot_types.add( 'detector' )
-#	axial_plot_types.add( 'pin' )
+    if len( data.GetDataSetNames()[ 'vanadium' ] ) > 0:
+      if 'widget.detector_view.Detector2DView' not in widget_list:
+        widget_list.append( 'widget.detector_view.Detector2DView' )
+      if data.core.nvanax > 1:
+	axial_plot_types.add( 'vanadium' )
 
 #		-- Pin Mode
 #		--
@@ -1529,8 +1531,8 @@ Must be called from the UI thread.
         self.state.dataModel = data_model
 
         self.state.assemblyIndex = ( 0, 0, 0 )
-        self.state.axialValue = ( 0.0, 0, 0 )
-#        self.state.axialLevel = 0
+        self.state.axialValue = DataModel.CreateEmptyAxialValue()
+        #self.state.axialValue = ( 0.0, 0, 0 )
         self.state.pinColRow = ( 0, 0 )
         self.state.stateIndex = 0
 

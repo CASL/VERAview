@@ -526,11 +526,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Draw Legend Image
 #			--
-#      im.paste( legend_pil_im, ( core_region[ 2 ] + font_size, 0 ) )
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
-	    ( core_region[ 2 ] + 2 + font_size, core_region[ 1 ] )
+	    ( core_region[ 0 ] + core_region[ 2 ] + 2 + font_size,
+	      core_region[ 1 ] )
 	    )
 	legend_size = legend_pil_im.size
       else:
@@ -862,6 +862,12 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
       changed = True
       self.detectorIndex = kwargs[ 'detector_index' ]
+
+    if 'vanadium_dataset' in kwargs and kwargs[ 'vanadium_dataset' ] != self.vanadiumDataSet:
+      ds_type = self.data.GetDataSetType( kwargs[ 'vanadium_dataset' ] )
+      if ds_type and ds_type in self.GetDataSetTypes():
+        resized = True
+        self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
 
     if changed:
       kwargs[ 'changed' ] = True

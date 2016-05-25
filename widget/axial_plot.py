@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-05-25	leerw@ornl.gov				-
+#	  Plotting vanadium dataset.
 #		2016-05-19	leerw@ornl.gov				-
 #	  Fixed _CreateToolTipText() and _FindDataSetValues() to handle
 #	  the new auxiliary selections.
@@ -135,17 +137,19 @@ Properties:
     self.assemblyIndex = ( -1, -1, -1 )
     self.auxChannelColRows = []
     self.auxPinColRows = []
-    self.axialValue = ( 0.0, -1, -1 )
+    self.axialValue = DataModel.CreateEmptyAxialValue()
+    #self.axialValue = ( 0.0, -1, -1, -1 )
     self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataSetDialog = None
     self.dataSetSelections = {}  # keyed by dataset name or pseudo name
     self.dataSetTypes = set()
     self.dataSetValues = {}  # keyed by dataset name or pseudo name
-    self.detectorDataSet = 'detector_respose'
+    self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
+    self.vanadiumDataSet = 'vanadium_response'
 
     super( AxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
@@ -483,6 +487,12 @@ configuring the grid, plotting, and creating self.axline.
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Pin %s' % str( pin_rc )
 
+      if 'vanadium' in self.dataSetTypes:
+        if len( title_line2 ) > 0: title_line2 += ', '
+	title_line2 += 'Van %d %s' % \
+	    ( self.detectorIndex[ 0 ] + 1,
+	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
+
       if len( title_line2 ) > 0:
         title_str += '\n' + title_line2
 
@@ -497,19 +507,18 @@ configuring the grid, plotting, and creating self.axline.
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
-	#ds_def = self.data.GetDataSetDefByName( ds_name )
-	#ds_type = ds_def[ 'type' ] if ds_def else ''
 	ds_type = self.data.GetDataSetType( ds_name )
 	axial_values = self.data.core.axialMeshCenters
-	#if ds_name in self.data.GetDataSetNames( 'detector' ):
 	if ds_type.startswith( 'detector' ):
 	  axial_values = self.data.core.detectorMeshCenters
 	  plot_type = '.'
-	#elif ds_name in self.data.GetDataSetNames( 'channel' ):
 	elif ds_type.startswith( 'channel' ):
 	  plot_type = '--'
 	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
+	elif ds_type.startswith( 'vanadium' ):
+	  axial_values = self.data.core.vanadiumMeshCenters
+	  plot_type = '-.'
 	else:
 	  plot_type = ':'
 
@@ -593,9 +602,13 @@ configuring the grid, plotting, and creating self.axline.
         data_set_item = { '': data_set_item }
 
       ndx = -1
+      #x call data.CreateAxialValue() here?
       if ds_name in self.data.GetDataSetNames( 'detector' ):
         if self.data.core.detectorMeshCenters is not None:
 	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
+      elif ds_name in self.data.GetDataSetNames( 'vanadium' ):
+        if self.data.core.vanadiumMeshCenters is not None:
+	  ndx = self.data.FindListIndex( self.data.core.vanadiumMeshCenters, axial_cm )
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
 
@@ -622,7 +635,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
     return  ( 'statepoint', )
-    #return  ( 'axial:detector', 'axial:pin', 'statepoint' )
   #end GetAnimationIndexes
 
 
@@ -630,7 +642,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		GetAxialValue()					-
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
-    """@return		( value, 0-based core index, 0-based detector index )
+    """@return		( value, 0-based core index, 0-based detector index
+			  0-based vanadium index )
 """
     return  self.axialValue
   #end GetAxialValue
@@ -646,12 +659,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	self.channelDataSet  if name == 'Selected channel dataset' else \
         self.detectorDataSet  if name == 'Selected detector dataset' else \
         self.pinDataSet  if name == 'Selected pin dataset' else \
+        self.vanadiumDataSet  if name == 'Selected vanadium dataset' else \
 	name
-#    return \
-#	self.channelDataSet  if name == '_channelDataSet_' else \
-#	self.detectorDataSet  if name == '_detectorDataSet_' else \
-#        self.pinDataSet  if name == '_pinDataSet_' else \
-#	name
   #end _GetDataSetName
 
 
@@ -662,7 +671,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     return \
       [
       'channel', 'detector',
-      'pin', 'pin:assembly', 'pin:axial'
+      'pin', 'pin:assembly', 'pin:axial',
+      'vanadium'
       ]
   #end GetDataSetTypes
 
@@ -691,7 +701,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
 	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
-	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
+	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
+	STATE_CHANGE_vanadiumDataSet
 	])
     return  locks
   #end GetEventLockSet
@@ -1038,6 +1049,12 @@ Must be called from the event thread.
 	    self.dataSetValues[ k ] = ds_values_dict
             self.dataSetTypes.add( 'pin' )
 
+#					-- Vanadium
+	  elif ds_type.startswith( 'vanadium' ):
+	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
+	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+            self.dataSetTypes.add( 'vanadium' )
+
 #	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
 #	    valid = self.data.IsValid(
 #	        assembly_index = self.assemblyIndex,
@@ -1135,6 +1152,14 @@ Must be called from the UI thread.
 
     if 'time_dataset' in kwargs:
       replot = True
+
+    if 'vanadium_dataset' in kwargs and kwargs[ 'vanadium_dataset' ] != self.vanadiumDataSet:
+      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
+      select_name = self.GetSelectedDataSetName( 'vanadium' )
+      if select_name in self.dataSetSelections and \
+          self.dataSetSelections[ select_name ][ 'visible' ]:
+        replot = True
+    #end if
 
     if redraw:
       kwargs[ 'redraw' ] = True
