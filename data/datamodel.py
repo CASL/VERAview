@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-05-25	leerw@ornl.gov				-
 #	  Special "vanadium" dataset type.
+#	  Fixed handling of "detector_mesh" to get detectorMeshCenters.
 #		2016-04-28	leerw@ornl.gov				-
 # 	  Added DataModel.ToAddrString().
 #		2016-04-25	leerw@ornl.gov				-
@@ -245,6 +246,7 @@ Properties:
   nvanax		number of vanadium axial levels
   pinVolumes		np.ndarray, row-major, origin top,left
   pinVolumesSum		sum of all pin volumes
+  vanadiumMesh		np.ndarray of mesh values
   vanadiumMeshCenters	np.ndarray of center-of-mesh values
 """
 
@@ -342,6 +344,7 @@ Properties:
     self.pinVolumesSum = 0.0
     self.ratedFlow = 0
     self.ratedPower = 0
+    self.vanadiumMesh = None
     self.vanadiumMeshCenters = None
   #end Clear
 
@@ -542,6 +545,7 @@ Properties:
 #			--
     item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
     if item is not None:
+      self.vanadiumMesh = item.value
 #				-- Numpy magic
       t = np.copy( item.value )
       t2 = np.r_[ t, np.roll( t, -1 ) ]
@@ -2377,7 +2381,7 @@ ds_names	dict of dataset names by dataset type
 	    cur_shape == ds_defs[ 'vanadium' ][ 'shape' ] and \
 	    core.vanadiumMeshCenters:
 	  ds_names[ 'vanadium' ].append( cur_name )
-	  #ds_names[ 'axial' ].append( cur_name )
+	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'vanadium' ]
 
 #			-- Not a scalar

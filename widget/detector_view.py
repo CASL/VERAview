@@ -281,7 +281,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'detectorGap' ] = det_gap
     config[ 'detectorWidth' ] = det_wd
-    config[ 'lineWidth' ] = max( 1, det_gap >> 1 )
+    config[ 'lineWidth' ] = max( 1, min( 4, det_gap >> 1 ) )
 #    config[ 'valueFont' ] = value_font
 #    config[ 'valueFontSize' ] = value_font_size
 
@@ -486,29 +486,29 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      last_y = cur_y
 	    #end for values
 
-#						-- Draw vanadium plot
+#						-- Draw vanadium bars
 #						--
 	    van_values = van_ds_value[ :, det_ndx ] \
 	        if van_ds_value is not None else None
 	    if van_values is not None and \
 	        len( van_values ) == len( self.data.core.vanadiumMeshCenters ):
-	      last_x = None
-	      last_y = None
+	      van_line_wd = line_wd << 1
 	      for i in range( len( van_values ) ):
-	        dy = \
-		  (axial_mesh_max - self.data.core.vanadiumMeshCenters[ i ]) * \
-		  axial_mesh_factor
+		dy_lo = \
+		    (axial_mesh_max - self.data.core.vanadiumMesh[ i ]) * \
+		    axial_mesh_factor
+		dy_hi = \
+		    (axial_mesh_max - self.data.core.vanadiumMesh[ i + 1 ]) * \
+		    axial_mesh_factor
 	        dx = (van_values[ i ] - ds_range[ 0 ]) * value_factor
 	        cur_x = det_x + 1 + dx
-	        cur_y = det_y + 1 + dy
+	        cur_ylo = det_y + 1 + dy_lo
+	        cur_yhi = det_y + 2 + dy_hi
 
-	        if last_x is not None:
-	          im_draw.line(
-		      [ last_x, last_y, cur_x, cur_y ],
-		      fill = van_line_color, width = line_wd
-		      )
-	        last_x = cur_x
-	        last_y = cur_y
+		im_draw.line(
+		    [ cur_x, cur_ylo, cur_x, cur_yhi ],
+		    fill = van_line_color, width = van_line_wd
+		    )
 	      #end for van_values
 	    #end if van_values
 
