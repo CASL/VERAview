@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-05-25	leerw@ornl.gov				-
+# 	  Special "vanadium" dataset.
 #		2016-04-16	leerw@ornl.gov				-
 #	  Added "Select Scale Mode" pullright on the Edit menu.
 #		2016-03-16	leerw@ornl.gov				-
@@ -921,8 +923,12 @@ Must be called from the UI thread.
       if data.core.ndetax > 1:
 	axial_plot_types.add( 'detector' )
 	axial_plot_types.add( 'pin' )
-        #widget_list.append( 'widget.detector_axial_plot.DetectorAxialPlot' )
-        #widget_list.append( 'widget.pin_axial_plot.PinAxialPlot' )
+
+#    elif len( data.GetDataSetNames()[ 'vanadium' ] ) > 0:
+#      widget_list.append( 'widget.detector_view.Detector2DView' )
+#      if data.core.ndetax > 1:
+#	axial_plot_types.add( 'detector' )
+#	axial_plot_types.add( 'pin' )
 
 #		-- Pin Mode
 #		--

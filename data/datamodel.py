@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-05-25	leerw@ornl.gov				-
+#	  Special "vanadium" dataset type.
 #		2016-04-28	leerw@ornl.gov				-
 # 	  Added DataModel.ToAddrString().
 #		2016-04-25	leerw@ornl.gov				-
@@ -193,7 +195,14 @@ DATASET_DEFS = \
     'label': 'scalar',
     'shape': ( 1, ),
     'type': 'scalar'
-    }
+    },
+
+  'vanadium':
+    {
+    'label': 'vanadium',
+    'shape_expr': '( core.nvanax, core.ndet )',
+    'type': 'vanadium'
+    },
   }
 
 #DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
@@ -233,8 +242,10 @@ Properties:
   ndetax		number of detector axial levels
   nax			number of axial levels
   npin			number of pins in each assembly
+  nvanax		number of vanadium axial levels
   pinVolumes		np.ndarray, row-major, origin top,left
   pinVolumesSum		sum of all pin volumes
+  vanadiumMeshCenters	np.ndarray of center-of-mesh values
 """
 
 #		-- Object Methods
@@ -326,10 +337,12 @@ Properties:
     self.npin = 0
     self.npinx = 0
     self.npiny = 0
+    self.nvanax = 0
     self.pinVolumes = None
     self.pinVolumesSum = 0.0
     self.ratedFlow = 0
     self.ratedPower = 0
+    self.vanadiumMeshCenters = None
   #end Clear
 
 
@@ -463,15 +476,15 @@ Properties:
       self.apitch = item.value.item() if len( item.shape ) > 0 else item.value
 #      self.apitch = item.value[ 0 ]
 
+#		-- Create axialMeshCenters
     #item = self._FindInGroup( 'axial_mesh', core_group, in_core_group )
     #if item is not None:
-    if True:
-      self.axialMesh = axial_mesh_item.value
-      self.nax = self.axialMesh.shape[ 0 ] - 1
+    self.axialMesh = axial_mesh_item.value
+    self.nax = self.axialMesh.shape[ 0 ] - 1
 #			-- Numpy magic
-      t = np.copy( axial_mesh_item.value )
-      t2 = np.r_[ t, np.roll( t, -1 ) ]
-      self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+    t = np.copy( axial_mesh_item.value )
+    t2 = np.r_[ t, np.roll( t, -1 ) ]
+    self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
 
     item = self._FindInGroup( 'core_sym', core_group, in_core_group )
     if item is None:
@@ -514,15 +527,27 @@ Properties:
 #			--
       item = self._FindInGroup( 'detector_mesh', core_group )
       if item is not None:
-	self.detectorMeshCenters = item.value
-#	self.detectorMeshCentersSorted = \
-#	    item.value if item.value[ -1 ] > item.value[ 0 ] else \
-#	    item.value[ :: -1 ]
-        self.ndetax = item.shape[ 0 ]
+#				-- Numpy magic
+        t = np.copy( item.value )
+        t2 = np.r_[ t, np.roll( t, -1 ) ]
+        self.detectorMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+
+        self.ndetax = item.shape[ 0 ] - 1
       else:
         self.detectorMeshCenters = self.axialMeshCenters
         self.ndetax = self.nax
     #end if detector_map
+
+#			-- Optional vanadium_axial_mesh
+#			--
+    item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
+    if item is not None:
+#				-- Numpy magic
+      t = np.copy( item.value )
+      t2 = np.r_[ t, np.roll( t, -1 ) ]
+      self.vanadiumMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+      self.nvanax = item.shape[ 0 ] - 1
+    #end if vanadium_axial_mesh
 
 #		-- Infer missing dimensions
 #		--
@@ -601,7 +626,7 @@ Properties:
   dataSetDefsLock	threading.RLock for dataSetDefs and dataSetDefsByName
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector',
-			     'pin', 'scalar' )
+			     'pin', 'scalar', 'vanadium' )
   dataSetNamesVersion	counter to indicate changes
   derivedFile		h5py.File for derived data
   derivedLabelsByType	map of labels by category, lazily populated
@@ -799,39 +824,52 @@ passed, Read() must be called.
   #	METHOD:		DataModel.CreateAxialValue()			-
   #----------------------------------------------------------------------
   def CreateAxialValue( self, **kwargs ):
-    """Create from 'core_ndx', 'detector_ndx', or 'value' index values.
+    """Create from 'core_ndx', 'detector_ndx', 'vanadium_ndx', or 'value'
+values.
 Parameters:
   core_ndx		0-based core axial index
   detector_ndx		0-based detector axial index
   pin_ndx		0-based core axial index, alias for 'core_ndx'
   value			axial value
-@return			( axial_cm, core_ndx, detector_ndx )
+  vanadium_ndx		0-based vanadium axial index
+@return			( axial_cm, core_ndx, detector_ndx, vanadium_ndx )
 """
     core_ndx = -1
     det_ndx = -1
+    van_ndx = -1
     axial_cm = -1
 
     if 'value' in kwargs:
       axial_cm = kwargs[ 'value' ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
 
     elif 'detector_ndx' in kwargs:
       det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], self.core.ndetax - 1 ) )
       axial_cm = self.core.detectorMeshCenters[ det_ndx ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
 
     elif 'core_ndx' in kwargs:
       core_ndx = max( 0, min( kwargs[ 'core_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
 
     elif 'pin_ndx' in kwargs: # huh?
-      pin_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
-      axial_cm = self.core.axialMeshCenters[ pin_ndx ]
+      core_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
+      axial_cm = self.core.axialMeshCenters[ core_ndx ]
+      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+
+    elif 'vanadium_ndx' in kwargs:
+      van_ndx = max( 0, min( kwargs[ 'vanadium_ndx' ], self.core.nvanax - 1 ) )
+      axial_cm = self.core.vanadiumMeshCenters[ van_ndx ]
+      core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
 
-    return  ( axial_cm, core_ndx, det_ndx )
+    return  ( axial_cm, core_ndx, det_ndx, van_ndx )
   #end CreateAxialValue
 
 
@@ -1272,7 +1310,7 @@ descending.  Note bisect only does ascending.
   #	METHOD:		DataModel.FindPinMaxValue()			-
   #----------------------------------------------------------------------
   def FindPinMaxValue( self, ds_name, state_ndx, cur_obj = None ):
-    """Creates dict with detector addresses for the "first" (right- and
+    """Creates dict with pin addresses for the "first" (right- and
 bottom-most) occurence of the maximum value of the dataset, which is assumed
 to be a 'pin' dataset.
 If cur_state is provided, only differences with the current state are
@@ -1401,7 +1439,7 @@ returned.  Calls FindMaxValueAddr().
 			if ds_type is None, dict of dataset name lists by
 			ds_type
 			( 'axial', 'channel', 'detector',
-			  'pin', 'scalar', etc. )
+			  'pin', 'scalar', 'vanadium', etc. )
 """
     return \
         self.dataSetNames if ds_type is None else \
@@ -1769,7 +1807,7 @@ the properties construct for this class soon.
   def HasDataSetType( self, ds_type = None ):
     """Tests existence of datasets in named type
 @param  ds_type		one of type names, e.g., 'axial', 'channel', 'derived',
-			'detector', 'pin', 'scalar'
+			'detector', 'pin', 'scalar', 'vanadium'
 @return			True if there are datasets, False otherwise
 """
     return  \
@@ -2315,8 +2353,9 @@ ds_names	dict of dataset names by dataset type
 
 #			-- Detector is special case
 #			--
-	elif cur_name == 'detector_response' and \
-	    cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+	#elif cur_name == 'detector_response' and \
+	    #cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+	elif cur_name == 'detector_response':
 	  ds_names[ 'detector' ].append( cur_name )
 	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
@@ -2324,6 +2363,22 @@ ds_names	dict of dataset names by dataset type
 #				-- Resolve detector_map if necessary
           if core.detectorMap is None:
 	    core.detectorMap = core.coreMap
+
+#				-- Resolve detector_mesh if necessary
+          if core.detectorMeshCenters is None:
+            core.detectorMeshCenters = core.axialMeshCenters
+            core.ndetax = core.nax
+            core.ndet = core.nass
+          #elif cur_shape != ds_defs[ 'detector' ][ 'shape' ]:
+
+#			-- Vanadium is special case
+#			--
+	elif cur_name == 'vanadium_response' and \
+	    cur_shape == ds_defs[ 'vanadium' ][ 'shape' ] and \
+	    core.vanadiumMeshCenters:
+	  ds_names[ 'vanadium' ].append( cur_name )
+	  #ds_names[ 'axial' ].append( cur_name )
+	  ds_defs_by_name[ cur_name ] = ds_defs[ 'vanadium' ]
 
 #			-- Not a scalar
 #			--
@@ -2685,6 +2740,10 @@ Fields:
     if 'detector_operable' in self.group and \
         self.group[ 'detector_operable' ].shape[ 0 ] != core.ndet:
       missing.append( '%s DETECTOR_OPERABLE shape is not consistent with NDET' % self.name )
+
+    if 'detector_response' in self.group and \
+        self.group[ 'detector_response' ].shape != ( core.ndetax, core.ndet ):
+      missing.append( '%s DETECTOR_RESPONSE shape is not consistent with NDETAX and NDET' % self.name )
 
     return  missing
   #end Check
