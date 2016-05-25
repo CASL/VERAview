@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2016-05-25	leerw@ornl.gov				-
+#	  Special "vanadium" dataset.
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-02-19	leerw@ornl.gov				-
@@ -76,6 +78,7 @@ Attrs/properties:
     #self.detectorDataSet = kwargs.get( 'dataset', 'detector_response' )
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
+    self.vanadiumDataSet = 'vanadium_response'
 
     super( Detector2DView, self ).__init__( container, id )
   #end __init__
@@ -218,6 +221,18 @@ If neither are specified, a default 'scale' value of 4 is used.
         self.detectorDataSet,
 	self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
+    vanadium_dset = \
+        self.data.GetStateDataSet( self.stateIndex, self.vanadiumDataSet )
+    if vanadium_dset is not None:
+      van_ds_range = self.data.GetRange(
+          self.vanadiumDataSet,
+	  self.stateIndex if self.state.scaleMode == 'state' else -1
+          )
+      ds_range = (
+          min( ds_range[ 0 ], van_ds_range[ 0 ] ),
+          max( ds_range[ 1 ], van_ds_range[ 1 ] )
+	  )
+
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     font_size = config[ 'fontSize' ]
@@ -266,7 +281,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'detectorGap' ] = det_gap
     config[ 'detectorWidth' ] = det_wd
-    config[ 'lineWidth' ] = max( 1, det_gap )
+    config[ 'lineWidth' ] = max( 1, det_gap >> 1 )
 #    config[ 'valueFont' ] = value_font
 #    config[ 'valueFontSize' ] = value_font_size
 
@@ -300,6 +315,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       det_wd = config[ 'detectorWidth' ]
       font_size = config[ 'fontSize' ]
       label_font = config[ 'labelFont' ]
+      line_wd = config[ 'lineWidth' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
       #value_font = config[ 'valueFont' ]
@@ -311,6 +327,17 @@ If neither are specified, a default 'scale' value of 4 is used.
           self.detectorDataSet,
 	  state_ndx if self.state.scaleMode == 'state' else -1
 	  )
+      van_dset = self.data.GetStateDataSet( self.stateIndex, self.vanadiumDataSet )
+      van_ds_value = van_dset.value if van_dset is not None else None
+      if van_ds_value is not None:
+        van_ds_range = self.data.GetRange(
+            self.vanadiumDataSet,
+	    state_ndx if self.state.scaleMode == 'state' else -1
+            )
+        ds_range = (
+            min( ds_range[ 0 ], van_ds_range[ 0 ] ),
+            max( ds_range[ 1 ], van_ds_range[ 1 ] )
+	    )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
@@ -323,8 +350,18 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         ds_operable = None
 
-      axial_mesh_max = np.amax( self.data.core.detectorMeshCenters )
-      axial_mesh_min = np.amin( self.data.core.detectorMeshCenters )
+      if van_ds_value is not None:
+        det_mesh_max = np.amax( self.data.core.detectorMeshCenters )
+        det_mesh_min = np.amin( self.data.core.detectorMeshCenters )
+        van_mesh_max = np.amax( self.data.core.vanadiumMeshCenters )
+        van_mesh_min = np.amin( self.data.core.vanadiumMeshCenters )
+        axial_mesh_max = max( det_mesh_max, van_mesh_max )
+        axial_mesh_min = min( det_mesh_min, van_mesh_min )
+      else:
+        axial_mesh_max = np.amax( self.data.core.detectorMeshCenters )
+        axial_mesh_min = np.amin( self.data.core.detectorMeshCenters )
+      #end if
+
       axial_mesh_factor = (det_wd - 1) / (axial_mesh_max - axial_mesh_min)
 #          (self.data.core.detectorMeshCenters[ -1 ] - self.data.core.detectorMeshCenters[ 0 ])
       if axial_mesh_factor < 0.0:
@@ -339,6 +376,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       noop_color = ( 155, 155, 155, 255 )
       grid_color = ( 200, 200, 200, 255 )
       line_color = ( 0, 0, 0, 255 )
+      van_line_color = ( 200, 0, 0, 255 )
 
 #			-- Loop on rows
 #			--
@@ -381,7 +419,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  if det_ndx >= 0 and ds_value is not None:
 	    values = ds_value[ :, det_ndx ]
 
-	  if values is not None and len( values ) == len( self.data.core.detectorMeshCenters ):
+	  if values is not None and \
+	      len( values ) == len( self.data.core.detectorMeshCenters ):
 #						-- Draw rectangle
 #						--
 #	    brush_color = Widget.GetColorTuple(
@@ -426,7 +465,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        grid_x += incr
 	    #end if det_wd ge 20 for grid lines
 
-#						-- Draw plot
+#						-- Draw detector plot
 #						--
 	    last_x = None
 	    last_y = None
@@ -434,8 +473,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      dy = \
 		  (axial_mesh_max - self.data.core.detectorMeshCenters[ i ]) * \
 		  axial_mesh_factor
-#                  (self.data.core.detectorMeshCenters[ i ] - axial_mesh_min) * \
-#		  axial_mesh_factor
 	      dx = (values[ i ] - ds_range[ 0 ]) * value_factor
 	      cur_x = det_x + 1 + dx
 	      cur_y = det_y + 1 + dy
@@ -443,11 +480,37 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      if last_x is not None:
 	        im_draw.line(
 		    [ last_x, last_y, cur_x, cur_y ],
-		    fill = line_color
+		    fill = line_color, width = line_wd
 		    )
 	      last_x = cur_x
 	      last_y = cur_y
 	    #end for values
+
+#						-- Draw vanadium plot
+#						--
+	    van_values = van_ds_value[ :, det_ndx ] \
+	        if van_ds_value is not None else None
+	    if van_values is not None and \
+	        len( van_values ) == len( self.data.core.vanadiumMeshCenters ):
+	      last_x = None
+	      last_y = None
+	      for i in range( len( van_values ) ):
+	        dy = \
+		  (axial_mesh_max - self.data.core.vanadiumMeshCenters[ i ]) * \
+		  axial_mesh_factor
+	        dx = (van_values[ i ] - ds_range[ 0 ]) * value_factor
+	        cur_x = det_x + 1 + dx
+	        cur_y = det_y + 1 + dy
+
+	        if last_x is not None:
+	          im_draw.line(
+		      [ last_x, last_y, cur_x, cur_y ],
+		      fill = van_line_color, width = line_wd
+		      )
+	        last_x = cur_x
+	        last_y = cur_y
+	      #end for van_values
+	    #end if van_values
 
 	  elif self.data.core.coreMap[ det_row, det_col ] > 0:
 	    im_draw.rectangle(
@@ -609,7 +672,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Detector2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'detector' ]
+    return  [ 'detector', 'vanadium' ]
   #end GetDataSetTypes
 
 

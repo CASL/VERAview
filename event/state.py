@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-05-25	leerw@ornl.gov				-
+#	  Special "vanadium" dataset type.
 #		2016-04-25	leerw@ornl.gov				-
 #	  Added aux{Channel,Pin}ColRows attributes and associated
 #	  STATE_CHANGE_ mask bits.
@@ -66,6 +68,7 @@ STATE_CHANGE_timeDataSet = 0x1 << 12
 STATE_CHANGE_scaleMode = 0x1 << 13
 STATE_CHANGE_auxChannelColRows = 0x1 << 14
 STATE_CHANGE_auxPinColRows = 0x1 << 15
+STATE_CHANGE_vanadiumDataSet = 0x1 << 16
 #STATE_CHANGE_ALL = 0x1fff
 
 LOCKABLE_STATES = \
@@ -84,7 +87,8 @@ LOCKABLE_STATES = \
   STATE_CHANGE_scalarDataSet,
   STATE_CHANGE_scaleMode,
   STATE_CHANGE_stateIndex,
-  STATE_CHANGE_timeDataSet
+  STATE_CHANGE_timeDataSet,
+  STATE_CHANGE_vanadiumDataSet
   )
 
 
@@ -98,8 +102,8 @@ All indices are 0-based.
   assemblyIndex		( int index, int column, int row )  ("assembly_index")
   auxChannelColRows	list of ( col, row )  ("aux_channel_colrows")
   auxPinColRows		list of ( col, row )  ("aux_pin_colrows")
-  axialValue		( float value(cm), int core-index, int detector-index )
-			("axial_value")
+  axialValue		( float value(cm), int core-index, int detector-index
+			  vanadium-index ) ("axial_value")
   channelColRow		str name  ("channel_colrow")
   channelDataSet	str name  ("channel_dataset")
   dataModel		DataModel object  ("data_model")
@@ -126,7 +130,7 @@ All indices are 0-based.
     #self.axialLevel = -1
     self.auxChannelColRows = []
     self.auxPinColRows = []
-    self.axialValue = ( 0.0, -1, -1 )
+    self.axialValue = ( 0.0, -1, -1, -1 )
     self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataModel = None
@@ -139,6 +143,7 @@ All indices are 0-based.
     self.scaleMode = 'all'
     self.stateIndex = -1
     self.timeDataSet = 'state'
+    self.vanadiumDataSet = None
 
     if 'assembly_index' in kwargs:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
@@ -170,6 +175,8 @@ All indices are 0-based.
       self.stateIndex = kwargs[ 'state_index' ]
     if 'time_dataset' in kwargs:
       self.timeDataSet = kwargs[ 'time_dataset' ]
+    if 'vanadium_dataset' in kwargs:
+      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
   #end __init__
 
 
@@ -227,6 +234,7 @@ Keys passed and the corresponding state bit are:
   scale_mode		STATE_CHANGE_scaleMode
   state_index		STATE_CHANGE_stateIndex
   time_dataset		STATE_CHANGE_timeDataSet
+  vanadium_dataset	STATE_CHANGE_vanadiumDataSet
 @return			change reason mask
 """
     reason = STATE_CHANGE_noop
@@ -294,6 +302,10 @@ Keys passed and the corresponding state bit are:
       if self.timeDataSet != kwargs[ 'time_dataset' ]:
         self.timeDataSet = kwargs[ 'time_dataset' ]
         reason |= STATE_CHANGE_timeDataSet
+
+    if 'vanadium_dataset' in kwargs and locks[ STATE_CHANGE_vanadiumDataSet ]:
+      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
+      reason |= STATE_CHANGE_vanadiumDataSet
 
 #		-- Wire assembly_index and detector_index together
 #		--
@@ -375,6 +387,9 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self.timeDataSet
 
+    if (reason & STATE_CHANGE_vanadiumDataSet) > 0:
+      update_args[ 'vanadium_dataset' ] = self.vanadiumDataSet
+
     return  update_args
   #end CreateUpdateArgs
 
@@ -440,6 +455,7 @@ Keys passed and the corresponding state bit are:
           if 'exposure' in data_model.GetDataSetNames( 'time' ) else \
 	  'state'
       #self.timeDataSet = data_model.ResolveTimeDataSetName()
+      self.vanadiumDataSet = data_model.GetFirstDataSet( 'vanadium' )
 
     else:
       self.assemblyIndex = undefined3
@@ -453,6 +469,7 @@ Keys passed and the corresponding state bit are:
       self.scalarDataSet = None
       self.stateIndex = -1
       self.timeDataSet = 'state'
+      self.vanadiumDataSet = None
 
     self.auxChannelColRows = []
     self.auxPinColRows = []
@@ -516,6 +533,7 @@ Keys passed and the corresponding state bit are:
 		STATE_CHANGE_scaleMode,
 		STATE_CHANGE_stateIndex
 		STATE_CHANGE_timeDataSet
+		STATE_CHANGE_vanadiumDataSet,
 """
     locks = {}
     for mask in LOCKABLE_STATES:
