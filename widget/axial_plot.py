@@ -952,10 +952,6 @@ Must be called from the event thread.
     if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
       axial_ds_names = self.data.GetDataSetNames( 'axial' )
 
-      #chan_colrow_list = list( self.auxChannelColRows )
-      #chan_colrow_list.insert( 0, self.channelColRow )
-      #pin_colrow_list = list( self.auxPinColRows )
-      #pin_colrow_list.insert( 0, self.pinColRow )
       chan_colrow_list = None
       pin_colrow_list = None
 
