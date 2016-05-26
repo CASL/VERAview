@@ -105,18 +105,18 @@ must implement _InitUI().
 Event Propagation
 -----------------
 
-State change events are passed to HandleStateChange().  For anything other
-than the STATE_CHANGE_init "reason", the UpdateState() method is called,
-another method which extension must implement.
+State change events are passed to HandleStateChange().  For anything other than
+the STATE_CHANGE_init or STATE_CHANGE_dataModel "reason", the UpdateState()
+method is called, another method which extension must implement.
 
 Fields/Properties
 -----------------
 
 container
-  WidgetContainer instance, also accessible via GetContainer()
+  WidgetContainer instance, getter is GetContainer()
 
 state
-  State instance, accessible via GetState()
+  State instance, getter is GetState()
 
 Framework Methods
 -----------------
@@ -162,7 +162,8 @@ GetDataSetTypes()
 
 GetEventLockSet()
   Extensions must override to define the events than can be handled and/or
-  produced.
+  produced.  Unless the "reason" mask value is returned in the set, events of
+  that type are never propagated to the widget.
 
 GetTitle()
   Must be overridden by extensions to provide a nice label for the widget.
@@ -179,9 +180,9 @@ _InitUI()
 
 _LoadDataModel()
   Must be implemented by extensions to initialize local fields and properties
-  once the DataModel has been established.  When this method is called
-  the *state* field has been populated.  The preferred means of obtaining
-  the DataModel object is State.FindDataModel( self.state ).
+  once the DataModel has been established.  When this method is called from
+  HandleStateChange(), the *state* field has been populated.  The preferred
+  means of obtaining the DataModel object is State.FindDataModel( self.state ).
 
 _OnFindMax()
   This is a placeholder event handling method for widgets that define a
@@ -198,6 +199,11 @@ ToggleDataSetVisible()
   extensions must override this method to handle the toggling of visibility.
 
 UpdateState()
+  Must be implemented by extensions.  This method is called by
+  HandleStateChange() for any "reason" other than STATE_CHANGE_init or
+  STATE_CHANGE_dataModel.  This is the widget's opportunity to update its state
+  and UI when changes are initiated from other widgets.  The widget should only
+  act upon a state change that differs from its internally-managed state.
 
 Support Methods
 ---------------
@@ -241,10 +247,46 @@ _OnFindMaxPin()
   Handles 'pin' dataset maximum processing.  Calls
   self.data.FindPinMaxValue() and FireStateChange().
 
+_UpdateVisibilityMenuItems()
+  Widgets may define menu items for toggling state, in which case the label
+  must be changed from "Show ..." to "Hide ... "and vice versa.  This method
+  handles that for the ( item, flag ) pairs that are passed.
 
 Icons
 -----
 
+In order to improve performance, icons used for menus and buttons should be
+loaded only once.  This class has a dict class field, *bitmaps_* that is a
+cache of all images loaded.  The static method GetBitmap() takes care of
+looking up an icon by filename and creating it if it has not been cached.
+
+There are a couple of simplifying assumptions behind this.  First, it is
+assumed that all icons are PNG with a ".png" extension for the filename.
+Second, the icon file must exist in the ``res/`` (resources) subdir.
+
+Widget Class Hierarchy
+======================
+::
+
+  Widget <--+- PlotWidget    <---- AxialPlot
+  .         |
+  .         +- RasterWidget  <--+- Assembly2DView
+  .         |                   |
+  .         |                   +- Channel2DView
+  .         |                   |
+  .         |                   +- ChannelAssembly2DView
+  .         |                   |
+  .         |                   +- ChannelAxial2DView
+  .         |                   |
+  .         |                   +- Core2DView
+  .         |                   |
+  .         |                   +- CoreAxial2DView
+  .         |                   |
+  .         |                   +- Detector2DView
+  .         |
+  .         +--------------------- Slicer3DView
+  .         |
+  .         +--------------------- Volume3DView
 """
 
 

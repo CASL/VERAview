@@ -59,7 +59,159 @@ from widget import *
 class RasterWidget( Widget ):
   """Base class for raster or image widgets with a legend.
 
-Properties:
+Widget Framework
+================
+
+Fields/Properties
+-----------------
+
+axialValue
+  local axial value state, getter is GetAxialValue()
+
+bitmapCtrl
+  wx.StaticBitmap used to display the raster image and as the event source
+
+bitmapPanel
+  wx.Panel holding *bitmapCtrl*
+
+bitmapThreadArgs
+  arguments in current bitmap creation thread, used to avoid duplicate
+  threads to create the same bitmap
+
+bitmaps
+  dict caching bitmaps created, keyed by event state tuple, which is defined
+  by extensions
+
+bitmapsLock
+  threading.RLock() to manage access to *bitmaps*
+
+cellRange
+  currently displayed zoom range
+
+cellRangeStack
+  zoom stack
+
+config
+  drawing configuration
+
+curSize
+  current widget size in pixels
+
+data
+  DataModel reference, getter is GetData()
+
+stateIndex
+  0-based state point index, getter is GetStateIndex()
+
+Framework Methods
+-----------------
+
+_CreateDrawConfig()
+  Must be implemented by extensions to build the drawing configuration based
+  on widget size or a specified scale factor.
+
+_CreateRasterImage()
+  Must be implemented by extensions to create the raster image based on
+  the event state tuple and a configuration created by _CreateDrawConfig().
+
+_CreateStateTuple()
+  Must be implemented by extensions to define the event state tuple used
+  to create raster images.
+
+_CreateToolTipText()
+  Should be implemented by extensions to create a tool tip based on the
+  cell returned from FindCell().
+
+FindCell()
+  Returns the event state tuple for the specified x- and y-pixel position
+  within the raster image.
+
+GetInitialCellRange()
+  Implementation here returns self.data.ExtractSymmetryExtent(), but extensions
+  may override as appropriate to define the range of assembly columns/rows, or
+  channel/pin columns/rows to display initially.
+
+GetPrintScale()
+  Configuration scale factor to apply for creating raster images for printing.
+  The default here is 28, but this should be overridden by extensions.
+
+_HiliteBitmap()
+  Extensions should override to "hilite" a raster image by drawing primary
+  and/or secondary cell selection indicators.
+
+_InitEventHandlers()
+  Registers/binds handlers for wxPython events.  Extensions that override
+  should call super._InitEventHandlers() to get events consistent across all
+  raster widgets.
+
+_InitUI()
+  Implements common processing for all raster widgets by creating the
+  *bitmapPanel* and *bitmapCtrl* objects.
+
+IsTupleCurrent()
+  Must be implemented by extensions to indicate if the specified event state
+  tuple represents the current selection.
+
+_LoadDataModel()
+  Implements this Widget framework method by populating properties
+  *axialValue*, *cellRange*, *cellRangeStack*, *data*, and *stateIndex*.  It
+  then calls _LoadDataModelValues() and _LoadDataModelUI(), the latter on the
+  UI thread.
+
+_LoadDataModelUI()
+  The method defined here calls Redraw(), but extensions can override this
+  for any special UI processing needed after _LoadDataModelValues() has been
+  called.
+
+_LoadDataModelValues()
+  Should be implemented by extensions to initialize fields/properties
+  defined in those classes.
+
+_OnClick( self, ev ):
+  Should be implemented by extensions to handle clicks.  Normally, this means
+  determine what "cell" has been selected and calling FireStateChange() with
+  the event state change that results.
+
+_OnDragFinished()
+  The noop implementation here can be overridden by extensions to do anything
+  needed after a successful zoom.
+
+UpdateState()
+  Implements this Widget framework method by calling _UpdateStateValues() and
+  managing bitmaps appropriately.  On a 'resize', the bitmap cache is cleared.
+  On a 'change' in event state selection, the appropriate bitmap is retrieved
+  from the cache or created if necessary.
+
+_UpdateStateValues()
+  The implementation here handles 'axial_value', 'state_index', and
+  'time_dataset' changes, but extensions should override to handle
+  widget-specific event state values, being sure to call
+  super._UpdateStateValues().
+
+Support Methods
+---------------
+
+_CreateBaseDrawConfig()
+  Creates common draw configuration values needed by most rasters.  Should be
+  called from subclass _CreateDrawConfig() methods.
+
+_CreateTitleString()
+  General purpose method to create a title string.
+
+_CreateTitleTemplate()
+  Creates a title string template and a default title string to be used for
+  sizing.
+
+_CreateTitleTemplate2()
+  Like _CreateTitleTemplate() but allows additional title items.
+
+_CreateValueDisplay()
+  Creates a string representation of a value that fits in a requested width for
+  a specified font.
+
+_CreateValueString()
+  Creates minimal length value string.
+
 """
 
 

@@ -60,16 +60,99 @@ from widgetcontainer import *
 #	CLASS:		PlotWidget					-
 #------------------------------------------------------------------------
 class PlotWidget( Widget ):
-  """Base class for plot widgets.
+  """Base class for plot widgets based on matplotlib.
+
+Widget Framework
+================
+
+Fields/Properties
+-----------------
+
+ax
+  primary matplotlib.axes.Axes instance
+
+axline
+  horizontal or vertical matplotlib.lines.Line2D instance used to indicate
+  the current event state
+
+canvas
+  FigureCanvas (FigureCanvasWxAgg) instance in which the *fig* is rendered
+
+cursor
+  ( x, y ) plot location following the mouse
+
+cursorLine
+  horizontal or vertical matplotlib.lines.Line2D instance following the mouse
+
+data
+  DataModel reference, getter is GetData()
+
+fig
+  matplotlib.figure.Figure instance
+
+refAxis
+  reference or non-magnitude axis, either 'y' (default) or 'x'
+
+stateIndex
+  0-based state point index, getter is GetStateIndex()
 
 Framework Methods
 -----------------
 
-Refer to documentation for individual methods for more details.
+_CreateToolTipText()
+  Should be implemented by extensions to create a tool tip based on the plot
+  location returned in the event, ev.xdata when *refAxis* == 'x' and ev.ydata
+  when *refAxis* == 'y'.
 
-_CreateClipboardData()
-  Must be implemented by extensions to provide a textual (CSV) representation
-  of the data displayed.
+_DoUpdatePlot()
+  Called from _UpdatePlotImpl(), the implementation here creates a grid on
+  *ax*, but extensions must override, calling super._DoUpdatePlot() to
+  configure axes with labels and limits, create plots, add a legend, add a
+  title, and/or set *axline*.
+
+_InitAxes()
+  Called from _InitUI(), this default implementation creates a single axis, the
+  *ax* property.  Extensions should override to create axes and layout the plot
+  as desired, calling Figure methods add_axes() or add_subplot().
+
+_InitUI()
+  Widget framework method implementation that creates the Figure (*fig*),
+  calls _InitAxes(), creates the Canvas (*canvas*), and binds matplotlib
+  and wxPython event handlers.
+
+_LoadDataModel()
+  Widget framework method implementation that calls _LoadDataModelValues() and
+  then UpdateState(), the latter on the event UI thread.
+
+_LoadDataModelValues()
+  Must be overridden by extensions to update event state properties and return
+  the changes.
+
+_OnMplMouseRelease()
+  Matplotlib event handler that checks for the right button (ev.button == 3) to
+  pass onto wxPython event handling for the context menu.  Extensions should
+  override this method calling super._OnMplMouseRelease() and processing left
+  button (ev.button == 1) events to update local event state properties by
+  calling UpdateState() and firing state changes via FireStateChange().
+
+_UpdateDataSetValues()
+  Must be overridden by extensions to rebuild plot data arrays after a
+  change in dataset selections
+
+UpdateState()
+  Implements this Widget framework method by calling _UpdateStateValues().  A
+  'redraw' condition (currently does not occur) means the *canvas* must be
+  redrawn via self.canvas.redraw().  A 'replot' condition means
+  _UpdateDataSetValues() and _UpdatePlot() must be called.
+
+_UpdateStateValues()
+  The implementation here handles 'state_index' changes, but extensions should
+  override to handle widget-specific event state values, being sure to call
+  super._UpdateStateValues().
+
+Support Methods
+---------------
+
 """
 
 
@@ -154,7 +237,7 @@ _CreateClipboardData()
   #----------------------------------------------------------------------
   def _CreateToolTipText( self, ev ):
     """Create a tool tip.  This implementation returns a blank string.
-@param  ev		mouse motion event
+@param  ev		matplotlib mouse motion event
 """
     return  ''
   #end _CreateToolTipText
@@ -411,8 +494,7 @@ with super.
   #	METHOD:		_UpdateDataSetValues()				-
   #----------------------------------------------------------------------
   def _UpdateDataSetValues( self ):
-    """Rebuild dataset arrays to plot.
-This noop version must be overridden by subclasses.
+    """This noop version must be overridden by subclasses.
 """
     pass
   #end _UpdateDataSetValues
