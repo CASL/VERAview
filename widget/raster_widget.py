@@ -884,20 +884,6 @@ attributes/properties that aren't already set in _LoadDataModel():
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget._OnContextMenu()			-
-  #----------------------------------------------------------------------
-#  def _OnContextMenu( self, ev ):
-#    """
-#"""
-#    pos = ev.GetPosition()
-#    pos = self.bitmapCtrl.ScreenToClient( pos )
-#
-#    menu = self.GetPopupMenu()
-#    self.bitmapCtrl.PopupMenu( menu, pos )
-#  #end _OnContextMenu
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._OnDragFinished()			-
   #----------------------------------------------------------------------
   def _OnDragFinished( self, left, top, right, bottom ):

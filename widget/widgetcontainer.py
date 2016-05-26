@@ -132,7 +132,20 @@ class AnimationCallback( object ):
 #	CLASS:		WidgetContainer					-
 #------------------------------------------------------------------------
 class WidgetContainer( wx.Panel ):
-  """Widget frame.
+  """Widget frame.  Refer to the Widget documentation for an explanation
+of the widget framework.
+
+WidgetContainer instances are constructed with a full "classpath" to the Widget
+extension to dynamically create and a State object.  The latter contains a
+DataModel.  The heavy lifting begins in the _InitUI() method.  The
+WidgetContainer takes care of building menus (the dataset menu is created
+dynamically immediately before display) and frequently consults Widget
+properties throughout operation.
+
+The Widget is initialized via a call to SetState().
+
+Events passed to the HandleStateChange() method are handed to the
+widget.
 """
 
 

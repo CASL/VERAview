@@ -83,7 +83,168 @@ DEFAULT_BG_COLOR_TUPLE = ( 155, 155, 155, 255 )
 #	CLASS:		Widget						-
 #------------------------------------------------------------------------
 class Widget( wx.Panel ):
-  """Abstract base class for widgets.
+  """Abstract base class and interface definition for widgets.
+
+Widget Framework
+================
+
+Widget instances are driven by the WidgetContainer in which they live.
+Refer to the WidgetContainer documentation.
+
+Construction and Initialization
+-------------------------------
+
+Widget instances are created by the WidgetContainer (*container*
+field/property) and initialized via a call to SetState(), which calls
+HandleStateChange( STATE_CHANGE_init ), which in turn calls _LoadDataModel().
+
+Widget UI components must be created in _InitUI() independent of the State
+(*state* field) which holds the DataModel (*state.dataModel*).  All extensions
+must implement _InitUI().
+
+Event Propagation
+-----------------
+
+State change events are passed to HandleStateChange().  For anything other
+than the STATE_CHANGE_init "reason", the UpdateState() method is called,
+another method which extension must implement.
+
+Fields/Properties
+-----------------
+
+container
+  WidgetContainer instance, also accessible via GetContainer()
+
+state
+  State instance, accessible via GetState()
+
+Framework Methods
+-----------------
+
+Refer to documentation for individual methods for more details.
+
+_CreateClipboardData()
+  Must be implemented by extensions to provide a textual (CSV) representation
+  of the data displayed.
+
+_CreateClipboardImage()
+  Must be implemented by extensions to provide a bitmap capture of the
+  current widget contents.  Returns a Bitmap.
+
+_CreateMenuDef()
+  Returns a description of the widget-specific menu as a list of
+  ( label, handler ) pairs.  A default menu is created in this class that
+  can be used in extensions by not overriding this method or augmented
+  by overriding and calling super._CreateMenuDef().
+
+CreatePrintImage()
+  Must be implemented by extensions to store a bitmap capture of the
+  current widget contents to a file.  Obviously, this is only slightly
+  different from _CreateClipboardImage().
+
+GetAnimationIndexes()
+  Extensions must override if they can support animation across one or
+  more indexes.
+  Must be implemented by extensions to store a bitmap capture of the
+
+GetDataSetDisplayMode()
+  Extensions that support "selected" datasets from a type and/or display
+  multiple datasets at a time must override to indicate the dataset
+  handling mode.  The default is no special handling.  If anything but
+  the default is specified, both IsDataSetVisible() and
+  ToggleDataSetVisible() must be overridden as well.
+
+GetDataSetTypes()
+  Extensions must override to provide a list of categories/types of datasets
+  that can be displayed.  Type names are the keys of the DATASET_DEFS dict
+  defined in data/datamodel.py, e.g., 'channel', 'detector', 'pin',
+  'pin:assembly'.
+
+GetEventLockSet()
+  Extensions must override to define the events than can be handled and/or
+  produced.
+
+GetTitle()
+  Must be overridden by extensions to provide a nice label for the widget.
+
+GetToolButtonDefs()
+  Can be overridden by extensions to define additional buttons to appear
+  on the WidgetContainer toolbar.  The return value is a list of
+  ( icon_name, tip_text, handler ) triples.  Refer to the section on
+  Icons below for an explanation of icon names.
+
+_InitUI()
+  Must be implemented by extensions to create any necessary UI components.
+  Failure to implement this method results in an exception.
+
+_LoadDataModel()
+  Must be implemented by extensions to initialize local fields and properties
+  once the DataModel has been established.  When this method is called
+  the *state* field has been populated.  The preferred means of obtaining
+  the DataModel object is State.FindDataModel( self.state ).
+
+_OnFindMax()
+  This is a placeholder event handling method for widgets that define a
+  "Find Maximum" pullright menu for the widget menu.  The implementation
+  here is a noop, but extensions can override to call one of the support
+  methods _OnFindMax{Channel,Detector,Pin}().
+
+SetDataSet()
+  Called when a dataset is selected on the dataset menu.  Must be implemented
+  by extensions.
+
+ToggleDataSetVisible()
+  If the dataset display mode [GetDataSetDisplayMode()] is 'select' or 'multi'
+  extensions must override this method to handle the toggling of visibility.
+
+UpdateState()
+
+Support Methods
+---------------
+
+Refer to documentation for individual methods for more details.
+
+This class provides a lot of methods intended to be used by extensions to
+accomplish common tasks and operations.
+
+_BusyBegin(), _BusyEnd()
+  Turns the LED "working" indicator on and off for long operations.
+
+_CalcFontSize()
+  Determines an optimal font size for a specified display width in pixels.
+
+_CreateLegendPilImage()
+  Provides a legend PIL image using a Legend2 instance.
+
+FireStateChange()
+  Calls *container*.FireStateChange() on a widget-initiated change to the
+  event state.
+
+GetSelectedDataSetName()
+  Convenience just to standardize how the selected dataset from a type is
+  represented in menu labels and such.
+
+_OnContextMenu()
+  Handles wx.EVT_CONTEXT_MENU events by showing the popupup menu.  In cases
+  where special handling is necessary (e.g., matplotlib), this method should be
+  overridden for that processing.
+
+_OnFindMaxChannel()
+  Handles 'channel' dataset maximum processing.  Calls
+  self.data.FindChannelMaxValue() and FireStateChange().
+
+_OnFindMaxDetector()
+  Handles 'detector' dataset maximum processing.  Calls
+  self.data.FindDetectorMaxValue() and FireStateChange().
+
+_OnFindMaxPin()
+  Handles 'pin' dataset maximum processing.  Calls
+  self.data.FindPinMaxValue() and FireStateChange().
+
+
+Icons
+-----
+
 """
 
 
@@ -427,6 +588,7 @@ The default implementation returns None.
     """Accessor specifying if the widget can visualize any dataset with a
 4-tuple shape.  Extensions must override as necessary.
 @return			None
+@deprecated
 """
     return  None
   #end GetAllow4DDataSets
@@ -528,7 +690,8 @@ be overridden by subclasses.
   #	METHOD:		Widget.GetEventLockSet()			-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
-    """By default, all locks are enabled except
+    """By default, assemblyIndex, axialValue, and stateIndex changes are
+captured.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex,
@@ -611,25 +774,25 @@ Must be called from the UI thread.
   #	METHOD:		Widget.GetToolButtonDefs()			-
   #----------------------------------------------------------------------
   def GetToolButtonDefs( self, data_model ):
-    """List of (icon, tip, handler) triples from which to build tool bar
+    """List of (icon_name, tip, handler) triples from which to build tool bar
 buttons.
 Returning None means no tool buttons, which is the default implemented here.
 @param  data_model	loaded data model, might be None
-@return			[ ( label, handler ), ... ]
+@return			[ ( icon_name, tip, handler ), ... ]
 """
     return  None
   #end GetToolButtonDefs
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget.HandleMenuItem()				-
-  #----------------------------------------------------------------------
-  def HandleMenuItem( self, id ):
-    """Menu handler.  Noop implemented here
-@param  id		menu item id as specified in GetMenuDef().
-"""
-    pass
-  #end HandleMenuItem
+#  #----------------------------------------------------------------------
+#  #	METHOD:		Widget.HandleMenuItem()				-
+#  #----------------------------------------------------------------------
+#  def HandleMenuItem( self, id ):
+#    """Menu handler.  Noop implemented here
+#@param  id		menu item id as specified in GetMenuDef().
+#"""
+#    pass
+#  #end HandleMenuItem
 
 
   #----------------------------------------------------------------------
@@ -821,8 +984,9 @@ it to the clipboard.
   #	METHOD:		Widget._OnFindMax()				-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
-    """Must be handled in subclasses.  This implementation is a noop.
-Note subclasses can override to call _OnFindMaxChannel(), _OnFindMaxDetector(),
+    """Placeholder event handling method for widgets that define a "Find
+"Maximum" pullright for the widget menu.  This implementation is a noop.
+Subclasses can override to call _OnFindMaxChannel(), _OnFindMaxDetector(),
 or _OnFindMaxPin().
 @param  all_states_flag	True for all states, False for current state
 @param  ev		menu event
@@ -907,6 +1071,9 @@ state_index changes.
   #	METHOD:		Widget.SetDataSet()				-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
+    """Called when a dataset is selected on the dataset menu.  This
+implementation is a noop.
+"""
     pass
   #end SetDataSet
 

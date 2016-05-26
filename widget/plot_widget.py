@@ -62,7 +62,14 @@ from widgetcontainer import *
 class PlotWidget( Widget ):
   """Base class for plot widgets.
 
-Properties:
+Framework Methods
+-----------------
+
+Refer to documentation for individual methods for more details.
+
+_CreateClipboardData()
+  Must be implemented by extensions to provide a textual (CSV) representation
+  of the data displayed.
 """
 
 
