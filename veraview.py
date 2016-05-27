@@ -167,18 +167,13 @@ TOOLBAR_ITEMS = \
 WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
-  #'Axial Plots': 'widget.all_axial_plot.AllAxialPlot',
   'Axial Plots': 'widget.axial_plot.AxialPlot',
   'Channel Core 2D View': 'widget.channel_view.Channel2DView',
   'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
   'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
-  #'Core XZ View': 'widget.core_axial_view.CoreXZView',
-  #'Core YZ View': 'widget.core_axial_view.CoreYZView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
-#  'Detector Axial Plot': 'widget.detector_axial_plot.DetectorAxialPlot',
-#  'Pin Axial Plot': 'widget.pin_axial_plot.PinAxialPlot',
   'Time Plot': 'widget.time_plot.TimePlot',
   'Volume 3D View': 'view3d.volume_view.Volume3DView',
   'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
