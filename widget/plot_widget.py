@@ -178,7 +178,6 @@ Support Methods
     self.fig = None
 
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
-    self.refAxisValues = []
     self.stateIndex = -1
     self.titleFontSize = 16
 

@@ -376,6 +376,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       noop_color = ( 155, 155, 155, 255 )
       grid_color = ( 200, 200, 200, 255 )
       line_color = ( 0, 0, 0, 255 )
+      van_center_color = ( 255, 255, 255, 255 )
       van_line_color = ( 200, 0, 0, 255 )
 
 #			-- Loop on rows
@@ -492,8 +493,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        if van_ds_value is not None else None
 	    if van_values is not None and \
 	        len( van_values ) == len( self.data.core.vanadiumMeshCenters ):
-	      van_line_wd = line_wd << 1
+	      #van_line_wd = line_wd << 1
+	      van_line_wd = line_wd
 	      for i in range( len( van_values ) ):
+		dy_center = \
+		    (axial_mesh_max - self.data.core.vanadiumMeshCenters[ i ]) * \
+		    axial_mesh_factor
 		dy_lo = \
 		    (axial_mesh_max - self.data.core.vanadiumMesh[ i ]) * \
 		    axial_mesh_factor
@@ -504,10 +509,15 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        cur_x = det_x + 1 + dx
 	        cur_ylo = det_y + 1 + dy_lo
 	        cur_yhi = det_y + 2 + dy_hi
+		cur_y_center = det_y + 1 + dy_center
 
 		im_draw.line(
 		    [ cur_x, cur_ylo, cur_x, cur_yhi ],
 		    fill = van_line_color, width = van_line_wd
+		    )
+		im_draw.line(
+		    [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
+		    fill = van_center_color, width = van_line_wd
 		    )
 	      #end for van_values
 	    #end if van_values

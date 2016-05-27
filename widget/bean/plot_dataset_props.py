@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_dataset_props.py				-
 #	HISTORY:							-
+#		2016-05-27	leerw@ornl.gov				-
+#	  Accomodate left/right axis pairs as well as bottom/top.
+#	  Enforcing axis selections.
 #		2016-05-19	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, json, math, os, sys
@@ -32,19 +35,27 @@ bottom axis check, and scale value text control.
   #----------------------------------------------------------------------
   #	METHOD:		PlotDataSetPropsBean.__init__()			-
   #----------------------------------------------------------------------
-  def __init__( self, container, wid = -1, ds_props = None ):
+  def __init__(
+      self, container,
+      wid = -1, ds_props = None,
+      axis1 = 'Bottom',
+      axis2 = 'Top'
+      ):
     super( PlotDataSetPropsBean, self ).__init__(
         container, wid,
 	agwStyle = wx.LC_REPORT | wx.LC_VRULES | wx.LC_SINGLE_SEL |
 	    ulc.ULC_HAS_VARIABLE_ROW_HEIGHT
 	)
 
+    self.fAxis1 = axis1
+    self.fAxis2 = axis2
+
     #wx.LIST_AUTOSIZE only works the first time
     #wx.LIST_AUTOSIZE_FILL(-3)
-    self.InsertColumn( 0, "Dataset", width = 164 )
-    self.InsertColumn( 1, "Top Axis" )
-    self.InsertColumn( 2, "Bottom Axis" )
-    self.InsertColumn( 3, "Scale", width = 128 )
+    self.InsertColumn( 0, 'Dataset', width = 164 )
+    self.InsertColumn( 1, axis1 + ' Axis' )
+    self.InsertColumn( 2, axis2 + ' Axis' )
+    self.InsertColumn( 3, 'Scale', width = 128 )
 
     self.fEvenColor = wx.Colour( 240, 240, 255 )
     self.fOddColor = wx.Colour( 240, 255, 240 )
@@ -61,16 +72,25 @@ bottom axis check, and scale value text control.
     """Builds the dictionary of dataset properties from current control
 values.
 @return			dict of dataset properties keyed by name with keys:
-			  axis:  one of 'top', 'bottom', or ''
+			  axis:  axis name or ''
 			  scale:  scale value
 """
+    no_axis_names = []
+    have_axes = [ False, False ]
     props = {}
     for row in range( self.GetItemCount() ):
       name = self.GetItem( row, 0 ).GetText()
-      axis = \
-	  'top' if self.GetItemWindow( row, 1 ).GetValue() else \
-	  'bottom' if self.GetItemWindow( row, 2 ).GetValue() else \
-	  ''
+
+      if self.GetItemWindow( row, 1 ).GetValue():
+        axis = self.fAxis1.lower()
+	have_axes[ 0 ] = True
+      elif self.GetItemWindow( row, 2 ).GetValue():
+        axis = self.fAxis2.lower()
+	have_axes[ 1 ] = True
+      else:
+        axis = ''
+	no_axis_names.append( name )
+
       scale_str = self.GetItemWindow( row, 3 ).GetValue()
       try:
         scale = float( scale_str )
@@ -80,6 +100,12 @@ values.
       props[ name ] = dict( axis = axis, scale = scale )
       #props[ name ] = { 'axis': axis, 'scale': scale }
     #end for
+
+    if not have_axes[ 0 ] and len( no_axis_names ) > 0:
+      props[ no_axis_names[ 0 ] ][ 'axis' ] = self.fAxis1.lower()
+      del no_axis_names[ 0 ]
+    if not have_axes[ 1 ] and len( no_axis_names ) > 0:
+      props[ no_axis_names[ 0 ] ][ 'axis' ] = self.fAxis2.lower()
 
     return  props
   #end GetProps
@@ -136,7 +162,7 @@ values.
   def SetProps( self, props_in ):
     """
 @param  props_in	dict of dataset properties keyed by name with keys:
-			  axis:  one of 'top', 'bottom', or ''
+			  axis:  axis name or ''
 			  scale:  scale factor
 """
     if props_in:
@@ -158,18 +184,18 @@ values.
       for name, rec in sorted( props.iteritems() ):
         self.InsertStringItem( ndx, name )
 
-#			-- Top Axis
+#			-- First Axis
 	check = wx.CheckBox( self, wx.ID_ANY )
-	check.SetValue( rec[ 'axis' ] == 'top' )
+	check.SetValue( rec[ 'axis' ] == self.fAxis1.lower() )
 	check.Bind(
 	    wx.EVT_CHECKBOX,
 	    functools.partial( self._OnCheck, ndx, 1 )
 	    )
 	self.SetItemWindow( ndx, 1, check, expand = True )
 
-#			-- Bottom Axis
+#			-- Second Axis
 	check = wx.CheckBox( self, wx.ID_ANY )
-	check.SetValue( rec[ 'axis' ] == 'bottom' )
+	check.SetValue( rec[ 'axis' ] == self.fAxis2.lower() )
 	check.Bind(
 	    wx.EVT_CHECKBOX,
 	    functools.partial( self._OnCheck, ndx, 2 )

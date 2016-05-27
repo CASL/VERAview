@@ -82,6 +82,7 @@ Properties:
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
+    self.refAxisValues = []
     #self.scalarDataSet = 'keff'
     self.scalarDataSet = None
 
