@@ -808,6 +808,7 @@ to be passed to UpdateState().  Assume self.data is valid.
       self.dataSetDialog = PlotDataSetPropsDialog( self )
 
     if self.dataSetDialog is not None:
+      pdb.set_trace()
       self.dataSetDialog.ShowModal( self.dataSetSelections )
       selections = self.dataSetDialog.GetProps()
       if selections:
@@ -937,6 +938,8 @@ Must be called from the event thread.
 """
     if ds_name in self.dataSetSelections:
       rec = self.dataSetSelections[ ds_name ]
+      if rec[ 'visible' ]:
+        rec[ 'axis' ] = ''
       rec[ 'visible' ] = not rec[ 'visible' ]
 
     else:
@@ -974,109 +977,178 @@ Must be called from the event thread.
 #				--
         if ds_rec[ 'visible' ] and ds_name is not None and \
 	    ds_name in axial_ds_names:
+	  ds_values = None
 	  ds_type = self.data.GetDataSetType( ds_name )
-	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-	  dset_array = dset.value \
-	      if dset is not None and ds_type is not None  else None
-
-	  if dset_array is None:
-	    pass
 
 #					-- Channel
-	  elif ds_type.startswith( 'channel' ):
-	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-#o	    chan_col = min( self.channelColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
-#o	    chan_row = min( self.channelColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
-#o	    self.dataSetValues[ k ] = \
-#o	        dset_array[ chan_row, chan_col, :, assy_ndx ]
-#o            self.dataSetTypes.add( 'channel' )
+	  if ds_type.startswith( 'channel' ):
 #						-- Lazy creation
 	    if chan_colrow_list is None:
               chan_colrow_list = list( self.auxChannelColRows )
               chan_colrow_list.insert( 0, self.channelColRow )
 
-	    chan_colrow_set = set()
-	    for colrow in chan_colrow_list:
-	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
-	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
-	      chan_colrow_set.add( ( col, row ) )
-              #valid = self.data.IsValidForShape(
-	          #dset_array.shape, pin_colrow = self.pinColRow
-		  #)
-	    #end for
-	    ds_values_dict = {}
-	    for colrow in sorted( chan_colrow_set ):
-	      ds_values_dict[ colrow ] = \
-	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-
-	    self.dataSetValues[ k ] = ds_values_dict
+	    ds_values = self.data.ReadDataSetAxialValues(
+	        ds_name,
+		assembly_index = self.assemblyIndex[ 0 ],
+		channel_colrows = chan_colrow_list,
+		state_index = self.stateIndex
+		)
             self.dataSetTypes.add( 'channel' )
-
-#	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
-#	    valid = self.data.IsValid(
-#	        assembly_index = self.assemblyIndex,
-#		channel_colrow = self.channelColRow
-#	        )
-#	    if valid:
-#              self.dataSetValues[ k ] = dset_array[
-#	          self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-#		  :, self.assemblyIndex[ 0 ]
-#	          ]
-#              self.dataSetTypes.add( 'channel' )
 
 #					-- Detector
 	  elif ds_type.startswith( 'detector' ):
-	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
-	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+	    ds_values = self.data.ReadDataSetAxialValues(
+	        ds_name,
+		detector_index = self.detectorIndex[ 0 ],
+		state_index = self.stateIndex
+		)
             self.dataSetTypes.add( 'detector' )
 
 #					-- Pin
 	  elif ds_type.startswith( 'pin' ):
-	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
 #						-- Lazy creation
 	    if pin_colrow_list is None:
               pin_colrow_list = list( self.auxPinColRows )
               pin_colrow_list.insert( 0, self.pinColRow )
 
-	    pin_colrow_set = set()
-	    for colrow in pin_colrow_list:
-	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
-	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
-	      pin_colrow_set.add( ( col, row ) )
-              #valid = self.data.IsValidForShape(
-	          #dset_array.shape, pin_colrow = self.pinColRow
-		  #)
-	    #end for
-	    ds_values_dict = {}
-	    for colrow in sorted( pin_colrow_set ):
-	      ds_values_dict[ colrow ] = \
-	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-
-	    self.dataSetValues[ k ] = ds_values_dict
+	    ds_values = self.data.ReadDataSetAxialValues(
+	        ds_name,
+		assembly_index = self.assemblyIndex[ 0 ],
+		pin_colrows = pin_colrow_list,
+		state_index = self.stateIndex
+		)
             self.dataSetTypes.add( 'pin' )
 
 #					-- Vanadium
 	  elif ds_type.startswith( 'vanadium' ):
-	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
-	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+	    ds_values = self.data.ReadDataSetAxialValues(
+	        ds_name,
+		detector_index = self.detectorIndex[ 0 ],
+		state_index = self.stateIndex
+		)
             self.dataSetTypes.add( 'vanadium' )
-
-#	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
-#	    valid = self.data.IsValid(
-#	        assembly_index = self.assemblyIndex,
-#		pin_colrow = self.pinColRow
-#	        )
-#	    if valid:
-#	      self.dataSetValues[ k ] = dset_array[
-#	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-#		  :, self.assemblyIndex[ 0 ]
-#	          ]
-#              self.dataSetTypes.add( 'pin' )
 	  #end if ds_type match
+
+	  if ds_values is not None:
+	    self.dataSetValues[ k ] = ds_values
         #end if visible
       #end for each dataset
     #end if valid state
   #end _UpdateDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDataSetValues_0()			-
+  #----------------------------------------------------------------------
+#  def _UpdateDataSetValues_0( self ):
+#    """Rebuild dataset arrays to plot.
+#"""
+#    self.dataSetTypes.clear()
+#    self.dataSetValues.clear()
+#
+##		-- Must have data
+##		--
+#    #if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
+#    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+#      axial_ds_names = self.data.GetDataSetNames( 'axial' )
+#
+#      chan_colrow_list = None
+#      pin_colrow_list = None
+#
+#      for k in self.dataSetSelections:
+#        ds_rec = self.dataSetSelections[ k ]
+#	ds_name = self._GetDataSetName( k )
+#
+##				-- Must be visible and an "axial" dataset
+##				--
+#        if ds_rec[ 'visible' ] and ds_name is not None and \
+#	    ds_name in axial_ds_names:
+#	  ds_type = self.data.GetDataSetType( ds_name )
+#	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+#	  dset_array = dset.value \
+#	      if dset is not None and ds_type is not None  else None
+#
+#	  if dset_array is None:
+#	    pass
+#
+##					-- Channel
+#	  elif ds_type.startswith( 'channel' ):
+#	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
+##						-- Lazy creation
+#	    if chan_colrow_list is None:
+#              chan_colrow_list = list( self.auxChannelColRows )
+#              chan_colrow_list.insert( 0, self.channelColRow )
+#
+#	    chan_colrow_set = set()
+#	    for colrow in chan_colrow_list:
+#	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
+#	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
+#	      chan_colrow_set.add( ( col, row ) )
+#              #valid = self.data.IsValidForShape(
+#	          #dset_array.shape, pin_colrow = self.pinColRow
+#		  #)
+#	    #end for
+#	    ds_values_dict = {}
+#	    for colrow in sorted( chan_colrow_set ):
+#	      ds_values_dict[ colrow ] = \
+#	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
+#
+#	    self.dataSetValues[ k ] = ds_values_dict
+#            self.dataSetTypes.add( 'channel' )
+#
+##					-- Detector
+#	  elif ds_type.startswith( 'detector' ):
+#	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] - 1 )
+#	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+#            self.dataSetTypes.add( 'detector' )
+#
+##					-- Pin
+#	  elif ds_type.startswith( 'pin' ):
+#	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
+##						-- Lazy creation
+#	    if pin_colrow_list is None:
+#              pin_colrow_list = list( self.auxPinColRows )
+#              pin_colrow_list.insert( 0, self.pinColRow )
+#
+#	    pin_colrow_set = set()
+#	    for colrow in pin_colrow_list:
+#	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
+#	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
+#	      pin_colrow_set.add( ( col, row ) )
+#              #valid = self.data.IsValidForShape(
+#	          #dset_array.shape, pin_colrow = self.pinColRow
+#		  #)
+#	    #end for
+#	    ds_values_dict = {}
+#	    for colrow in sorted( pin_colrow_set ):
+#	      ds_values_dict[ colrow ] = \
+#	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
+#
+#	    self.dataSetValues[ k ] = ds_values_dict
+#            self.dataSetTypes.add( 'pin' )
+#
+##					-- Vanadium
+#	  elif ds_type.startswith( 'vanadium' ):
+#	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
+#	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+#            self.dataSetTypes.add( 'vanadium' )
+#
+##	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
+##	    valid = self.data.IsValid(
+##	        assembly_index = self.assemblyIndex,
+##		pin_colrow = self.pinColRow
+##	        )
+##	    if valid:
+##	      self.dataSetValues[ k ] = dset_array[
+##	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
+##		  :, self.assemblyIndex[ 0 ]
+##	          ]
+##              self.dataSetTypes.add( 'pin' )
+#	  #end if ds_type match
+#        #end if visible
+#      #end for each dataset
+#    #end if valid state
+#  #end _UpdateDataSetValues_0
 
 
   #----------------------------------------------------------------------

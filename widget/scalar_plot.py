@@ -499,7 +499,7 @@ configuring the grid, plotting, and creating self.axline.
 	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
 	  cur_axis.plot(
 		self.refAxisValues, cur_values * scale, plot_mode,
-	        label = legend_label, linewidth = 2
+	        label = cur_label, linewidth = 2
 	        )
 
 	  count += 1
@@ -673,7 +673,7 @@ XXX size according to how many datasets selected?
     #xxxplacement
     #self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
     #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
-    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
+    self.ax = self.fig.add_axes([ 0.15, 0.12, 0.75, 0.65 ])
     self.ax2 = self.ax.twinx() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
@@ -854,6 +854,8 @@ Must be called from the event thread.
 """
     if ds_name in self.dataSetSelections:
       rec = self.dataSetSelections[ ds_name ]
+      if rec[ 'visible' ]:
+        rec[ 'axis' ] = ''
       rec[ 'visible' ] = not rec[ 'visible' ]
 
     else:
@@ -881,11 +883,11 @@ Must be called from the event thread.
       chan_colrow_list = None
       pin_colrow_list = None
 
-#			-- Built reference axis values
+#			-- Build reference axis values
 #			--
       self.refAxisValues = self.data.ReadDataSetValues( self.state.timeDataSet )
 
-#			-- Built arrays for selected datasets
+#			-- Build dict of arrays for selected datasets
 #			--
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]

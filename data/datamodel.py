@@ -4,7 +4,7 @@
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
 #		2016-05-31	leerw@ornl.gov				-
-#	  Added DataModel.ReadDataSetValues().
+#	  Added DataModel.ReadDataSet{Axial}Values().
 #		2016-05-25	leerw@ornl.gov				-
 #	  Special "vanadium" dataset type.
 #	  Fixed handling of "detector_mesh" to get detectorMeshCenters.
@@ -2210,19 +2210,80 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.ReadExtraDataSets()			-
+  #	METHOD:		DataModel.ReadDataSetAxialValues()		-
   #----------------------------------------------------------------------
-#  def ReadExtraDataSets( self ):
-#    """
-#"""
-#    if self.h5ExtraFile is None:
-#      self.dataSetNames[ 'extra' ] = []
-#      self.extraStates = None
-#
-#    else:
-#      self.dataSetNames[ 'extra' ], self.extraStates = \
-#          ExtraState.ReadAll( self.h5ExtraFile )
-#  #end ReadExtraDataSets
+  def ReadDataSetAxialValues( self,
+      ds_name,
+      assembly_index = 0,
+      channel_colrows = None,
+      detector_index = 0,
+      pin_colrows = None,
+      state_index = 0
+      ):
+    """Reads axial values for a dataset for a specified state point.
+@param  ds_name		dataset name
+@param  assembly_index	0-based assembly index
+@param  detector_index	0-based detector index
+@param  channel_colrows	single or iterable of colrow pairs
+@param  pin_colrows	single or iterable of colrow pairs
+@param  state_index	0-based state point index
+@return			None if dataset cannot be found,
+			dict by colrow of np.ndarray for datasets that vary
+			by colrow,
+			np.ndarray for other datasets
+"""
+    result = None
+    state_index = self.NormalizeStateIndex( state_index )
+    ds_def = self.GetDataSetDefByDsName( ds_name ) \
+	if ds_name in self.GetDataSetNames( 'axial' ) else \
+	None
+    dset = self.GetStateDataSet( state_index, ds_name ) \
+        if ds_def is not None else None
+
+    if dset is not None:
+      ds_shape = ds_def[ 'shape' ]
+      ds_type = ds_def[ 'type' ]
+
+#			-- 'detector', 'vanadium'
+#			--
+      if ds_type == 'detector' or ds_type == 'vanadium':
+        det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
+	results = dset.value[ : det_ndx ]
+
+      else:
+        colrows = \
+            channel_colrows  if ds_type.startswith( 'channel' ) else \
+	    pin_colrows
+        if not hasattr( colrows, '__iter__' ):
+          colrows = [ colrows ]
+
+        ds_shape = \
+            ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
+	    ds_def[ 'shape' ]
+
+        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+
+        if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+	  result = {}
+          colrow_set = set()
+          for colrow in colrows:
+	    colrow = (
+	        min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
+	        min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+	        )
+	    if colrow not in colrow_set:
+	      colrow_set.add( colrow )
+	      result[ colrow ] = \
+	          dset.value[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
+          #end for colrow
+        else:
+	  result = dset.value[ 0, 0, :, assy_ndx ]
+        #end if-else ds_shape
+      #end if-else ds_type
+    #end if dset is not None
+
+    return  result
+  #end ReadDataSetAxialValues
 
 
   #----------------------------------------------------------------------
@@ -2287,6 +2348,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
       assembly_index = 0,
       axial_value = 0.0,
       channel_colrows = None,
+      detector_index = 0,
       pin_colrows = None
       ):
     """Reads values for a dataset across all state points.
@@ -2332,8 +2394,8 @@ for NaN.  For now, we just assume 0.0 is "no data".
       values = []
       ds_shape = ds_def[ 'shape' ]
       ax_value = self.CreateAxialValue( value = axial_value )
-      axial_level = min( ax_value[ 2 ], ds_shape[ 0 ] - 1 )
-      det_ndx = min( detector_index, ds_shape[ 1 ] - 1 )
+      axial_level = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
+      det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
       for st in self.states:
         dset = st.GetDataSet( ds_name )
 	if dset is not None:
@@ -2348,8 +2410,8 @@ for NaN.  For now, we just assume 0.0 is "no data".
       values = []
       ds_shape = ds_def[ 'shape' ]
       ax_value = self.CreateAxialValue( value = axial_value )
-      axial_level = min( ax_value[ 3 ], ds_shape[ 0 ] - 1 )
-      det_ndx = min( detector_index, ds_shape[ 1 ] - 1 )
+      axial_level = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
+      det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
       for st in self.states:
         dset = st.GetDataSet( ds_name )
 	if dset is not None:
@@ -2371,9 +2433,9 @@ for NaN.  For now, we just assume 0.0 is "no data".
           ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	  ds_def[ 'shape' ]
 
-      assy_ndx = min( assembly_index, ds_shape[ 3 ] - 1 )
+      assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
       ax_value = self.CreateAxialValue( value = axial_value )
-      axial_level = min( ax_value[ 1 ], ds_shape[ 2 ] - 1 )
+      axial_level = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
       if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
 	result = {}
