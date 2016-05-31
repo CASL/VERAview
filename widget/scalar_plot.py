@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		scalar_plot.py					-
 #	HISTORY:							-
+#		2016-05-31	leerw@ornl.gov				-
 #		2016-05-26	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import math, os, sys, time, traceback
@@ -78,17 +79,28 @@ Properties:
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
+    self.assemblyIndex = ( -1, -1, -1 )
+    self.auxChannelColRows = []
+    self.auxPinColRows = []
     self.ax2 = None
+    self.axialValue = DataModel.CreateEmptyAxialValue()
+    self.channelColRow = ( -1, -1 )
+    self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataSetDialog = None
     self.dataSetSelections = {}  # keyed by dataset name or pseudo name
-    #self.dataSetTypes = set()
+    self.dataSetTypes = set()
     self.dataSetValues = {}  # keyed by dataset name or pseudo name
+    self.detectorDataSet = 'detector_response'
+    self.detectorIndex = ( -1, -1, -1 )
+    self.pinColRow = ( -1, -1 )
+    self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
-    self.refAxisValues = []
+    self.refAxisValues = np.empty( 0 )
     #self.refDataSet = 'state'
     self.scalarDataSet = 'state'
     self.scalarValues = []
-    self.timeDataSet = 'state'
+    #self.timeDataSet = 'state'
+    self.vanadiumDataSet = 'vanadium_response'
 
     super( ScalarPlot, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
@@ -316,7 +328,7 @@ Properties:
     tip_str = ''
     ds_values = self._FindDataSetValues( ev.xdata )
     if ds_values is not None:
-      tip_str = '%s=%.3g' % ( self.timeDataSet, ev.xdata )
+      tip_str = '%s=%.3g' % ( self.state.timeDataSet, ev.xdata )
       for k in sorted( ds_values.keys() ):
         data_set_item = ds_values[ k ]
 	for rc, value in sorted( data_set_item.iteritems() ):
@@ -357,10 +369,10 @@ configuring the grid, plotting, and creating self.axline.
 
 #		-- Set title
 #		--
-    self.ax.set_title(
-	'Versus ' + self.timeDataSet,
-	fontsize = self.titleFontSize
-	)
+#    self.ax.set_title(
+#	'Versus ' + self.state.timeDataSet,
+#	fontsize = self.titleFontSize
+#	)
 
 #		-- Something to plot?
 #		--
@@ -398,8 +410,46 @@ configuring the grid, plotting, and creating self.axline.
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
       self.ax.set_ylim( *ds_range )
-      self.ax.set_xlabel( self.timeDataSet, fontsize = label_font_size )
+      self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
       self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+
+#			-- Set title
+#			--
+      show_assy_addr = \
+          self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] )
+
+#      title_str = 'Assy %d %s, %s %.3g' % \
+#          ( self.assemblyIndex[ 0 ] + 1, show_assy_addr,
+#	    self.state.state.timeDataSet,
+#	    self.data.GetTimeValue( self.stateIndex, self.state.state.timeDataSet )
+#	    )
+      title_str = 'Assy %d %s' % \
+          ( self.assemblyIndex[ 0 ] + 1, show_assy_addr )
+
+      title_line2 = ''
+      if 'channel' in self.dataSetTypes:
+	chan_rc = ( self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1 )
+        title_line2 += 'Chan %s' % str( chan_rc )
+
+      if 'detector' in self.dataSetTypes:
+        if len( title_line2 ) > 0: title_line2 += ', '
+	title_line2 += 'Det %d %s' % \
+	    ( self.detectorIndex[ 0 ] + 1,
+	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
+
+      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
+        pin_rc = ( self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1 )
+        if len( title_line2 ) > 0: title_line2 += ', '
+	title_line2 += 'Pin %s' % str( pin_rc )
+
+      if 'vanadium' in self.dataSetTypes:
+        if len( title_line2 ) > 0: title_line2 += ', '
+	title_line2 += 'Van %d %s' % \
+	    ( self.detectorIndex[ 0 ] + 1,
+	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
+
+      if len( title_line2 ) > 0:
+        title_str += '\n' + title_line2
 
 #			-- Plot each selected dataset
 #			--
@@ -413,20 +463,20 @@ configuring the grid, plotting, and creating self.axline.
 	  legend_label += '*%.3g' % scale
 
 	plot_type = '-'
-#	ds_type = self.data.GetDataSetType( ds_name )
+	ds_type = self.data.GetDataSetType( ds_name )
 #	axial_values = self.data.core.axialMeshCenters
-#	if ds_type.startswith( 'detector' ):
+	if ds_type.startswith( 'detector' ):
 #	  axial_values = self.data.core.detectorMeshCenters
-#	  plot_type = '.'
-#	elif ds_type.startswith( 'channel' ):
-#	  plot_type = '--'
-#	elif ds_type.startswith( 'pin' ):
-#	  plot_type = '-'
-#	elif ds_type.startswith( 'vanadium' ):
+	  plot_type = '.'
+	elif ds_type.startswith( 'channel' ):
+	  plot_type = '--'
+	elif ds_type.startswith( 'pin' ):
+	  plot_type = '-'
+	elif ds_type.startswith( 'vanadium' ):
 #	  axial_values = self.data.core.vanadiumMeshCenters
-#	  plot_type = '-.'
-#	else:
-#	  plot_type = ':'
+	  plot_type = '-.'
+	else:
+	  plot_type = ':'
 
 	data_set_item = self.dataSetValues[ k ]
 	if not isinstance( data_set_item, dict ):
@@ -441,9 +491,9 @@ configuring the grid, plotting, and creating self.axline.
 	    cur_values.fill( 0.0 )
 	    cur_values[ 0 : values.shape[ 0 ] ] = values
 
-#	  cur_label = \
-#	      legend_label + '@' + DataModel.ToAddrString( *rc ) \
-#	      if rc else legend_label
+	  cur_label = \
+	      legend_label + '@' + DataModel.ToAddrString( *rc ) \
+	      if rc else legend_label
 
 	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
@@ -471,15 +521,15 @@ configuring the grid, plotting, and creating self.axline.
 	  )
 
 #      #xxxplacement orig=0.925, tried=0.975
-#      self.fig.text(
-#          0.1, 0.985, title_str,
-#	  horizontalalignment = 'left', verticalalignment = 'top'
-#	  )
+      self.fig.text(
+          0.1, 0.985, title_str,
+	  horizontalalignment = 'left', verticalalignment = 'top'
+	  )
 
-#			-- Axial value line
+#			-- State/time value line
 #			--
       self.axline = \
-          self.ax.avhline( color = 'r', linestyle = '-', linewidth = 1 )
+          self.ax.axvline( color = 'r', linestyle = '-', linewidth = 1 )
       if self.stateIndex >= 0 and self.stateIndex < len( self.refAxisValues ):
         self.axline.set_xdata( self.refAxisValues[ self.stateIndex ] )
     #end if we have something to plot
@@ -506,7 +556,7 @@ configuring the grid, plotting, and creating self.axline.
           data_set_item = { '': data_set_item }
 
         sample = data_set_item.itervalues().next()
-        len( sample ) > ndx:
+        if len( sample ) > ndx:
 	  cur_dict = {}
           for rc, values in data_set_item.iteritems():
 	    cur_dict[ rc ] = values[ ndx ]
@@ -533,6 +583,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetAxialValue()					-
+  #----------------------------------------------------------------------
+  def GetAxialValue( self ):
+    """@return		( value, 0-based core index, 0-based detector index
+			  0-based vanadium index )
+"""
+    return  self.axialValue
+  #end GetAxialValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_GetDataSetName()				-
   #----------------------------------------------------------------------
   def _GetDataSetName( self, name ):
@@ -540,8 +601,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     return \
 	None  if name is None else \
+	self.channelDataSet  if name == 'Selected channel dataset' else \
+        self.detectorDataSet  if name == 'Selected detector dataset' else \
+        self.pinDataSet  if name == 'Selected pin dataset' else \
+        self.vanadiumDataSet  if name == 'Selected vanadium dataset' else \
 	self.scalarDataSet  if name == 'Selected scalar dataset' else \
-	self.timeDataSet  if name == 'Selected time dataset' else \
 	name
   #end _GetDataSetName
 
@@ -550,7 +614,12 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		ScalarPlot.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'scalar', 'pin:core' ]
+    return \
+      [
+      'channel', 'detector',
+      'pin', 'pin:assembly', 'pin:axial', 'pin:core',
+      'scalar', 'vanadium'
+      ]
   #end GetDataSetTypes
 
 
@@ -572,8 +641,15 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """By default, all locks are enabled except
 """
     locks = set([
-        STATE_CHANGE_scalarDataSet, STATE_CHANGE_stateIndex,
-	STATE_CHANGE_timeDataSet
+        STATE_CHANGE_assemblyIndex,
+        STATE_CHANGE_auxChannelColRows, STATE_CHANGE_auxPinColRows,
+	STATE_CHANGE_axialValue,
+	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
+	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
+	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_scalarDataSet,
+	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
+	STATE_CHANGE_vanadiumDataSet
 	])
     return  locks
   #end GetEventLockSet
@@ -583,7 +659,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		GetTitle()					-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Scalar Plots'
+    return  'Time Plots'
   #end GetTitle
 
 
@@ -596,7 +672,8 @@ XXX size according to how many datasets selected?
 """
     #xxxplacement
     #self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
-    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.7 ])
+    #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
+    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
     self.ax2 = self.ax.twinx() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
@@ -604,15 +681,15 @@ XXX size according to how many datasets selected?
   #----------------------------------------------------------------------
   #	METHOD:		InitDataSetSelections()				-
   #----------------------------------------------------------------------
-#  def InitDataSetSelections( self, ds_types ):
-#    """Special hook called in VeraViewFrame.LoadDataModel().
-#"""
-#    axis = 'left'
-#    for dtype in sorted( list( ds_types ) ):
-#      self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
-#        { 'axis': axis, 'scale': 1.0, 'visible': True }
-#      axis = 'right' if axis == 'left' else ''
-#  #end InitDataSetSelections
+  def InitDataSetSelections( self, ds_types ):
+    """Special hook called in VeraViewFrame.LoadDataModel().
+"""
+    axis = 'left'
+    for dtype in sorted( list( ds_types ) ):
+      self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
+        { 'axis': axis, 'scale': 1.0, 'visible': True }
+      axis = 'right' if axis == 'left' else ''
+  #end InitDataSetSelections
 
 
   #----------------------------------------------------------------------
@@ -634,15 +711,28 @@ XXX size according to how many datasets selected?
   #	METHOD:		_LoadDataModelValues()				-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
-    """This noop version should be implemented in subclasses to create a dict
-to be passed to UpdateState().  Assume self.data is valid.
+    """Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
+    #xxxxx boron
     self.dataSetDialog = None
     if self.data is not None and self.data.HasData():
+      assy_ndx = self.data.NormalizeAssemblyIndex( self.state.assemblyIndex )
+      axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
+      chan_colrow = self.data.NormalizeChannelColRow( self.state.channelColRow )
+      detector_ndx = self.data.NormalizeDetectorIndex( self.state.detectorIndex )
+      pin_colrow = self.data.NormalizePinColRow( self.state.pinColRow )
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
+	'assembly_index': assy_ndx,
+	'axial_value': axial_value,
+	'channel_colrow': chan_colrow,
+	'channel_dataset': self.state.channelDataSet,
+	'detector_dataset': self.state.detectorDataSet,
+	'detector_index': detector_ndx,
+	'pin_colrow': pin_colrow,
+	'pin_dataset': self.state.pinDataSet,
 	'state_index': state_ndx,
 	'time_dataset': self.state.timeDataSet
 	}
@@ -746,7 +836,7 @@ to be passed to UpdateState().  Assume self.data is valid.
   #	METHOD:		SetDataSet()					-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
-    """May be called from any thread.
+    """Noop since this displays multiple datasets.
 """
 #    wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
 #    self.FireStateChange( pin_dataset = ds_name )
@@ -781,123 +871,89 @@ Must be called from the event thread.
   def _UpdateDataSetValues( self ):
     """Rebuild dataset arrays to plot.
 """
+    #del self.refAxisValues[ : ]
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
 
 #		-- Must have data
 #		--
-    #xxxxx
-    if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
-      axial_ds_names = self.data.GetDataSetNames( 'axial' )
-
+    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
       chan_colrow_list = None
       pin_colrow_list = None
 
+#			-- Built reference axis values
+#			--
+      self.refAxisValues = self.data.ReadDataSetValues( self.state.timeDataSet )
+
+#			-- Built arrays for selected datasets
+#			--
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
 
-#				-- Must be visible and an "axial" dataset
+#				-- Must be visible
 #				--
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name in axial_ds_names:
-	  #ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+        if ds_rec[ 'visible' ] and ds_name is not None:
+	  ds_values = None
 	  ds_type = self.data.GetDataSetType( ds_name )
-	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-	  dset_array = dset.value \
-	      if dset is not None and ds_type is not None  else None
-
-	  if dset_array is None:
-	    pass
 
 #					-- Channel
-	  elif ds_type.startswith( 'channel' ):
-	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-#o	    chan_col = min( self.channelColRow[ 0 ], dset_array.shape[ 1 ] - 1 )
-#o	    chan_row = min( self.channelColRow[ 1 ], dset_array.shape[ 0 ] - 1 )
-#o	    self.dataSetValues[ k ] = \
-#o	        dset_array[ chan_row, chan_col, :, assy_ndx ]
-#o            self.dataSetTypes.add( 'channel' )
+	  if ds_type.startswith( 'channel' ):
 #						-- Lazy creation
 	    if chan_colrow_list is None:
               chan_colrow_list = list( self.auxChannelColRows )
               chan_colrow_list.insert( 0, self.channelColRow )
 
-	    chan_colrow_set = set()
-	    for colrow in chan_colrow_list:
-	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
-	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
-	      chan_colrow_set.add( ( col, row ) )
-	    #end for
-	    ds_values_dict = {}
-	    for colrow in sorted( chan_colrow_set ):
-	      ds_values_dict[ colrow ] = \
-	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-
-	    self.dataSetValues[ k ] = ds_values_dict
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		assembly_index = self.assemblyIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ],
+		channel_colrows = chan_colrow_list
+		)
             self.dataSetTypes.add( 'channel' )
-
-#	  elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
-#	    valid = self.data.IsValid(
-#	        assembly_index = self.assemblyIndex,
-#		channel_colrow = self.channelColRow
-#	        )
-#	    if valid:
-#              self.dataSetValues[ k ] = dset_array[
-#	          self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-#		  :, self.assemblyIndex[ 0 ]
-#	          ]
-#              self.dataSetTypes.add( 'channel' )
 
 #					-- Detector
 	  elif ds_type.startswith( 'detector' ):
-	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
-	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		detector_index = self.detectorIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ]
+		)
             self.dataSetTypes.add( 'detector' )
 
 #					-- Pin
 	  elif ds_type.startswith( 'pin' ):
-	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
 #						-- Lazy creation
 	    if pin_colrow_list is None:
               pin_colrow_list = list( self.auxPinColRows )
               pin_colrow_list.insert( 0, self.pinColRow )
 
-	    pin_colrow_set = set()
-	    for colrow in pin_colrow_list:
-	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
-	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
-	      pin_colrow_set.add( ( col, row ) )
-              #valid = self.data.IsValidForShape(
-	          #dset_array.shape, pin_colrow = self.pinColRow
-		  #)
-	    #end for
-	    ds_values_dict = {}
-	    for colrow in sorted( pin_colrow_set ):
-	      ds_values_dict[ colrow ] = \
-	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-
-	    self.dataSetValues[ k ] = ds_values_dict
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		assembly_index = self.assemblyIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ],
+		pin_colrows = pin_colrow_list
+		)
             self.dataSetTypes.add( 'pin' )
 
 #					-- Vanadium
 	  elif ds_type.startswith( 'vanadium' ):
-	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
-	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		detector_index = self.detectorIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ]
+		)
             self.dataSetTypes.add( 'vanadium' )
 
-#	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
-#	    valid = self.data.IsValid(
-#	        assembly_index = self.assemblyIndex,
-#		pin_colrow = self.pinColRow
-#	        )
-#	    if valid:
-#	      self.dataSetValues[ k ] = dset_array[
-#	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-#		  :, self.assemblyIndex[ 0 ]
-#	          ]
-#              self.dataSetTypes.add( 'pin' )
+#					-- Scalar
+	  else:
+	    ds_values = self.data.ReadDataSetValues( ds_name )
+            self.dataSetTypes.add( 'scalar' )
+
 	  #end if ds_type match
+
+	  if ds_values is not None:
+	    self.dataSetValues[ k ] = ds_values
         #end if visible
       #end for each dataset
     #end if valid state

@@ -242,12 +242,23 @@ class PlotDataSetPropsDialog( wx.Dialog ):
     style |= wx.RESIZE_BORDER
     kwargs[ 'style' ] = style
 
+    if 'axis1' in kwargs:
+      axis1 = kwargs[ 'axis1' ]
+      del kwargs[ 'axis1' ]
+    else:
+      axis1 = 'Bottom'
+    if 'axis2' in kwargs:
+      axis2 = kwargs[ 'axis2' ]
+      del kwargs[ 'axis2' ]
+    else:
+      axis2 = 'Top'
+
     super( PlotDataSetPropsDialog, self ).__init__( *args, **kwargs )
 
     self.fBean = None
     self.fProps = None
 
-    self._InitUI()
+    self._InitUI( axis1, axis2 )
   #end __init__
 
 
@@ -262,8 +273,8 @@ class PlotDataSetPropsDialog( wx.Dialog ):
   #----------------------------------------------------------------------
   #	METHOD:		PlotDataSetPropsDialog._InitUI()		-
   #----------------------------------------------------------------------
-  def _InitUI( self ):
-    self.fBean = PlotDataSetPropsBean( self, -1 )
+  def _InitUI( self, axis1, axis2  ):
+    self.fBean = PlotDataSetPropsBean( self, -1, axis1 = axis1, axis2 = axis2 )
 
     button_sizer = wx.BoxSizer( wx.HORIZONTAL )
 

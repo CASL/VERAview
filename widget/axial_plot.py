@@ -474,7 +474,8 @@ configuring the grid, plotting, and creating self.axline.
 	chan_rc = ( self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1 )
         title_line2 += 'Chan %s' % str( chan_rc )
 
-      if 'detector' in self.dataSetTypes: # and self.detectorIndex[ 0 ] >= 0
+      #if 'detector' in self.dataSetTypes: # and self.detectorIndex[ 0 ] >= 0
+      if 'detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Det %d %s' % \
 	    ( self.detectorIndex[ 0 ] + 1,
@@ -548,7 +549,7 @@ configuring the grid, plotting, and creating self.axline.
 	    count += 1
 	  #end for rc, values
 	#end if axial_values is not None:
-      #end for
+      #end for k
 
 #			-- Create legend
 #			--
@@ -918,7 +919,7 @@ to be passed to UpdateState().  Assume self.data is valid.
   #	METHOD:		SetDataSet()					-
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
-    """May be called from any thread.
+    """Noop since this displays multiple datasets.
 """
 #    wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
 #    self.FireStateChange( pin_dataset = ds_name )
@@ -958,7 +959,8 @@ Must be called from the event thread.
 
 #		-- Must have data
 #		--
-    if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
+    #if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
+    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
       axial_ds_names = self.data.GetDataSetNames( 'axial' )
 
       chan_colrow_list = None
@@ -972,7 +974,6 @@ Must be called from the event thread.
 #				--
         if ds_rec[ 'visible' ] and ds_name is not None and \
 	    ds_name in axial_ds_names:
-	  #ds_display_name = self.data.GetDataSetDisplayName( ds_name )
 	  ds_type = self.data.GetDataSetType( ds_name )
 	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
 	  dset_array = dset.value \

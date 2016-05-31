@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-05-31	leerw@ornl.gov				-
+#	  Added DataModel.ReadDataSetValues().
 #		2016-05-25	leerw@ornl.gov				-
 #	  Special "vanadium" dataset type.
 #	  Fixed handling of "detector_mesh" to get detectorMeshCenters.
@@ -2275,6 +2277,146 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
     return  ( range_min, range_max )
   #end _ReadDataSetRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ReadDataSetValues()			-
+  #----------------------------------------------------------------------
+  def ReadDataSetValues( self,
+      ds_name,
+      assembly_index = 0,
+      axial_value = 0.0,
+      channel_colrows = None,
+      pin_colrows = None
+      ):
+    """Reads values for a dataset across all state points.
+@param  ds_name		dataset name
+@param  assembly_index	0-based assembly index
+@param  detector_index	0-based detector index
+@param  axial_value	axial value in cm
+@param  channel_colrows	single or iterable of colrow pairs
+@param  pin_colrows	single or iterable of colrow pairs
+@return			None if dataset cannot be found,
+			dict by colrow of np.ndarray for datasets that vary
+			by colrow,
+			np.ndarray for other datasets
+"""
+    result = None
+    ds_def = self.GetDataSetDefByDsName( ds_name )
+
+#		-- 'state' is special
+#		--
+    if ds_name == 'state':
+      #values = range( 1, len( self.states ) + 1 )
+      result = \
+          np.array( range( 1, len( self.states ) + 1 ), dtype = np.float64 )
+
+    #elif ds_def is None:
+      #pass
+
+#		-- 'scalar'
+#		--
+    elif ds_def is None or ds_def[ 'type' ] == 'scalar':
+      values = []
+      for st in self.states:
+        dset = st.GetDataSet( ds_name )
+	if dset is not None:
+	  values.append( dset.value.item() )
+	else:
+	  values.append( 0.0 )
+      result = np.array( values, dtype = np.float64 )
+
+#		-- 'detector'
+#		--
+    elif ds_def[ 'type' ] == 'detector':
+      values = []
+      ds_shape = ds_def[ 'shape' ]
+      ax_value = self.CreateAxialValue( value = axial_value )
+      axial_level = min( ax_value[ 2 ], ds_shape[ 0 ] - 1 )
+      det_ndx = min( detector_index, ds_shape[ 1 ] - 1 )
+      for st in self.states:
+        dset = st.GetDataSet( ds_name )
+	if dset is not None:
+	  values.append( dset.value[ axial_level, det_ndx ] )
+	else:
+	  values.append( 0.0 )
+      result = np.array( values, dtype = np.float64 )
+
+#		-- 'vanadium'
+#		--
+    elif ds_def[ 'type' ] == 'vanadium':
+      values = []
+      ds_shape = ds_def[ 'shape' ]
+      ax_value = self.CreateAxialValue( value = axial_value )
+      axial_level = min( ax_value[ 3 ], ds_shape[ 0 ] - 1 )
+      det_ndx = min( detector_index, ds_shape[ 1 ] - 1 )
+      for st in self.states:
+        dset = st.GetDataSet( ds_name )
+	if dset is not None:
+	  values.append( dset.value[ axial_level, det_ndx ] )
+	else:
+	  values.append( 0.0 )
+      result = np.array( values, dtype = np.float64 )
+
+#		-- Others
+#		--
+    else:
+      colrows = \
+          channel_colrows  if ds_def[ 'type' ].startswith( 'channel' ) else \
+	  pin_colrows
+      if not hasattr( colrows, '__iter__' ):
+        colrows = [ colrows ]
+
+      ds_shape = \
+          ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
+	  ds_def[ 'shape' ]
+
+      assy_ndx = min( assembly_index, ds_shape[ 3 ] - 1 )
+      ax_value = self.CreateAxialValue( value = axial_value )
+      axial_level = min( ax_value[ 1 ], ds_shape[ 2 ] - 1 )
+
+      if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+	result = {}
+        colrow_set = set()
+        for colrow in colrows:
+	  colrow = (
+	      min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
+	      min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+	      )
+	  colrow_set.add( colrow )
+	  result[ colrow ] = []
+        colrows_sorted = sorted( colrow_set )
+
+        for st in self.states:
+          dset = st.GetDataSet( ds_name )
+	  if dset is None:
+	    for colrow in colrows_sorted:
+	      result[ colrow ].append( 0.0 )
+	  else:
+	    for colrow in colrows_sorted:
+	      value = \
+	          dset.value[ colrow[ 1 ], colrow[ 0 ], axial_level, assy_ndx ]
+	      result[ colrow ].append( value )
+        #end for st
+
+	for k in result:
+	  result[ k ] = np.array( result[ k ], dtype = np.float64 )
+
+      else:
+	values = []
+	for st in self.states:
+	  dset = st.GetDataSet( ds_name )
+	  if dset is not None:
+	    values.append( dset.value[ 0, 0, axial_level, assy_ndx ] )
+	  else:
+	    values.append( 0.0 )
+	#end for st
+        result = np.array( values, dtype = np.float64 )
+      #end if-else ds_shape
+    #end if-else ds[ 'type' ]
+
+    return  result
+  #end ReadDataSetValues
 
 
   #----------------------------------------------------------------------

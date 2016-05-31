@@ -958,13 +958,17 @@ Must be called from the UI thread.
 
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
-#    widget_list = [
+    widget_list = [
+        'widget.core_view.Core2DView',
+        'widget.assembly_view.Assembly2DView',
+        'widget.axial_plot.AxialPlot',
+        'widget.scalar_plot.ScalarPlot'
 #	'widget.channel_view.Channel2DView',
 #	'widget.channel_assembly_view.ChannelAssembly2DView'
 #	'widget.channel_axial_view.ChannelAxial2DView',
 #        'widget.all_axial_plot.AllAxialPlot',
 #        'widget.time_plot.TimePlot',
-#        ]
+        ]
     axial_plot_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )
