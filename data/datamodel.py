@@ -177,6 +177,8 @@ DATASET_DEFS = \
   'pin:core':
     {
     'avg_method': 'calc_pin_core_avg',
+    'copy_expr': '[ 0, 0, 0, 0 ]',
+    'copy_shape_expr': '( 1, 1, 1, 1 )',
     'ds_prefix': 'core',
     'label': 'core',
     'shape_expr': '( 1, )',
@@ -930,8 +932,6 @@ Parameters:
 	    #end if data
 	  #end for each state
 
-	  if derived_name.startswith( 'core' ):
-	    pdb.set_trace()
 	  self.AddDataSetName( der_names[ 0 ], derived_name )
 
 	except Exception, ex:
@@ -1726,6 +1726,8 @@ the properties construct for this class soon.
 
     #if st and derived_st:
     if st:
+      if ds_name.startswith( 'core' ):
+        pdb.set_trace()
       self.dataSetDefsLock.acquire()
       try:
         dset = st.GetDataSet( ds_name )
