@@ -179,7 +179,7 @@ DATASET_DEFS = \
     'avg_method': 'calc_pin_core_avg',
     'ds_prefix': 'core',
     'label': 'core',
-    'shape': ( 1, ),
+    'shape_expr': '( 1, )',
     'type': 'pin:core'
     },
 
@@ -197,7 +197,7 @@ DATASET_DEFS = \
   'scalar':
     {
     'label': 'scalar',
-    'shape': ( 1, ),
+    'shape_expr': '( 1, )',
     'type': 'scalar'
     },
 
@@ -930,6 +930,8 @@ Parameters:
 	    #end if data
 	  #end for each state
 
+	  if derived_name.startswith( 'core' ):
+	    pdb.set_trace()
 	  self.AddDataSetName( der_names[ 0 ], derived_name )
 
 	except Exception, ex:
@@ -2449,8 +2451,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
 	  result[ colrow ] = []
         colrows_sorted = sorted( colrow_set )
 
-        for st in self.states:
-          dset = st.GetDataSet( ds_name )
+        #for st in self.states:
+          #dset = st.GetDataSet( ds_name )
+        for i in range( len( self.states ) ):
+	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is None:
 	    for colrow in colrows_sorted:
 	      result[ colrow ].append( 0.0 )
@@ -2466,8 +2470,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
       else:
 	values = []
-	for st in self.states:
-	  dset = st.GetDataSet( ds_name )
+	#for st in self.states:
+	#  dset = st.GetDataSet( ds_name )
+        for i in range( len( self.states ) ):
+	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is not None:
 	    values.append( dset.value[ 0, 0, axial_level, assy_ndx ] )
 	  else:
