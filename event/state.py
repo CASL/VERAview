@@ -99,23 +99,47 @@ class State( object ):
   """Event state object.  State attributes currently in use are as follows.
 All indices are 0-based.
 
-  assemblyIndex		( int index, int column, int row )  ("assembly_index")
-  auxChannelColRows	list of ( col, row )  ("aux_channel_colrows")
-  auxPinColRows		list of ( col, row )  ("aux_pin_colrows")
-  axialValue		( float value(cm), int core-index, int detector-index
-			  vanadium-index ) ("axial_value")
-  channelColRow		str name  ("channel_colrow")
-  channelDataSet	str name  ("channel_dataset")
-  dataModel		DataModel object  ("data_model")
-  detectorDataSet	str name  ("detector_dataset")
-  detectorIndex		( int index, int column, int row )  ("detector_index")
-  listeners		list of objects to notify on change events
-  pinColRow		( int column, int row )  ("pin_colrow")
-  pinDataSet		str name  ("pin_dataset")
-  scalarDataSet		str name  ("scalar_dataset")
-  scaleMode		'all' or 'state'  ("scale_mode")
-  stateIndex		int index  ("state_index")
-  timeDataSet		state dataset to be used for "time"  ("time_dataset")
++-------------------+------------------------------------+---------------------+
+| Attribute/Prop    | Description                        | Parameter           |
++===================+====================================+=====================+
+| assemblyIndex     | ( int index, int column, int row ) | assembly_index      |
++-------------------+------------------------------------+---------------------+
+| auxChannelColRows | list of ( col, row                 | aux_channel_colrows |
+|                   |   assy_ndx, assy_col, assy_row )   |                     |
++-------------------+------------------------------------+---------------------+
+| auxPinColRows     | list of ( col, row                 | aux_pin_colrows     |
+|                   |   assy_ndx, assy_col, assy_row )   |                     |
++-------------------+------------------------------------+---------------------+
+| axialValue        | ( value(cm), core-index,           | axial_value         |
+|                   |   detector-index, vanadium-index ) |                     |
++-------------------+------------------------------------+---------------------+
+| channelColRow     | ( int column, int row )            | channel_colrow      |
++-------------------+------------------------------------+---------------------+
+| channelDataSet    | str name                           | channel_dataset     |
++-------------------+------------------------------------+---------------------+
+| dataModel         | DataModel object                   | data_model          |
++-------------------+------------------------------------+---------------------+
+| detectorDataSet   | str name                           | detector_dataset    |
++-------------------+------------------------------------+---------------------+
+| detectorIndex     | ( int index, int column, int row ) | detector_index      |
++-------------------+------------------------------------+---------------------+
+| listeners         | list of objects to notify on change events               |
++-------------------+------------------------------------+---------------------+
+| pinColRow         | ( int column, int row )            | pin_colrow          |
++-------------------+------------------------------------+---------------------+
+| pinDataSet        | str name                           | pin_dataset         |
++-------------------+------------------------------------+---------------------+
+| scalarDataSet     | str name                           | scalar_dataset      |
++-------------------+------------------------------------+---------------------+
+| scaleMode         | 'all' or 'state'                   | scale_mode          |
++-------------------+------------------------------------+---------------------+
+| stateIndex        | int statept-index                  | state_index         |
++-------------------+------------------------------------+---------------------+
+| timeDataSet       | state dataset name used for "time" | time_dataset        |
++-------------------+------------------------------------+---------------------+
+
+We need to change to a single "coordinate" specifying the assembly/detector
+index and col,row, pin/channel col,row, and axial value.  Big change!!
 """
 
 #		-- Object Methods

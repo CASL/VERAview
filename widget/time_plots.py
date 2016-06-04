@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		scalar_plot.py					-
+#	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-06-04	leerw@ornl.gov				-
+#	  Renamed from scalar_plot.py
 #		2016-05-31	leerw@ornl.gov				-
 #		2016-05-26	leerw@ornl.gov				-
 #------------------------------------------------------------------------
@@ -51,9 +53,9 @@ PLOT_COLORS = [ 'b', 'r', 'g', 'm', 'c' ]
 
 
 #------------------------------------------------------------------------
-#	CLASS:		ScalarPlot					-
+#	CLASS:		TimePlots					-
 #------------------------------------------------------------------------
-class ScalarPlot( PlotWidget ):
+class TimePlots( PlotWidget ):
   """Pin axial plot.
 
 Properties:
@@ -71,7 +73,7 @@ Properties:
     if self.dataSetDialog is not None:
       self.dataSetDialog.Destroy()
 
-    super( ScalarPlot, self ).__del__()
+    super( TimePlots, self ).__del__()
   #end __del__
 
 
@@ -102,7 +104,7 @@ Properties:
     #self.timeDataSet = 'state'
     self.vanadiumDataSet = 'vanadium_response'
 
-    super( ScalarPlot, self ).__init__( container, id, ref_axis = 'x' )
+    super( TimePlots, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
 
 
@@ -307,7 +309,7 @@ Properties:
   def _CreateMenuDef( self, data_model ):
     """
 """
-    menu_def = super( ScalarPlot, self )._CreateMenuDef( data_model )
+    menu_def = super( TimePlots, self )._CreateMenuDef( data_model )
     more_def = \
       [
 	( '-', None ),
@@ -351,7 +353,7 @@ Properties:
     """Do the work of creating the plot, setting titles and labels,
 configuring the grid, plotting, and creating self.axline.
 """
-    super( ScalarPlot, self )._DoUpdatePlot( wd, ht )
+    super( TimePlots, self )._DoUpdatePlot( wd, ht )
 
 #    self.fig.suptitle(
 #        'Axial Plot',
@@ -611,7 +613,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ScalarPlot.GetDataSetTypes()			-
+  #	METHOD:		TimePlots.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     return \
@@ -624,7 +626,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ScalarPlot.GetDataSetDisplayMode()		-
+  #	METHOD:		TimePlots.GetDataSetDisplayMode()		-
   #----------------------------------------------------------------------
   def GetDataSetDisplayMode( self ):
     """Returns 'selected'
@@ -693,7 +695,7 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ScalarPlot.IsDataSetVisible()			-
+  #	METHOD:		TimePlots.IsDataSetVisible()			-
   #----------------------------------------------------------------------
   def IsDataSetVisible( self, ds_name ):
     """True if the specified dataset is currently displayed, False otherwise.
@@ -777,7 +779,7 @@ XXX size according to how many datasets selected?
   def _OnMplMouseRelease( self, ev ):
     """
 """
-    super( ScalarPlot, self )._OnMplMouseRelease( ev )
+    super( TimePlots, self )._OnMplMouseRelease( ev )
 
     button = ev.button or 1
     if button == 1 and self.cursor is not None:
@@ -789,7 +791,7 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ScalarPlot._ResolveDataSetAxes()		-
+  #	METHOD:		TimePlots._ResolveDataSetAxes()			-
   #----------------------------------------------------------------------
   def _ResolveDataSetAxes( self ):
     """Allocates right and left axis if they are not assigned.
@@ -845,7 +847,7 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ScalarPlot.ToggleDataSetVisible()		-
+  #	METHOD:		TimePlots.ToggleDataSetVisible()		-
   #----------------------------------------------------------------------
   def ToggleDataSetVisible( self, ds_name ):
     """Toggles the visibility of the named dataset.
@@ -871,6 +873,113 @@ Must be called from the event thread.
   #	METHOD:		_UpdateDataSetValues()				-
   #----------------------------------------------------------------------
   def _UpdateDataSetValues( self ):
+    """Rebuild dataset arrays to plot.
+Performance enhancement
+=======================
+Once aux{Channel,Pin}ColRows include the assembly and axial indexes,
+compare each new dataset with what's in self.dataSetValues and only load
+new ones in new_ds_values, copying from self.dataSetValues for ones
+already read.
+
+Also, we *must* visit each state point once, reading all required datasets
+in that statepoint.
+"""
+    #del self.refAxisValues[ : ]
+    self.dataSetTypes.clear()
+    self.dataSetValues.clear()
+
+    #x new_ds_types = set()
+    #x new_ds_values = {}
+
+#		-- Must have data
+#		--
+    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
+      chan_colrow_list = None
+      pin_colrow_list = None
+
+#			-- Build reference axis values
+#			--
+      self.refAxisValues = self.data.ReadDataSetValues( self.state.timeDataSet )
+
+#			-- Build dict of arrays for selected datasets
+#			--
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+
+#				-- Must be visible
+#				--
+        if ds_rec[ 'visible' ] and ds_name is not None:
+	  ds_values = None
+	  ds_type = self.data.GetDataSetType( ds_name )
+
+#					-- Channel
+	  if ds_type.startswith( 'channel' ):
+#						-- Lazy creation
+	    if chan_colrow_list is None:
+              chan_colrow_list = list( self.auxChannelColRows )
+              chan_colrow_list.insert( 0, self.channelColRow )
+
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		assembly_index = self.assemblyIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ],
+		channel_colrows = chan_colrow_list
+		)
+            self.dataSetTypes.add( 'channel' )
+
+#					-- Detector
+	  elif ds_type.startswith( 'detector' ):
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		detector_index = self.detectorIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ]
+		)
+            self.dataSetTypes.add( 'detector' )
+
+#					-- Pin
+	  elif ds_type.startswith( 'pin' ):
+#						-- Lazy creation
+	    if pin_colrow_list is None:
+              pin_colrow_list = list( self.auxPinColRows )
+              pin_colrow_list.insert( 0, self.pinColRow )
+
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		assembly_index = self.assemblyIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ],
+		pin_colrows = pin_colrow_list
+		)
+            self.dataSetTypes.add( 'pin' )
+
+#					-- Vanadium
+	  elif ds_type.startswith( 'vanadium' ):
+	    ds_values = self.data.ReadDataSetValues(
+	        ds_name,
+		detector_index = self.detectorIndex[ 0 ],
+		axial_value = self.axialValue[ 0 ]
+		)
+            self.dataSetTypes.add( 'vanadium' )
+
+#					-- Scalar
+	  else:
+	    ds_values = self.data.ReadDataSetValues( ds_name )
+            self.dataSetTypes.add( 'scalar' )
+
+	  #end if ds_type match
+
+	  if ds_values is not None:
+	    self.dataSetValues[ k ] = ds_values
+        #end if visible
+      #end for each dataset
+    #end if valid state
+  #end _UpdateDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDataSetValues_simple()			-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetValues_simple( self ):
     """Rebuild dataset arrays to plot.
 """
     #del self.refAxisValues[ : ]
@@ -959,7 +1068,7 @@ Must be called from the event thread.
         #end if visible
       #end for each dataset
     #end if valid state
-  #end _UpdateDataSetValues
+  #end _UpdateDataSetValues_simple
 
 
   #----------------------------------------------------------------------
@@ -971,7 +1080,7 @@ Must be called from the event thread.
 Must be called from the UI thread.
 @return			kwargs with 'redraw' and/or 'replot'
 """
-    kwargs = super( ScalarPlot, self )._UpdateStateValues( **kwargs )
+    kwargs = super( TimePlots, self )._UpdateStateValues( **kwargs )
     replot = kwargs.get( 'replot', False )
     redraw = kwargs.get( 'redraw', False )
 
@@ -1058,4 +1167,4 @@ Must be called from the UI thread.
     return  kwargs
   #end _UpdateStateValues
 
-#end ScalarPlot
+#end TimePlots

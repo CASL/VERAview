@@ -1138,7 +1138,7 @@ This implementation is a noop.
         dc = wx.ClientDC( self.bitmapCtrl )
         odc = wx.DCOverlay( self.overlay, dc )
 #		MacOS bug doesn't properly copy or restore the saved
-#		image, so we don't this hear until the bug is fixed
+#		image, so we don't do this here until the bug is fixed
         #odc.Clear()
 
         if 'wxMac' in wx.PlatformInfo:

@@ -1294,9 +1294,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       if assy_ndx != self.assemblyIndex:
 	state_args[ 'assembly_index' ] = assy_ndx
 
-      pin_addr = cell_info[ 3 : 5 ]
-      if pin_addr != self.pinColRow:
-	state_args[ 'pin_colrow' ] = pin_addr
+#      pin_addr = cell_info[ 3 : 5 ]
+#      if pin_addr != self.pinColRow:
+#	state_args[ 'pin_colrow' ] = pin_addr
+      if ev.GetClickCount() > 1:
+        pin_addr = cell_info[ 3 : 5 ]
+        if pin_addr != self.pinColRow:
+	  state_args[ 'pin_colrow' ] = pin_addr
 
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )

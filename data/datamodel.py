@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-06-04	leerw@ornl.gov				-
+#	  Fixed pin:core data definition.
+#	  Added CreatePinLabel().
 #		2016-05-31	leerw@ornl.gov				-
 #	  Added DataModel.ReadDataSet{Axial}Values().
 #		2016-05-25	leerw@ornl.gov				-
@@ -177,11 +180,11 @@ DATASET_DEFS = \
   'pin:core':
     {
     'avg_method': 'calc_pin_core_avg',
-    'copy_expr': '[ 0, 0, 0, 0 ]',
-    'copy_shape_expr': '( 1, 1, 1, 1 )',
+    'copy_expr': '[ 0, 0, 0, : ]',
+    'copy_shape_expr': '( 1, 1, 1, core.nass )',
     'ds_prefix': 'core',
     'label': 'core',
-    'shape_expr': '( 1, )',
+    'shape_expr': '( core.nass, )',
     'type': 'pin:core'
     },
 
@@ -365,6 +368,36 @@ Properties:
 
     return  result
   #end CreateAssyLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.CreatePinLabel()				-
+  #----------------------------------------------------------------------
+  def CreatePinLabel( self,
+      pin_col, pin_row,
+      assy_ndx = -1, assy_col = -1, assy_row = -1
+      ):
+    """Creates a label string.
+@param  pin_col		0-based column index
+@param  pin_row		0-based row index
+@param  assy_ndx	0-based assembly index
+@param  assy_col	0-based column index
+@param  assy_row	0-based row index
+@return			"N(C-R)(c,r)"
+"""
+    result = '(?)'
+    if assy_ndx >= 0 and assy_col >= 0 and assy_row >= 0 and \
+        self.coreLabels is not None and len( self.coreLabels ) >= 2:
+      result = '%d(%s-%s)' % ( \
+          assy_ndx + 1,
+          self.coreLabels[ 0 ][ assy_col ], self.coreLabels[ 1 ][ assy_row ]
+	  )
+
+    if pin_col >= 0 and pin_row >= 0:
+      result += '(%d,%d)' % ( pin_col + 1, pin_row + 1 )
+
+    return  result
+  #end CreatePinLabel
 
 
   #----------------------------------------------------------------------
@@ -1726,8 +1759,6 @@ the properties construct for this class soon.
 
     #if st and derived_st:
     if st:
-      if ds_name.startswith( 'core' ):
-        pdb.set_trace()
       self.dataSetDefsLock.acquire()
       try:
         dset = st.GetDataSet( ds_name )

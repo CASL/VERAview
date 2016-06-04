@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-06-04	leerw@ornl.gov				-
+#	  Using new "ScalarPlot" replacement for TimePlot.		-
 #		2016-05-25	leerw@ornl.gov				-
 # 	  Special "vanadium" dataset.  Calling
 #	  DataModel.CreateEmptyAxialValue()
@@ -158,8 +160,8 @@ TOOLBAR_ITEMS = \
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
     {
-    'widget': 'Time Plot', 'icon': 'TimePlot.32.png',
-    'type': 'scalar'
+    'widget': 'Time Plots', 'icon': 'TimePlot.32.png',
+    'type': ''
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     }
   ]
@@ -174,7 +176,8 @@ WIDGET_MAP = \
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
-  'Time Plot': 'widget.time_plot.TimePlot',
+#  'Time Plot': 'widget.time_plot.TimePlot',
+  'Time Plots': 'widget.time_plots.TimePlots',
   'Volume 3D View': 'view3d.volume_view.Volume3DView',
   'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
   }
@@ -954,16 +957,16 @@ Must be called from the UI thread.
 #		-- Time Plot?
 #		--
     if len( data.states ) > 1:
-      widget_list.append( 'widget.time_plot.TimePlot' )
+      widget_list.append( 'widget.time_plots.TimePlots' )
 
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
-    if True:
+    if False:
       widget_list = [
           'widget.core_view.Core2DView',
           'widget.assembly_view.Assembly2DView',
           'widget.axial_plot.AxialPlot',
-          'widget.scalar_plot.ScalarPlot'
+          'widget.time_plots.TimePlots'
 #	  'widget.channel_view.Channel2DView',
 #	  'widget.channel_assembly_view.ChannelAssembly2DView'
 #	  'widget.channel_axial_view.ChannelAxial2DView',

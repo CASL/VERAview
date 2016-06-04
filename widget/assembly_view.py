@@ -879,8 +879,6 @@ attributes/properties that aren't already set in _LoadDataModel():
     valid = False
     pin_addr = self.FindPin( *ev.GetPosition() )
 
-    #if pin_addr is not None and pin_addr != self.pinColRow and \
-	#not (is_aux and pin_addr in self.auxPinColRows):
     if pin_addr is not None and pin_addr != self.pinColRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
