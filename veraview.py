@@ -974,18 +974,26 @@ Must be called from the UI thread.
 #          'widget.time_plot.TimePlot',
           ]
     axial_plot_widget = None
+    time_plots_widget = None
     for w in widget_list:
       con = self.CreateWidget( w, False )
       print >> sys.stderr, \
           '[VeraViewFrame.LoadDataModel] added="%s", size=%s' % \
 	  ( w, str( self.grid.GetSize() ) )
-      if con is not None and con.widget.GetTitle() == 'Axial Plots':
+      if con is None:
+        pass
+      elif con.widget.GetTitle() == 'Axial Plots':
         axial_plot_widget = con.widget
+      elif con.widget.GetTitle() == 'Time Plots':
+        time_plots_widget = con.widget
     #end for
 
     #xxxxx this must be called other places when CreateWidget() is called
     if axial_plot_widget is not None:
       axial_plot_widget.InitDataSetSelections( axial_plot_types )
+    #end if
+    if time_plots_widget is not None:
+      time_plots_widget.InitDataSetSelections( [ 'scalar' ] )
     #end if
 
 #		-- Update title

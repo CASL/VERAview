@@ -99,7 +99,7 @@ Properties:
 
     self.refAxisValues = np.empty( 0 )
     #self.refDataSet = 'state'
-    self.scalarDataSet = 'state'
+    self.scalarDataSet = 'keff'
     self.scalarValues = []
     #self.timeDataSet = 'state'
     self.vanadiumDataSet = 'vanadium_response'
@@ -735,6 +735,7 @@ XXX size according to how many datasets selected?
 	'detector_index': detector_ndx,
 	'pin_colrow': pin_colrow,
 	'pin_dataset': self.state.pinDataSet,
+	'scalar_dataset': self.state.scalarDataSet,
 	'state_index': state_ndx,
 	'time_dataset': self.state.timeDataSet
 	}
@@ -1142,6 +1143,16 @@ Must be called from the UI thread.
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       self.pinDataSet = kwargs[ 'pin_dataset' ]
       select_name = self.GetSelectedDataSetName( 'pin' )
+      #if '_pinDataSet_' in self.dataSetSelections:
+      if select_name in self.dataSetSelections and \
+          self.dataSetSelections[ select_name ][ 'visible' ]:
+        replot = True
+    #end if
+
+    if 'scalar_dataset' in kwargs and \
+        kwargs[ 'scalar_dataset' ] != self.scalarDataSet:
+      self.scalarDataSet = kwargs[ 'scalar_dataset' ]
+      select_name = self.GetSelectedDataSetName( 'scalar' )
       #if '_pinDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
