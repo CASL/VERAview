@@ -109,197 +109,147 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_CreateCsvDataRows()				-
+  #----------------------------------------------------------------------
+  def _CreateCsvDataRows(
+      self, axial_mesh_type, cur_selection_flag, dataset_dict
+      ):
+    """Creates CSV rows for the specified mesh type and associated
+dataset names and ( rc, values ) pairs.
+@param  axial_mesh_type	'axial', 'detector', or 'vanadium'
+@param  cur_selection_flag  True to only show data for the current selection
+@param  dataset_dict	dict by dataset name of [ ( rc, values ) ]
+@return			CSV text
+"""
+    csv_text = ''
+    core = self.data.GetCore()
+
+#		-- Write header row
+#		--
+    if axial_mesh_type == 'detector':
+      header = 'Detector'
+      cur_axial_index = self.axialValue[ 2 ]
+      mesh_centers = core.detectorMeshCenters
+    elif axial_mesh_type == 'vanadium':
+      header = 'Vanadium'
+      cur_axial_index = self.axialValue[ 3 ]
+      mesh_centers = core.vanadiumMeshCenters
+    else:
+      header = 'Axial'
+      cur_axial_index = self.axialValue[ 1 ]
+      mesh_centers = core.axialMeshCenters
+    header += ' Mesh Center'
+
+    for name, item in sorted( dataset_dict.iteritems() ):
+      for rc in sorted( item.keys() ):
+        header += ',' + name
+	if rc:
+          header += '@' + DataModel.ToAddrString( *rc )
+    csv_text += header + '\n'
+
+    if cur_selection_flag:
+      j_range = ( cur_axial_index, )
+    else:
+      j_range = range( len( mesh_centers ) - 1, -1, -1 )
+
+    for j in j_range:
+      row = '%.7g' % mesh_centers[ j ]
+
+      for name, item in sorted( dataset_dict.iteritems() ):
+        for rc, values in sorted( item.iteritems() ):
+	  cur_val = 0
+	  if not hasattr( values, '__len__' ):
+	    if j == cur_axial_index:
+	      cur_val = values
+	  elif len( values ) > j:
+	    cur_val = values[ j ]
+
+	  if cur_val != 0:
+	    row += ',%.7g' % cur_val
+	  else:
+	    row += ',0'
+        #end for rc, values
+      #end for name, values
+
+      csv_text += row + '\n'
+    #end for j
+
+    csv_text += '\n'
+    return  csv_text
+  #end _CreateCsvDataRows
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardData()				-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-#x    csv_text = None
-#x
-#x    if DataModel.IsValidObj( self.data ):
-#x      core = self.data.GetCore()
-#x
-#x      title = '%s=%.3g' % (
-#x	  self.state.timeDataSet,
-#x	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-#x          )
-#x
-#x      title_set = set( [] )
-#x      axial_mesh_datasets = []
-#x      detector_mesh_datasets = []
-#x      detector_mesh_header = 'Detector Mesh Center'
-#x
-#x      for k in self.dataSetSelections:
-#x        ds_rec = self.dataSetSelections[ k ]
-#x	ds_name = self._GetDataSetName( k )
-#x
-#x        if ds_rec[ 'visible' ] and ds_name is not None:
-#x	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
-#x	  ds_type = self.data.GetDataSetType( ds_name )
-#x	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-#x	  dset_array = dset.value if dset is not None else None
-#x	  if dset_array is None:
-#x	    pass
-#x
-#x	  #elif ds_display_name in self.data.GetDataSetNames( 'channel' ):
-#x	  elif ds_type.startswith( 'channel' ):
-#x	    valid = self.data.IsValid(
-#x	        assembly_index = self.assemblyIndex,
-#x		axial_level = self.axialValue[ 1 ],
-#x		channel_colrow = self.channelColRow
-#x	        )
-#x	    if valid:
-#x	      if 'channel' not in title_set:
-#x	        title_set.add( 'channel' )
-#x		title += '; Channel=(%d,%d)' % ( 
-#x		    self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1
-#x		    )
-#x	      if cur_selection_flag:
-#x	        values = dset_array[
-#x		    self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-#x		    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-#x		    ]
-#x	      else:
-#x	        values = dset_array[
-#x		    self.channelColRow[ 1 ], self.channelColRow[ 0 ],
-#x		    :, self.assemblyIndex[ 0 ]
-#x	            ]
-#x	      axial_mesh_datasets.append( ( ds_display_name, values ) )
-#x
-#x	  #elif ds_display_name in self.data.GetDataSetNames( 'detector' ):
-#x	  elif ds_type.startswith( 'detector' ):
-#x	    valid = self.data.IsValid(
-#x		axial_level = self.axialValue[ 1 ],
-#x	        detector_index = self.detectorIndex[ 0 ]
-#x		)
-#x	    if valid:
-#x	      if 'detector' not in title_set:
-#x	        title_set.add( 'detector' )
-#x		title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
-#x
-#x	      if cur_selection_flag:
-#x	        values = \
-#x		    dset_array[ self.axialValue[ 1 ], self.detectorIndex[ 0 ] ]
-#x	      else:
-#x	        values = dset_array[ :, self.detectorIndex[ 0 ] ]
-#x	      detector_mesh_datasets.append( ( ds_display_name, values ) )
-#x
-#x	  # deprecated
-#x	  elif ds_name in self.data.GetDataSetNames( 'derived' ) or \
-#x	      ds_display_name in self.data.GetDataSetNames( 'extra' ) or \
-#x	      ds_display_name in self.data.GetDataSetNames( 'other' ):
-#x	    valid = self.data.IsValidForShape(
-#x		dset.shape,
-#x		assembly_index = self.assemblyIndex[ 0 ],
-#x		pin_colrow = self.pinColRow
-#x	        )
-#x	    if valid:
-#x	      assy_ndx = min( self.assemblyIndex[ 0 ], dset.shape[ 3 ] - 1 )
-#x	      temp_nax = min( self.data.core.nax, dset.shape[ 2 ] )
-#x	      values = dset_array[
-#x		  self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-#x		  0 : temp_nax, assy_ndx
-#x	          ]
-#x	      axial_mesh_datasets.append( ( ds_display_name, values ) )
-#x
-#x	  #elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
-#x	  elif ds_type.startswith( 'pin' ):
-#x	    valid = self.data.IsValid(
-#x	        assembly_index = self.assemblyIndex,
-#x		axial_level = self.axialValue[ 1 ],
-#x		pin_colrow = self.pinColRow
-#x	        )
-#x	    if valid:
-#x	      if 'pin' not in title_set:
-#x	        title_set.add( 'pin' )
-#x		title += '; Pin=(%d,%d)' % ( 
-#x		    self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1
-#x		    )
-#x
-#x	      if cur_selection_flag:
-#x	        values = dset_array[
-#x		    self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-#x		    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
-#x		    ]
-#x	      else:
-#x	        values = dset_array[
-#x		    self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-#x		    :, self.assemblyIndex[ 0 ]
-#x	            ]
-#x	      axial_mesh_datasets.append( ( ds_display_name, values ) )
-#x	  #end if category match
-#x        #end if visible
-#x      #end for each dataset
-#x
-#x      #csv_text = '#"%s"\n' % title
-#x      csv_text = '"%s"\n' % title
-#x
-#x      if len( axial_mesh_datasets ) > 0:
-#x        header = 'Axial Mesh Center'
-#x        for name, values in axial_mesh_datasets:
-#x	  header += ',' + name
-#x        csv_text += header + '\n'
-#x
-#x	if cur_selection_flag:
-#x	  j_range = ( self.axialValue[ 1 ], )
-#x	else:
-#x	  j_range = range( len( core.axialMeshCenters ) - 1, -1, -1 )
-#x	for j in j_range:
-#x	  row = '%.7g' % core.axialMeshCenters[ j ]
-#x          for name, values in axial_mesh_datasets:
-#x	    cur_val = 0
-#x	    if not hasattr( values, '__len__' ):
-#x	      if j == self.axialValue[ 1 ]:
-#x	        cur_val = values
-#x	    elif len( values ) > j:
-#x	      cur_val = values[ j ]
-#x
-#x	    if cur_val != 0:
-#x	      row += ',%.7g' % cur_val
-#x	    else:
-#x	      row += ',0'
-#x          #end for name, values
-#x
-#x          csv_text += row + '\n'
-#x	#end for j
-#x
-#x	csv_text += '\n'
-#x      #end if
-#x
-#x      if len( detector_mesh_datasets ) > 0:
-#x        header = 'Detector Mesh Center'
-#x        for name, values in detector_mesh_datasets:
-#x	  header += ',' + name
-#x        csv_text += header + '\n'
-#x
-#x	if cur_selection_flag:
-#x	  j_range = ( self.axialValue[ 2 ], )
-#x	else:
-#x	  j_range = range( len( core.detectorMeshCenters ) - 1, -1, -1 )
-#x	for j in j_range:
-#x	  row = '%.7g' % core.detectorMeshCenters[ j ]
-#x          for name, values in detector_mesh_datasets:
-#x	    cur_val = 0
-#x	    if not hasattr( values, '__len__' ):
-#x	      if j == self.axialValue[ 2 ]:
-#x	        cur_val = values
-#x	    elif len( values ) > j:
-#x	      cur_val = values[ j ]
-#x
-#x	    if cur_val != 0:
-#x	      row += ',%.7g' % cur_val
-#x	    else:
-#x	      row += ',0'
-#x          #end for name, values
-#x
-#x          csv_text += row + '\n'
-#x	#end for j
-#x      #end if
-#x    #end if valid state
-#x
-#x    return  csv_text
-    return  None
+    csv_text = None
+
+#		-- Must be valid state
+#		--
+    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+      core = self.data.GetCore()
+
+      title = '%s=%.3g' % (
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+
+      title_set = set( [] )
+      axial_mesh_datasets = {}
+      detector_mesh_datasets = {}
+      vanadium_mesh_datasets = {}
+
+#		 	-- Collate by mesh type
+#		 	--
+      for k in self.dataSetValues:
+	ds_name = self._GetDataSetName( k )
+	ds_rec = self.dataSetSelections[ k ]
+
+        if ds_rec[ 'visible' ] and ds_name is not None:
+	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+	  ds_type = self.data.GetDataSetType( ds_name )
+
+          data_set_item = self.dataSetValues[ k ]
+	  if not isinstance( data_set_item, dict ):
+	    data_set_item = { '': data_set_item }
+
+	  if ds_type.startswith( 'detector' ):
+	    detector_mesh_datasets[ ds_display_name ] = data_set_item
+
+	  elif ds_type.startswith( 'vanadium' ):
+	    vanadium_mesh_datasets[ ds_display_name ] = data_set_item
+
+	  else:
+	    axial_mesh_datasets[ ds_display_name ] = data_set_item
+          #end if-else type
+	#end if visible
+      #end for k
+
+#		 	-- Create CSV
+#		 	--
+      csv_text = '"%s"\n' % title
+
+      if len( axial_mesh_datasets ) > 0:
+	csv_text += self._CreateCsvDataRows( 
+	    'axial', cur_selection_flag, axial_mesh_datasets
+	    )
+
+      if len( detector_mesh_datasets ) > 0:
+	csv_text += self._CreateCsvDataRows( 
+	    'detector', cur_selection_flag, detector_mesh_datasets
+	    )
+
+      if len( vanadium_mesh_datasets ) > 0:
+	csv_text += self._CreateCsvDataRows( 
+	    'vanadium', cur_selection_flag, vanadium_mesh_datasets
+	    )
+    #end if valid state
+
+    return  csv_text
   #end _CreateClipboardData
 
 
@@ -716,7 +666,6 @@ XXX size according to how many datasets selected?
     """Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
-    #xxxxx boron
     self.dataSetDialog = None
     if self.data is not None and self.data.HasData():
       assy_ndx = self.data.NormalizeAssemblyIndex( self.state.assemblyIndex )
@@ -728,6 +677,8 @@ XXX size according to how many datasets selected?
       update_args = \
         {
 	'assembly_index': assy_ndx,
+	'aux_channel_colrows': self.state.auxChannelColRows,
+	'aux_pin_colrows': self.state.auxPinColRows,
 	'axial_value': axial_value,
 	'channel_colrow': chan_colrow,
 	'channel_dataset': self.state.channelDataSet,
