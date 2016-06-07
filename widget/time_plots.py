@@ -109,144 +109,67 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateCsvDataRows()				-
-  #----------------------------------------------------------------------
-  def _CreateCsvDataRows(
-      self, axial_mesh_type, cur_selection_flag, dataset_dict
-      ):
-    """Creates CSV rows for the specified mesh type and associated
-dataset names and ( rc, values ) pairs.
-@param  axial_mesh_type	'axial', 'detector', or 'vanadium'
-@param  cur_selection_flag  True to only show data for the current selection
-@param  dataset_dict	dict by dataset name of [ ( rc, values ) ]
-@return			CSV text
-"""
-    csv_text = ''
-    core = self.data.GetCore()
-
-#		-- Write header row
-#		--
-    if axial_mesh_type == 'detector':
-      header = 'Detector'
-      cur_axial_index = self.axialValue[ 2 ]
-      mesh_centers = core.detectorMeshCenters
-    elif axial_mesh_type == 'vanadium':
-      header = 'Vanadium'
-      cur_axial_index = self.axialValue[ 3 ]
-      mesh_centers = core.vanadiumMeshCenters
-    else:
-      header = 'Axial'
-      cur_axial_index = self.axialValue[ 1 ]
-      mesh_centers = core.axialMeshCenters
-    header += ' Mesh Center'
-
-    for name, item in sorted( dataset_dict.iteritems() ):
-      for rc in sorted( item.keys() ):
-        header += ',' + name
-	if rc:
-          header += '@' + DataModel.ToAddrString( *rc )
-    csv_text += header + '\n'
-
-    if cur_selection_flag:
-      j_range = ( cur_axial_index, )
-    else:
-      j_range = range( len( mesh_centers ) - 1, -1, -1 )
-
-    for j in j_range:
-      row = '%.7g' % mesh_centers[ j ]
-
-      for name, item in sorted( dataset_dict.iteritems() ):
-        for rc, values in sorted( item.iteritems() ):
-	  cur_val = 0
-	  if not hasattr( values, '__len__' ):
-	    if j == cur_axial_index:
-	      cur_val = values
-	  elif len( values ) > j:
-	    cur_val = values[ j ]
-
-	  if cur_val != 0:
-	    row += ',%.7g' % cur_val
-	  else:
-	    row += ',0'
-        #end for rc, values
-      #end for name, values
-
-      csv_text += row + '\n'
-    #end for j
-
-    csv_text += '\n'
-    return  csv_text
-  #end _CreateCsvDataRows
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardData()				-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, cur_selection_flag = False ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    csv_text = None
+    csv_text = ''
 
 #		-- Must be valid state
 #		--
     if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-      core = self.data.GetCore()
 
-      title = '%s=%.3g' % (
-	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-          )
-
-      title_set = set( [] )
-      axial_mesh_datasets = {}
-      detector_mesh_datasets = {}
-      vanadium_mesh_datasets = {}
-
-#		 	-- Collate by mesh type
+#		 	-- Create header
 #		 	--
-      for k in self.dataSetValues:
-	ds_name = self._GetDataSetName( k )
-	ds_rec = self.dataSetSelections[ k ]
+      header = self.state.timeDataSet
+      #for name, item in sorted( self.dataSetValues ):
+      for k in sorted( self.dataSetValues.keys() ):
+	name = self.data.GetDataSetDisplayName( self._GetDataSetName( k ) )
+	item = self.dataSetValues[ k ]
+	if not isinstance( item, dict ):
+	  item = { '': item }
+        for rc in sorted( item.keys() ):
+          header += ',' + name
+	  if rc:
+            header += '@' + DataModel.ToAddrString( *rc )
+      csv_text += header + '\n'
 
-        if ds_rec[ 'visible' ] and ds_name is not None:
-	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
-	  ds_type = self.data.GetDataSetType( ds_name )
+#			-- Write values
+#			--
+      if cur_selection_flag:
+        i_range = ( self.stateIndex, )
+      else:
+        i_range = range( self.data.GetStatesCount() )
 
-          data_set_item = self.dataSetValues[ k ]
-	  if not isinstance( data_set_item, dict ):
-	    data_set_item = { '': data_set_item }
+      pdb.set_trace()
+      for i in i_range:
+        row = '%.7g' % self.refAxisValues[ i ]
 
-	  if ds_type.startswith( 'detector' ):
-	    detector_mesh_datasets[ ds_display_name ] = data_set_item
+        #for name, item in sorted( self.dataSetValues ):
+        for name in sorted( self.dataSetValues.keys() ):
+	  item = self.dataSetValues[ name ]
+	  if not isinstance( item, dict ):
+	    item = { '': item }
 
-	  elif ds_type.startswith( 'vanadium' ):
-	    vanadium_mesh_datasets[ ds_display_name ] = data_set_item
+          for rc, values in sorted( item.iteritems() ):
+	    cur_val = 0
+	    if not hasattr( values, '__len__' ):
+	      if i == self.stateIndex:
+	        cur_val = values
+	    elif len( values ) > i:
+	      cur_val = values[ i ]
 
-	  else:
-	    axial_mesh_datasets[ ds_display_name ] = data_set_item
-          #end if-else type
-	#end if visible
-      #end for k
+	    if cur_val != 0:
+	      row += ',%.7g' % cur_val
+	    else:
+	      row += ',0'
+          #end for rc, values
+        #end for name, values
 
-#		 	-- Create CSV
-#		 	--
-      csv_text = '"%s"\n' % title
-
-      if len( axial_mesh_datasets ) > 0:
-	csv_text += self._CreateCsvDataRows( 
-	    'axial', cur_selection_flag, axial_mesh_datasets
-	    )
-
-      if len( detector_mesh_datasets ) > 0:
-	csv_text += self._CreateCsvDataRows( 
-	    'detector', cur_selection_flag, detector_mesh_datasets
-	    )
-
-      if len( vanadium_mesh_datasets ) > 0:
-	csv_text += self._CreateCsvDataRows( 
-	    'vanadium', cur_selection_flag, vanadium_mesh_datasets
-	    )
+        csv_text += row + '\n'
+      #end for i
     #end if valid state
 
     return  csv_text
@@ -331,18 +254,6 @@ configuring the grid, plotting, and creating self.axline.
     if len( self.dataSetValues ) > 0:
 #			-- Determine axis datasets
 #			--
-#      left_ds_name = right_ds_name = None
-#      for k, rec in self.dataSetSelections.iteritems():
-#	if rec[ 'visible' ]:
-#          if rec[ 'axis' ] == 'left':
-#	    left_ds_name = self._GetDataSetName( k )
-#          elif rec[ 'axis' ] == 'right':
-#	    right_ds_name = self._GetDataSetName( k )
-#          elif left_ds_name is None:
-#	    left_ds_name = self._GetDataSetName( k )
-#      #end for
-#      if left_ds_name is None:
-#        left_ds_name = right_ds_name
       left_ds_name, right_ds_name = self._ResolveDataSetAxes()
 
 #			-- Configure axes
