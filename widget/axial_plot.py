@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-06-07	leerw@ornl.gov				-
+#	  Fixed header in _CreateClipboardData().
 #		2016-06-06	leerw@ornl.gov				-
 #	  Improved/simplified _CreateClipboardData().
 #		2016-05-25	leerw@ornl.gov				-
@@ -267,13 +269,32 @@ dataset names and ( rc, values ) pairs.
 	  if not isinstance( data_set_item, dict ):
 	    data_set_item = { '': data_set_item }
 
-	  if ds_type.startswith( 'detector' ):
+	  if ds_type.startswith( 'channel' ):
+	    if 'channel' not in title_set:
+	      title_set.add( 'channel' )
+	      title += '; Channel=(%d,%d)' % ( 
+	          self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1
+		  )
+	    axial_mesh_datasets[ ds_display_name ] = data_set_item
+
+	  elif ds_type.startswith( 'detector' ):
+	    if 'detector' not in title_set:
+	      title_set.add( 'detector' )
+	      title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
 	    detector_mesh_datasets[ ds_display_name ] = data_set_item
 
 	  elif ds_type.startswith( 'vanadium' ):
+	    if 'detector' not in title_set:
+	      title_set.add( 'detector' )
+	      title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
 	    vanadium_mesh_datasets[ ds_display_name ] = data_set_item
 
 	  else:
+	    if 'pin' not in title_set:
+	      title_set.add( 'pin' )
+	      title += '; Pin=(%d,%d)' % ( 
+	          self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1
+		  )
 	    axial_mesh_datasets[ ds_display_name ] = data_set_item
           #end if-else type
 	#end if visible
@@ -492,12 +513,14 @@ configuring the grid, plotting, and creating self.axline.
 	        legend_label + '@' + DataModel.ToAddrString( *rc ) \
 	        if rc else legend_label
 
+	    #xxxxx this dies here
 	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	    cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
-	    cur_axis.plot(
-	        cur_values * scale, axial_values, plot_mode,
-	        label = cur_label, linewidth = 2
-	        )
+	    if cur_axis:
+	      cur_axis.plot(
+	          cur_values * scale, axial_values, plot_mode,
+	          label = cur_label, linewidth = 2
+	          )
 
 	    count += 1
 	  #end for rc, values

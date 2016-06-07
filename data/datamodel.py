@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-06-07	leerw@ornl.gov				-
+#	  Fixed ReadDataSetAxialValues() handling of detector datasets.
 #		2016-06-04	leerw@ornl.gov				-
 #	  Fixed pin:core data definition.
 #	  Added CreatePinLabel().
@@ -2283,7 +2285,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 #			--
       if ds_type == 'detector' or ds_type == 'vanadium':
         det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-	results = dset.value[ : det_ndx ]
+	result = dset.value[ :, det_ndx ]
 
       else:
         colrows = \

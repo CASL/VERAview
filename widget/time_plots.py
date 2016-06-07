@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-06-07	leerw@ornl.gov				-
+#	  Implemented _CreateClipboardData().
 #		2016-06-04	leerw@ornl.gov				-
 #	  Renamed from scalar_plot.py
 #		2016-05-31	leerw@ornl.gov				-
@@ -115,7 +117,7 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    csv_text = ''
+    csv_text = '"Axial=%.3f"\n' % self.axialValue[ 0 ]
 
 #		-- Must be valid state
 #		--
@@ -143,7 +145,6 @@ Properties:
       else:
         i_range = range( self.data.GetStatesCount() )
 
-      pdb.set_trace()
       for i in i_range:
         row = '%.7g' % self.refAxisValues[ i ]
 
