@@ -174,7 +174,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
       ax_mesh = core.axialMesh
       #pin_pitch = 1.26
-      pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npinx )
+      pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npiny )
       self.meshLevels = [
 	  int( (ax_mesh[ i + 1 ] - ax_mesh[ 0 ]) / pin_pitch )
 	  for i in range( len( ax_mesh ) - 1 )
