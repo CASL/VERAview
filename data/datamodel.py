@@ -877,10 +877,11 @@ passed, Read() must be called.
     """Create from 'core_ndx', 'detector_ndx', 'vanadium_ndx', or 'value'
 values.
 Parameters:
+  cm			axial value in cm
   core_ndx		0-based core axial index
   detector_ndx		0-based detector axial index
   pin_ndx		0-based core axial index, alias for 'core_ndx'
-  value			axial value
+  value			axial value in cm, alias for 'cm'
   vanadium_ndx		0-based vanadium axial index
 @return			( axial_cm, core_ndx, detector_ndx, vanadium_ndx )
 """
@@ -2417,8 +2418,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
 #		--
     elif ds_def is None or ds_def[ 'type' ] == 'scalar':
       values = []
-      for st in self.states:
-        dset = st.GetDataSet( ds_name )
+      #for st in self.states:
+        #dset = st.GetDataSet( ds_name )
+      for i in range( len( self.states ) ):
+	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
 	  values.append( dset.value.item() )
 	else:
@@ -2433,8 +2436,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
       det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-      for st in self.states:
-        dset = st.GetDataSet( ds_name )
+      #for st in self.states:
+        #dset = st.GetDataSet( ds_name )
+      for i in range( len( self.states ) ):
+	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
 	  values.append( dset.value[ axial_level, det_ndx ] )
 	else:
@@ -2449,8 +2454,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
       det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-      for st in self.states:
-        dset = st.GetDataSet( ds_name )
+      #for st in self.states:
+        #dset = st.GetDataSet( ds_name )
+      for i in range( len( self.states ) ):
+	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
 	  values.append( dset.value[ axial_level, det_ndx ] )
 	else:
@@ -2520,6 +2527,177 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
     return  result
   #end ReadDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ReadDataSetValues2()			-
+  #----------------------------------------------------------------------
+  def ReadDataSetValues2( self, *ds_specs_in ):
+#      ds_name,
+#      assembly_index = 0,
+#      axial_value = 0.0,
+#      channel_colrows = None,
+#      detector_index = 0,
+#      pin_colrows = None
+    """Reads values for a dataset across all state points, one state point
+at a time for better performance.
+@param  ds_specs_in	list of dataset specifications with the following keys:
+	  ds_name		required dataset name
+	  assembly_index	0-based assembly index
+	  detector_index	0-based detector index for detector datasets
+	  axial_cm		axial value in cm
+	  channel_colrows	list of colrow pairs
+	  pin_colrows		list of colrow pairs
+@return			dict keyed by found ds_name of:
+			  dict keyed by colrow of np.ndarray for pin-based
+			  datasets,
+			  np.ndarray for datasets that are not pin-based
+"""
+    result = {}
+
+#		-- Loop on specs to get valid dataset definitions,
+#		--   process 'state'
+#		--
+    ds_defs = {}
+    ds_specs = []
+    for spec in ds_specs_in:
+      if spec is not None and 'ds_name' in spec:
+        ds_name = spec[ 'ds_name' ]
+	if ds_name == 'state':
+	  result[ ds_name ] = \
+	    np.array( range( 1, len( self.states ) + 1 ), dtype = np.float64 )
+	elif ds_name not in ds_defs:
+	  ds_def = self.GetDataSetDefByDsName( ds_name )
+	  #if ds_def is not None:
+	  if ds_def is None:
+	    ds_def = DATASET_DEFS[ 'scalar' ]
+	  ds_defs[ ds_name ] = ds_def
+	#end if-else ds_name
+
+	ds_specs.append( spec )
+      #end if spec
+    #end for
+
+#		-- Process by looping on state points
+#		--
+    for state_ndx in range( len( self.states ) ):
+      for spec in ds_specs:
+        ds_name = spec[ 'ds_name' ]
+	ds_def = ds_defs[ ds_name ]
+        dset = self.GetStateDataSet( state_ndx, ds_name )
+
+#			-- Scalar
+#			--
+	if ds_def[ 'type' ] == 'scalar':
+	  if ds_name not in result:
+	    result[ ds_name ] = []
+	  value = 0.0  if dset is None else  dset.value.item()
+	  result[ ds_name ].append( value )
+
+#			-- Detector
+#			--
+	elif ds_def[ 'type' ] == 'detector':
+	  if ds_name not in result:
+	    result[ ds_name ] = []
+
+	  if dset is None:
+	    value = 0.0
+	  else:
+            ds_shape = ds_def[ 'shape' ]
+	    axial_cm = spec.get( 'axial_value', 0.0 )
+            ax_value = self.CreateAxialValue( cm = axial_cm )
+            axial_ndx = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
+
+	    detector_index = spec.get( 'detector_index', 0 )
+            det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
+
+	    value = dset.value[ axial_ndx, det_ndx ]
+	  result[ ds_name ].append( value )
+
+#			-- Vanadium
+#			--
+	elif ds_def[ 'type' ] == 'vanadium':
+	  if ds_name not in result:
+	    result[ ds_name ] = []
+
+	  if dset is None:
+	    value = 0.0
+	  else:
+            ds_shape = ds_def[ 'shape' ]
+	    axial_cm = spec.get( 'axial_value', 0.0 )
+            ax_value = self.CreateAxialValue( cm = axial_cm )
+            axial_ndx = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
+
+	    detector_index = spec.get( 'detector_index', 0 )
+            det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
+
+	    value = dset.value[ axial_ndx, det_ndx ]
+	  result[ ds_name ].append( value )
+
+#			-- Others are pin-based
+#			--
+	else:
+	  colrows = None
+	  if ds_def[ 'type' ].startswith( 'channel' ):
+	    colrows = spec.get( 'channel_colrows' )
+	  else:
+	    colrows = spec.get( 'pin_colrows' )
+
+#				-- Must have colrows
+          if colrows is not None:
+	    if ds_name in result:
+	      ds_result = result[ ds_name ]
+	    else:
+	      ds_result = {}
+	      result[ ds_name ] = ds_result
+
+            ds_shape = \
+                ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
+	        ds_def[ 'shape' ]
+
+            if dset is not None:
+	      assembly_index = spec.get( 'assembly_index', 0 )
+              assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+
+	      axial_cm = spec.get( 'axial_value', 0.0 )
+              ax_value = self.CreateAxialValue( cm = axial_cm )
+              axial_ndx = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
+
+            colrow_set = set()
+            for colrow in colrows:
+	      colrow = (
+	          min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
+	          min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+	          )
+	      colrow_set.add( colrow )
+
+	    for colrow in colrow_set:
+	      if colrow not in ds_result:
+	        ds_result[ colrow ] = []
+	      value = 0.0
+	      if dset is not None:
+	        value = \
+		    dset.value[ colrow[ 1 ], colrow[ 0 ], axial_ndx, assy_ndx ]
+	      ds_result[ colrow ].append( value )
+	    #end for colrow
+	  #end if colrows specified
+        #end if-else ds_def[ 'type' ]
+      #end for spec
+    #end for state_ndx
+
+#		-- Convert arrays to np.ndarrays
+#		--
+    for k in result:
+      if isinstance( result[ k ], dict ):
+	for k2 in result[ k ]:
+	  result[ k ][ k2 ] = np.array( result[ k ][ k2 ], dtype = np.float64 )
+      else:
+	result[ k ] = np.array( result[ k ], dtype = np.float64 )
+        #new_result[ k ] = np.array( item, dtype = np.float64 )
+    #end for k, item
+
+    return  result
+  #end ReadDataSetValues2
 
 
   #----------------------------------------------------------------------

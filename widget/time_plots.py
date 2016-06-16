@@ -744,6 +744,110 @@ Once aux{Channel,Pin}ColRows include the assembly and axial indexes,
 compare each new dataset with what's in self.dataSetValues and only load
 new ones in new_ds_values, copying from self.dataSetValues for ones
 already read.
+"""
+    #del self.refAxisValues[ : ]
+    self.dataSetTypes.clear()
+    self.dataSetValues.clear()
+
+    #x new_ds_types = set()
+    #x new_ds_values = {}
+
+#		-- Must have data
+#		--
+    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
+      chan_colrow_list = None
+      pin_colrow_list = None
+
+#			-- Construct read specs
+#			--
+      specs = []
+      specs.append( { 'ds_name': self.state.timeDataSet} )
+
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+
+#				-- Must be visible
+        if ds_rec[ 'visible' ] and ds_name is not None:
+	  ds_type = self.data.GetDataSetType( ds_name )
+	  spec = { 'ds_name': ds_name }
+
+#					-- Channel
+	  if ds_type.startswith( 'channel' ):
+#						-- Lazy creation
+	    if chan_colrow_list is None:
+              chan_colrow_list = list( self.auxChannelColRows )
+              chan_colrow_list.insert( 0, self.channelColRow )
+
+	    spec[ 'assembly_index' ] = self.assemblyIndex[ 0 ]
+	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	    spec[ 'channel_colrows' ] = chan_colrow_list
+	    specs.append( spec )
+            self.dataSetTypes.add( 'channel' )
+
+#					-- Detector
+	  elif ds_type.startswith( 'detector' ):
+	    spec[ 'detector_index' ] = self.detectorIndex[ 0 ]
+	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	    specs.append( spec )
+            self.dataSetTypes.add( 'detector' )
+
+#					-- Pin
+	  elif ds_type.startswith( 'pin' ):
+#						-- Lazy creation
+	    if pin_colrow_list is None:
+              pin_colrow_list = list( self.auxPinColRows )
+              pin_colrow_list.insert( 0, self.pinColRow )
+
+	    spec[ 'assembly_index' ] = self.assemblyIndex[ 0 ]
+	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	    spec[ 'pin_colrows' ] = pin_colrow_list
+	    specs.append( spec )
+            self.dataSetTypes.add( 'pin' )
+
+#					-- Vanadium
+	  elif ds_type.startswith( 'vanadium' ):
+	    spec[ 'detector_index' ] = self.detectorIndex[ 0 ]
+	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	    specs.append( spec )
+            self.dataSetTypes.add( 'vanadium' )
+
+#					-- Scalar
+	  else:
+	    specs.append( spec )
+            self.dataSetTypes.add( 'scalar' )
+	  #end if-else ds_type match
+        #end if visible
+      #end for k
+
+#			-- Read and extract
+#			--
+      results = self.data.ReadDataSetValues2( *specs )
+      pdb.set_trace()
+
+      self.refAxisValues = results[ self.state.timeDataSet ]
+
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+        if ds_rec[ 'visible' ] and ds_name is not None:
+	  self.dataSetValues[ k ] = results[ ds_name ]
+      #end for k
+    #end if valid state
+  #end _UpdateDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDataSetValues_slow()			-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetValues_slow( self ):
+    """Rebuild dataset arrays to plot.
+Performance enhancement
+=======================
+Once aux{Channel,Pin}ColRows include the assembly and axial indexes,
+compare each new dataset with what's in self.dataSetValues and only load
+new ones in new_ds_values, copying from self.dataSetValues for ones
+already read.
 
 Also, we *must* visit each state point once, reading all required datasets
 in that statepoint.
@@ -837,7 +941,7 @@ in that statepoint.
         #end if visible
       #end for each dataset
     #end if valid state
-  #end _UpdateDataSetValues
+  #end _UpdateDataSetValues_slow
 
 
   #----------------------------------------------------------------------
