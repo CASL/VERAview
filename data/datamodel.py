@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-06-16	leerw@ornl.gov				-
+#	  Implemented ReadDataSetValues2() for faster performance.
+#	  Fixed small bug in ReadDataSetAxialValues().
 #		2016-06-07	leerw@ornl.gov				-
 #	  Fixed ReadDataSetAxialValues() handling of detector datasets.
 #		2016-06-04	leerw@ornl.gov				-
@@ -890,8 +893,8 @@ Parameters:
     van_ndx = -1
     axial_cm = 0.0
 
-    if 'value' in kwargs:
-      axial_cm = kwargs[ 'value' ]
+    if 'cm' in kwargs:
+      axial_cm = kwargs[ 'cm' ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
       van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
@@ -911,6 +914,12 @@ Parameters:
     elif 'pin_ndx' in kwargs: # huh?
       core_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
+      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+
+    elif 'value' in kwargs:
+      axial_cm = kwargs[ 'value' ]
+      core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
       van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
 
@@ -2262,8 +2271,8 @@ for NaN.  For now, we just assume 0.0 is "no data".
 @param  ds_name		dataset name
 @param  assembly_index	0-based assembly index
 @param  detector_index	0-based detector index
-@param  channel_colrows	single or iterable of colrow pairs
-@param  pin_colrows	single or iterable of colrow pairs
+@param  channel_colrows	list of colrow pairs
+@param  pin_colrows	list of colrow pairs
 @param  state_index	0-based state point index
 @return			None if dataset cannot be found,
 			dict by colrow of np.ndarray for datasets that vary
@@ -2292,31 +2301,32 @@ for NaN.  For now, we just assume 0.0 is "no data".
         colrows = \
             channel_colrows  if ds_type.startswith( 'channel' ) else \
 	    pin_colrows
-        if not hasattr( colrows, '__iter__' ):
-          colrows = [ colrows ]
+        #if not hasattr( colrows, '__iter__' ):
+          #colrows = [ colrows ]
+        if colrows is not None:
+          ds_shape = \
+              ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
+	      ds_def[ 'shape' ]
 
-        ds_shape = \
-            ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
-	    ds_def[ 'shape' ]
+          assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
-        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
-
-        if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
-	  result = {}
-          colrow_set = set()
-          for colrow in colrows:
-	    colrow = (
-	        min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
-	        min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
-	        )
-	    if colrow not in colrow_set:
-	      colrow_set.add( colrow )
-	      result[ colrow ] = \
-	          dset.value[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-          #end for colrow
-        else:
-	  result = dset.value[ 0, 0, :, assy_ndx ]
-        #end if-else ds_shape
+          if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+	    result = {}
+            colrow_set = set()
+            for colrow in colrows:
+	      colrow = (
+	          min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
+	          min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+	          )
+	      if colrow not in colrow_set:
+	        colrow_set.add( colrow )
+	        result[ colrow ] = \
+	            dset.value[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
+            #end for colrow
+          else:
+	    result = dset.value[ 0, 0, :, assy_ndx ]
+          #end if-else ds_shape
+        #end if colrows
       #end if-else ds_type
     #end if dset is not None
 
@@ -2580,6 +2590,8 @@ at a time for better performance.
 
 #		-- Process by looping on state points
 #		--
+    #if 'pin_powers' in ds_defs:
+      #pdb.set_trace()
     for state_ndx in range( len( self.states ) ):
       for spec in ds_specs:
         ds_name = spec[ 'ds_name' ]
@@ -2604,7 +2616,7 @@ at a time for better performance.
 	    value = 0.0
 	  else:
             ds_shape = ds_def[ 'shape' ]
-	    axial_cm = spec.get( 'axial_value', 0.0 )
+	    axial_cm = spec.get( 'axial_cm', 0.0 )
             ax_value = self.CreateAxialValue( cm = axial_cm )
             axial_ndx = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
 
@@ -2624,7 +2636,7 @@ at a time for better performance.
 	    value = 0.0
 	  else:
             ds_shape = ds_def[ 'shape' ]
-	    axial_cm = spec.get( 'axial_value', 0.0 )
+	    axial_cm = spec.get( 'axial_cm', 0.0 )
             ax_value = self.CreateAxialValue( cm = axial_cm )
             axial_ndx = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
 
@@ -2637,20 +2649,15 @@ at a time for better performance.
 #			-- Others are pin-based
 #			--
 	else:
-	  colrows = None
-	  if ds_def[ 'type' ].startswith( 'channel' ):
-	    colrows = spec.get( 'channel_colrows' )
-	  else:
-	    colrows = spec.get( 'pin_colrows' )
+          colrows = \
+              spec.get( 'channel_colrows' ) \
+	      if ds_def[ 'type' ].startswith( 'channel' ) else \
+              spec.get( 'pin_colrows' )
+          #if not hasattr( colrows, '__iter__' ):
+            #colrows = [ colrows ]
 
 #				-- Must have colrows
           if colrows is not None:
-	    if ds_name in result:
-	      ds_result = result[ ds_name ]
-	    else:
-	      ds_result = {}
-	      result[ ds_name ] = ds_result
-
             ds_shape = \
                 ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	        ds_def[ 'shape' ]
@@ -2659,27 +2666,43 @@ at a time for better performance.
 	      assembly_index = spec.get( 'assembly_index', 0 )
               assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
-	      axial_cm = spec.get( 'axial_value', 0.0 )
+	      axial_cm = spec.get( 'axial_cm', 0.0 )
               ax_value = self.CreateAxialValue( cm = axial_cm )
               axial_ndx = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
-            colrow_set = set()
-            for colrow in colrows:
-	      colrow = (
-	          min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
-	          min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
-	          )
-	      colrow_set.add( colrow )
+            if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+	      if ds_name in result:
+	        ds_result = result[ ds_name ]
+	      else:
+	        ds_result = {}
+	        result[ ds_name ] = ds_result
 
-	    for colrow in colrow_set:
-	      if colrow not in ds_result:
-	        ds_result[ colrow ] = []
+              colrow_set = set()
+              for colrow in colrows:
+	        colrow = (
+	            min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
+	            min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+	            )
+		if colrow not in colrow_set:
+	          colrow_set.add( colrow )
+		  if colrow not in ds_result:
+		    ds_result[ colrow ] = []
+		  value = 0.0
+		  if dset is not None:
+	            value = dset.\
+		        value[ colrow[ 1 ], colrow[ 0 ], axial_ndx, assy_ndx ]
+		  ds_result[ colrow ].append( value )
+	      #end for colrow
+
+	    else:
+	      if ds_name not in result:
+	        result[ ds_name ] = []
+
 	      value = 0.0
 	      if dset is not None:
-	        value = \
-		    dset.value[ colrow[ 1 ], colrow[ 0 ], axial_ndx, assy_ndx ]
-	      ds_result[ colrow ].append( value )
-	    #end for colrow
+	        value = dset.value[ 0, 0, axial_ndx, assy_ndx ]
+	      result[ ds_name ].append( value )
+            #end if-else ds_shape
 	  #end if colrows specified
         #end if-else ds_def[ 'type' ]
       #end for spec

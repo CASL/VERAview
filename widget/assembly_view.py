@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-06-16	leerw@ornl.gov				-
+#	  Fixed bug in _HiliteBitmap() when the primary selection
+#	  is not visible.
 #		2016-04-25	leerw@ornl.gov				-
 #	  Starting support for secondary pinColRow selections.
 #		2016-04-18	leerw@ornl.gov				-
@@ -719,6 +722,7 @@ Subclasses should override as needed.
 
       new_bmap = None
       dc = None
+      secondary_pen = None
 
       assy_region = self.config[ 'assemblyRegion' ]
       pin_gap = self.config[ 'pinGap' ]
@@ -737,35 +741,29 @@ Subclasses should override as needed.
 	    new_bmap = self._CopyBitmap( bmap )
             dc = wx.MemoryDC( new_bmap )
 	    gc = wx.GraphicsContext.Create( dc )
+
+	  if i == 0:
 	    gc.SetPen(
 	        wx.ThePenList.FindOrCreatePen(
 	            wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
 		    )
 	        )
-	  elif i == 1:
-	    gc.SetPen(
-	        wx.ThePenList.FindOrCreatePen(
-	            wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
-		    )
+	  elif secondary_pen is None:
+	    secondary_pen = wx.ThePenList.FindOrCreatePen(
+	        wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
 	        )
-        #end if addr within range
+	    gc.SetPen( secondary_pen )
 
-	rect = \
-	  [
-	    rel_col * pin_adv + assy_region[ 0 ],
-	    rel_row * pin_adv + assy_region[ 1 ],
-	    pin_wd + 1, pin_wd + 1
-	  ]
-	path = gc.CreatePath()
-	path.AddRectangle( *rect )
-	gc.StrokePath( path )
-# This doesn't work on MSWIN
-#	 dc.SetBrush( wx.TRANSPARENT_BRUSH )
-#        dc.SetPen(
-#	     wx.ThePenList.FindOrCreatePen(
-#	         wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
-#	 	 )
-#	     )
+	  rect = \
+	    [
+	      rel_col * pin_adv + assy_region[ 0 ],
+	      rel_row * pin_adv + assy_region[ 1 ],
+	      pin_wd + 1, pin_wd + 1
+	    ]
+	  path = gc.CreatePath()
+	  path.AddRectangle( *rect )
+	  gc.StrokePath( path )
+        #end if addr within range
       #end for i
 
       if dc is not None:

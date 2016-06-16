@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-06-16	leerw@ornl.gov				-
+#	  Fixed bug in _HiliteBitmap() when the primary selection
+#	  is not visible.
 #		2016-05-04	leerw@ornl.gov				-
 #	  Adding support for secondary channelColRow selections.
 #		2016-04-18	leerw@ornl.gov				-
@@ -787,6 +790,7 @@ Subclasses should override as needed.
 
       new_bmap = None
       dc = None
+      secondary_pen = None
 
       assy_region = self.config[ 'assemblyRegion' ]
       chan_gap = self.config[ 'channelGap' ]
@@ -805,17 +809,18 @@ Subclasses should override as needed.
 	    new_bmap = self._CopyBitmap( bmap )
             dc = wx.MemoryDC( new_bmap )
 	    gc = wx.GraphicsContext.Create( dc )
+
+	  if i == 0:
 	    gc.SetPen(
 	        wx.ThePenList.FindOrCreatePen(
 	            wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
 		    )
 	        )
-	  elif i == 1:
-	    gc.SetPen(
-	        wx.ThePenList.FindOrCreatePen(
-	            wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
-		    )
+	  elif secondary_pen is None:
+	    secondary_pen = wx.ThePenList.FindOrCreatePen(
+	        wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
 	        )
+	    gc.SetPen( secondary_pen )
 
 	  rect = \
 	    [
@@ -826,13 +831,6 @@ Subclasses should override as needed.
 	  path = gc.CreatePath()
 	  path.AddRectangle( *rect )
 	  gc.StrokePath( path )
-# This doesn't work on MSWIN
-#	   dc.SetBrush( wx.TRANSPARENT_BRUSH )
-#          dc.SetPen(
-#	       wx.ThePenList.FindOrCreatePen(
-#	           wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
-#	 	   )
-#	       )
         #end if within range
       #end for i
 

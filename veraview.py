@@ -961,7 +961,7 @@ Must be called from the UI thread.
 
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
-    if True:
+    if False:
       widget_list = [
           'widget.core_view.Core2DView',
           'widget.assembly_view.Assembly2DView',

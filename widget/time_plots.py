@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-06-16	leerw@ornl.gov				-
+#	  Calling DataModel.ReadDataSetValues2() in _UpdateDataSetValues().
 #		2016-06-07	leerw@ornl.gov				-
 #	  Implemented _CreateClipboardData().
 #		2016-06-04	leerw@ornl.gov				-
@@ -823,7 +825,6 @@ already read.
 #			-- Read and extract
 #			--
       results = self.data.ReadDataSetValues2( *specs )
-      pdb.set_trace()
 
       self.refAxisValues = results[ self.state.timeDataSet ]
 
@@ -842,15 +843,6 @@ already read.
   #----------------------------------------------------------------------
   def _UpdateDataSetValues_slow( self ):
     """Rebuild dataset arrays to plot.
-Performance enhancement
-=======================
-Once aux{Channel,Pin}ColRows include the assembly and axial indexes,
-compare each new dataset with what's in self.dataSetValues and only load
-new ones in new_ds_values, copying from self.dataSetValues for ones
-already read.
-
-Also, we *must* visit each state point once, reading all required datasets
-in that statepoint.
 """
     #del self.refAxisValues[ : ]
     self.dataSetTypes.clear()
@@ -945,101 +937,6 @@ in that statepoint.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDataSetValues_simple()			-
-  #----------------------------------------------------------------------
-  def _UpdateDataSetValues_simple( self ):
-    """Rebuild dataset arrays to plot.
-"""
-    #del self.refAxisValues[ : ]
-    self.dataSetTypes.clear()
-    self.dataSetValues.clear()
-
-#		-- Must have data
-#		--
-    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
-      chan_colrow_list = None
-      pin_colrow_list = None
-
-#			-- Build reference axis values
-#			--
-      self.refAxisValues = self.data.ReadDataSetValues( self.state.timeDataSet )
-
-#			-- Build dict of arrays for selected datasets
-#			--
-      for k in self.dataSetSelections:
-        ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
-
-#				-- Must be visible
-#				--
-        if ds_rec[ 'visible' ] and ds_name is not None:
-	  ds_values = None
-	  ds_type = self.data.GetDataSetType( ds_name )
-
-#					-- Channel
-	  if ds_type.startswith( 'channel' ):
-#						-- Lazy creation
-	    if chan_colrow_list is None:
-              chan_colrow_list = list( self.auxChannelColRows )
-              chan_colrow_list.insert( 0, self.channelColRow )
-
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		assembly_index = self.assemblyIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ],
-		channel_colrows = chan_colrow_list
-		)
-            self.dataSetTypes.add( 'channel' )
-
-#					-- Detector
-	  elif ds_type.startswith( 'detector' ):
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		detector_index = self.detectorIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ]
-		)
-            self.dataSetTypes.add( 'detector' )
-
-#					-- Pin
-	  elif ds_type.startswith( 'pin' ):
-#						-- Lazy creation
-	    if pin_colrow_list is None:
-              pin_colrow_list = list( self.auxPinColRows )
-              pin_colrow_list.insert( 0, self.pinColRow )
-
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		assembly_index = self.assemblyIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ],
-		pin_colrows = pin_colrow_list
-		)
-            self.dataSetTypes.add( 'pin' )
-
-#					-- Vanadium
-	  elif ds_type.startswith( 'vanadium' ):
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		detector_index = self.detectorIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ]
-		)
-            self.dataSetTypes.add( 'vanadium' )
-
-#					-- Scalar
-	  else:
-	    ds_values = self.data.ReadDataSetValues( ds_name )
-            self.dataSetTypes.add( 'scalar' )
-
-	  #end if ds_type match
-
-	  if ds_values is not None:
-	    self.dataSetValues[ k ] = ds_values
-        #end if visible
-      #end for each dataset
-    #end if valid state
-  #end _UpdateDataSetValues_simple
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_UpdateStateValues()				-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------
@@ -1082,7 +979,6 @@ Must be called from the UI thread.
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       self.channelDataSet = kwargs[ 'channel_dataset' ]
       select_name = self.GetSelectedDataSetName( 'channel' )
-      #if '_channelDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
@@ -1091,7 +987,6 @@ Must be called from the UI thread.
     if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
       self.detectorDataSet = kwargs[ 'detector_dataset' ]
       select_name = self.GetSelectedDataSetName( 'detector' )
-      #if '_detectorDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
@@ -1110,7 +1005,6 @@ Must be called from the UI thread.
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       self.pinDataSet = kwargs[ 'pin_dataset' ]
       select_name = self.GetSelectedDataSetName( 'pin' )
-      #if '_pinDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
@@ -1120,7 +1014,6 @@ Must be called from the UI thread.
         kwargs[ 'scalar_dataset' ] != self.scalarDataSet:
       self.scalarDataSet = kwargs[ 'scalar_dataset' ]
       select_name = self.GetSelectedDataSetName( 'scalar' )
-      #if '_pinDataSet_' in self.dataSetSelections:
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
