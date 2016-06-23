@@ -1680,20 +1680,33 @@ Must be called from the UI thread.
 
       elif 'data_model' in status and 'file_path' in status:
 	self.state.Load( status[ 'data_model' ] )
-	widget_config = WidgetConfig.ReadUserFile()
-	if widget_config is not None:
-	  ans = wx.MessageBox(
-	      'Load widget configuration?',
-	      'Load Configuration',
-	      wx.YES_NO | wx.CANCEL,
-	      self
-              )
-	  if ans != wx.YES:
-	    widget_config = None
-
-        self.LoadDataModel( status[ 'file_path' ], widget_config )
+	wx.CallAfter( self.LoadDataModel, status[ 'file_path' ], None )
+#	widget_config = WidgetConfig.ReadUserFile()
+#	if widget_config is None:
+#          self.LoadDataModel( status[ 'file_path' ], widget_config )
+#	else:
+#	  wx.CallAfter( self._OpenFileEnd2, status[ 'file_path' ], widget_config )
     #end if
   #end _OpenFileEnd
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OpenFileEnd2()			-
+  #----------------------------------------------------------------------
+  def _OpenFileEnd2( self, file_path, widget_config ):
+    """
+"""
+    ans = wx.MessageBox(
+        'Load widget configuration?',
+	'Load Configuration',
+	wx.YES_NO | wx.CANCEL,
+	self
+        )
+    if ans != wx.YES:
+      widget_config = None
+
+    self.LoadDataModel( file_path, widget_config )
+  #end _OpenFileEnd2
 
 
   #----------------------------------------------------------------------

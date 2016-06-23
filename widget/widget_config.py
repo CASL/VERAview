@@ -38,7 +38,11 @@ class WidgetConfig( object ):
 #  frame_size		size of 
 @param  file_path	optional path to file to read
 """
-    self.fDict = {}
+    self.fDict = \
+      {
+      'frameSize': ( 0, 0 ),
+      'widgets': []
+      }
 
     if file_path is not None:
       self.Read( file_path )
@@ -51,7 +55,12 @@ class WidgetConfig( object ):
   def AddWidgets( self, *widget_list ):
     """
 """
-    pass
+    for w in widget_list:
+      module_path = w.__module__ + '.' + w.__class__.__name__
+      rec = { 'classpath': module_path }
+      w.SaveProps( rec )
+      self.fDict[ 'widgets' ].append( rec )
+    #end for w
   #end AddWidgets
 
 
@@ -79,9 +88,29 @@ class WidgetConfig( object ):
   #----------------------------------------------------------------------
   def Read( self, file_path ):
     """
-@param  file_path	path to file to read
+@param  file_path	path to file to read or None to read the user file
 """
-    pass
+    self.fDict[ 'frameSize' ] = ( 0, 0 )
+    del self.fDict[ 'widgets' ][ : ]
+
+    if file_path is None:
+      file_path = os.path.join(
+          WidgetConfig.GetPlatformAppDataDir(),
+	  'widget.config'
+	  )
+
+    if os.path.exists( file_path ):
+      fp = file( file_path )
+      try:
+	content = fp.read( -1 )
+	cur_dict = json.loads( content )
+	if 'frameSize' in cur_dict:
+	  self.fDict[ 'frameSize' ] = cur_dict[ 'frameSize' ]
+	if 'widgets' in cur_dict:
+	  self.fDict[ 'widgets' ] = cur_dict[ 'widgets' ]
+      finally:
+        fp.close()
+    #end if
   #end Read
 
 
@@ -168,8 +197,7 @@ class WidgetConfig( object ):
         os.path.join( WidgetConfig.GetPlatformAppDataDir(), 'widget.config' )
 
     if os.path.exists( file_path ):
-      pass
-      #config = WidgetConfig( file_path )
+      config = WidgetConfig( file_path )
 
     return  config
   #end ReadUserFile

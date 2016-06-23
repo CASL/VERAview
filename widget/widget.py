@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-06-23	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-04-23	leerw@ornl.gov				-
 #	  Moved GetSelectedDataSetName() from AxialPlot.
 #	  Replaced GetDisplaysMultiDataSets() with GetDataSetDisplayMode().
@@ -927,6 +929,18 @@ return True, in which case ToggleDataSetVisible() should also be overridden.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.LoadProps()				-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    pass
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnContextMenu()				-
   #----------------------------------------------------------------------
   def _OnContextMenu( self, ev ):
@@ -1107,6 +1121,18 @@ state_index changes.
     if update_args:
       self.FireStateChange( **update_args )
   #end _OnFindMaxPin
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.SaveProps()				-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object to which to serialize properties
+"""
+    pass
+  #end SaveProps
 
 
   #----------------------------------------------------------------------
