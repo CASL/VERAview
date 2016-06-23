@@ -5,7 +5,7 @@
 #	HISTORY:							-
 #		2016-06-21	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import os, platform, sys
+import json, os, platform, sys
 import pdb  # set_trace()
 
 try:
@@ -33,21 +33,45 @@ class WidgetConfig( object ):
   #----------------------------------------------------------------------
   def __init__( self, file_path = None ):
     """
-@param  kwargs		default behavior is to read the current
-  read
+#@param  kwargs		optional initialization arguments
+#  file_path		path to file to read
+#  frame_size		size of 
 @param  file_path	optional path to file to read
 """
+    self.fDict = {}
+
     if file_path is not None:
       self.Read( file_path )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.IsValid()				-
+  #	METHOD:		WidgetConfig.AddWidgets()			-
   #----------------------------------------------------------------------
-  def IsValid( self ):
-    return  False
-  #end IsValid
+  def AddWidgets( self, *widget_list ):
+    """
+"""
+    pass
+  #end AddWidgets
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetFrameSize()			-
+  #----------------------------------------------------------------------
+  def GetFrameSize( self ):
+    """
+@return			size tuple ( wd, ht ), default to ( 0, 0 )
+"""
+    return  self.fDict.get( 'frameSize', ( 0, 0 ) )
+  #end GetFrameSize
+
+
+#  #----------------------------------------------------------------------
+#  #	METHOD:		WidgetConfig.IsValid()				-
+#  #----------------------------------------------------------------------
+#  def IsValid( self ):
+#    return  False
+#  #end IsValid
 
 
   #----------------------------------------------------------------------
@@ -59,6 +83,37 @@ class WidgetConfig( object ):
 """
     pass
   #end Read
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.SetFrameSize()			-
+  #----------------------------------------------------------------------
+  def SetFrameSize( self, wd, ht ):
+    """
+"""
+    self.fDict[ 'frameSize' ] = ( wd, ht )
+  #end SetFrameSize
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.Write()				-
+  #----------------------------------------------------------------------
+  def Write( self, file_path = None ):
+    """
+@param  file_path	path to file to write or None to write the user file
+"""
+    if file_path is None:
+      file_path = os.path.join(
+          WidgetConfig.GetPlatformAppDataDir( True ),
+	  'widget.config'
+	  )
+
+    fp = file( file_path, 'w' )
+    try:
+      fp.write( json.dumps( self.fDict, indent = 2 ) )
+    finally:
+      fp.close()
+  #end Write
 
 
 #		-- Static Methods

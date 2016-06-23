@@ -259,7 +259,6 @@ unnecessary.
       self.firstLoop = False
       #self.frame.GetStatusBar().SetStatusText( '' )
 
-      #xxx config?
       if self.filepath is not None and os.path.exists( self.filepath ):
         self.frame.OpenFile( self.filepath )
       else:
@@ -1431,9 +1430,17 @@ Must be called from the UI thread.
         )
     if ans == wx.YES:
       widget_config = WidgetConfig()
+
+      fr_size = self.GetSize()
+      widget_config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
+
+      widget_list = []
       for wc in self.grid.GetChildren():
         if isinstance( wc, WidgetContainer ):
-	  pass
+	  widget_list.append( wc.widget )
+
+      widget_config.AddWidgets( *widget_list )
+      widget_config.Write()
 #	  wc.widget.__module__ + '.' + wc.widget.__class__.__name__
 #  'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
 
