@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-06-27	leerw@ornl.gov				-
+#	  Moved EVENT_ID_NAMES here for better encapsulation.
 #		2016-05-25	leerw@ornl.gov				-
 #	  Special "vanadium" dataset type.
 #		2016-04-25	leerw@ornl.gov				-
@@ -71,10 +73,10 @@ STATE_CHANGE_auxPinColRows = 0x1 << 15
 STATE_CHANGE_vanadiumDataSet = 0x1 << 16
 #STATE_CHANGE_ALL = 0x1fff
 
+
 LOCKABLE_STATES = \
   (
   STATE_CHANGE_assemblyIndex,
-  #STATE_CHANGE_axialLevel,
   STATE_CHANGE_auxChannelColRows,
   STATE_CHANGE_auxPinColRows,
   STATE_CHANGE_axialValue,
@@ -85,11 +87,27 @@ LOCKABLE_STATES = \
   STATE_CHANGE_pinColRow,
   STATE_CHANGE_pinDataSet,
   STATE_CHANGE_scalarDataSet,
-  STATE_CHANGE_scaleMode,
+  #STATE_CHANGE_scaleMode,
   STATE_CHANGE_stateIndex,
   STATE_CHANGE_timeDataSet,
   STATE_CHANGE_vanadiumDataSet
   )
+
+
+EVENT_ID_NAMES = \
+  [
+    ( STATE_CHANGE_assemblyIndex, 'Assembly Index' ),
+    ( STATE_CHANGE_axialValue, 'Axial Value' ),
+    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
+    ( STATE_CHANGE_channelDataSet, 'Channel Dataset' ),
+    ( STATE_CHANGE_detectorDataSet, 'Detector Dataset' ),
+    ( STATE_CHANGE_detectorIndex, 'Detector Index' ),
+    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
+    ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
+    ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
+    ( STATE_CHANGE_stateIndex, 'State Point Index' ),
+    ( STATE_CHANGE_vanadiumDataSet, 'Vanadium Dataset' )
+  ]
 
 
 #------------------------------------------------------------------------

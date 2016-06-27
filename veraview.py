@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-06-27	leerw@ornl.gov				-
+#	  Moved prompt for widget config.
 #		2016-06-20	leerw@ornl.gov				-
 #	  Putting in hooks for reading/writing widget configurations.
 #		2016-06-04	leerw@ornl.gov				-
@@ -260,7 +262,18 @@ unnecessary.
       #self.frame.GetStatusBar().SetStatusText( '' )
 
       if self.filepath is not None and os.path.exists( self.filepath ):
-        self.frame.OpenFile( self.filepath )
+        #self.frame.OpenFile( self.filepath )
+        widget_config = WidgetConfig.ReadUserFile()
+        if widget_config is not None:
+          ans = wx.MessageBox(
+              'Load widget configuration?',
+	      'Load Configuration',
+	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
+	      None
+              )
+          if ans != wx.YES:
+            widget_config = None
+        self.frame.OpenFile( self.filepath, widget_config )
       else:
         self.frame._OnOpenFile( None )
 ##      self.frame.Raise()
@@ -389,6 +402,7 @@ class VeraViewFrame( wx.Frame ):
     super( VeraViewFrame, self ).__init__( None, -1 )
 
     self.app = app
+    self.axialPlotTypes = set()
 #    self.dataSetDefault = ds_default
     self.eventLocks = State.CreateLocks()
     self.state = state
@@ -521,6 +535,11 @@ WIDGET_MAP and TOOLBAR_ITEMS
           self.Create3DWidget( widget_class, refit_flag )
         else:
           wc = self.Create2DWidget( widget_class, refit_flag )
+	  title = wc.widget.GetTitle()
+          if title == 'Axial Plots':
+	    wc.widget.InitDataSetSelections( self.axialPlotTypes )
+          elif title == 'Time Plots':
+	    wc.widget.InitDataSetSelections( [ 'scalar' ] )
       except Exception, ex:
         wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
     #end if-else
@@ -859,7 +878,7 @@ Must be called from the UI thread.
 
 #		-- Determine Default Initial Widgets
 #		--
-    axial_plot_types = set()
+    self.axialPlotTypes.clear()
     widget_list = []
 
     if data.core.nass > 1:
@@ -870,20 +889,20 @@ Must be called from the UI thread.
     if len( data.GetDataSetNames()[ 'detector' ] ) > 0:
       widget_list.append( 'widget.detector_view.Detector2DView' )
       if data.core.ndetax > 1:
-	axial_plot_types.add( 'detector' )
-	axial_plot_types.add( 'pin' )
+	self.axialPlotTypes.add( 'detector' )
+	self.axialPlotTypes.add( 'pin' )
 
     if len( data.GetDataSetNames()[ 'vanadium' ] ) > 0:
       if 'widget.detector_view.Detector2DView' not in widget_list:
         widget_list.append( 'widget.detector_view.Detector2DView' )
       if data.core.nvanax > 1:
-	axial_plot_types.add( 'vanadium' )
+	self.axialPlotTypes.add( 'vanadium' )
 
 #		-- Pin Mode
 #		--
     if len( data.GetDataSetNames()[ 'pin' ] ) > 0:
       if data.core.nax > 1:
-	axial_plot_types.add( 'pin' )
+	self.axialPlotTypes.add( 'pin' )
         widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
       widget_list.append( 'widget.assembly_view.Assembly2DView' )
 
@@ -894,13 +913,13 @@ Must be called from the UI thread.
         widget_list.append( 'widget.channel_view.Channel2DView' )
       widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
       if data.core.nax > 1:
-	axial_plot_types.add( 'channel' )
+	self.axialPlotTypes.add( 'channel' )
         widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
         #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
 #		-- Axial Plot?
 #		--
-    if len( axial_plot_types ) > 0:
+    if len( self.axialPlotTypes ) > 0:
       widget_list.append( 'widget.axial_plot.AxialPlot' )
       #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
 
@@ -908,9 +927,6 @@ Must be called from the UI thread.
 #		--
     if len( data.states ) > 1:
       widget_list.append( 'widget.time_plots.TimePlots' )
-
-    axial_plot_widget = None
-    time_plots_widget = None
 
 #		-- Create widgets, find AllAxialPlot widget reference
 #		--
@@ -936,21 +952,21 @@ Must be called from the UI thread.
         print >> sys.stderr, \
             '[VeraViewFrame.LoadDataModel] added="%s", size=%s' % \
 	    ( w, str( self.grid.GetSize() ) )
-        if con is None:
-          pass
-        elif con.widget.GetTitle() == 'Axial Plots':
-          axial_plot_widget = con.widget
-        elif con.widget.GetTitle() == 'Time Plots':
-          time_plots_widget = con.widget
+#        if con is None:
+#          pass
+#        elif con.widget.GetTitle() == 'Axial Plots':
+#          axial_plot_widget = con.widget
+#        elif con.widget.GetTitle() == 'Time Plots':
+#          time_plots_widget = con.widget
       #end for
 
-    #xxxxx this must be called other places when CreateWidget() is called
-    if axial_plot_widget is not None:
-      axial_plot_widget.InitDataSetSelections( axial_plot_types )
-    #end if
-    if time_plots_widget is not None:
-      time_plots_widget.InitDataSetSelections( [ 'scalar' ] )
-    #end if
+    #xxxxx this is now called in CreateWidget()
+#    if axial_plot_widget is not None:
+#      axial_plot_widget.InitDataSetSelections( self.axialPlotTypes )
+#    #end if
+#    if time_plots_widget is not None:
+#      time_plots_widget.InitDataSetSelections( [ 'scalar' ] )
+#    #end if
 
 #		-- Update title
 #		--
@@ -968,7 +984,6 @@ Must be called from the UI thread.
 #		--
     self.axialBean.SetRange( 1, data.core.nax )
     self.axialBean.axialLevel = self.state.axialValue[ 1 ]
-#    self.axialBean.axialLevel = self.state.axialLevel
     self.exposureBean.SetRange( 1, len( data.states ) )
     self.exposureBean.stateIndex = self.state.stateIndex
 
@@ -1403,7 +1418,19 @@ Must be called from the UI thread.
     if dialog.ShowModal() != wx.ID_CANCEL:
       path = dialog.GetPath()
       dialog.Destroy()
-      self.OpenFile( path )
+      #self.OpenFile( path )
+      widget_config = WidgetConfig.ReadUserFile()
+      if widget_config is not None:
+        ans = wx.MessageBox(
+            'Load widget configuration?',
+	    'Load Configuration',
+	    wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
+	    self
+            )
+        if ans != wx.YES:
+          widget_config = None
+
+      self.OpenFile( path, widget_config )
   #end _OnOpenFile
 
 
@@ -1425,7 +1452,7 @@ Must be called from the UI thread.
     ans = wx.MessageBox(
         'Save widget configuration?',
 	'Save Configuration',
-	wx.YES_NO | wx.CANCEL,
+	wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
 	self
         )
     if ans == wx.YES:
@@ -1612,7 +1639,7 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.OpenFile()			-
   #----------------------------------------------------------------------
-  def OpenFile( self, file_path ):
+  def OpenFile( self, file_path, widget_config = None ):
     """
 Must be called from the UI thread.
 """
@@ -1627,7 +1654,7 @@ Must be called from the UI thread.
     wxlibdr.startWorker(
 	self._OpenFileEnd,
 	self._OpenFileBegin,
-	wargs = [ dialog, file_path ]
+	wargs = [ dialog, file_path, widget_config ]
         )
   #end OpenFile
 
@@ -1635,11 +1662,16 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OpenFileBegin()			-
   #----------------------------------------------------------------------
-  def _OpenFileBegin( self, dialog, file_path ):
+  def _OpenFileBegin( self, dialog, file_path, widget_config ):
     """
 """
     dialog.Pulse()
-    status = { 'dialog': dialog, 'file_path': file_path }
+    status = \
+      {
+      'dialog': dialog,
+      'file_path': file_path,
+      'widget_config': widget_config
+      }
 
     try:
       data_model = DataModel( file_path )
@@ -1680,7 +1712,11 @@ Must be called from the UI thread.
 
       elif 'data_model' in status and 'file_path' in status:
 	self.state.Load( status[ 'data_model' ] )
-	wx.CallAfter( self.LoadDataModel, status[ 'file_path' ], None )
+	wx.CallAfter(
+	    self.LoadDataModel,
+	    status[ 'file_path' ],
+	    status.get( 'widget_config' )
+	    )
 #	widget_config = WidgetConfig.ReadUserFile()
 #	if widget_config is None:
 #          self.LoadDataModel( status[ 'file_path' ], widget_config )
@@ -1798,7 +1834,7 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame.ShowMessageDialog()		-
   #----------------------------------------------------------------------
   def ShowMessageDialog( self, message, title ):
-    """Can be called from any thread.
+    """Must be called on the UI thread.
 """
     wx.MessageDialog( self, message, title ).ShowWindowModal()
   #end ShowMessageDialog

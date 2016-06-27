@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-06-27	leerw@ornl.gov				-
+#	  Implementing SaveProps().
 #		2016-06-23	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-04-23	leerw@ornl.gov				-
@@ -1127,11 +1129,11 @@ state_index changes.
   #	METHOD:		Widget.SaveProps()				-
   #----------------------------------------------------------------------
   def SaveProps( self, props_dict ):
-    """Called to save properties.  This implementation is a noop and should
-be overridden by subclasses.
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    pass
+    props_dict[ 'eventLocks' ] = self.container.GetEventLocks()
   #end SaveProps
 
 

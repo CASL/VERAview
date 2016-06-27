@@ -1279,6 +1279,25 @@ This implementation is a noop.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.SaveProps()			-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( RasterWidget, self ).SaveProps( props_dict )
+
+    props_dict[ 'axialValue' ] = self.axialValue
+    props_dict[ 'cellRange' ] = self.cellRange
+    props_dict[ 'cellRangeStack' ] = self.cellRangeStack
+    props_dict[ 'showLabels' ] = self.showLabels
+    props_dict[ 'showLegend' ] = self.showLegend
+    props_dict[ 'stateIndex' ] = self.stateIndex
+  #end SaveProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.UpdateState()			-
   # Must be called from the UI thread.
   #----------------------------------------------------------------------

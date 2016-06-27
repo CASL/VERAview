@@ -695,7 +695,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #	STATE_CHANGE_detectorDataSet, if there is ever more than one
     locks = set([
         STATE_CHANGE_axialValue, STATE_CHANGE_detectorIndex,
-        STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
+        STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
+        STATE_CHANGE_vanadiumDataSet
 	])
     return  locks
   #end GetEventLockSet

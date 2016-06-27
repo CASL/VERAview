@@ -288,6 +288,17 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetEventLocks()					-
+  #----------------------------------------------------------------------
+  def GetEventLocks( self ):
+    """
+@return			locks dict
+"""
+    return  self.eventLocks
+  #end GetEventLocks
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetState()					-
   #----------------------------------------------------------------------
   def GetState( self ):
@@ -846,19 +857,6 @@ definition array for a pullright.
       #end for
     #end if
   #end _OnEventsEdit
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnExposureCheckBox()				-
-  #----------------------------------------------------------------------
-  def _OnExposureCheckBox( self, ev ):
-    """Handles events from the event lock check box.
-"""
-    ev.Skip()
-
-    obj = ev.GetEventObject()
-    self.eventLocks[ STATE_CHANGE_exposureIndex ] = obj.IsChecked()
-  #end _OnExposureCheckBox
 
 
   #----------------------------------------------------------------------

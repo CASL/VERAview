@@ -65,6 +65,17 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetFilePath()			-
+  #----------------------------------------------------------------------
+  def GetFilePath( self ):
+    """
+@return			path to saved file or None
+"""
+    return  self.fDict.get( 'filePath' )
+  #end GetFilePath
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.GetFrameSize()			-
   #----------------------------------------------------------------------
   def GetFrameSize( self ):
@@ -90,6 +101,8 @@ class WidgetConfig( object ):
     """
 @param  file_path	path to file to read or None to read the user file
 """
+    if 'filePath' in self.fDict:
+      del self.fDict[ 'filePath' ]
     self.fDict[ 'frameSize' ] = ( 0, 0 )
     del self.fDict[ 'widgets' ][ : ]
 
@@ -104,6 +117,8 @@ class WidgetConfig( object ):
       try:
 	content = fp.read( -1 )
 	cur_dict = json.loads( content )
+	if 'filePath' in cur_dict:
+	  self.fDict[ 'filePath' ] = cur_dict[ 'filePath' ]
 	if 'frameSize' in cur_dict:
 	  self.fDict[ 'frameSize' ] = cur_dict[ 'frameSize' ]
 	if 'widgets' in cur_dict:
@@ -112,6 +127,20 @@ class WidgetConfig( object ):
         fp.close()
     #end if
   #end Read
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.SetFilePath()			-
+  #----------------------------------------------------------------------
+  def SetFilePath( self, file_path = None ):
+    """
+@param  file_path	path to file or None
+"""
+    if file_path is None:
+      del self.fDict[ 'filePath' ]
+    else:
+      self.fDict[ 'filePath' ] = file_path
+  #end SetFilePath
 
 
   #----------------------------------------------------------------------

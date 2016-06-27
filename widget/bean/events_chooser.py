@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		events_chooser.py				-
 #	HISTORY:							-
+#		2016-06-27	leerw@ornl.gov				-
+#	  Moved EVENT_ID_NAMES to event/state.py.
 #		2015-05-28	leerw@ornl.gov				-
 #	  Added scrolled panel.
 #		2015-05-12	leerw@ornl.gov				-
@@ -21,19 +23,21 @@ except Exception:
 from event.state import *
 
 
-EVENT_ID_NAMES = \
-  [
-    ( STATE_CHANGE_assemblyIndex, 'Assembly Index' ),
-    ( STATE_CHANGE_axialValue, 'Axial Value' ),
-    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
-    ( STATE_CHANGE_channelDataSet, 'Channel Dataset' ),
-    ( STATE_CHANGE_detectorIndex, 'Detector Index' ),
-    ( STATE_CHANGE_detectorDataSet, 'Detector Dataset' ),
-    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
-    ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
-    ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
-    ( STATE_CHANGE_stateIndex, 'State Point Index' )
-  ]
+# Moved to event/state.py
+#EVENT_ID_NAMES = \
+#  [
+#    ( STATE_CHANGE_assemblyIndex, 'Assembly Index' ),
+#    ( STATE_CHANGE_axialValue, 'Axial Value' ),
+#    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
+#    ( STATE_CHANGE_channelDataSet, 'Channel Dataset' ),
+#    ( STATE_CHANGE_detectorIndex, 'Detector Index' ),
+#    ( STATE_CHANGE_detectorDataSet, 'Detector Dataset' ),
+#    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
+#    ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
+#    ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
+#    ( STATE_CHANGE_stateIndex, 'State Point Index' ),
+#    ( STATE_CHANGE_vanadiumDataSet, 'Vanadium Dataset' )
+#  ]
 
 
 #------------------------------------------------------------------------
