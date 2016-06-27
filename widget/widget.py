@@ -934,11 +934,12 @@ return True, in which case ToggleDataSetVisible() should also be overridden.
   #	METHOD:		Widget.LoadProps()				-
   #----------------------------------------------------------------------
   def LoadProps( self, props_dict ):
-    """Called to load properties.  This implementation is a noop and should
-be overridden by subclasses.
+    """Called to load properties.  Subclasses should override calling this
+method via super.SaveProps() at the end.
 @param  props_dict	dict object from which to deserialize properties
 """
-    pass
+    if 'eventLocks' in props_dict:
+      self.container.SetEventLocks( props_dict[ 'eventLocks' ] )
   #end LoadProps
 
 

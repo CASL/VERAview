@@ -944,7 +944,11 @@ Must be called from the UI thread.
           ]
 
     elif widget_config is not None:
-      pass
+      for w in widget_config.GetWidgets():
+	if 'classpath' in w:
+          con = self.CreateWidget( w[ 'classpath' ], False )
+	  con.widget.LoadProps( w )
+      #end for w
 
     else:
       for w in widget_list:
@@ -986,6 +990,20 @@ Must be called from the UI thread.
     self.axialBean.axialLevel = self.state.axialValue[ 1 ]
     self.exposureBean.SetRange( 1, len( data.states ) )
     self.exposureBean.stateIndex = self.state.stateIndex
+
+    if widget_config is not None:
+      self.state.axialValue = \
+          data.CreateAxialValue( cm = widget_config.GetAxialLevel() )
+      self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+
+      self.exposureBean.stateIndex = \
+      self.state.stateIndex = widget_config.GetStateIndex()
+
+      fr_size = widget_config.GetFrameSize()
+      if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
+        self.SetSize( fr_size )
+    #end if widget_config
+
 
 #		-- Update toolbar
 #		--
@@ -1449,6 +1467,8 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
+    data = self.state.GetDataModel()
+
     ans = wx.MessageBox(
         'Save widget configuration?',
 	'Save Configuration',
@@ -1459,7 +1479,11 @@ Must be called from the UI thread.
       widget_config = WidgetConfig()
 
       fr_size = self.GetSize()
+      axial_value = \
+          data.CreateAxialValue( core_ndx = self.axialBean.axialLevel )
+      widget_config.SetAxialLevel( axial_value[ 0 ] )
       widget_config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
+      widget_config.SetStateIndex( self.exposureBean.stateIndex )
 
       widget_list = []
       for wc in self.grid.GetChildren():
@@ -1471,8 +1495,8 @@ Must be called from the UI thread.
 #	  wc.widget.__module__ + '.' + wc.widget.__class__.__name__
 #  'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
 
-    if self.state.dataModel is not None:
-      self.state.dataModel.Close()
+    if data is not None:
+      data.Close()
     #self.Close()
     wx.App.Get().ExitMainLoop()
   #end _OnQuit

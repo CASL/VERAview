@@ -292,9 +292,9 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   def GetEventLocks( self ):
     """
-@return			locks dict
+@return			copy of locks dict
 """
-    return  self.eventLocks
+    return  dict( self.eventLocks )
   #end GetEventLocks
 
 
@@ -979,6 +979,19 @@ Must be called from the UI event thread
 	msg = 'Error saving image:' + os.linesep + str( ex )
 	wx.CallAfter( wx.MessageBox, msg, 'Save Error', wx.OK_DEFAULT, self )
   #end SaveWidgetImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SetEventLocks()					-
+  #----------------------------------------------------------------------
+  def SetEventLocks( self, locks ):
+    """
+@param  locks		dict to copy
+"""
+    for k in locks:
+      if k in self.eventLocks:
+        self.eventLocks[ k ] = locks[ k ]
+  #end SetEventLocks
 
 
   #----------------------------------------------------------------------

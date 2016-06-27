@@ -1026,6 +1026,38 @@ attributes/properties that aren't already set in _LoadDataModel():
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.LoadProps()			-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in (
+	'axialValue', 'cellRange', 'cellRangeStack',
+	'showLabels', 'showLegend', 'stateIndex'
+        ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+#    if 'axialValue' in props_dict:
+#      self.axialValue = props_dict[ 'axialValue' ]
+#    if 'cellRange' in props_dict:
+#      self.cellRange = props_dict[ 'cellRange' ]
+#    if 'cellRangeStack' in props_dict:
+#      self.cellRangeStack = props_dict[ 'cellRangeStack' ]
+#    if 'showLabels' in props_dict:
+#      self.showLabels = props_dict[ 'showLabels' ]
+#    if 'showLegend' in props_dict:
+#      self.showLegend = props_dict[ 'showLegend' ]
+#    if 'stateIndex' in props_dict:
+#      self.stateIndex = props_dict[ 'stateIndex' ]
+
+    super( RasterWidget, self ).LoadProps( props_dict )
+    wx.CallAfter( self.UpdateState, resized = True )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._OnClick()				-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
@@ -1288,12 +1320,18 @@ method via super.SaveProps().
 """
     super( RasterWidget, self ).SaveProps( props_dict )
 
-    props_dict[ 'axialValue' ] = self.axialValue
-    props_dict[ 'cellRange' ] = self.cellRange
-    props_dict[ 'cellRangeStack' ] = self.cellRangeStack
-    props_dict[ 'showLabels' ] = self.showLabels
-    props_dict[ 'showLegend' ] = self.showLegend
-    props_dict[ 'stateIndex' ] = self.stateIndex
+    for k in (
+	'axialValue', 'cellRange', 'cellRangeStack',
+	'showLabels', 'showLegend', 'stateIndex'
+        ):
+      props_dict[ k ] = getattr( self, k )
+
+#    props_dict[ 'axialValue' ] = self.axialValue
+#    props_dict[ 'cellRange' ] = self.cellRange
+#    props_dict[ 'cellRangeStack' ] = self.cellRangeStack
+#    props_dict[ 'showLabels' ] = self.showLabels
+#    props_dict[ 'showLegend' ] = self.showLegend
+#    props_dict[ 'stateIndex' ] = self.stateIndex
   #end SaveProps
 
 

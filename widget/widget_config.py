@@ -40,8 +40,10 @@ class WidgetConfig( object ):
 """
     self.fDict = \
       {
+      'axialLevel': 0.0,
       'frameSize': ( 0, 0 ),
-      'widgets': []
+      'widgets': [],
+      'stateIndex': 0
       }
 
     if file_path is not None:
@@ -65,6 +67,17 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetAxialLevel()			-
+  #----------------------------------------------------------------------
+  def GetAxialLevel( self ):
+    """
+@return			axial level in cm
+"""
+    return  self.fDict.get( 'axialLevel', 0.0 )
+  #end GetAxialLevel
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.GetFilePath()			-
   #----------------------------------------------------------------------
   def GetFilePath( self ):
@@ -84,6 +97,28 @@ class WidgetConfig( object ):
 """
     return  self.fDict.get( 'frameSize', ( 0, 0 ) )
   #end GetFrameSize
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetStateIndex()			-
+  #----------------------------------------------------------------------
+  def GetStateIndex( self ):
+    """
+@return			0-based state index
+"""
+    return  self.fDict.get( 'stateIndex', 0 )
+  #end GetStateIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetWidgets()			-
+  #----------------------------------------------------------------------
+  def GetWidgets( self ):
+    """
+@return			list of widget properties recs
+"""
+    return  self.fDict.get( 'widgets', [] )
+  #end GetWidgets
 
 
 #  #----------------------------------------------------------------------
@@ -117,16 +152,28 @@ class WidgetConfig( object ):
       try:
 	content = fp.read( -1 )
 	cur_dict = json.loads( content )
-	if 'filePath' in cur_dict:
-	  self.fDict[ 'filePath' ] = cur_dict[ 'filePath' ]
-	if 'frameSize' in cur_dict:
-	  self.fDict[ 'frameSize' ] = cur_dict[ 'frameSize' ]
-	if 'widgets' in cur_dict:
-	  self.fDict[ 'widgets' ] = cur_dict[ 'widgets' ]
+#	if 'filePath' in cur_dict:
+#	  self.fDict[ 'filePath' ] = cur_dict[ 'filePath' ]
+#	if 'frameSize' in cur_dict:
+#	  self.fDict[ 'frameSize' ] = cur_dict[ 'frameSize' ]
+#	if 'widgets' in cur_dict:
+#	  self.fDict[ 'widgets' ] = cur_dict[ 'widgets' ]
+        self.fDict = cur_dict
       finally:
         fp.close()
     #end if
   #end Read
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.SetAxialLevel()			-
+  #----------------------------------------------------------------------
+  def SetAxialLevel( self, level ):
+    """
+@param  level		axial level in cm
+"""
+    self.fDict[ 'axialLevel' ] = max( level, 0.0 )
+  #end SetAxialLevel
 
 
   #----------------------------------------------------------------------
@@ -151,6 +198,17 @@ class WidgetConfig( object ):
 """
     self.fDict[ 'frameSize' ] = ( wd, ht )
   #end SetFrameSize
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.SetStateIndex()			-
+  #----------------------------------------------------------------------
+  def SetStateIndex( self, state_ndx ):
+    """
+@param  state_ndx	0-based index
+"""
+    self.fDict[ 'stateIndex' ] = max( state_ndx, 0 )
+  #end SetStateIndex
 
 
   #----------------------------------------------------------------------
