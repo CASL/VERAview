@@ -3,6 +3,11 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-06-30	leerw@ornl.gov				-
+#	  Added isLoaded with check in _LoadDataModel() against call to
+#	  _LoadDataModelValues().
+#		2016-06-23	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-03-16	leerw@ornl.gov				-
 #	  Moving find-max calcs to DataModel and methods to Widget.
 #		2016-03-14	leerw@ornl.gov				-
@@ -235,6 +240,7 @@ _CreateValueString()
     self.data = None
     self.dragStartCell = None
     self.dragStartPosition = None
+    self.isLoaded = False
 
 #old way
 #    self.menuDef = \
@@ -977,7 +983,9 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     print >> sys.stderr, '[RasterWidget._LoadDataModel]'
     self.data = State.FindDataModel( self.state )
-    if self.data is not None and self.data.HasData():
+    if self.data is not None and self.data.HasData() and \
+        not self.isLoaded:
+      self.isLoaded = True
       print >> sys.stderr, '[RasterWidget._LoadDataModel] we have data'
 
 #		-- Do here what is not dependent on size
@@ -1033,6 +1041,8 @@ attributes/properties that aren't already set in _LoadDataModel():
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
+    self.isLoaded = True
+
     for k in (
 	'axialValue', 'cellRange', 'cellRangeStack',
 	'showLabels', 'showLegend', 'stateIndex'

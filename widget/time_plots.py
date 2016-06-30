@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-06-30	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-06-16	leerw@ornl.gov				-
 #	  Calling DataModel.ReadDataSetValues2() in _UpdateDataSetValues().
 #		2016-06-07	leerw@ornl.gov				-
@@ -613,6 +615,29 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TimePlots.LoadProps()				-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in (
+	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
+	'axialValue', 'channelColRow', 'channelDataSet',
+	'dataSetSelections', 'detectorDataSet',
+	'pinColRow', 'pinDataSet',
+	'scalarDataSet', 'vanadiumDataSet'
+	):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    super( TimePlots, self ).LoadProps( props_dict )
+    wx.CallAfter( self.UpdateState, replot = True )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnEditDataSetProps()				-
   #----------------------------------------------------------------------
   def _OnEditDataSetProps( self, ev ):
@@ -698,6 +723,27 @@ XXX size according to how many datasets selected?
     return\
       ( self._GetDataSetName( left_name ), self._GetDataSetName( right_name ) )
   #end _ResolveDataSetAxes
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TimePlots.SaveProps()				-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( TimePlots, self ).SaveProps( props_dict )
+
+    for k in (
+	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
+	'axialValue', 'channelColRow', 'channelDataSet',
+	'dataSetSelections', 'detectorDataSet',
+	'pinColRow', 'pinDataSet',
+	'scalarDataSet', 'vanadiumDataSet'
+	):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------

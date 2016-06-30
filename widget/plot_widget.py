@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-06-30	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-01-25	leerw@ornl.gov				-
@@ -177,6 +179,7 @@ Support Methods
     self.data = None
     self.fig = None
 
+    self.isLoaded = False
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
     self.stateIndex = -1
     self.titleFontSize = 16
@@ -337,11 +340,15 @@ are axial values.
   def _LoadDataModel( self ):
     """Builds the images/bitmaps and updates the components for the current
 model.
+xxx need loaded flag set when LoadProps() is called so you don't call
+_LoadDataModelValues()
 """
     print >> sys.stderr, '[PlotWidget._LoadDataModel]'
 
     self.data = State.FindDataModel( self.state )
-    if self.data is not None and self.data.HasData():
+    if self.data is not None and self.data.HasData() and \
+        not self.isLoaded:
+      self.isLoaded = True
       update_args = self._LoadDataModelValues()
       wx.CallAfter( self.UpdateState, **update_args )
   #end _LoadDataModel
@@ -357,6 +364,25 @@ to be passed to UpdateState().  Assume self.data is valid.
 """
     return  {}
   #end _LoadDataModelValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		PlotWidget.LoadProps()				-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    self.isLoaded = True
+
+    for k in ( 'stateIndex', ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    super( PlotWidget, self ).LoadProps( props_dict )
+    wx.CallAfter( self.UpdateState, replot = True )
+  #end LoadProps
 
 
   #----------------------------------------------------------------------
@@ -487,6 +513,21 @@ with super.
     if wd > 0 and ht > 0 and self.data is not None:
       self.UpdateState( replot = True )
   #end _OnSize
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		PlotWidget.SaveProps()				-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( PlotWidget, self ).SaveProps( props_dict )
+
+    for k in ( 'stateIndex', ):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------

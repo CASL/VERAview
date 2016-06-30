@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2016-06-30	leerw@ornl.gov				-
+#	  Replaced axialLevel and stateIndex with state.
 #		2016-06-21	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import json, os, platform, sys
@@ -40,10 +42,9 @@ class WidgetConfig( object ):
 """
     self.fDict = \
       {
-      'axialLevel': 0.0,
       'frameSize': ( 0, 0 ),
-      'widgets': [],
-      'stateIndex': 0
+      'state': {},
+      'widgets': []
       }
 
     if file_path is not None:
@@ -64,17 +65,6 @@ class WidgetConfig( object ):
       self.fDict[ 'widgets' ].append( rec )
     #end for w
   #end AddWidgets
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.GetAxialLevel()			-
-  #----------------------------------------------------------------------
-  def GetAxialLevel( self ):
-    """
-@return			axial level in cm
-"""
-    return  self.fDict.get( 'axialLevel', 0.0 )
-  #end GetAxialLevel
 
 
   #----------------------------------------------------------------------
@@ -100,33 +90,25 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.GetStateIndex()			-
+  #	METHOD:		WidgetConfig.GetStateProps()			-
   #----------------------------------------------------------------------
-  def GetStateIndex( self ):
+  def GetStateProps( self ):
     """
-@return			0-based state index
+@return			state properties
 """
-    return  self.fDict.get( 'stateIndex', 0 )
-  #end GetStateIndex
+    return  self.fDict.get( 'state', {} )
+  #end GetStateProps
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.GetWidgets()			-
+  #	METHOD:		WidgetConfig.GetWidgetProps()			-
   #----------------------------------------------------------------------
-  def GetWidgets( self ):
+  def GetWidgetProps( self ):
     """
 @return			list of widget properties recs
 """
     return  self.fDict.get( 'widgets', [] )
-  #end GetWidgets
-
-
-#  #----------------------------------------------------------------------
-#  #	METHOD:		WidgetConfig.IsValid()				-
-#  #----------------------------------------------------------------------
-#  def IsValid( self ):
-#    return  False
-#  #end IsValid
+  #end GetWidgetProps
 
 
   #----------------------------------------------------------------------
@@ -151,29 +133,11 @@ class WidgetConfig( object ):
       fp = file( file_path )
       try:
 	content = fp.read( -1 )
-	cur_dict = json.loads( content )
-#	if 'filePath' in cur_dict:
-#	  self.fDict[ 'filePath' ] = cur_dict[ 'filePath' ]
-#	if 'frameSize' in cur_dict:
-#	  self.fDict[ 'frameSize' ] = cur_dict[ 'frameSize' ]
-#	if 'widgets' in cur_dict:
-#	  self.fDict[ 'widgets' ] = cur_dict[ 'widgets' ]
-        self.fDict = cur_dict
+	self.fDict = json.loads( content )
       finally:
         fp.close()
     #end if
   #end Read
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.SetAxialLevel()			-
-  #----------------------------------------------------------------------
-  def SetAxialLevel( self, level ):
-    """
-@param  level		axial level in cm
-"""
-    self.fDict[ 'axialLevel' ] = max( level, 0.0 )
-  #end SetAxialLevel
 
 
   #----------------------------------------------------------------------
@@ -201,14 +165,17 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.SetStateIndex()			-
+  #	METHOD:		WidgetConfig.SetState()				-
   #----------------------------------------------------------------------
-  def SetStateIndex( self, state_ndx ):
+  def SetState( self, state ):
     """
-@param  state_ndx	0-based index
+@param  state		event.state.State reference
 """
-    self.fDict[ 'stateIndex' ] = max( state_ndx, 0 )
-  #end SetStateIndex
+    rec = {}
+    if state is not None:
+      state.SaveProps( rec )
+    self.fDict[ 'state' ] = rec
+  #end SetState
 
 
   #----------------------------------------------------------------------

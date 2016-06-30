@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-06-30	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-06-07	leerw@ornl.gov				-
 #	  Fixed header in _CreateClipboardData().
 #		2016-06-06	leerw@ornl.gov				-
@@ -777,6 +779,28 @@ to be passed to UpdateState().  Assume self.data is valid.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		AxialPlot.LoadProps()				-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in (
+	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
+	'axialValue', 'channelColRow', 'channelDataSet',
+	'dataSetSelections', 'detectorDataSet',
+	'pinColRow', 'pinDataSet', 'vanadiumDataSet'
+	):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    super( AxialPlot, self ).LoadProps( props_dict )
+    wx.CallAfter( self.UpdateState, replot = True )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnEditDataSetProps()				-
   #----------------------------------------------------------------------
   def _OnEditDataSetProps( self, ev ):
@@ -891,6 +915,26 @@ to be passed to UpdateState().  Assume self.data is valid.
     return  \
       ( self._GetDataSetName( bottom_name ), self._GetDataSetName( top_name ) )
   #end _ResolveDataSetAxes
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		AxialPlot.SaveProps()				-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( AxialPlot, self ).SaveProps( props_dict )
+
+    for k in (
+	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
+	'axialValue', 'channelColRow', 'channelDataSet',
+	'dataSetSelections', 'detectorDataSet',
+	'pinColRow', 'pinDataSet', 'vanadiumDataSet'
+	):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------

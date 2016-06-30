@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-06-30	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-06-27	leerw@ornl.gov				-
 #	  Moved EVENT_ID_NAMES here for better encapsulation.
 #		2016-05-25	leerw@ornl.gov				-
@@ -521,6 +523,27 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		LoadProps()					-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Deserializes.
+@param  props_dict	dict containing property values
+"""
+    for k in (
+        'assemblyIndex', 'auxChannelColRows', 'auxPinColRows', 'axialValue', 
+        'channelColRow', 'channelDataSet',
+        'detectorDataSet', 'detectorIndex',
+        'pinColRow', 'pinDataSet', 
+        'scalarDataSet', 'scaleMode', 
+        'stateIndex', 'timeDataSet', 
+        'vanadiumDataSet'
+        ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RemoveListener()				-
   #----------------------------------------------------------------------
   def RemoveListener( self, listener ):
@@ -550,6 +573,26 @@ Keys passed and the corresponding state bit are:
 
     return  reason
   #end ResolveLocks
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SaveProps()					-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Serializes.
+@param  props_dict	dict to which to write property values
+"""
+    for k in (
+        'assemblyIndex', 'auxChannelColRows', 'auxPinColRows', 'axialValue', 
+        'channelColRow', 'channelDataSet',
+        'detectorDataSet', 'detectorIndex',
+        'pinColRow', 'pinDataSet', 
+        'scalarDataSet', 'scaleMode', 
+        'stateIndex', 'timeDataSet', 
+        'vanadiumDataSet'
+        ):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
 #		-- Static Methods

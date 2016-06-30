@@ -845,6 +845,9 @@ Must be called from the UI thread.
 """
     print >> sys.stderr, '[VeraViewFrame.LoadDataModel]'
 
+    if widget_config is not None:
+      self.state.LoadProps( widget_config.GetStateProps() )
+
     data = self.state.dataModel
 
     self.CloseAllWidgets()
@@ -944,10 +947,10 @@ Must be called from the UI thread.
           ]
 
     elif widget_config is not None:
-      for w in widget_config.GetWidgets():
-	if 'classpath' in w:
-          con = self.CreateWidget( w[ 'classpath' ], False )
-	  con.widget.LoadProps( w )
+      for props in widget_config.GetWidgetProps():
+	if 'classpath' in props:
+          con = self.CreateWidget( props[ 'classpath' ], False )
+	  con.widget.LoadProps( props )
       #end for w
 
     else:
@@ -979,30 +982,28 @@ Must be called from the UI thread.
       title += (': %s' % os.path.basename( file_path ))
     self.SetTitle( title )
 
-#		-- Refit
-#		--
-    self._Refit( True )
-    #self.GetStatusBar().SetStatusText( 'Data model loaded' )
-
 #		-- Set bean ranges
 #		--
     self.axialBean.SetRange( 1, data.core.nax )
-    self.axialBean.axialLevel = self.state.axialValue[ 1 ]
     self.exposureBean.SetRange( 1, len( data.states ) )
+    self.axialBean.axialLevel = self.state.axialValue[ 1 ]
     self.exposureBean.stateIndex = self.state.stateIndex
 
     if widget_config is not None:
-      self.state.axialValue = \
-          data.CreateAxialValue( cm = widget_config.GetAxialLevel() )
-      self.axialBean.axialLevel = self.state.axialValue[ 1 ]
-
-      self.exposureBean.stateIndex = \
-      self.state.stateIndex = widget_config.GetStateIndex()
-
+#      self.state.axialValue = \
+#          data.CreateAxialValue( cm = widget_config.GetAxialLevel() )
+#      self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+#      self.exposureBean.stateIndex = \
+#      self.state.stateIndex = widget_config.GetStateIndex()
       fr_size = widget_config.GetFrameSize()
       if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
         self.SetSize( fr_size )
     #end if widget_config
+
+#		-- Refit
+#		--
+    self._Refit( True )
+    ##self.GetStatusBar().SetStatusText( 'Data model loaded' )
 
 
 #		-- Update toolbar
@@ -1479,11 +1480,13 @@ Must be called from the UI thread.
       widget_config = WidgetConfig()
 
       fr_size = self.GetSize()
-      axial_value = \
-          data.CreateAxialValue( core_ndx = self.axialBean.axialLevel )
-      widget_config.SetAxialLevel( axial_value[ 0 ] )
       widget_config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
-      widget_config.SetStateIndex( self.exposureBean.stateIndex )
+      widget_config.SetState( self.state )
+
+#      axial_value = \
+#          data.CreateAxialValue( core_ndx = self.axialBean.axialLevel )
+#      widget_config.SetAxialLevel( axial_value[ 0 ] )
+#      widget_config.SetStateIndex( self.exposureBean.stateIndex )
 
       widget_list = []
       for wc in self.grid.GetChildren():
