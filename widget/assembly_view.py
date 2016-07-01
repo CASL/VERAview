@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-07-01	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-06-16	leerw@ornl.gov				-
 #	  Fixed bug in _HiliteBitmap() when the primary selection
 #	  is not visible.
@@ -864,6 +866,25 @@ attributes/properties that aren't already set in _LoadDataModel():
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView.LoadProps()			-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in (
+	'assemblyIndex', 'auxPinColRows',
+	'pinColRow', 'pinDataSet'
+        ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    super( Assembly2DView, self ).LoadProps( props_dict )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._OnClick()			-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
@@ -922,6 +943,24 @@ attributes/properties that aren't already set in _LoadDataModel():
     if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
       self._OnFindMaxPin( self.pinDataSet, all_states_flag )
   #end _OnFindMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView.SaveProps()			-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( Assembly2DView, self ).SaveProps( props_dict )
+
+    for k in (
+	'assemblyIndex', 'auxPinColRows',
+	'pinColRow', 'pinDataSet'
+        ):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------

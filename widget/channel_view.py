@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-07-01	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-03-14	leerw@ornl.gov				-
@@ -367,7 +369,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #	METHOD:		Channel2DView._CreateClipboardAllData()		-
   #----------------------------------------------------------------------
   def _CreateClipboardAllData( self, cur_selection_flag = False ):
-    """Retrieves the data for the current assembly selection.
+    """Retrieves the data for the state and axial.
 @return			text or None
 """
     csv_text = None
@@ -1139,6 +1141,24 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView.LoadProps()			-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in (
+	'assemblyIndex', 'channelColRow', 'channelDataSet', 'mode'
+        ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    super( Channel2DView, self ).LoadProps( props_dict )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Channel2DView._OnClick()			-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
@@ -1271,6 +1291,23 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       self._SetMode( 'core' )
       self.Redraw()  # self._OnSize( None )
   #end _OnUnzoom
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView.SaveProps()			-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( Channel2DView, self ).SaveProps( props_dict )
+
+    for k in (
+	'assemblyIndex', 'channelColRow', 'channelDataSet', 'mode'
+        ):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------

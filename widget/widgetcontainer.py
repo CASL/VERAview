@@ -991,6 +991,11 @@ Must be called from the UI event thread
     for k in locks:
       if k in self.eventLocks:
         self.eventLocks[ k ] = locks[ k ]
+
+	if k in self.eventsMenuItems:
+	  self.eventsMenuItems[ k ].Check( locks[ k ] )
+      #end if k
+    #end for k
   #end SetEventLocks
 
 

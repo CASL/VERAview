@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-06-27	leerw@ornl.gov				-
+#	  Added {Load,Save}Props().
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-03-14	leerw@ornl.gov				-
@@ -1287,8 +1289,8 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyIndex', 'mode', 'pinColRow',
-	'pinDataSet', 'showLegend', 'stateIndex'
+	'assemblyIndex', 'mode',
+	'pinColRow', 'pinDataSet'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1490,8 +1492,8 @@ method via super.SaveProps().
     super( Core2DView, self ).SaveProps( props_dict )
 
     for k in (
-	'assemblyIndex', 'mode', 'pinColRow',
-	'pinDataSet', 'showLegend', 'stateIndex'
+	'assemblyIndex', 'mode',
+	'pinColRow', 'pinDataSet'
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps

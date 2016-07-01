@@ -933,7 +933,15 @@ method via super.SaveProps() at the end.
 @param  props_dict	dict object from which to deserialize properties
 """
     if 'eventLocks' in props_dict:
-      self.container.SetEventLocks( props_dict[ 'eventLocks' ] )
+#		-- Must convert keys to ints
+      locks_in = props_dict[ 'eventLocks' ]
+      locks_out = {}
+      for k in locks_in:
+        i = int( k )
+	locks_out[ i ] = locks_in[ k ]
+      #end for
+
+      self.container.SetEventLocks( locks_out )
   #end LoadProps
 
 

@@ -816,7 +816,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.SetTitle( TITLE )
 
 #    self.Center()
-    pos = ( 5, 40 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
+    pos = ( 5, 35 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
     self.SetPosition( pos )
     #self.SetSize( ( 640, 480 ) )
 
