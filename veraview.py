@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-07-01	leerw@ornl.gov				-
+#	  Adding load/save session menu items.
 #		2016-06-27	leerw@ornl.gov				-
 #	  Moved prompt for widget config.
 #		2016-06-20	leerw@ornl.gov				-
@@ -261,22 +263,56 @@ unnecessary.
       self.firstLoop = False
       #self.frame.GetStatusBar().SetStatusText( '' )
 
-      if self.filepath is not None and os.path.exists( self.filepath ):
-        #self.frame.OpenFile( self.filepath )
-        widget_config = WidgetConfig.ReadUserFile()
-        if widget_config is not None:
-          ans = wx.MessageBox(
-              'Load widget configuration?',
-	      'Load Configuration',
-	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
-	      None
-              )
-          if ans != wx.YES:
-            widget_config = None
-        self.frame.OpenFile( self.filepath, widget_config )
-      else:
+      opened = False
+
+      if self.filepath is None:
+        session = WidgetConfig.ReadUserSession()
+        if session is not None:
+	  data_path = session.GetFilePath()
+	  if os.path.exists( data_path ):
+            ans = wx.MessageBox(
+                'Load previous session?',
+	        'Load Session',
+	        wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
+	        None
+                )
+            if ans == wx.YES:
+	      opened = True
+	      self.frame.OpenFile( data_path, session )
+
+      elif os.path.exists( self.filepath ):
+	if self.filepath.lower().endswith( '.vview' ):
+	  data_path, session = self._ResolveFile( self.filepath )
+	  if data_path is None:
+	    wx.MessageBox(
+		'Error reading session file: ' + self.filepath,
+		'Open File', wx.OK | wx.CANCEL, None
+	        )
+	  else:
+            opened = True
+	    self.frame.OpenFile( data_path, session )
+	else:
+	  self.frame.OpenFile( self.filepath )
+
+      if not opened:
         self.frame._OnOpenFile( None )
-##      self.frame.Raise()
+
+#      if self.filepath is not None and os.path.exists( self.filepath ):
+#        #self.frame.OpenFile( self.filepath )
+#        widget_config = WidgetConfig.ReadUserFile()
+#        if widget_config is not None:
+#          ans = wx.MessageBox(
+#              'Load widget configuration?',
+#	      'Load Configuration',
+#	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
+#	      None
+#              )
+#          if ans != wx.YES:
+#            widget_config = None
+#        self.frame.OpenFile( self.filepath, widget_config )
+#      else:
+#        self.frame._OnOpenFile( None )
+###      self.frame.Raise()
     #end elif self.firstLoop:
   #end OnEventLoopEnter
 
@@ -619,26 +655,44 @@ WIDGET_MAP and TOOLBAR_ITEMS
       new_menu.AppendItem( item )
     file_menu.AppendSubMenu( new_menu, '&New' )
 
-#			-- Open Item
-    open_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Open\tCtrl+O' )
+#			-- Open item
+    open_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Open...\tCtrl+O' )
     self.Bind( wx.EVT_MENU, self._OnOpenFile, open_item )
     file_menu.AppendItem( open_item )
-
-    min_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Minimize Window\tCtrl+M' )
-    self.Bind( wx.EVT_MENU, self._OnMinimizeWindow, min_item )
-    file_menu.AppendItem( min_item )
 
 #    save_im_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Save Image\tCtrl+S' )
 #    self.Bind( wx.EVT_MENU, self._OnSaveWindow, save_im_item )
 #    file_menu.AppendItem( save_im_item )
 
+#			-- Session items
+    file_menu.AppendSeparator()
+    load_session_item = wx.MenuItem(
+        file_menu, wx.ID_ANY,
+	'Load Session...'
+	)
+    self.Bind( wx.EVT_MENU, self._OnLoadSession, load_session_item )
+    file_menu.AppendItem( load_session_item )
+
+    save_session_item = wx.MenuItem(
+        file_menu, wx.ID_ANY,
+	'Save Session...'
+	)
+    self.Bind( wx.EVT_MENU, self._OnSaveSession, save_session_item )
+    file_menu.AppendItem( save_session_item )
+
+#			-- Save images
     file_menu.AppendSeparator()
     save_item = wx.MenuItem(
         file_menu, wx.ID_ANY,
-	'&Save Image of All Widgets\tCtrl+Shift+S'
+	'&Save Image of All Widgets...\tCtrl+Shift+S'
 	)
     self.Bind( wx.EVT_MENU, self._OnSaveImageAllWidgets, save_item )
     file_menu.AppendItem( save_item )
+    file_menu.AppendSeparator()
+
+    min_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Minimize Window\tCtrl+M' )
+    self.Bind( wx.EVT_MENU, self._OnMinimizeWindow, min_item )
+    file_menu.AppendItem( min_item )
 
     file_menu.AppendSeparator()
     quit_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Quit\tCtrl+Q' )
@@ -1393,6 +1447,14 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnLoadSession()			-
+  #----------------------------------------------------------------------
+  def _OnLoadSession( self, ev ):
+    ev.Skip()
+  #end _OnLoadSession
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnMinimizeWindow()		-
   #----------------------------------------------------------------------
   def _OnMinimizeWindow( self, ev ):
@@ -1431,25 +1493,16 @@ Must be called from the UI thread.
     # 'HDF5 files (*.h5,*.x)|*.h5;*.x|Other files (*.vview)|*.vview',
     dialog = wx.FileDialog(
 	self, 'Open File', '', '',
-        'HDF5 files (*.h5)|*.h5',
+        'HDF5 files (*.h5)|*.h5|VERAView session files (*.vview)|*.vview',
 	wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_CHANGE_DIR
         )
     if dialog.ShowModal() != wx.ID_CANCEL:
       path = dialog.GetPath()
       dialog.Destroy()
       #self.OpenFile( path )
-      widget_config = WidgetConfig.ReadUserFile()
-      if widget_config is not None:
-        ans = wx.MessageBox(
-            'Load widget configuration?',
-	    'Load Configuration',
-	    wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
-	    self
-            )
-        if ans != wx.YES:
-          widget_config = None
 
-      self.OpenFile( path, widget_config )
+      path, session = self._ResolveFile( path )
+      self.OpenFile( path, session )
   #end _OnOpenFile
 
 
@@ -1468,6 +1521,24 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
+    try:
+      self.SaveSession()
+    except Exception, ex:
+      msg = 'Error saving session:' + os.linesep + str( ex )
+      self.ShowMessageDialog( msg, 'Save Session' )
+
+    data = self.state.GetDataModel()
+    if data is not None:
+      data.Close()
+    #self.Close()
+    wx.App.Get().ExitMainLoop()
+  #end _OnQuit
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnQuit_0()			-
+  #----------------------------------------------------------------------
+  def _OnQuit_0( self, ev ):
     data = self.state.GetDataModel()
 
     ans = wx.MessageBox(
@@ -1483,11 +1554,6 @@ Must be called from the UI thread.
       widget_config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
       widget_config.SetState( self.state )
 
-#      axial_value = \
-#          data.CreateAxialValue( core_ndx = self.axialBean.axialLevel )
-#      widget_config.SetAxialLevel( axial_value[ 0 ] )
-#      widget_config.SetStateIndex( self.exposureBean.stateIndex )
-
       widget_list = []
       for wc in self.grid.GetChildren():
         if isinstance( wc, WidgetContainer ):
@@ -1495,14 +1561,12 @@ Must be called from the UI thread.
 
       widget_config.AddWidgets( *widget_list )
       widget_config.Write()
-#	  wc.widget.__module__ + '.' + wc.widget.__class__.__name__
-#  'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
 
     if data is not None:
       data.Close()
     #self.Close()
     wx.App.Get().ExitMainLoop()
-  #end _OnQuit
+  #end _OnQuit_0
 
 
   #----------------------------------------------------------------------
@@ -1517,16 +1581,25 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnSaveWindow()			-
+  #	METHOD:		VeraViewFrame._OnSaveSession()			-
   #----------------------------------------------------------------------
-#  def _OnSaveWindow( self, ev ):
-#    ev.Skip()
-#    for child in self.GetChildren():
-#      if isinstance( child, WidgetContainer ) and child.IsActive():
-#	child.SaveWidgetImage()
-#	break
-#    #end for
-#  #end _OnSaveWindow
+  def _OnSaveSession( self, ev ):
+    ev.Skip()
+
+    dialog = wx.FileDialog(
+        self, 'Save Session', '', '',
+	'VERAView session files (*.vview)|*.vview',
+	wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
+	)
+
+    if dialog.ShowModal() != wx.ID_CANCEL:
+      file_path = dialog.GetPath()
+      try:
+        self.SaveSession( file_path )
+      except Exception, ex:
+        msg = 'Error saving widget configuration:' + os.linesep + str( ex )
+        self.ShowMessageDialog( msg, 'Save Widget Configuration' )
+  #end _OnSaveSession
 
 
   #----------------------------------------------------------------------
@@ -1687,6 +1760,29 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.OpenFile_0()			-
+  #----------------------------------------------------------------------
+  def OpenFile_0( self, file_path, widget_config = None ):
+    """
+Must be called from the UI thread.
+"""
+    self.CloseAllWidgets()
+
+    dialog = wx.ProgressDialog(
+        'Open File',
+	'Reading file "%s"' % file_path
+	)
+    dialog.Show()
+
+    wxlibdr.startWorker(
+	self._OpenFileEnd,
+	self._OpenFileBegin,
+	wargs = [ dialog, file_path, widget_config ]
+        )
+  #end OpenFile_0
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OpenFileBegin()			-
   #----------------------------------------------------------------------
   def _OpenFileBegin( self, dialog, file_path, widget_config ):
@@ -1744,32 +1840,8 @@ Must be called from the UI thread.
 	    status[ 'file_path' ],
 	    status.get( 'widget_config' )
 	    )
-#	widget_config = WidgetConfig.ReadUserFile()
-#	if widget_config is None:
-#          self.LoadDataModel( status[ 'file_path' ], widget_config )
-#	else:
-#	  wx.CallAfter( self._OpenFileEnd2, status[ 'file_path' ], widget_config )
     #end if
   #end _OpenFileEnd
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OpenFileEnd2()			-
-  #----------------------------------------------------------------------
-  def _OpenFileEnd2( self, file_path, widget_config ):
-    """
-"""
-    ans = wx.MessageBox(
-        'Load widget configuration?',
-	'Load Configuration',
-	wx.YES_NO | wx.CANCEL,
-	self
-        )
-    if ans != wx.YES:
-      widget_config = None
-
-    self.LoadDataModel( file_path, widget_config )
-  #end _OpenFileEnd2
 
 
   #----------------------------------------------------------------------
@@ -1789,6 +1861,23 @@ Must be called from the UI thread.
     if additionals:
       additionals[ 0 ]( *additionals[ 1 : ] )
   #end _Refit
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._ResolveFile()			-
+  #----------------------------------------------------------------------
+  def _ResolveFile( self, path ):
+    """Checks the path for a session (.vview) file.
+@param  path		file path
+@return			datafile_path, session
+"""
+    session = None
+    if path.endswith( '.vview' ):
+      session = WidgetConfig( path )
+      path = session.GetFilePath()
+
+    return  path, session
+  #end _ResolveFile
 
 
   #----------------------------------------------------------------------
@@ -1812,6 +1901,30 @@ Must be called from the UI thread.
 #    result = '%d: %s' % ( last + 1, title )
     return  result
   #end _ResolveTitle
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.SaveSession()			-
+  #----------------------------------------------------------------------
+  def SaveSession( self, file_path = None ):
+    """
+@param  file_path	path of VERAView (.vview) file or None to save the
+			user session file
+"""
+    config = WidgetConfig()
+
+    fr_size = self.GetSize()
+    config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
+    config.SetState( self.state )
+
+    widget_list = []
+    for wc in self.grid.GetChildren():
+      if isinstance( wc, WidgetContainer ):
+        widget_list.append( wc.widget )
+
+    config.AddWidgets( *widget_list )
+    config.Write( file_path )
+  #end SaveSession
 
 
   #----------------------------------------------------------------------

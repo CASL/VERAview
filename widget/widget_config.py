@@ -124,10 +124,7 @@ class WidgetConfig( object ):
     del self.fDict[ 'widgets' ][ : ]
 
     if file_path is None:
-      file_path = os.path.join(
-          WidgetConfig.GetPlatformAppDataDir(),
-	  'widget.config'
-	  )
+      file_path = WidgetConfig.GetUserSessionPath()
 
     if os.path.exists( file_path ):
       fp = file( file_path )
@@ -186,10 +183,7 @@ class WidgetConfig( object ):
 @param  file_path	path to file to write or None to write the user file
 """
     if file_path is None:
-      file_path = os.path.join(
-          WidgetConfig.GetPlatformAppDataDir( True ),
-	  'widget.config'
-	  )
+      file_path = WidgetConfig.GetUserSessionPath()
 
     fp = file( file_path, 'w' )
     try:
@@ -240,6 +234,16 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetUserSessionPath()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetUserSessionPath():
+    return \
+    os.path.join( WidgetConfig.GetPlatformAppDataDir(), 'session.vview' )
+  #end GetUserSessionPath
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.ReadUserFile()			-
   #----------------------------------------------------------------------
   @staticmethod
@@ -247,9 +251,7 @@ class WidgetConfig( object ):
     """
 """
     config = None
-    file_path = \
-        os.path.join( WidgetConfig.GetPlatformAppDataDir(), 'widget.config' )
-
+    file_path = WidgetConfig.GetUserSessionPath()
     if os.path.exists( file_path ):
       config = WidgetConfig( file_path )
 
