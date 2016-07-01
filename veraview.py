@@ -282,7 +282,7 @@ unnecessary.
 
       elif os.path.exists( self.filepath ):
 	if self.filepath.lower().endswith( '.vview' ):
-	  data_path, session = self._ResolveFile( self.filepath )
+	  data_path, session = self.frame._ResolveFile( self.filepath )
 	  if data_path is None:
 	    wx.MessageBox(
 		'Error reading session file: ' + self.filepath,
@@ -292,6 +292,7 @@ unnecessary.
             opened = True
 	    self.frame.OpenFile( data_path, session )
 	else:
+	  opened = True
 	  self.frame.OpenFile( self.filepath )
 
       if not opened:
@@ -447,6 +448,7 @@ class VeraViewFrame( wx.Frame ):
     self.axialBean = None
     self.exposureBean = None
     self.grid = None
+    self.scaleModeItems = {}
     self.timeDataSetMenu = None
     self.widgetToolBar = None
 
@@ -723,10 +725,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
     check_item = None
     for label in sorted( SCALE_MODES.keys() ):
       item = wx.MenuItem( scale_mode_menu, wx.ID_ANY, label, kind = wx.ITEM_RADIO )
-      if SCALE_MODES.get( label ) == 'all':
+      scale_mode = SCALE_MODES.get( label )
+      if scale_mode == 'all':
 	check_item = item
       self.Bind( wx.EVT_MENU, self._OnScaleMode, item )
       scale_mode_menu.AppendItem( item )
+      self.scaleModeItems[ scale_mode ] = item
     #end for
     if check_item:
       check_item.Check()
@@ -889,9 +893,9 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame.LoadDataModel()			-
+  #	METHOD:		VeraViewFrame.LoadDataModel_0()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, widget_config = None ):
+  def LoadDataModel_0( self, file_path, widget_config = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
@@ -1043,12 +1047,12 @@ Must be called from the UI thread.
     self.axialBean.axialLevel = self.state.axialValue[ 1 ]
     self.exposureBean.stateIndex = self.state.stateIndex
 
-    if widget_config is not None:
-#      self.state.axialValue = \
-#          data.CreateAxialValue( cm = widget_config.GetAxialLevel() )
-#      self.axialBean.axialLevel = self.state.axialValue[ 1 ]
-#      self.exposureBean.stateIndex = \
-#      self.state.stateIndex = widget_config.GetStateIndex()
+    if widget_config is None:
+      self._Refit( True )
+    else:
+      if self.state.scaleMode in self.scaleModeItems:
+        self.scaleModeItems[ self.state.scaleMode ].Check()
+
       fr_size = widget_config.GetFrameSize()
       if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
         self.SetSize( fr_size )
@@ -1056,9 +1060,8 @@ Must be called from the UI thread.
 
 #		-- Refit
 #		--
-    self._Refit( True )
+    #self._Refit( True )
     ##self.GetStatusBar().SetStatusText( 'Data model loaded' )
-
 
 #		-- Update toolbar
 #		--
@@ -1085,33 +1088,35 @@ Must be called from the UI thread.
 
       ti_count += 1
     #end for
-  #end LoadDataModel
+  #end LoadDataModel_0
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame.LoadDataModel_orig()		-
+  #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel_orig( self, file_path, config_path = None ):
+  def LoadDataModel( self, file_path, widget_config = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
+@param  file_path	path to VERAOutput file
+@param  widget_config	optional WidgetConfig instance
 """
     print >> sys.stderr, '[VeraViewFrame.LoadDataModel]'
 
-    data = self.state.dataModel
+#x    if widget_config is not None:
+#x      self.state.LoadProps( widget_config.GetStateProps() )
 
-    self.CloseAllWidgets()
+    data = self.state.GetDataModel()
     self.SetRepresentedFilename( file_path )
 
     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
 
-#		-- Re-create Time DataSet Menu
+#		-- Re-create time dataset menu
 #		--
     while self.timeDataSetMenu.GetMenuItemCount() > 0:
       self.timeDataSetMenu.\
           DestroyItem( self.timeDataSetMenu.FindItemByPosition( 0 ) )
 
     check_item = None
-    #ds_names = data.GetDataSetNames( 'scalar' ) + [ 'state' ]
     ds_names = data.GetDataSetNames( 'time' )
     for ds in ds_names:
       item = wx.MenuItem( self.timeDataSetMenu, wx.ID_ANY, ds, kind = wx.ITEM_RADIO )
@@ -1124,116 +1129,6 @@ Must be called from the UI thread.
     if check_item is not None:
       check_item.Check()
 
-#		-- Determine Default Initial Widgets
-#		--
-    axial_plot_types = set()
-    widget_list = []
-
-    if data.core.nass > 1:
-      widget_list.append( 'widget.core_view.Core2DView' )
-
-#		-- Detector Mode
-#		--
-    if len( data.GetDataSetNames()[ 'detector' ] ) > 0:
-      widget_list.append( 'widget.detector_view.Detector2DView' )
-      if data.core.ndetax > 1:
-	axial_plot_types.add( 'detector' )
-	axial_plot_types.add( 'pin' )
-
-    if len( data.GetDataSetNames()[ 'vanadium' ] ) > 0:
-      if 'widget.detector_view.Detector2DView' not in widget_list:
-        widget_list.append( 'widget.detector_view.Detector2DView' )
-      if data.core.nvanax > 1:
-	axial_plot_types.add( 'vanadium' )
-
-#		-- Pin Mode
-#		--
-    if len( data.GetDataSetNames()[ 'pin' ] ) > 0:
-      if data.core.nax > 1:
-	axial_plot_types.add( 'pin' )
-        widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
-      widget_list.append( 'widget.assembly_view.Assembly2DView' )
-
-#		-- Channel Mode
-#		--
-    if len( data.GetDataSetNames()[ 'channel' ] ) > 0:
-      if data.core.nass > 1:
-        widget_list.append( 'widget.channel_view.Channel2DView' )
-      widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
-      if data.core.nax > 1:
-	axial_plot_types.add( 'channel' )
-        widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
-        #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
-
-#		-- Axial Plot?
-#		--
-    if len( axial_plot_types ) > 0:
-      widget_list.append( 'widget.axial_plot.AxialPlot' )
-      #widget_list.append( 'widget.all_axial_plot.AllAxialPlot' )
-
-#		-- Time Plot?
-#		--
-    if len( data.states ) > 1:
-      widget_list.append( 'widget.time_plots.TimePlots' )
-
-#		-- Create widgets, find AllAxialPlot widget reference
-#		--
-    if False:
-      widget_list = [
-          'widget.core_view.Core2DView',
-          'widget.assembly_view.Assembly2DView',
-          'widget.axial_plot.AxialPlot',
-          'widget.time_plots.TimePlots'
-#	  'widget.channel_view.Channel2DView',
-#	  'widget.channel_assembly_view.ChannelAssembly2DView'
-#	  'widget.channel_axial_view.ChannelAxial2DView',
-#          'widget.all_axial_plot.AllAxialPlot',
-#          'widget.time_plot.TimePlot',
-          ]
-
-    axial_plot_widget = None
-    time_plots_widget = None
-    for w in widget_list:
-      con = self.CreateWidget( w, False )
-      print >> sys.stderr, \
-          '[VeraViewFrame.LoadDataModel] added="%s", size=%s' % \
-	  ( w, str( self.grid.GetSize() ) )
-      if con is None:
-        pass
-      elif con.widget.GetTitle() == 'Axial Plots':
-        axial_plot_widget = con.widget
-      elif con.widget.GetTitle() == 'Time Plots':
-        time_plots_widget = con.widget
-    #end for
-
-    #xxxxx this must be called other places when CreateWidget() is called
-    if axial_plot_widget is not None:
-      axial_plot_widget.InitDataSetSelections( axial_plot_types )
-    #end if
-    if time_plots_widget is not None:
-      time_plots_widget.InitDataSetSelections( [ 'scalar' ] )
-    #end if
-
-#		-- Update title
-#		--
-    title = TITLE
-    if file_path is not None:
-      title += (': %s' % os.path.basename( file_path ))
-    self.SetTitle( title )
-
-#		-- Refit
-#		--
-    self._Refit( True )
-    #self.GetStatusBar().SetStatusText( 'Data model loaded' )
-
-#		-- Set bean ranges
-#		--
-    self.axialBean.SetRange( 1, data.core.nax )
-    self.axialBean.axialLevel = self.state.axialValue[ 1 ]
-#    self.axialBean.axialLevel = self.state.axialLevel
-    self.exposureBean.SetRange( 1, len( data.states ) )
-    self.exposureBean.stateIndex = self.state.stateIndex
-
 #		-- Update toolbar
 #		--
     ti_count = 1
@@ -1259,7 +1154,159 @@ Must be called from the UI thread.
 
       ti_count += 1
     #end for
-  #end LoadDataModel_orig
+
+#		-- Update title
+#		--
+    title = TITLE
+    if file_path is not None:
+      title += (': %s' % os.path.basename( file_path ))
+    self.SetTitle( title )
+
+#		-- Determine axial plot types
+#		--
+    self.axialPlotTypes.clear()
+
+    if len( data.GetDataSetNames( 'channel' ) ) > 0 and data.core.nax > 1:
+      self.axialPlotTypes.add( 'channel' )
+
+    if len( data.GetDataSetNames( 'detector' ) ) > 0 and data.core.ndetax > 1:
+      self.axialPlotTypes.add( 'detector' )
+      self.axialPlotTypes.add( 'pin' )
+
+    if len( data.GetDataSetNames( 'pin' ) ) > 0 and data.core.nax > 1:
+      self.axialPlotTypes.add( 'pin' )
+
+    if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
+      self.axialPlotTypes.add( 'vanadium' )
+
+#		-- Load Config
+#		--
+    if widget_config is not None:
+      self._LoadWidgetConfig( widget_config )
+
+#		-- Or determine default initial widgets
+#		--
+    else:
+      self.CloseAllWidgets()
+      grid_sizer = self.grid.GetSizer()
+      grid_sizer.SetRows( 1 )
+      grid_sizer.SetCols( 1 )
+
+      widget_list = []
+
+      if data.core.nass > 1:
+        widget_list.append( 'widget.core_view.Core2DView' )
+
+#			-- Detector mode
+      if len( data.GetDataSetNames( 'detector' ) ) > 0:
+        widget_list.append( 'widget.detector_view.Detector2DView' )
+
+      if len( data.GetDataSetNames('vanadium' ) ) > 0:
+        if 'widget.detector_view.Detector2DView' not in widget_list:
+          widget_list.append( 'widget.detector_view.Detector2DView' )
+
+#			-- Pin mode
+      if len( data.GetDataSetNames( 'pin' ) ) > 0:
+        if data.core.nax > 1:
+          widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
+        widget_list.append( 'widget.assembly_view.Assembly2DView' )
+
+#			-- Channel mode
+      if len( data.GetDataSetNames( 'channel' ) ) > 0:
+        if data.core.nass > 1:
+          widget_list.append( 'widget.channel_view.Channel2DView' )
+        widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
+        if data.core.nax > 1:
+          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
+
+#			-- Axial plot?
+      if len( self.axialPlotTypes ) > 0:
+        widget_list.append( 'widget.axial_plot.AxialPlot' )
+
+#			-- Time plot?
+      if len( data.states ) > 1:
+        widget_list.append( 'widget.time_plots.TimePlots' )
+
+      if False:
+        widget_list = [
+            'widget.core_view.Core2DView',
+            'widget.assembly_view.Assembly2DView',
+            'widget.axial_plot.AxialPlot',
+            'widget.time_plots.TimePlots'
+#	    'widget.channel_view.Channel2DView',
+#	    'widget.channel_assembly_view.ChannelAssembly2DView'
+#	    'widget.channel_axial_view.ChannelAxial2DView',
+            ]
+
+#			-- Create widgets
+#			--
+      for w in widget_list:
+        self.CreateWidget( w, False )
+        print >> sys.stderr, \
+            '[VeraViewFrame.LoadDataModel] added="%s", size=%s' % \
+	    ( w, str( self.grid.GetSize() ) )
+      #end for
+
+      self._Refit( True )
+    #end if-else widget_config
+
+#		-- Set bean ranges and values
+#		--
+    self.axialBean.SetRange( 1, data.core.nax )
+    self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+
+    self.exposureBean.SetRange( 1, len( data.states ) )
+    self.exposureBean.stateIndex = self.state.stateIndex
+
+    ##self.GetStatusBar().SetStatusText( 'Data model loaded' )
+  #end LoadDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._LoadWidgetConfig()		-
+  #----------------------------------------------------------------------
+  def _LoadWidgetConfig( self, widget_config, check_types = False ):
+    """Updates based on a widget configuration.
+Note this defines a new State as well as widgets in the grid.
+@param  widget_config	WidgetConfig instance, cannot be None
+@param  check_types	true to check widget dataset types
+"""
+    print >> sys.stderr, '[VeraViewFrame._LoadWidgetConfig]'
+
+    self.state.LoadProps( widget_config.GetStateProps() )
+    if check_types:
+      data = self.state.GetDataModel()
+
+    self.CloseAllWidgets()
+    grid_sizer = self.grid.GetSizer()
+    grid_sizer.SetRows( 1 )
+    grid_sizer.SetCols( 1 )
+
+    for props in widget_config.GetWidgetProps():
+      if 'classpath' in props:
+        con = self.CreateWidget( props[ 'classpath' ], False )
+	con.widget.LoadProps( props )
+
+	#xxx we need a cheaper way to check for the types
+	if check_types:
+	  must_remove = True
+	  for t in con.widget.GetDataSetTypes():
+	    if data.HasDataSetType( t ):
+	      must_remove = False
+	      addit = True
+	  if must_remove:
+	    con.OnClose( None )
+	#end if check_types
+      #end if classpath
+    #end for props
+
+    if self.state.scaleMode in self.scaleModeItems:
+      self.scaleModeItems[ self.state.scaleMode ].Check()
+
+    fr_size = widget_config.GetFrameSize()
+    if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
+      self.SetSize( fr_size )
+  #end _LoadWidgetConfig
 
 
   #----------------------------------------------------------------------
@@ -1451,6 +1498,24 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   def _OnLoadSession( self, ev ):
     ev.Skip()
+
+    path = None
+    dialog = wx.FileDialog(
+	self, 'Load Session', '', '',
+	'VERAView session files (*.vview)|*.vview',
+	wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_CHANGE_DIR
+        )
+    if dialog.ShowModal() != wx.ID_CANCEL:
+      path = dialog.GetPath()
+      dialog.Destroy()
+
+    if path is not None:
+      try:
+        config = WidgetConfig( path )
+	self._LoadWidgetConfig( config, True )
+      except Exception, ex:
+        msg = 'Error loading session:' + os.linesep + str( ex )
+        self.ShowMessageDialog( msg, 'Load Session' )
   #end _OnLoadSession
 
 
@@ -1594,11 +1659,12 @@ Must be called on the UI event thread.
 
     if dialog.ShowModal() != wx.ID_CANCEL:
       file_path = dialog.GetPath()
+      dialog.Destroy()
       try:
         self.SaveSession( file_path )
       except Exception, ex:
-        msg = 'Error saving widget configuration:' + os.linesep + str( ex )
-        self.ShowMessageDialog( msg, 'Save Widget Configuration' )
+        msg = 'Error saving session:' + os.linesep + str( ex )
+        self.ShowMessageDialog( msg, 'Save Session' )
   #end _OnSaveSession
 
 
@@ -1923,6 +1989,13 @@ Must be called from the UI thread.
         widget_list.append( wc.widget )
 
     config.AddWidgets( *widget_list )
+
+    data = self.state.GetDataModel()
+    if data is not None:
+      hfp = data.GetH5File()
+      if hfp is not None:
+        config.SetFilePath( hfp.filename )
+
     config.Write( file_path )
   #end SaveSession
 

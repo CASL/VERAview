@@ -89,7 +89,7 @@ LOCKABLE_STATES = \
   STATE_CHANGE_pinColRow,
   STATE_CHANGE_pinDataSet,
   STATE_CHANGE_scalarDataSet,
-  #STATE_CHANGE_scaleMode,
+  STATE_CHANGE_scaleMode,
   STATE_CHANGE_stateIndex,
   STATE_CHANGE_timeDataSet,
   STATE_CHANGE_vanadiumDataSet

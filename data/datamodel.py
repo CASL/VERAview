@@ -581,10 +581,11 @@ Properties:
     if item is not None:
 #				-- Numpy magic
       t = np.copy( item.value )
-      t2 = np.r_[ t, np.roll( t, -1 ) ]
-      self.detectorMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
-
-      self.ndetax = item.shape[ 0 ] - 1
+#x      t2 = np.r_[ t, np.roll( t, -1 ) ]
+#x      self.detectorMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+#x      self.ndetax = item.shape[ 0 ] - 1
+      self.detectorMeshCenters = t
+      self.ndetax = item.shape[ 0 ]
     else:
       self.detectorMeshCenters = self.axialMeshCenters
       self.ndetax = self.nax
@@ -2620,7 +2621,7 @@ at a time for better performance.
             ax_value = self.CreateAxialValue( cm = axial_cm )
             axial_ndx = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
 
-	    detector_index = spec.get( 'detector_index', 0 )
+	    detector_ndx = spec.get( 'detector_index', 0 )
             det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
 
 	    value = dset.value[ axial_ndx, det_ndx ]

@@ -244,10 +244,10 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.ReadUserFile()			-
+  #	METHOD:		WidgetConfig.ReadUserSession()			-
   #----------------------------------------------------------------------
   @staticmethod
-  def ReadUserFile():
+  def ReadUserSession():
     """
 """
     config = None
@@ -256,5 +256,5 @@ class WidgetConfig( object ):
       config = WidgetConfig( file_path )
 
     return  config
-  #end ReadUserFile
+  #end ReadUserSession
 #end WidgetConfig

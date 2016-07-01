@@ -962,18 +962,6 @@ The config and data attributes are good to go.
 	      min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
 	      ]
 	  tip_str += ': %g' % value
-
-# now we need to check for derived 'asy' dataset for pinDataSet
-#	else:
-#	  avg_values = self.avgValues.get( self.stateIndex )
-#	  if avg_values is not None:
-#            ax = min( self.axialValue[ 1 ], avg_values.shape[ 0 ] - 1 )
-#	    assy_ndx = min( assy_ndx, avg_values.shape[ 1 ] - 1 )
-#	    avg_value = avg_values[ ax, assy_ndx ]
-#	    tip_str += '\nAvg %s: %.6g' % \
-#	      ( self.data.GetDataSetDisplayName( self.avgDataSet ), avg_value )
-	  #end if we have avg value
-	#end if-else on shape
       #end if assy_ndx in range
     #end if cell_info
 
@@ -1580,6 +1568,7 @@ method via super.SaveProps().
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
+    #xxx avgValues is deprecated
     if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
       changed = True
       self.avgDataSet = kwargs[ 'avg_dataset' ]

@@ -1038,16 +1038,6 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnDragFinished()		-
-  #----------------------------------------------------------------------
-  def _OnDragFinished( self, left, top, right, bottom ):
-    """Do post drag things after drag processing.
-"""
-    pass
-  #end _OnDragFinished
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._OnFindMax()			-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
