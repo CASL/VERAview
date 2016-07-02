@@ -900,6 +900,7 @@ be overridden by subclasses.
 	if rec[ 'axis' ] != 'top':
 	  rec[ 'axis' ] = 'bottom'
 	  bottom_name = name
+	  bottom = rec
 	  break
     #end if
 
@@ -909,8 +910,16 @@ be overridden by subclasses.
 	if rec[ 'axis' ] != 'bottom':
 	  rec[ 'axis' ] = 'top'
 	  top_name = name
+	  top = rec
 	  break
     #end if
+
+#		-- Special case, only top, must make it bottom
+#		--
+    if bottom is None and top is not None:
+      top[ 'axis' ] = 'bottom'
+      bottom_name = top_name
+      top_name = None
 
     return  \
       ( self._GetDataSetName( bottom_name ), self._GetDataSetName( top_name ) )
