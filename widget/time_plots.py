@@ -291,8 +291,8 @@ configuring the grid, plotting, and creating self.axline.
 #	    self.state.state.timeDataSet,
 #	    self.data.GetTimeValue( self.stateIndex, self.state.state.timeDataSet )
 #	    )
-      title_str = 'Assy %d %s' % \
-          ( self.assemblyIndex[ 0 ] + 1, show_assy_addr )
+      title_str = 'Assy %d %s, Axial %.3f' % \
+          ( self.assemblyIndex[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
 
       title_line2 = ''
       if 'channel' in self.dataSetTypes:
@@ -446,7 +446,7 @@ configuring the grid, plotting, and creating self.axline.
 animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
-    return  ( 'statepoint', )
+    return  ( 'axial:detector', 'axial:pin' )
   #end GetAnimationIndexes
 
 
@@ -708,6 +708,7 @@ be overridden by subclasses.
 	if rec[ 'axis' ] != 'right':
 	  rec[ 'axis' ] = 'left'
 	  left_name = name
+	  left = rec
 	  break
     #end if
 
@@ -717,8 +718,16 @@ be overridden by subclasses.
 	if rec[ 'axis' ] != 'left':
 	  rec[ 'axis' ] = 'right'
 	  right_name = name
+	  right = rec
 	  break
     #end if
+
+#		-- Special case, only right, must make it left
+#		--
+    if left is None and right is not None:
+      right[ 'axis' ] = 'left'
+      left_name = right_name
+      right_name = None
 
     return\
       ( self._GetDataSetName( left_name ), self._GetDataSetName( right_name ) )
@@ -820,8 +829,11 @@ already read.
 	  ds_type = self.data.GetDataSetType( ds_name )
 	  spec = { 'ds_name': ds_name }
 
+	  if ds_type is None:
+	    pass
+
 #					-- Channel
-	  if ds_type.startswith( 'channel' ):
+	  elif ds_type.startswith( 'channel' ):
 #						-- Lazy creation
 	    if chan_colrow_list is None:
               chan_colrow_list = list( self.auxChannelColRows )

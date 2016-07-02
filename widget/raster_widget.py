@@ -274,27 +274,40 @@ _CreateValueString()
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget._BitmapThreadFinish()		-
+  #	METHOD:		RasterWidget._BitmapThreadFinish_0()		-
   #----------------------------------------------------------------------
-  def _BitmapThreadFinish( self, result ):
+  def _BitmapThreadFinish_0( self, result ):
     """Background thread completion method called in the UI thread.
 Paired to _BitmapThreadStart().
 """
     if result is None:
       cur_tuple = pil_im = None
+      try_count = 0
     else:
-      cur_tuple, pil_im = result.get()
+      cur_tuple, pil_im, try_count = result.get()
 
-#    print >> sys.stderr, \
-#        '[RasterWidget._BitmapThreadFinish] %s cur_tuple=%s/%s, pil_im=%s' % \
-#	( self.GetTitle(), str( cur_tuple ), self.IsTupleCurrent( cur_tuple ),
-#	  pil_im is not None )
+    if cur_tuple is None:
+      print >> sys.stderr, \
+          '[RasterWidget._BitmapThreadFinish] xxx cur_tuple is None xxx'
+    if pil_im is None:
+      print >> sys.stderr, \
+          '[RasterWidget._BitmapThreadFinish] xxx pil_im is None xxx'
 
     if cur_tuple is not None:
 #			-- Create bitmap
 #			--
       if pil_im is None:
-        bmap = self.blankBitmap
+	if try_count < 2:
+          print >> sys.stderr, \
+'[RasterWidget._BitmapThreadFinish] retrying image thread, try_count=', \
+try_count
+	  th = wxlibdr.startWorker(
+	      self._BitmapThreadFinish,
+	      self._BitmapThreadStart,
+	      wargs = [ cur_tuple, try_count + 1 ]
+	      )
+	else:
+          bmap = self.blankBitmap
 
       else:
         wx_im = wx.EmptyImage( *pil_im.size )
@@ -323,13 +336,98 @@ Paired to _BitmapThreadStart().
     #end if cur_pair is not None:
 
     self._BusyEnd()
+  #end _BitmapThreadFinish_0
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._BitmapThreadFinish()		-
+  #----------------------------------------------------------------------
+  def _BitmapThreadFinish( self, result ):
+    """Background thread completion method called in the UI thread.
+Paired to _BitmapThreadStart().
+"""
+    if result is None:
+      cur_tuple = pil_im = None
+      try_count = 0
+    else:
+      cur_tuple, pil_im, try_count = result.get()
+
+#		-- Log these conditions
+#		--
+    if cur_tuple is None:
+      print >> sys.stderr, \
+          '[RasterWidget._BitmapThreadFinish] xxx cur_tuple is None xxx'
+    if pil_im is None:
+      print >> sys.stderr, \
+          '[RasterWidget._BitmapThreadFinish] xxx pil_im is None xxx'
+
+#		-- Retry image creation thread?
+#		--
+    if cur_tuple is not None and pil_im is None and try_count < 2:
+      print >> sys.stderr, \
+'[RasterWidget._BitmapThreadFinish] retrying image thread, try_count=', \
+try_count
+      th = wxlibdr.startWorker(
+          self._BitmapThreadFinish,
+	  self._BitmapThreadStart,
+	  wargs = [ cur_tuple, try_count + 1 ]
+	  )
+
+#		-- No, normal processing
+#		--
+    else:
+      self._BitmapThreadFinishImpl( cur_tuple, pil_im )
   #end _BitmapThreadFinish
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._BitmapThreadFinishImpl()		-
+  #----------------------------------------------------------------------
+  def _BitmapThreadFinishImpl( self, cur_tuple, pil_im ):
+    """Called from _BitmapThreadFinish().
+"""
+#		-- No tuple, give up
+#		--
+    if cur_tuple is not None:
+      if pil_im is None:
+        bmap = self.blankBitmap
+
+#			-- Create bitmap
+#			--
+      else:
+        wx_im = wx.EmptyImage( *pil_im.size )
+
+        pil_im_data_str = pil_im.convert( 'RGB' ).tobytes()
+        wx_im.SetData( pil_im_data_str )
+
+        pil_im_data_str = pil_im.convert( 'RGBA' ).tobytes()
+        wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
+
+        bmap = wx.BitmapFromImage( wx_im )
+
+#	with self.bitmapsLock:
+#	  self.bitmaps[ cur_tuple ] = bmap
+	self.bitmapsLock.acquire()
+	try:
+	  self.bitmaps[ cur_tuple ] = bmap
+	  self.bitmapThreadArgs = None
+	finally:
+	  self.bitmapsLock.release()
+      #end else pil_im not None
+
+      if self.IsTupleCurrent( cur_tuple ):
+        self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
+        self.bitmapCtrl.Update()
+    #end if cur_pair is not None:
+
+    self._BusyEnd()
+  #end _BitmapThreadFinishImpl
 
 
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._BitmapThreadStart()		-
   #----------------------------------------------------------------------
-  def _BitmapThreadStart( self, next_tuple ):
+  def _BitmapThreadStart( self, next_tuple, try_count = 0 ):
     """Background thread task to create the wx.Bitmap for the next
 tuple in the queue.  Paired with _BitmapThreadFinish().
 Calls _CreateRasterImage().
@@ -340,7 +438,11 @@ Calls _CreateRasterImage().
     if next_tuple is not None and self.config is not None:
       pil_im = self._CreateRasterImage( next_tuple )
 
-    return  ( next_tuple, pil_im )
+      if pil_im is None:
+        print >> sys.stderr, \
+            '[RasterWidget._BitmapThreadStart] xxx pil_im is None xxx'
+
+    return  ( next_tuple, pil_im, try_count )
   #end _BitmapThreadStart
 
 
@@ -381,6 +483,10 @@ Sets the config attribute.
     if wd > 0 and ht > 0 and self.data is not None and \
         self.data.HasData() and self.cellRange is not None:
       self.config = self._CreateDrawConfig( size = ( wd, ht ) )
+
+    if self.GetTitle() == 'Core 2D View':
+      print >> sys.stderr, \
+          '[RasterWidget._Configure] Core 2D View config:\n', str( self.config )
   #end _Configure
 
 
@@ -1380,8 +1486,6 @@ Calls _UpdateStateValues().
         if tpl in self.bitmaps:
           self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
 	  must_create_image = False
-        #elif (tpl + self.curSize) != self.bitmapThreadArgs:
-	  #self.bitmapThreadArgs = tpl + self.curSize
         elif bitmap_args == self.bitmapThreadArgs:
 	  must_create_image = False
         else:
@@ -1397,7 +1501,7 @@ Calls _UpdateStateValues().
 	th = wxlibdr.startWorker(
 	    self._BitmapThreadFinish,
 	    self._BitmapThreadStart,
-	    wargs = [ tpl ]
+	    wargs = [ tpl, 0 ]
 	    )
       #else:
         #self._BusyEnd()

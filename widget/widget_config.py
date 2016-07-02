@@ -183,7 +183,7 @@ class WidgetConfig( object ):
 @param  file_path	path to file to write or None to write the user file
 """
     if file_path is None:
-      file_path = WidgetConfig.GetUserSessionPath()
+      file_path = WidgetConfig.GetUserSessionPath( True )
 
     fp = file( file_path, 'w' )
     try:
@@ -237,9 +237,12 @@ class WidgetConfig( object ):
   #	METHOD:		WidgetConfig.GetUserSessionPath()		-
   #----------------------------------------------------------------------
   @staticmethod
-  def GetUserSessionPath():
+  def GetUserSessionPath( create_flag = False ):
     return \
-    os.path.join( WidgetConfig.GetPlatformAppDataDir(), 'session.vview' )
+    os.path.join(
+        WidgetConfig.GetPlatformAppDataDir( create_flag ),
+	'session.vview'
+	)
   #end GetUserSessionPath
 
 
