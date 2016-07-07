@@ -716,7 +716,7 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		InitDataSetSelections()				-
+  #	METHOD:		AxialPlot.InitDataSetSelections()		-
   #----------------------------------------------------------------------
   def InitDataSetSelections( self, ds_types ):
     """Special hook called in VeraViewFrame.LoadDataModel().
@@ -949,18 +949,6 @@ method via super.SaveProps().
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		SetDataSet()					-
-  #----------------------------------------------------------------------
-  def SetDataSet( self, ds_name ):
-    """Noop since this displays multiple datasets.
-"""
-#    wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
-#    self.FireStateChange( pin_dataset = ds_name )
-    pass
-  #end SetDataSet
 
 
   #----------------------------------------------------------------------

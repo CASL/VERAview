@@ -503,6 +503,8 @@ Properties:
         self._FindInGroup( 'axial_mesh', core_group, in_core_group )
     if axial_mesh_item is None:
       missing.append( '"axial_mesh" dataset not found' )
+    elif not isinstance( axial_mesh_item.value, np.ndarray ):
+      missing.append( '"axial_mesh" dataset is not an array' )
 
     core_map_item = self._FindInGroup( 'core_map', core_group, in_core_group )
     if core_map_item is None:
@@ -1782,7 +1784,8 @@ the properties construct for this class soon.
     st = None
     derived_st = None
 
-    if ds_name is not None:
+    #if ds_name is not None:
+    if ds_name:
       st = self.GetState( state_ndx )
       derived_st = self.GetDerivedState( state_ndx )
 
@@ -2886,11 +2889,15 @@ ds_names	dict of dataset names by dataset type
 	else:
 	  for def_name, def_item in ds_defs.iteritems():
 	    if cur_shape == def_item[ 'shape' ]:
-	      ds_names[ def_name ].append( cur_name )
-	      ds_defs_by_name[ cur_name ] = def_item
+#						-- Special fixed_detector check
+	      if def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is not None:
 
-	      if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
-	        ds_names[ 'axial' ].append( cur_name )
+	        ds_names[ def_name ].append( cur_name )
+	        ds_defs_by_name[ cur_name ] = def_item
+
+	        if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
+	          ds_names[ 'axial' ].append( cur_name )
+	      #end if def_name...
 	      break
 	  #end for
         #end if-else on shape
@@ -3281,7 +3288,9 @@ Fields:
   #	METHOD:		State.GetDataSet()				-
   #----------------------------------------------------------------------
   def GetDataSet( self, ds_name ):
-    """
+    """Retrieves the dataset from the state point.  Note this method does
+NOT process derived datasets as does DataModel.GetStateDataSet().
+@param  ds_name		dataset name
 @return			h5py.Dataset object or None if not found
 """
     return \

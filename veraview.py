@@ -121,7 +121,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.47'
+TITLE = 'VERAView Version 1.0.48'
 
 TOOLBAR_ITEMS = \
   [
@@ -149,6 +149,10 @@ TOOLBAR_ITEMS = \
     'widget': 'Channel Assembly 2D View', 'icon': 'ChannelAssembly2DView.1.32.png', 'type': 'channel'
     },
     { 'widget': 'separator' },
+    {
+    'widget': 'Detector 2D Multi View', 'icon': 'Detector2DView.1.32.png',
+    'type': 'detector'
+    },
     {
     'widget': 'Detector 2D View', 'icon': 'Detector2DView.1.32.png',
     'type': 'detector'
@@ -184,6 +188,7 @@ WIDGET_MAP = \
   'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
+  'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Time Plot': 'widget.time_plot.TimePlot',
   'Time Plots': 'widget.time_plots.TimePlots',
@@ -1034,8 +1039,9 @@ Must be called from the UI thread.
 
       if False:
         widget_list = [
-            'widget.core_view.Core2DView',
-            'widget.assembly_view.Assembly2DView',
+#            'widget.core_view.Core2DView',
+#            'widget.assembly_view.Assembly2DView',
+            'widget.detector_multi_view.Detector2DView',
             'widget.axial_plot.AxialPlot',
             'widget.time_plots.TimePlots'
 #	    'widget.channel_view.Channel2DView',

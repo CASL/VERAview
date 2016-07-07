@@ -763,18 +763,6 @@ method via super.SaveProps().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		SetDataSet()					-
-  #----------------------------------------------------------------------
-  def SetDataSet( self, ds_name ):
-    """Noop since this displays multiple datasets.
-"""
-#    wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
-#    self.FireStateChange( pin_dataset = ds_name )
-    pass
-  #end SetDataSet
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		TimePlots.ToggleDataSetVisible()		-
   #----------------------------------------------------------------------
   def ToggleDataSetVisible( self, ds_name ):

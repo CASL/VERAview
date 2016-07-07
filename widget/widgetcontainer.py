@@ -1030,8 +1030,9 @@ Must be called from the UI event thread
       selected_ds_names = []
       selected_flag = self.widget.GetDataSetDisplayMode() == 'selected'
       dataset_names = []
-      if self.widget.GetDataSetTypes():
-        for dtype in self.widget.GetDataSetTypes():
+      widget_ds_types = self.widget.GetDataSetTypes()
+      if widget_ds_types:
+        for dtype in widget_ds_types:
 	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
 	  if selected_flag and dtype.find( ':' ) < 0 and \
 	      data_model.HasDataSetType( dtype ):

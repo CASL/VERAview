@@ -349,10 +349,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  dset.shape, self.state.timeDataSet
 	  )
 
-      if 'detector_operable' in self.data.states[ state_ndx ].group:
-        ds_operable = self.data.states[ state_ndx ].group[ 'detector_operable' ].value
-      else:
-        ds_operable = None
+      st = self.data.GetState( state_ndx )
+      ds_operable = \
+          st.GetDataSet( 'detector_operable' ) \
+	  if st is not None else None
 
       if fdet_ds_value is not None:
         det_mesh_max = np.amax( self.data.core.detectorMeshCenters )
@@ -366,8 +366,9 @@ If neither are specified, a default 'scale' value of 4 is used.
         axial_mesh_min = np.amin( self.data.core.detectorMeshCenters )
       #end if
 
+      if axial_mesh_max == axial_mesh_min:
+        axial_mesh_max = axial_mesh_min + 1.0
       axial_mesh_factor = (det_wd - 1) / (axial_mesh_max - axial_mesh_min)
-#          (self.data.core.detectorMeshCenters[ -1 ] - self.data.core.detectorMeshCenters[ 0 ])
       if axial_mesh_factor < 0.0:
         axial_mesh_factor *= -1.0
       value_factor = (det_wd - 1) / value_delta
@@ -721,7 +722,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Detector2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Detectors 2D View'
+    return  'Detector 2D View'
   #end GetTitle
 
 
