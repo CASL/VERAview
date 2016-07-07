@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-07-07	leerw@ornl.gov				-
+#	  Renaming "vanadium" to "fixed_detector".
 #		2016-06-30	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-06-27	leerw@ornl.gov				-
@@ -72,7 +74,7 @@ STATE_CHANGE_timeDataSet = 0x1 << 12
 STATE_CHANGE_scaleMode = 0x1 << 13
 STATE_CHANGE_auxChannelColRows = 0x1 << 14
 STATE_CHANGE_auxPinColRows = 0x1 << 15
-STATE_CHANGE_vanadiumDataSet = 0x1 << 16
+STATE_CHANGE_fixedDetectorDataSet = 0x1 << 16
 #STATE_CHANGE_ALL = 0x1fff
 
 
@@ -92,7 +94,7 @@ LOCKABLE_STATES = \
   STATE_CHANGE_scaleMode,
   STATE_CHANGE_stateIndex,
   STATE_CHANGE_timeDataSet,
-  STATE_CHANGE_vanadiumDataSet
+  STATE_CHANGE_fixedDetectorDataSet
   )
 
 
@@ -110,7 +112,7 @@ EVENT_ID_NAMES = \
     ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
     ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
     ( STATE_CHANGE_stateIndex, 'State Point Index' ),
-    ( STATE_CHANGE_vanadiumDataSet, 'Vanadium Dataset' )
+    ( STATE_CHANGE_fixedDetectorDataSet, 'Fixed Detector Dataset' )
   ]
 
 
@@ -121,44 +123,52 @@ class State( object ):
   """Event state object.  State attributes currently in use are as follows.
 All indices are 0-based.
 
-+-------------------+------------------------------------+---------------------+
-| Attribute/Prop    | Description                        | Parameter           |
-+===================+====================================+=====================+
-| assemblyIndex     | ( int index, int column, int row ) | assembly_index      |
-+-------------------+------------------------------------+---------------------+
-| auxChannelColRows | list of ( col, row                 | aux_channel_colrows |
-|                   |   assy_ndx, assy_col, assy_row )   |                     |
-+-------------------+------------------------------------+---------------------+
-| auxPinColRows     | list of ( col, row                 | aux_pin_colrows     |
-|                   |   assy_ndx, assy_col, assy_row )   |                     |
-+-------------------+------------------------------------+---------------------+
-| axialValue        | ( value(cm), core-index,           | axial_value         |
-|                   |   detector-index, vanadium-index ) |                     |
-+-------------------+------------------------------------+---------------------+
-| channelColRow     | ( int column, int row )            | channel_colrow      |
-+-------------------+------------------------------------+---------------------+
-| channelDataSet    | str name                           | channel_dataset     |
-+-------------------+------------------------------------+---------------------+
-| dataModel         | DataModel object                   | data_model          |
-+-------------------+------------------------------------+---------------------+
-| detectorDataSet   | str name                           | detector_dataset    |
-+-------------------+------------------------------------+---------------------+
-| detectorIndex     | ( int index, int column, int row ) | detector_index      |
-+-------------------+------------------------------------+---------------------+
-| listeners         | list of objects to notify on change events               |
-+-------------------+------------------------------------+---------------------+
-| pinColRow         | ( int column, int row )            | pin_colrow          |
-+-------------------+------------------------------------+---------------------+
-| pinDataSet        | str name                           | pin_dataset         |
-+-------------------+------------------------------------+---------------------+
-| scalarDataSet     | str name                           | scalar_dataset      |
-+-------------------+------------------------------------+---------------------+
-| scaleMode         | 'all' or 'state'                   | scale_mode          |
-+-------------------+------------------------------------+---------------------+
-| stateIndex        | int statept-index                  | state_index         |
-+-------------------+------------------------------------+---------------------+
-| timeDataSet       | state dataset name used for "time" | time_dataset        |
-+-------------------+------------------------------------+---------------------+
++----------------------+---------------------------+---------------------------+
+| Attribute/Prop       | Description               | Parameter                 |
++===================+==============================+===========================+
+| assemblyIndex        | ( int index, int column,  | assembly_index            |
+|                      |   int row )               |                           |
++----------------------+---------------------------+---------------------------+
+| auxChannelColRows    | list of ( col, row        | aux_channel_colrows       |
+|                      |   assy_ndx, assy_col      |                           |
+|                      |   assy_row )              |                           |
++----------------------+---------------------------+---------------------------+
+| auxPinColRows        | list of ( col, row        | aux_pin_colrows           |
+|                      |   assy_ndx, assy_col      |                           |
+|                      |   assy_row )              |                           |
++----------------------+---------------------------+---------------------------+
+| axialValue           | ( value(cm), core-index,  | axial_value               |
+|                      |   detector-index,         |                           |
+|                      |   fixed-det-index )       |                           |
++----------------------+---------------------------+---------------------------+
+| channelColRow        | ( int column, int row )   | channel_colrow            |
++----------------------+---------------------------+---------------------------+
+| channelDataSet       | str name                  | channel_dataset           |
++----------------------+---------------------------+---------------------------+
+| dataModel            | DataModel object          | data_model                |
++----------------------+---------------------------+---------------------------+
+| detectorDataSet      | str name                  | detector_dataset          |
++----------------------+---------------------------+---------------------------+
+| detectorIndex        | ( int index, int column   | detector_index            |
+|                      |   int row )               |                           |
++----------------------+---------------------------+---------------------------+
+| fixedDetectorDataSet | str name                  | fixed_detector_dataset    |
++----------------------+---------------------------+---------------------------+
+| listeners            | list of objects to notify on change events            |
++----------------------+---------------------------+---------------------------+
+| pinColRow            | ( int column, int row )   | pin_colrow                |
++----------------------+---------------------------+---------------------------+
+| pinDataSet           | str name                  | pin_dataset               |
++----------------------+---------------------------+---------------------------+
+| scalarDataSet        | str name                  | scalar_dataset            |
++----------------------+---------------------------+---------------------------+
+| scaleMode            | 'all' or 'state'          | scale_mode                |
++----------------------+---------------------------+---------------------------+
+| stateIndex           | int statept-index         | state_index               |
++----------------------+---------------------------+---------------------------+
+| timeDataSet          | state dataset name used   | time_dataset              |
+|                      | for "time"                |                           |
++----------------------+---------------------------+---------------------------+
 
 We need to change to a single "coordinate" specifying the assembly/detector
 index and col,row, pin/channel col,row, and axial value.  Big change!!
@@ -190,7 +200,7 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
     self.scaleMode = 'all'
     self.stateIndex = -1
     self.timeDataSet = 'state'
-    self.vanadiumDataSet = 'vanadium_response'
+    self.fixedDetectorDataSet = 'fixed_detector_response'
 
     if 'assembly_index' in kwargs:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
@@ -210,6 +220,8 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
       self.detectorDataSet = kwargs[ 'detector_dataset' ]
     if 'detector_index' in kwargs:
       self.detectorIndex = kwargs[ 'detector_index' ]
+    if 'fixed_detector_dataset' in kwargs:
+      self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
     if 'pin_colrow' in kwargs:
       self.pinColRow = kwargs[ 'pin_colrow' ]
     if 'pin_dataset' in kwargs:
@@ -222,8 +234,6 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
       self.stateIndex = kwargs[ 'state_index' ]
     if 'time_dataset' in kwargs:
       self.timeDataSet = kwargs[ 'time_dataset' ]
-    if 'vanadium_dataset' in kwargs:
-      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
   #end __init__
 
 
@@ -275,13 +285,13 @@ Keys passed and the corresponding state bit are:
   channel_dataset	STATE_CHANGE_channelDataSet
   detector_dataset	STATE_CHANGE_detectorDataSet
   detector_index	STATE_CHANGE_detectorIndex
+  fixed_detector_dataset	STATE_CHANGE_fixedDetectorDataSet
   pin_colrow		STATE_CHANGE_pinColRow
   pin_dataset		STATE_CHANGE_pinDataSet
   scalar_dataset	STATE_CHANGE_scalarDataSet
   scale_mode		STATE_CHANGE_scaleMode
   state_index		STATE_CHANGE_stateIndex
   time_dataset		STATE_CHANGE_timeDataSet
-  vanadium_dataset	STATE_CHANGE_vanadiumDataSet
 @return			change reason mask
 """
     reason = STATE_CHANGE_noop
@@ -325,6 +335,11 @@ Keys passed and the corresponding state bit are:
       self.detectorIndex = kwargs[ 'detector_index' ]
       reason |= STATE_CHANGE_detectorIndex
 
+    if 'fixed_detector_dataset' in kwargs and \
+        locks[ STATE_CHANGE_fixedDetectorDataSet ]:
+      self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
+      reason |= STATE_CHANGE_fixedDetectorDataSet
+
     if 'pin_colrow' in kwargs and locks[ STATE_CHANGE_pinColRow ]:
       self.pinColRow = kwargs[ 'pin_colrow' ]
       reason |= STATE_CHANGE_pinColRow
@@ -349,10 +364,6 @@ Keys passed and the corresponding state bit are:
       if self.timeDataSet != kwargs[ 'time_dataset' ]:
         self.timeDataSet = kwargs[ 'time_dataset' ]
         reason |= STATE_CHANGE_timeDataSet
-
-    if 'vanadium_dataset' in kwargs and locks[ STATE_CHANGE_vanadiumDataSet ]:
-      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
-      reason |= STATE_CHANGE_vanadiumDataSet
 
 #		-- Wire assembly_index and detector_index together
 #		--
@@ -416,6 +427,9 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_detectorIndex) > 0:
       update_args[ 'detector_index' ] = self.detectorIndex
 
+    if (reason & STATE_CHANGE_fixedDetectorDataSet) > 0:
+      update_args[ 'fixed_detector_dataset' ] = self.fixedDetectorDataSet
+
     if (reason & STATE_CHANGE_pinColRow) > 0:
       update_args[ 'pin_colrow' ] = self.pinColRow
 
@@ -433,9 +447,6 @@ Keys passed and the corresponding state bit are:
 
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self.timeDataSet
-
-    if (reason & STATE_CHANGE_vanadiumDataSet) > 0:
-      update_args[ 'vanadium_dataset' ] = self.vanadiumDataSet
 
     return  update_args
   #end CreateUpdateArgs
@@ -492,6 +503,7 @@ Keys passed and the corresponding state bit are:
       self.channelColRow = data_model.NormalizePinColRow( undefined2 )
       self.detectorDataSet = data_model.GetFirstDataSet( 'detector' )
       self.detectorIndex = data_model.NormalizeDetectorIndex( undefined3 )
+      self.fixedDetectorDataSet = data_model.GetFirstDataSet( 'fixed_detector' )
       self.pinColRow = data_model.NormalizePinColRow( undefined2 )
       self.pinDataSet = 'pin_powers' \
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
@@ -503,7 +515,6 @@ Keys passed and the corresponding state bit are:
           if 'exposure' in data_model.GetDataSetNames( 'time' ) else \
 	  'state'
       #self.timeDataSet = data_model.ResolveTimeDataSetName()
-      self.vanadiumDataSet = data_model.GetFirstDataSet( 'vanadium' )
 
     else:
       self.assemblyIndex = undefined3
@@ -512,12 +523,12 @@ Keys passed and the corresponding state bit are:
       self.channelDataSet = None
       self.detectorDataSet = None
       self.detectorIndex = undefined3
+      self.fixedDetectorDataSet = None
       self.pinColRow = undefined2
       self.pinDataSet = None
       self.scalarDataSet = None
       self.stateIndex = -1
       self.timeDataSet = 'state'
-      self.vanadiumDataSet = None
 
     self.auxChannelColRows = []
     self.auxPinColRows = []
@@ -534,11 +545,10 @@ Keys passed and the corresponding state bit are:
     for k in (
         'assemblyIndex', 'auxChannelColRows', 'auxPinColRows', 'axialValue', 
         'channelColRow', 'channelDataSet',
-        'detectorDataSet', 'detectorIndex',
+        'detectorDataSet', 'detectorIndex', 'fixedDetectorDataSet',
         'pinColRow', 'pinDataSet', 
         'scalarDataSet', 'scaleMode', 
-        'stateIndex', 'timeDataSet', 
-        'vanadiumDataSet'
+        'stateIndex', 'timeDataSet',
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -587,11 +597,10 @@ Keys passed and the corresponding state bit are:
     for k in (
         'assemblyIndex', 'auxChannelColRows', 'auxPinColRows', 'axialValue', 
         'channelColRow', 'channelDataSet',
-        'detectorDataSet', 'detectorIndex',
+        'detectorDataSet', 'detectorIndex', 'fixedDetectorDataSet',
         'pinColRow', 'pinDataSet', 
         'scalarDataSet', 'scaleMode', 
-        'stateIndex', 'timeDataSet', 
-        'vanadiumDataSet'
+        'stateIndex', 'timeDataSet',
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -616,13 +625,13 @@ Keys passed and the corresponding state bit are:
 		STATE_CHANGE_channelDataSet,
 		STATE_CHANGE_detectorDataSet,
 		STATE_CHANGE_detectorIndex,
+		STATE_CHANGE_fixedDetectorDataSet,
 		STATE_CHANGE_pinColRow,
 		STATE_CHANGE_pinDataSet,
 		STATE_CHANGE_scalarDataSet,
 		STATE_CHANGE_scaleMode,
-		STATE_CHANGE_stateIndex
+		STATE_CHANGE_stateIndex,
 		STATE_CHANGE_timeDataSet
-		STATE_CHANGE_vanadiumDataSet,
 """
     locks = {}
     for mask in LOCKABLE_STATES:

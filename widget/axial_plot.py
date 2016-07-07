@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-07-07	leerw@ornl.gov				-
+#	  Renaming "vanadium" to "fixed_detector".
 #		2016-06-30	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-06-07	leerw@ornl.gov				-
@@ -154,9 +156,9 @@ Properties:
     self.dataSetValues = {}  # keyed by dataset name or pseudo name
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
+    self.fixedDetectorDataSet = 'fixed_detector_response'
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
-    self.vanadiumDataSet = 'vanadium_response'
 
     super( AxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
@@ -170,7 +172,7 @@ Properties:
       ):
     """Creates CSV rows for the specified mesh type and associated
 dataset names and ( rc, values ) pairs.
-@param  axial_mesh_type	'axial', 'detector', or 'vanadium'
+@param  axial_mesh_type	'axial', 'detector', or 'fixed_detector'
 @param  cur_selection_flag  True to only show data for the current selection
 @param  dataset_dict	dict by dataset name of [ ( rc, values ) ]
 @return			CSV text
@@ -184,10 +186,10 @@ dataset names and ( rc, values ) pairs.
       header = 'Detector'
       cur_axial_index = self.axialValue[ 2 ]
       mesh_centers = core.detectorMeshCenters
-    elif axial_mesh_type == 'vanadium':
-      header = 'Vanadium'
+    elif axial_mesh_type == 'fixed_detector':
+      header = 'Fixed Detector'
       cur_axial_index = self.axialValue[ 3 ]
-      mesh_centers = core.vanadiumMeshCenters
+      mesh_centers = core.fixedDetectorMeshCenters
     else:
       header = 'Axial'
       cur_axial_index = self.axialValue[ 1 ]
@@ -255,7 +257,7 @@ dataset names and ( rc, values ) pairs.
       title_set = set( [] )
       axial_mesh_datasets = {}
       detector_mesh_datasets = {}
-      vanadium_mesh_datasets = {}
+      fixed_detector_mesh_datasets = {}
 
 #		 	-- Collate by mesh type
 #		 	--
@@ -285,11 +287,11 @@ dataset names and ( rc, values ) pairs.
 	      title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
 	    detector_mesh_datasets[ ds_display_name ] = data_set_item
 
-	  elif ds_type.startswith( 'vanadium' ):
+	  elif ds_type.startswith( 'fixed_detector' ):
 	    if 'detector' not in title_set:
 	      title_set.add( 'detector' )
 	      title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
-	    vanadium_mesh_datasets[ ds_display_name ] = data_set_item
+	    fixed_detector_mesh_datasets[ ds_display_name ] = data_set_item
 
 	  else:
 	    if 'pin' not in title_set:
@@ -316,9 +318,9 @@ dataset names and ( rc, values ) pairs.
 	    'detector', cur_selection_flag, detector_mesh_datasets
 	    )
 
-      if len( vanadium_mesh_datasets ) > 0:
+      if len( fixed_detector_mesh_datasets ) > 0:
 	csv_text += self._CreateCsvDataRows( 
-	    'vanadium', cur_selection_flag, vanadium_mesh_datasets
+	    'fixed_detector', cur_selection_flag, fixed_detector_mesh_datasets
 	    )
     #end if valid state
 
@@ -422,17 +424,19 @@ configuring the grid, plotting, and creating self.axline.
 	    top_ds_name,
 	    self.stateIndex if self.state.scaleMode == 'state' else -1
 	    )
-        self.ax2.set_xlim( *ds_range )
-	self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+	if self.data.IsValidRange( *ds_range ):
+          self.ax2.set_xlim( *ds_range )
+	  self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
       self.ax.set_xlabel( bottom_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
 	  bottom_ds_name,
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
-      self.ax.set_xlim( *ds_range )
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
-      self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+      if self.data.IsValidRange( *ds_range ):
+        self.ax.set_xlim( *ds_range )
+        self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
 #			-- Set title
 #			--
@@ -463,7 +467,7 @@ configuring the grid, plotting, and creating self.axline.
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Pin %s' % str( pin_rc )
 
-      if 'vanadium' in self.dataSetTypes:
+      if 'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Van %d %s' % \
 	    ( self.detectorIndex[ 0 ] + 1,
@@ -492,10 +496,10 @@ configuring the grid, plotting, and creating self.axline.
 	  plot_type = '--'
 	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
-	elif ds_type.startswith( 'vanadium' ):
+	elif ds_type.startswith( 'fixed_detector' ):
 	  #xxxx different marker, points
-	  axial_values = self.data.core.vanadiumMeshCenters
-	  plot_type = '-.'
+	  axial_values = self.data.core.fixedDetectorMeshCenters
+	  plot_type = 'x'
 	else:
 	  plot_type = ':'
 
@@ -585,9 +589,9 @@ configuring the grid, plotting, and creating self.axline.
       if ds_name in self.data.GetDataSetNames( 'detector' ):
         if self.data.core.detectorMeshCenters is not None:
 	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
-      elif ds_name in self.data.GetDataSetNames( 'vanadium' ):
-        if self.data.core.vanadiumMeshCenters is not None:
-	  ndx = self.data.FindListIndex( self.data.core.vanadiumMeshCenters, axial_cm )
+      elif ds_name in self.data.GetDataSetNames( 'fixed_detector' ):
+        if self.data.core.fixedDetectorMeshCenters is not None:
+	  ndx = self.data.FindListIndex( self.data.core.fixedDetectorMeshCenters, axial_cm )
       else:
         ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
 
@@ -622,7 +626,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
     """@return		( value, 0-based core index, 0-based detector index
-			  0-based vanadium index )
+			  0-based fixed_detector index )
 """
     return  self.axialValue
   #end GetAxialValue
@@ -639,7 +643,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	self.channelDataSet  if name == 'Selected channel dataset' else \
         self.detectorDataSet  if name == 'Selected detector dataset' else \
         self.pinDataSet  if name == 'Selected pin dataset' else \
-        self.vanadiumDataSet  if name == 'Selected vanadium dataset' else \
+        self.fixedDetectorDataSet  if name == 'Selected fixed_detector dataset' else \
 	name
   #end _GetDataSetName
 
@@ -652,7 +656,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       [
       'channel', 'detector',
       'pin', 'pin:assembly', 'pin:axial',
-      'vanadium'
+      'fixed_detector'
       ]
   #end GetDataSetTypes
 
@@ -682,7 +686,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
-	STATE_CHANGE_vanadiumDataSet
+	STATE_CHANGE_fixedDetectorDataSet
 	])
     return  locks
   #end GetEventLockSet
@@ -791,7 +795,7 @@ be overridden by subclasses.
 	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
-	'pinColRow', 'pinDataSet', 'vanadiumDataSet'
+	'pinColRow', 'pinDataSet', 'fixedDetectorDataSet'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -941,7 +945,7 @@ method via super.SaveProps().
 	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
-	'pinColRow', 'pinDataSet', 'vanadiumDataSet'
+	'pinColRow', 'pinDataSet', 'fixedDetectorDataSet'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -1050,14 +1054,14 @@ Must be called from the event thread.
 		)
             self.dataSetTypes.add( 'pin' )
 
-#					-- Vanadium
-	  elif ds_type.startswith( 'vanadium' ):
+#					-- Fixed detector
+	  elif ds_type.startswith( 'fixed_detector' ):
 	    ds_values = self.data.ReadDataSetAxialValues(
 	        ds_name,
 		detector_index = self.detectorIndex[ 0 ],
 		state_index = self.stateIndex
 		)
-            self.dataSetTypes.add( 'vanadium' )
+            self.dataSetTypes.add( 'fixed_detector' )
 	  #end if ds_type match
 
 	  if ds_values is not None:
@@ -1066,120 +1070,6 @@ Must be called from the event thread.
       #end for each dataset
     #end if valid state
   #end _UpdateDataSetValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDataSetValues_0()			-
-  #----------------------------------------------------------------------
-#  def _UpdateDataSetValues_0( self ):
-#    """Rebuild dataset arrays to plot.
-#"""
-#    self.dataSetTypes.clear()
-#    self.dataSetValues.clear()
-#
-##		-- Must have data
-##		--
-#    #if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
-#    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-#      axial_ds_names = self.data.GetDataSetNames( 'axial' )
-#
-#      chan_colrow_list = None
-#      pin_colrow_list = None
-#
-#      for k in self.dataSetSelections:
-#        ds_rec = self.dataSetSelections[ k ]
-#	ds_name = self._GetDataSetName( k )
-#
-##				-- Must be visible and an "axial" dataset
-##				--
-#        if ds_rec[ 'visible' ] and ds_name is not None and \
-#	    ds_name in axial_ds_names:
-#	  ds_type = self.data.GetDataSetType( ds_name )
-#	  dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
-#	  dset_array = dset.value \
-#	      if dset is not None and ds_type is not None  else None
-#
-#	  if dset_array is None:
-#	    pass
-#
-##					-- Channel
-#	  elif ds_type.startswith( 'channel' ):
-#	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-##						-- Lazy creation
-#	    if chan_colrow_list is None:
-#              chan_colrow_list = list( self.auxChannelColRows )
-#              chan_colrow_list.insert( 0, self.channelColRow )
-#
-#	    chan_colrow_set = set()
-#	    for colrow in chan_colrow_list:
-#	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
-#	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
-#	      chan_colrow_set.add( ( col, row ) )
-#              #valid = self.data.IsValidForShape(
-#	          #dset_array.shape, pin_colrow = self.pinColRow
-#		  #)
-#	    #end for
-#	    ds_values_dict = {}
-#	    for colrow in sorted( chan_colrow_set ):
-#	      ds_values_dict[ colrow ] = \
-#	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-#
-#	    self.dataSetValues[ k ] = ds_values_dict
-#            self.dataSetTypes.add( 'channel' )
-#
-##					-- Detector
-#	  elif ds_type.startswith( 'detector' ):
-#	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] - 1 )
-#	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
-#            self.dataSetTypes.add( 'detector' )
-#
-##					-- Pin
-#	  elif ds_type.startswith( 'pin' ):
-#	    assy_ndx = min( self.assemblyIndex[ 0 ], dset_array.shape[ 3 ] - 1 )
-##						-- Lazy creation
-#	    if pin_colrow_list is None:
-#              pin_colrow_list = list( self.auxPinColRows )
-#              pin_colrow_list.insert( 0, self.pinColRow )
-#
-#	    pin_colrow_set = set()
-#	    for colrow in pin_colrow_list:
-#	      col = min( colrow[ 0 ], dset_array.shape[ 1 ] - 1 )
-#	      row = min( colrow[ 1 ], dset_array.shape[ 0 ] - 1 )
-#	      pin_colrow_set.add( ( col, row ) )
-#              #valid = self.data.IsValidForShape(
-#	          #dset_array.shape, pin_colrow = self.pinColRow
-#		  #)
-#	    #end for
-#	    ds_values_dict = {}
-#	    for colrow in sorted( pin_colrow_set ):
-#	      ds_values_dict[ colrow ] = \
-#	          dset_array[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-#
-#	    self.dataSetValues[ k ] = ds_values_dict
-#            self.dataSetTypes.add( 'pin' )
-#
-##					-- Vanadium
-#	  elif ds_type.startswith( 'vanadium' ):
-#	    det_ndx = min( self.detectorIndex[ 0 ], dset_array.shape[ 1 ] )
-#	    self.dataSetValues[ k ] = dset_array[ :, det_ndx ]
-#            self.dataSetTypes.add( 'vanadium' )
-#
-##	  elif ds_display_name in self.data.GetDataSetNames( 'pin' ):
-##	    valid = self.data.IsValid(
-##	        assembly_index = self.assemblyIndex,
-##		pin_colrow = self.pinColRow
-##	        )
-##	    if valid:
-##	      self.dataSetValues[ k ] = dset_array[
-##	          self.pinColRow[ 1 ], self.pinColRow[ 0 ],
-##		  :, self.assemblyIndex[ 0 ]
-##	          ]
-##              self.dataSetTypes.add( 'pin' )
-#	  #end if ds_type match
-#        #end if visible
-#      #end for each dataset
-#    #end if valid state
-#  #end _UpdateDataSetValues_0
 
 
   #----------------------------------------------------------------------
@@ -1262,9 +1152,9 @@ Must be called from the UI thread.
     if 'time_dataset' in kwargs:
       replot = True
 
-    if 'vanadium_dataset' in kwargs and kwargs[ 'vanadium_dataset' ] != self.vanadiumDataSet:
-      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
-      select_name = self.GetSelectedDataSetName( 'vanadium' )
+    if 'fixed_detector_dataset' in kwargs and kwargs[ 'fixed_detector_dataset' ] != self.fixedDetectorDataSet:
+      self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
+      select_name = self.GetSelectedDataSetName( 'fixed_detector' )
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True

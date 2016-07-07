@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_view.py				-
 #	HISTORY:							-
+#		2016-07-07	leerw@ornl.gov				-
+#	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-01	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-05-25	leerw@ornl.gov				-
@@ -80,7 +82,7 @@ Attrs/properties:
     #self.detectorDataSet = kwargs.get( 'dataset', 'detector_response' )
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
-    self.vanadiumDataSet = 'vanadium_response'
+    self.fixedDetectorDataSet = 'fixed_detector_response'
 
     super( Detector2DView, self ).__init__( container, id )
   #end __init__
@@ -223,16 +225,16 @@ If neither are specified, a default 'scale' value of 4 is used.
         self.detectorDataSet,
 	self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
-    vanadium_dset = \
-        self.data.GetStateDataSet( self.stateIndex, self.vanadiumDataSet )
-    if vanadium_dset is not None:
-      van_ds_range = self.data.GetRange(
-          self.vanadiumDataSet,
+    fixed_detector_dset = \
+        self.data.GetStateDataSet( self.stateIndex, self.fixedDetectorDataSet )
+    if fixed_detector_dset is not None:
+      fdet_ds_range = self.data.GetRange(
+          self.fixedDetectorDataSet,
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
           )
       ds_range = (
-          min( ds_range[ 0 ], van_ds_range[ 0 ] ),
-          max( ds_range[ 1 ], van_ds_range[ 1 ] )
+          min( ds_range[ 0 ], fdet_ds_range[ 0 ] ),
+          max( ds_range[ 1 ], fdet_ds_range[ 1 ] )
 	  )
 
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
@@ -329,16 +331,16 @@ If neither are specified, a default 'scale' value of 4 is used.
           self.detectorDataSet,
 	  state_ndx if self.state.scaleMode == 'state' else -1
 	  )
-      van_dset = self.data.GetStateDataSet( self.stateIndex, self.vanadiumDataSet )
-      van_ds_value = van_dset.value if van_dset is not None else None
-      if van_ds_value is not None:
-        van_ds_range = self.data.GetRange(
-            self.vanadiumDataSet,
+      fdet_dset = self.data.GetStateDataSet( self.stateIndex, self.fixedDetectorDataSet )
+      fdet_ds_value = fdet_dset.value if fdet_dset is not None else None
+      if fdet_ds_value is not None:
+        fdet_ds_range = self.data.GetRange(
+            self.fixedDetectorDataSet,
 	    state_ndx if self.state.scaleMode == 'state' else -1
             )
         ds_range = (
-            min( ds_range[ 0 ], van_ds_range[ 0 ] ),
-            max( ds_range[ 1 ], van_ds_range[ 1 ] )
+            min( ds_range[ 0 ], fdet_ds_range[ 0 ] ),
+            max( ds_range[ 1 ], fdet_ds_range[ 1 ] )
 	    )
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
@@ -352,13 +354,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         ds_operable = None
 
-      if van_ds_value is not None:
+      if fdet_ds_value is not None:
         det_mesh_max = np.amax( self.data.core.detectorMeshCenters )
         det_mesh_min = np.amin( self.data.core.detectorMeshCenters )
-        van_mesh_max = np.amax( self.data.core.vanadiumMeshCenters )
-        van_mesh_min = np.amin( self.data.core.vanadiumMeshCenters )
-        axial_mesh_max = max( det_mesh_max, van_mesh_max )
-        axial_mesh_min = min( det_mesh_min, van_mesh_min )
+        fdet_mesh_max = np.amax( self.data.core.fixedDetectorMeshCenters )
+        fdet_mesh_min = np.amin( self.data.core.fixedDetectorMeshCenters )
+        axial_mesh_max = max( det_mesh_max, fdet_mesh_max )
+        axial_mesh_min = min( det_mesh_min, fdet_mesh_min )
       else:
         axial_mesh_max = np.amax( self.data.core.detectorMeshCenters )
         axial_mesh_min = np.amin( self.data.core.detectorMeshCenters )
@@ -378,8 +380,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       noop_color = ( 155, 155, 155, 255 )
       grid_color = ( 200, 200, 200, 255 )
       line_color = ( 0, 0, 0, 255 )
-      van_center_color = ( 255, 255, 255, 255 )
-      van_line_color = ( 200, 0, 0, 255 )
+      fdet_center_color = ( 255, 255, 255, 255 )
+      fdet_line_color = ( 200, 0, 0, 255 )
 
 #			-- Loop on rows
 #			--
@@ -489,25 +491,25 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      last_y = cur_y
 	    #end for values
 
-#						-- Draw vanadium bars
+#						-- Draw fixed detector bars
 #						--
-	    van_values = van_ds_value[ :, det_ndx ] \
-	        if van_ds_value is not None else None
-	    if van_values is not None and \
-	        len( van_values ) == len( self.data.core.vanadiumMeshCenters ):
-	      #van_line_wd = line_wd << 1
-	      van_line_wd = line_wd
-	      for i in range( len( van_values ) ):
+	    fdet_values = fdet_ds_value[ :, det_ndx ] \
+	        if fdet_ds_value is not None else None
+	    if fdet_values is not None and \
+	        len( fdet_values ) == len( self.data.core.fixedDetectorMeshCenters ):
+	      #fdet_line_wd = line_wd << 1
+	      fdet_line_wd = line_wd
+	      for i in range( len( fdet_values ) ):
 		dy_center = \
-		    (axial_mesh_max - self.data.core.vanadiumMeshCenters[ i ]) * \
+		    (axial_mesh_max - self.data.core.fixedDetectorMeshCenters[ i ]) * \
 		    axial_mesh_factor
 		dy_lo = \
-		    (axial_mesh_max - self.data.core.vanadiumMesh[ i ]) * \
+		    (axial_mesh_max - self.data.core.fixedDetectorMesh[ i ]) * \
 		    axial_mesh_factor
 		dy_hi = \
-		    (axial_mesh_max - self.data.core.vanadiumMesh[ i + 1 ]) * \
+		    (axial_mesh_max - self.data.core.fixedDetectorMesh[ i + 1 ]) * \
 		    axial_mesh_factor
-	        dx = (van_values[ i ] - ds_range[ 0 ]) * value_factor
+	        dx = (fdet_values[ i ] - ds_range[ 0 ]) * value_factor
 	        cur_x = det_x + 1 + dx
 	        cur_ylo = det_y + 1 + dy_lo
 	        cur_yhi = det_y + 2 + dy_hi
@@ -515,14 +517,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 		im_draw.line(
 		    [ cur_x, cur_ylo, cur_x, cur_yhi ],
-		    fill = van_line_color, width = van_line_wd
+		    fill = fdet_line_color, width = fdet_line_wd
 		    )
 		im_draw.line(
 		    [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
-		    fill = van_center_color, width = van_line_wd
+		    fill = fdet_center_color, width = fdet_line_wd
 		    )
-	      #end for van_values
-	    #end if van_values
+	      #end for fdet_values
+	    #end if fdet_values
 
 	  elif self.data.core.coreMap[ det_row, det_col ] > 0:
 	    im_draw.rectangle(
@@ -684,7 +686,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Detector2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'detector', 'vanadium' ]
+    return  [ 'detector', 'fixed_detector' ]
   #end GetDataSetTypes
 
 
@@ -698,7 +700,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     locks = set([
         STATE_CHANGE_axialValue, STATE_CHANGE_detectorIndex,
         STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
-        STATE_CHANGE_vanadiumDataSet
+        STATE_CHANGE_fixedDetectorDataSet
 	])
     return  locks
   #end GetEventLockSet
@@ -812,7 +814,7 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'detectorDataSet', 'detectorIndex', 'vanadiumDataSet'
+	'detectorDataSet', 'detectorIndex', 'fixedDetectorDataSet'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -867,7 +869,7 @@ method via super.SaveProps().
     super( Detector2DView, self ).SaveProps( props_dict )
 
     for k in (
-	'detectorDataSet', 'detectorIndex', 'vanadiumDataSet'
+	'detectorDataSet', 'detectorIndex', 'fixedDetectorDataSet'
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -911,11 +913,11 @@ method via super.SaveProps().
       changed = True
       self.detectorIndex = kwargs[ 'detector_index' ]
 
-    if 'vanadium_dataset' in kwargs and kwargs[ 'vanadium_dataset' ] != self.vanadiumDataSet:
-      ds_type = self.data.GetDataSetType( kwargs[ 'vanadium_dataset' ] )
+    if 'fixed_detector_dataset' in kwargs and kwargs[ 'fixed_detector_dataset' ] != self.fixedDetectorDataSet:
+      ds_type = self.data.GetDataSetType( kwargs[ 'fixed_detector_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-        self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
+        self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
 
     if changed:
       kwargs[ 'changed' ] = True

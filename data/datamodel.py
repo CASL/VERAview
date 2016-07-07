@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-07-07	leerw@ornl.gov				-
+#	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-06	leerw@ornl.gov				-
 #	  Fixed bug in DataModel.CreateDetectorIndex().
 #		2016-06-16	leerw@ornl.gov				-
@@ -153,6 +155,13 @@ DATASET_DEFS = \
     'type': 'detector'
     },
 
+  'fixed_detector':
+    {
+    'label': 'fixed_detector',
+    'shape_expr': '( core.nfdetax, core.ndet )',
+    'type': 'fixed_detector'
+    },
+
   'pin':
     {
     'category': 'pin',
@@ -213,15 +222,13 @@ DATASET_DEFS = \
     'type': 'scalar'
     },
 
-  'vanadium':
-    {
-    'label': 'vanadium',
-    'shape_expr': '( core.nvanax, core.ndet )',
-    'type': 'vanadium'
-    },
+#  'vanadium':
+#    {
+#    'label': 'vanadium',
+#    'shape_expr': '( core.nvanax, core.ndet )',
+#    'type': 'vanadium'
+#    },
   }
-
-#xxxx change "vanadium" to "fixed_detector"
 
 #DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
 DERIVED_CALCULATOR_CLASS = 'data.pin_averages.Averages'
@@ -256,15 +263,15 @@ Properties:
   nass			number of full core assemblies
   nassx			number of core assembly columns
   nassy			number of core assembly rows
+  nax			number of axial levels
   ndet			number of detectors
   ndetax		number of detector axial levels
-  nax			number of axial levels
+  nfdetax		number of fixed_detector axial levels
   npin			number of pins in each assembly
-  nvanax		number of vanadium axial levels
   pinVolumes		np.ndarray, row-major, origin top,left
   pinVolumesSum		sum of all pin volumes
-  vanadiumMesh		np.ndarray of mesh values
-  vanadiumMeshCenters	np.ndarray of center-of-mesh values
+  fixedDetectorMesh		np.ndarray of mesh values
+  fixedDetectorMeshCenters	np.ndarray of center-of-mesh values
 """
 
 #		-- Object Methods
@@ -353,16 +360,16 @@ Properties:
     self.nax = 0
     self.ndet = 0
     self.ndetax = 0
+    self.nfdetax = 0
     self.npin = 0
     self.npinx = 0
     self.npiny = 0
-    self.nvanax = 0
     self.pinVolumes = None
     self.pinVolumesSum = 0.0
     self.ratedFlow = 0
     self.ratedPower = 0
-    self.vanadiumMesh = None
-    self.vanadiumMeshCenters = None
+    self.fixedDetectorMesh = None
+    self.fixedDetectorMeshCenters = None
   #end Clear
 
 
@@ -597,17 +604,19 @@ Properties:
       self.ndetax = self.nax
     #end if detector_mesh
 
-#			-- Optional vanadium_axial_mesh
+#			-- Optional fixedDetector_axial_mesh
 #			--
-    item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
+    #item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
+    item = self._FindInGroup( 'fixed_detector_mesh', core_group )
     if item is not None:
-      self.vanadiumMesh = item.value
+      self.fixedDetectorMesh = item.value
 #				-- Numpy magic
       t = np.copy( item.value )
       t2 = np.r_[ t, np.roll( t, -1 ) ]
-      self.vanadiumMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
-      self.nvanax = item.shape[ 0 ] - 1
-    #end if vanadium_axial_mesh
+      self.fixedDetectorMeshCenters = \
+          np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+      self.nfdetax = item.shape[ 0 ] - 1
+    #end if fixed_detector_mesh
 
 #		-- Infer missing dimensions
 #		--
@@ -686,7 +695,7 @@ Properties:
   dataSetDefsLock	threading.RLock for dataSetDefs and dataSetDefsByName
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector',
-			     'pin', 'scalar', 'vanadium' )
+			    'fixed_detector', 'pin', 'scalar' )
   dataSetNamesVersion	counter to indicate changes
   derivedFile		h5py.File for derived data
   derivedLabelsByType	map of labels by category, lazily populated
@@ -884,59 +893,60 @@ passed, Read() must be called.
   #	METHOD:		DataModel.CreateAxialValue()			-
   #----------------------------------------------------------------------
   def CreateAxialValue( self, **kwargs ):
-    """Create from 'core_ndx', 'detector_ndx', 'vanadium_ndx', or 'value'
+    """Create from 'core_ndx', 'detector_ndx', 'fixed_detector_ndx', or 'value'
 values.
 Parameters:
   cm			axial value in cm
   core_ndx		0-based core axial index
   detector_ndx		0-based detector axial index
+  fixed_detector_ndx	0-based fixed_detector axial index
   pin_ndx		0-based core axial index, alias for 'core_ndx'
   value			axial value in cm, alias for 'cm'
-  vanadium_ndx		0-based vanadium axial index
-@return			( axial_cm, core_ndx, detector_ndx, vanadium_ndx )
+@return			( axial_cm, core_ndx, detector_ndx,
+			  fixed_detector_ndx )
 """
     core_ndx = -1
     det_ndx = -1
-    van_ndx = -1
+    fdet_ndx = -1
     axial_cm = 0.0
 
     if 'cm' in kwargs:
       axial_cm = kwargs[ 'cm' ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
-      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'detector_ndx' in kwargs:
       det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], self.core.ndetax - 1 ) )
       axial_cm = self.core.detectorMeshCenters[ det_ndx ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
-      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'core_ndx' in kwargs:
       core_ndx = max( 0, min( kwargs[ 'core_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
-      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'pin_ndx' in kwargs: # huh?
       core_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
-      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'value' in kwargs:
       axial_cm = kwargs[ 'value' ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
-      van_ndx = self.FindListIndex( self.core.vanadiumMeshCenters, axial_cm )
+      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
-    elif 'vanadium_ndx' in kwargs:
-      van_ndx = max( 0, min( kwargs[ 'vanadium_ndx' ], self.core.nvanax - 1 ) )
-      axial_cm = self.core.vanadiumMeshCenters[ van_ndx ]
+    elif 'fixed_detector_ndx' in kwargs:
+      fdet_ndx = max( 0, min( kwargs[ 'fixed_detector_ndx' ], self.core.nfdetax - 1 ) )
+      axial_cm = self.core.fixedDetectorMeshCenters[ fdet_ndx ]
       core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
 
-    return  ( axial_cm, core_ndx, det_ndx, van_ndx )
+    return  ( axial_cm, core_ndx, det_ndx, fdet_ndx )
   #end CreateAxialValue
 
 
@@ -1505,8 +1515,8 @@ returned.  Calls FindMaxValueAddr().
 			ds_type, empty if not found
 			if ds_type is None, dict of dataset name lists by
 			ds_type
-			( 'axial', 'channel', 'detector',
-			  'pin', 'scalar', 'vanadium', etc. )
+			( 'axial', 'channel', 'detector', 'fixed_detector',
+			  'pin', 'scalar', etc. )
 """
     return \
         self.dataSetNames if ds_type is None else \
@@ -1874,7 +1884,7 @@ the properties construct for this class soon.
   def HasDataSetType( self, ds_type = None ):
     """Tests existence of datasets in named type
 @param  ds_type		one of type names, e.g., 'axial', 'channel', 'derived',
-			'detector', 'pin', 'scalar', 'vanadium'
+			'detector', 'fixed_detector', 'pin', 'scalar'
 @return			True if there are datasets, False otherwise
 """
     return  \
@@ -2025,6 +2035,23 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsValidRange()			-
+  #----------------------------------------------------------------------
+  def IsValidRange( self, min_value, max_value ):
+    """Companion to GetDataRange() to check for a valid range as no
+sys.float_info.min or sys.float_info.max and min_value ne max_value.
+@param  min_value	minimum value in range
+@param  max_value	maximum value in range
+@return			True if valid, False otherwise
+"""
+    return  \
+        min_value != sys.float_info.min and \
+	max_value != sys.float_info.max and \
+	min_value != max_value
+  #end IsValidRange
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.LoadExtraDataSet()			-
   #----------------------------------------------------------------------
 #  def LoadExtraDataSet( self, ds_name, src_name = 'core', state_ndx = -1 ):
@@ -2093,7 +2120,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
       axial_value[ 0 ],
       max( 0, min( axial_value[ 1 ], self.core.nax -1 ) ),
       max( 0, min( axial_value[ 2 ], self.core.ndetax -1 ) ),
-      max( 0, min( axial_value[ 3 ], self.core.nvanax -1 ) )
+      max( 0, min( axial_value[ 3 ], self.core.nfdetax -1 ) )
       )
     return  result
   #end NormalizeAxialValue
@@ -2299,9 +2326,9 @@ for NaN.  For now, we just assume 0.0 is "no data".
       ds_shape = ds_def[ 'shape' ]
       ds_type = ds_def[ 'type' ]
 
-#			-- 'detector', 'vanadium'
+#			-- 'detector', 'fixed_detector'
 #			--
-      if ds_type == 'detector' or ds_type == 'vanadium':
+      if ds_type == 'detector' or ds_type == 'fixed_detector':
         det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
 	result = dset.value[ :, det_ndx ]
 
@@ -2372,17 +2399,25 @@ for NaN.  For now, we just assume 0.0 is "no data".
         if dset:
 	  dset_array = dset.value
 
-	  #cur_max = np.amax( dset_array )
-	  cur_max = np.nanmax( dset_array )
-	  if math.isnan( vmax ) or cur_max > vmax:
-	    vmax = cur_max
+	  if isinstance( dset_array, np.ndarray ):
+	    #cur_max = np.amax( dset_array )
+	    cur_max = np.nanmax( dset_array )
+	    if math.isnan( vmax ) or cur_max > vmax:
+	      vmax = cur_max
 
-	  cur_nz = dset_array[ np.nonzero( dset_array ) ]
-	  if len( cur_nz ) > 0:
-	    #cur_min = np.amin( cur_nz )
-	    cur_min = np.nanmin( cur_nz )
-	    if math.isnan( vmin ) or cur_min < vmin:
-	      vmin = cur_min
+	    cur_nz = dset_array[ np.nonzero( dset_array ) ]
+	    if len( cur_nz ) > 0:
+	      #cur_min = np.amin( cur_nz )
+	      cur_min = np.nanmin( cur_nz )
+	      if math.isnan( vmin ) or cur_min < vmin:
+	        vmin = cur_min
+	  else:
+	    cur_value = dset_array.item()
+	    if math.isnan( vmax ) or cur_value > vmax:
+	      vmax = cur_value
+	    if math.isnan( vmin ) or cur_value < vmin:
+	      vmin = cur_value
+	  #end if-else isinstance
 	#end if dset
       #end for states
 
@@ -2464,16 +2499,14 @@ for NaN.  For now, we just assume 0.0 is "no data".
 	  values.append( 0.0 )
       result = np.array( values, dtype = np.float64 )
 
-#		-- 'vanadium'
+#		-- 'fixed_detector'
 #		--
-    elif ds_def[ 'type' ] == 'vanadium':
+    elif ds_def[ 'type' ] == 'fixed_detector':
       values = []
       ds_shape = ds_def[ 'shape' ]
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
       det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-      #for st in self.states:
-        #dset = st.GetDataSet( ds_name )
       for i in range( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
@@ -2598,8 +2631,6 @@ at a time for better performance.
 
 #		-- Process by looping on state points
 #		--
-    #if 'pin_powers' in ds_defs:
-      #pdb.set_trace()
     for state_ndx in range( len( self.states ) ):
       for spec in ds_specs:
         ds_name = spec[ 'ds_name' ]
@@ -2634,9 +2665,9 @@ at a time for better performance.
 	    value = dset.value[ axial_ndx, det_ndx ]
 	  result[ ds_name ].append( value )
 
-#			-- Vanadium
+#			-- Fixed detector
 #			--
-	elif ds_def[ 'type' ] == 'vanadium':
+	elif ds_def[ 'type' ] == 'fixed_detector':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
 
@@ -2648,7 +2679,7 @@ at a time for better performance.
             ax_value = self.CreateAxialValue( cm = axial_cm )
             axial_ndx = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
 
-	    detector_index = spec.get( 'detector_index', 0 )
+	    detector_ndx = spec.get( 'detector_index', 0 )
             det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
 
 	    value = dset.value[ axial_ndx, det_ndx ]
@@ -2841,14 +2872,14 @@ ds_names	dict of dataset names by dataset type
 #            core.ndetax = core.nax
 #            core.ndet = core.nass
 
-#			-- Vanadium is special case
+#			-- Fixed detector is special case
 #			--
-	elif cur_name == 'vanadium_response' and \
-	    cur_shape == ds_defs[ 'vanadium' ][ 'shape' ] and \
-	    core.vanadiumMeshCenters is not None:
-	  ds_names[ 'vanadium' ].append( cur_name )
+	elif cur_name == 'fixed_detector_response' and \
+	    cur_shape == ds_defs[ 'fixed_detector' ][ 'shape' ] and \
+	    core.fixedDetectorMeshCenters is not None:
+	  ds_names[ 'fixed_detector' ].append( cur_name )
 	  ds_names[ 'axial' ].append( cur_name )
-	  ds_defs_by_name[ cur_name ] = ds_defs[ 'vanadium' ]
+	  ds_defs_by_name[ cur_name ] = ds_defs[ 'fixed_detector' ]
 
 #			-- Not a scalar
 #			--
@@ -2976,8 +3007,8 @@ ds_names	dict of dataset names by dataset type
   @staticmethod
   def CreateEmptyAxialValue():
     """
-@return			( axial_cm, core_ndx, detector_ndx, vanadium_ndx ) as
-			( 0.0, -1, -1, -1 )
+@return			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx )
+			as ( 0.0, -1, -1, -1 )
 """
     return  ( 0.0, -1, -1, -1 )
   #end CreateEmptyAxialValue

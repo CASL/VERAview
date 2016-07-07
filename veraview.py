@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-07-07	leerw@ornl.gov				-
+#	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-01	leerw@ornl.gov				-
 #	  Adding load/save session menu items.
 #		2016-06-27	leerw@ornl.gov				-
@@ -119,7 +121,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.46'
+TITLE = 'VERAView Version 1.0.47'
 
 TOOLBAR_ITEMS = \
   [
@@ -977,8 +979,10 @@ Must be called from the UI thread.
     if len( data.GetDataSetNames( 'pin' ) ) > 0 and data.core.nax > 1:
       self.axialPlotTypes.add( 'pin' )
 
-    if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
-      self.axialPlotTypes.add( 'vanadium' )
+    if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0 and data.core.nfdetax > 1:
+      self.axialPlotTypes.add( 'fixed_detector' )
+    #if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
+      #self.axialPlotTypes.add( 'vanadium' )
 
 #		-- Load Config
 #		--
@@ -1002,7 +1006,7 @@ Must be called from the UI thread.
       if len( data.GetDataSetNames( 'detector' ) ) > 0:
         widget_list.append( 'widget.detector_view.Detector2DView' )
 
-      if len( data.GetDataSetNames('vanadium' ) ) > 0:
+      if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0:
         if 'widget.detector_view.Detector2DView' not in widget_list:
           widget_list.append( 'widget.detector_view.Detector2DView' )
 

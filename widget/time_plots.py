@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-07-07	leerw@ornl.gov				-
+#	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-06	leerw@ornl.gov				-
 #	  Not acception timeDataSet changes.
 #		2016-06-30	leerw@ornl.gov				-
@@ -102,6 +104,7 @@ Properties:
     self.dataSetValues = {}  # keyed by dataset name or pseudo name
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
+    self.fixedDetectorDataSet = 'fixed_detector_response'
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
@@ -110,7 +113,6 @@ Properties:
     self.scalarDataSet = 'keff'
     self.scalarValues = []
     #self.timeDataSet = 'state'
-    self.vanadiumDataSet = 'vanadium_response'
 
     super( TimePlots, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
@@ -271,17 +273,19 @@ configuring the grid, plotting, and creating self.axline.
 	    right_ds_name,
 	    self.stateIndex if self.state.scaleMode == 'state' else -1
 	    )
-        self.ax2.set_ylim( *ds_range )
-	self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+	if self.data.IsValidRange( *ds_range ):
+          self.ax2.set_ylim( *ds_range )
+	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
       self.ax.set_ylabel( left_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
 	  left_ds_name,
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
-      self.ax.set_ylim( *ds_range )
       self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
-      self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+      if self.data.IsValidRange( *ds_range ):
+        self.ax.set_ylim( *ds_range )
+        self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
 #			-- Set title
 #			--
@@ -312,7 +316,7 @@ configuring the grid, plotting, and creating self.axline.
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Pin %s' % str( pin_rc )
 
-      if 'vanadium' in self.dataSetTypes:
+      if 'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Van %d %s' % \
 	    ( self.detectorIndex[ 0 ] + 1,
@@ -342,9 +346,10 @@ configuring the grid, plotting, and creating self.axline.
 	  plot_type = '--'
 	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
-	elif ds_type.startswith( 'vanadium' ):
-#	  axial_values = self.data.core.vanadiumMeshCenters
-	  plot_type = '-.'
+	elif ds_type.startswith( 'fixed_detector' ):
+	  plot_type = 'x'
+#	  axial_values = self.data.core.fixedDetectorMeshCenters
+	  #plot_type = '-.'
 	else:
 	  plot_type = ':'
 
@@ -457,7 +462,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
     """@return		( value, 0-based core index, 0-based detector index
-			  0-based vanadium index )
+			  0-based fixed_detector index )
 """
     return  self.axialValue
   #end GetAxialValue
@@ -474,7 +479,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	self.channelDataSet  if name == 'Selected channel dataset' else \
         self.detectorDataSet  if name == 'Selected detector dataset' else \
         self.pinDataSet  if name == 'Selected pin dataset' else \
-        self.vanadiumDataSet  if name == 'Selected vanadium dataset' else \
+        self.fixedDetectorDataSet  if name == 'Selected fixed_detector dataset' else \
 	self.scalarDataSet  if name == 'Selected scalar dataset' else \
 	name
   #end _GetDataSetName
@@ -488,7 +493,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       [
       'channel', 'detector',
       'pin', 'pin:assembly', 'pin:axial', 'pin:core',
-      'scalar', 'vanadium'
+      'scalar', 'fixed_detector'
       ]
   #end GetDataSetTypes
 
@@ -519,7 +524,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_scalarDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
-	STATE_CHANGE_vanadiumDataSet
+	STATE_CHANGE_fixedDetectorDataSet
 	])
     return  locks
   #end GetEventLockSet
@@ -629,7 +634,7 @@ be overridden by subclasses.
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
 	'pinColRow', 'pinDataSet',
-	'scalarDataSet', 'vanadiumDataSet'
+	'scalarDataSet', 'fixedDetectorDataSet'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -751,7 +756,7 @@ method via super.SaveProps().
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
 	'pinColRow', 'pinDataSet',
-	'scalarDataSet', 'vanadiumDataSet'
+	'scalarDataSet', 'fixedDetectorDataSet'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -867,12 +872,12 @@ already read.
 	    specs.append( spec )
             self.dataSetTypes.add( 'pin' )
 
-#					-- Vanadium
-	  elif ds_type.startswith( 'vanadium' ):
+#					-- Fixed detector
+	  elif ds_type.startswith( 'fixed_detector' ):
 	    spec[ 'detector_index' ] = self.detectorIndex[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
 	    specs.append( spec )
-            self.dataSetTypes.add( 'vanadium' )
+            self.dataSetTypes.add( 'fixed_detector' )
 
 #					-- Scalar
 	  else:
@@ -972,14 +977,14 @@ already read.
 		)
             self.dataSetTypes.add( 'pin' )
 
-#					-- Vanadium
-	  elif ds_type.startswith( 'vanadium' ):
+#					-- Fixed detector
+	  elif ds_type.startswith( 'fixed_detector' ):
 	    ds_values = self.data.ReadDataSetValues(
 	        ds_name,
 		detector_index = self.detectorIndex[ 0 ],
 		axial_value = self.axialValue[ 0 ]
 		)
-            self.dataSetTypes.add( 'vanadium' )
+            self.dataSetTypes.add( 'fixed_detector' )
 
 #					-- Scalar
 	  else:
@@ -1082,9 +1087,9 @@ Must be called from the UI thread.
     if 'time_dataset' in kwargs:
       replot = True
 
-    if 'vanadium_dataset' in kwargs and kwargs[ 'vanadium_dataset' ] != self.vanadiumDataSet:
-      self.vanadiumDataSet = kwargs[ 'vanadium_dataset' ]
-      select_name = self.GetSelectedDataSetName( 'vanadium' )
+    if 'fixed_detector_dataset' in kwargs and kwargs[ 'fixed_detector_dataset' ] != self.fixedDetectorDataSet:
+      self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
+      select_name = self.GetSelectedDataSetName( 'fixed_detector' )
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True

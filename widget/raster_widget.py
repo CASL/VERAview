@@ -483,10 +483,6 @@ Sets the config attribute.
     if wd > 0 and ht > 0 and self.data is not None and \
         self.data.HasData() and self.cellRange is not None:
       self.config = self._CreateDrawConfig( size = ( wd, ht ) )
-
-    if self.GetTitle() == 'Core 2D View':
-      print >> sys.stderr, \
-          '[RasterWidget._Configure] Core 2D View config:\n', str( self.config )
   #end _Configure
 
 
