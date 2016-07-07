@@ -493,6 +493,7 @@ configuring the grid, plotting, and creating self.axline.
 	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
 	elif ds_type.startswith( 'vanadium' ):
+	  #xxxx different marker, points
 	  axial_values = self.data.core.vanadiumMeshCenters
 	  plot_type = '-.'
 	else:

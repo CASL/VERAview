@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-07-06	leerw@ornl.gov				-
+#	  Not acception timeDataSet changes.
 #		2016-06-30	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-06-16	leerw@ornl.gov				-

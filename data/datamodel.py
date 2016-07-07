@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-07-06	leerw@ornl.gov				-
+#	  Fixed bug in DataModel.CreateDetectorIndex().
 #		2016-06-16	leerw@ornl.gov				-
 #	  Implemented ReadDataSetValues2() for faster performance.
 #	  Fixed small bug in ReadDataSetAxialValues().
@@ -218,6 +220,8 @@ DATASET_DEFS = \
     'type': 'vanadium'
     },
   }
+
+#xxxx change "vanadium" to "fixed_detector"
 
 #DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
 DERIVED_CALCULATOR_CLASS = 'data.pin_averages.Averages'
@@ -575,8 +579,10 @@ Properties:
       self.ndet = self.nass
     #end if detector_map
 
+#		XXXX Check detector_response first for ndet and ndetax
 #		-- Optional detector_mesh
 #		-- (was inside detector_map if-block)
+#		-- (starts at top)
     item = self._FindInGroup( 'detector_mesh', core_group )
     if item is not None:
 #				-- Numpy magic
@@ -1077,7 +1083,7 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 @return			0-based ( det_ndx, col, row )
 """
     return \
-        ( self.core.detectorMap[ row, col ], col, row ) \
+        ( self.core.detectorMap[ row, col ] - 1, col, row ) \
 	if self.core is not None else \
 	( -1, -1, -1 )
   #end CreateDetectorIndex
@@ -2185,6 +2191,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
     else:
       self.h5File = h5py.File( str( h5f_param ) )
 
+    #xxxx special read of state_0001 for detector_response
     self.core = Core( self.h5File )
     self.states = State.ReadAll( self.h5File )
 
