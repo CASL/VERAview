@@ -3,11 +3,14 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2016-07-08	leerw@ornl.gov				-
+#	  Added NumpyEncoder.
 #		2016-06-30	leerw@ornl.gov				-
 #	  Replaced axialLevel and stateIndex with state.
 #		2016-06-21	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import json, os, platform, sys
+import numpy as np
 import pdb  # set_trace()
 
 try:
@@ -16,6 +19,32 @@ except Exception:
   raise ImportError( "The wxPython module is required" )
 
 from event.state import *
+
+
+#------------------------------------------------------------------------
+#	CLASS:		NumpyEncoder					-
+#------------------------------------------------------------------------
+class NumpyEncoder( json.JSONEncoder ):
+  """Extension to handle numpy types.
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		NumpyEncoder.default()				-
+  #----------------------------------------------------------------------
+  def default( self, obj ):
+    result = \
+        int( obj )  if isinstance( obj, np.integer ) else \
+        float( obj )  if isinstance( obj, np.floating ) else \
+        obj.tolist()  if isinstance( obj, np.ndarray ) else \
+	super( NumpyEncoder, self ).default( obj )
+    return  result
+  #end default
+#end NumpyEncoder
 
 
 #------------------------------------------------------------------------
@@ -187,7 +216,7 @@ class WidgetConfig( object ):
 
     fp = file( file_path, 'w' )
     try:
-      fp.write( json.dumps( self.fDict, indent = 2 ) )
+      fp.write( json.dumps( self.fDict, cls = NumpyEncoder, indent = 2 ) )
     finally:
       fp.close()
   #end Write

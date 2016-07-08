@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-07-08	leerw@ornl.gov				-
+#	  Converting indexes from np.int64 to int.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-06	leerw@ornl.gov				-
@@ -503,8 +505,8 @@ Properties:
         self._FindInGroup( 'axial_mesh', core_group, in_core_group )
     if axial_mesh_item is None:
       missing.append( '"axial_mesh" dataset not found' )
-    elif not isinstance( axial_mesh_item.value, np.ndarray ):
-      missing.append( '"axial_mesh" dataset is not an array' )
+    #elif not isinstance( axial_mesh_item.value, np.ndarray ):
+      #missing.append( '"axial_mesh" dataset is not an array' )
 
     core_map_item = self._FindInGroup( 'core_map', core_group, in_core_group )
     if core_map_item is None:
@@ -518,7 +520,7 @@ Properties:
     self.coreMap = core_map_item.value
     self.nassy = self.coreMap.shape[ 0 ]
     self.nassx = self.coreMap.shape[ 1 ]
-    self.nass = np.amax( self.coreMap )
+    self.nass = int( np.amax( self.coreMap ) )
 
 #		-- Labels
 #		--
@@ -582,7 +584,7 @@ Properties:
     #if item is not None and item.value.shape == self.coreMap.shape:
     if item is not None:
       self.detectorMap = item.value
-      self.ndet = np.amax( item.value )
+      self.ndet = int( np.amax( item.value ) )
     else:
       self.detectorMap = self.coreMap
       self.ndet = self.nass
@@ -623,7 +625,7 @@ Properties:
 #		-- Infer missing dimensions
 #		--
     if self.nass == 0:
-      self.nass = np.amax( self.coreMap )
+      self.nass = int( np.amax( self.coreMap ) )
 
     if self.npin == 0 and input_group is not None:
       num_pins_ds = input_group.get( 'CASEID/ASSEMBLIES/Assembly_1/num_pins' )
@@ -886,7 +888,7 @@ passed, Read() must be called.
     places = np.argwhere( self.core.coreMap == assy_ndx + 1 )
     if len( places ) > 0:
       place = places[ -1 ]
-      result = ( assy_ndx, place[ 1 ], place[ 0 ] )
+      result = ( assy_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
     return  result
   #end CreateAssemblyIndexFromIndex
 
@@ -1113,7 +1115,7 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
     places = np.argwhere( self.core.detectorMap == det_ndx + 1 )
     if len( places ) > 0:
       place = places[ -1 ]
-      result = ( det_ndx, place[ 1 ], place[ 0 ] )
+      result = ( det_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
     return  result
   #end CreateDetectorIndexFromIndex
 
@@ -1380,6 +1382,11 @@ descending.  Note bisect only does ascending.
 	    max_value = cur_max
       #end for
     #end else all states
+
+#		-- Convert from np.int64 to int
+#		--
+    temp_addr = [ int( i ) for i in addr ]
+    addr = tuple( temp_addr )
 
     return  addr, state_ndx
   #end FindMaxValueAddr
@@ -2758,7 +2765,6 @@ at a time for better performance.
 	  result[ k ][ k2 ] = np.array( result[ k ][ k2 ], dtype = np.float64 )
       else:
 	result[ k ] = np.array( result[ k ], dtype = np.float64 )
-        #new_result[ k ] = np.array( item, dtype = np.float64 )
     #end for k, item
 
     return  result

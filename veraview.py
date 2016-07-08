@@ -121,7 +121,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.48'
+TITLE = 'VERAView Version 1.0.49'
 
 TOOLBAR_ITEMS = \
   [
@@ -188,7 +188,7 @@ WIDGET_MAP = \
   'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
-  'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DView',
+  'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DMultiView',
   'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Time Plot': 'widget.time_plot.TimePlot',
   'Time Plots': 'widget.time_plots.TimePlots',
@@ -1041,7 +1041,7 @@ Must be called from the UI thread.
         widget_list = [
 #            'widget.core_view.Core2DView',
 #            'widget.assembly_view.Assembly2DView',
-            'widget.detector_multi_view.Detector2DView',
+            'widget.detector_multi_view.Detector2DMultiView',
             'widget.axial_plot.AxialPlot',
             'widget.time_plots.TimePlots'
 #	    'widget.channel_view.Channel2DView',
