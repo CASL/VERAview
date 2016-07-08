@@ -1181,7 +1181,7 @@ returned.  Calls FindMaxValueAddr().
 """
     results = {}
 
-    addr, state_ndx = self.FindMaxValueAddr( ds_name, state_ndx )
+    addr, state_ndx, value = self.FindMaxValueAddr( ds_name, state_ndx )
 
     if addr is None:
       pass
@@ -1233,22 +1233,22 @@ returned.  Calls FindMaxValueAddr().
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.FindDetectorMaxValue()		-
   #----------------------------------------------------------------------
-  def FindDetectorMaxValue( self, ds_name, state_ndx, cur_obj = None ):
+  def FindDetectorMaxValue( self, state_ndx, cur_obj, *ds_names ):
     """Creates dict with detector addresses for the "first" (right- and
 bottom-most) occurence of the maximum value of the dataset, which is assumed
 to be a 'detector' dataset.
 Calls FindMaxValueAddr().
-@param  ds_name		name of dataset
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
-			compare against for changes: axialValue,
-			detectorIndex, stateIndex
+			compare against for changes: assemblyIndex, axialValue,
+			channelColRow, detectorIndex, pinColRow, stateIndex
+@param  ds_names	dataset names to search
 @return			dict with possible keys: 'axial_value',
 			'detector_index', 'state_index'
 """
     results = {}
 
-    addr, state_ndx = self.FindMaxValueAddr( ds_name, state_ndx )
+    addr, state_ndx, value = self.FindMaxValueAddr( ds_name, state_ndx )
 
     if addr is None:
       pass
@@ -1357,9 +1357,10 @@ descending.  Note bisect only does ascending.
     """Finds the first address of the max value
 @param  ds_name		name of dataset to search
 @param  state_ndx	0-based state point index, or -1 for all states
-@return			( addr indices or None, state_ndx )
+@return			( addr indices or None, state_ndx, max_value or None )
 """
     addr = None
+    max_value = None
 
     if ds_name is None:
       pass
@@ -1369,6 +1370,7 @@ descending.  Note bisect only does ascending.
       if dset:
         x = np.nanargmax( dset.value )
 	addr = np.unravel_index( x, dset.shape )
+	max_value = dset.value[ addr ]
 
     else:
       max_value = -sys.float_info.max
@@ -1390,8 +1392,164 @@ descending.  Note bisect only does ascending.
     temp_addr = [ int( i ) for i in addr ]
     addr = tuple( temp_addr )
 
-    return  addr, state_ndx
+    return  addr, state_ndx, max_value
   #end FindMaxValueAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindMultiDataSetMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindMultiDataSetMaxValue( self, state_ndx, cur_obj, *ds_names ):
+    """Creates dict with dataset-type-appropriate addresses for the "first"
+(right- and bottom-most) occurence of the maximum value among all the
+specified datasets.  Calls FindMaxValueAddr().
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyIndex, axialValue,
+			channelColRow, detectorIndex, pinColRow, stateIndex
+@param  ds_names	dataset names to search
+@return			dict with possible keys: 'assembly_index',
+			'axial_value', 'channel_colrow', 'detector_index',
+			'pin_colrow', 'state_index'
+"""
+    results = {}
+    max_ds_name, max_addr, max_state_ndx, max_value = None, None, None, None
+
+    if ds_names:
+      for ds_name in ds_names:
+        cur_addr, cur_state_ndx, cur_value = \
+	    self.FindMaxValueAddr( ds_name, state_ndx )
+        if cur_addr is not None and cur_value is not None:
+	  if max_value is None or cur_value > max_value:
+	    max_ds_name, max_addr, max_state_ndx, max_value = \
+	        ds_name, cur_addr, cur_state_ndx, cur_value
+	#end if
+      #end for ds_name
+    #end if ds_names
+
+    if max_ds_name and max_addr:
+      ds_type = self.GetDataSetType( max_ds_name )
+
+      if ds_type == 'channel':
+	skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'assemblyIndex' ) and \
+            getattr( cur_obj, 'assemblyIndex' )[ 0 ] == max_addr[ 3 ]
+	if not skip:
+          assy_ndx = self.CreateAssemblyIndexFromIndex( max_addr[ 3 ] )
+          if assy_ndx[ 0 ] >= 0:
+            results[ 'assembly_index' ] = assy_ndx
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 1 ] == max_addr[ 2 ]
+        if not skip:
+          axial_value = self.CreateAxialValue( core_ndx = max_addr[ 2 ] )
+	  if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = False
+	if cur_obj is not None and hasattr( cur_obj, 'channelColRow' ):
+          chan_colrow = getattr( cur_obj, 'channelColRow' )
+	  skip = \
+	      chan_colrow[ 1 ] == max_addr[ 0 ] and \
+	      chan_colrow[ 0 ] == max_addr[ 1 ]
+        if not skip:
+          results[ 'channel_colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      elif ds_type == 'detector':
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 2 ] == max_addr[ 0 ]
+        if not skip:
+	  axial_value = self.CreateAxialValue( detector_ndx = max_addr[ 0 ] )
+          if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'detectorIndex' ) and \
+            getattr( cur_obj, 'detectorIndex' )[ 0 ] == max_addr[ 1 ]
+        if not skip:
+	  det_ndx = self.CreateDetectorIndexFromIndex( max_addr[ 1 ] )
+	  if det_ndx[ 0 ] >= 0:
+            results[ 'detector_index' ] = det_ndx
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      elif ds_type == 'fixed_detector':
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 3 ] == max_addr[ 0 ]
+        if not skip:
+	  axial_value = self.CreateAxialValue( detector_ndx = max_addr[ 0 ] )
+          if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'detectorIndex' ) and \
+            getattr( cur_obj, 'detectorIndex' )[ 0 ] == max_addr[ 1 ]
+        if not skip:
+	  det_ndx = self.CreateDetectorIndexFromIndex( max_addr[ 1 ] )
+	  if det_ndx[ 0 ] >= 0:
+            results[ 'detector_index' ] = det_ndx
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      elif ds_type == 'pin':
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'assemblyIndex' ) and \
+            getattr( cur_obj, 'assemblyIndex' )[ 0 ] == max_addr[ 3 ]
+        if not skip:
+	  assy_ndx = self.CreateAssemblyIndexFromIndex( max_addr[ 3 ] )
+	  if assy_ndx[ 0 ] >= 0:
+            results[ 'assembly_index' ] = assy_ndx
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 1 ] == max_addr[ 2 ]
+        if not skip:
+          axial_value = self.CreateAxialValue( core_ndx = max_addr[ 2 ] )
+          if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = False
+        if cur_obj is not None and hasattr( cur_obj, 'pinColRow' ):
+          pin_colrow = getattr( cur_obj, 'pinColRow' )
+	  skip = \
+	      pin_colrow[ 1 ] == max_addr[ 0 ] and \
+	      pin_colrow[ 0 ] == max_addr[ 1 ]
+        if not skip:
+          results[ 'pin_colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      else:  # scalar
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+    #end if
+
+    return  results
+  #end FindMultiDataSetMaxValue
 
 
   #----------------------------------------------------------------------
@@ -1413,7 +1571,7 @@ returned.  Calls FindMaxValueAddr().
 """
     results = {}
 
-    addr, state_ndx = self.FindMaxValueAddr( ds_name, state_ndx )
+    addr, state_ndx, value = self.FindMaxValueAddr( ds_name, state_ndx )
 
     if addr is None:
       pass

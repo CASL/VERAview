@@ -1024,10 +1024,12 @@ be overridden by subclasses.
   def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxDetector().
 """
-    pass
-    #xxx find max in all datasets
-#    if DataModel.IsValidObj( self.data ) and self.detectorDataSet is not None:
-#      self._OnFindMaxDetector( self.detectorDataSet, all_states_flag )
+  def _OnFindMaxMultiDataSets( self, all_states_flag, *ds_names ):
+    if DataModel.IsValidObj( self.data ) and self.detectorDataSet is not None:
+      self._OnFindMaxMultiDataSets(
+          all_states_flag,
+	  self.detectorDataSets.union( self.fixedDetectorDataSets )
+	  )
   #end _OnFindMax
 
 

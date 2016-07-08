@@ -1061,7 +1061,7 @@ or _OnFindMaxPin().
   #----------------------------------------------------------------------
   def _OnFindMaxChannel( self, ds_name, all_states_flag ):
     """Handles 'channel' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_index, channel_colrow, and/or
+FireStateChange() with assembly_index, axial_value, channel_colrow, and/or
 state_index changes.
 @param  ds_name		name of dataset
 @param  all_states_flag	True for all states, False for current state
@@ -1084,8 +1084,8 @@ state_index changes.
   #	METHOD:		Widget._OnFindMaxDetector()			-
   #----------------------------------------------------------------------
   def _OnFindMaxDetector( self, ds_name, all_states_flag ):
-    """Handles 'channel' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_index, channel_colrow, and/or
+    """Handles 'detector' dataset maximum processing, resulting in a call to
+FireStateChange() with axial_value, detector_index, and/or
 state_index changes.
 @param  all_states_flag	True for all states, False for current state
 @param  ds_name		name of dataset
@@ -1105,11 +1105,35 @@ state_index changes.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMaxMultiDataSets()		-
+  #----------------------------------------------------------------------
+  def _OnFindMaxMultiDataSets( self, all_states_flag, *ds_names ):
+    """Handles multi-dataset dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_index, axial_value, channel_colrow,
+detector_index, pin_colrow, and/or state_index changes.
+@param  all_states_flag	True for all states, False for current state
+@param  ds_names	dataset names to search
+"""
+    update_args = {}
+
+    if self.data is not None and ds_names:
+      update_args = self.data.FindMultiDataSetMaxValue(
+          ds_name,
+	  -1 if all_states_flag else self.stateIndex,
+	  self
+	  )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMaxMultiDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMaxPin()				-
   #----------------------------------------------------------------------
   def _OnFindMaxPin( self, ds_name, all_states_flag ):
     """Handles 'pin' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_index, pin_colrow, and/or
+FireStateChange() with assembly_index, axial_value, pin_colrow, and/or
 state_index changes.
 @param  all_states_flag	True for all states, False for current state
 @param  ds_name		name of dataset
