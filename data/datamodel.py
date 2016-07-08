@@ -5,6 +5,8 @@
 #	HISTORY:							-
 #		2016-07-08	leerw@ornl.gov				-
 #	  Converting indexes from np.int64 to int.
+#	  Fixed bug in DataModel._ResolveDataSets() where detector and
+#	  fixed_detector types were not added as axial datasets.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-06	leerw@ornl.gov				-
@@ -2829,7 +2831,6 @@ ds_names	dict of dataset names by dataset type
     scalar_shape = ( 1, )
 
     for cur_name in st_group:
-      #if not isinstance( st_group[ cur_name ], h5py.Group ):
       if not (
           isinstance( st_group[ cur_name ], h5py.Group ) or
 	  cur_name.startswith( 'copy:' )
@@ -2901,7 +2902,11 @@ ds_names	dict of dataset names by dataset type
 	        ds_names[ def_name ].append( cur_name )
 	        ds_defs_by_name[ cur_name ] = def_item
 
-	        if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
+		cur_shape_expr = def_item[ 'shape_expr' ]
+	        #if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
+		if cur_shape_expr.find( 'core.nax' ) >= 0 or \
+		    cur_shape_expr.find( 'core.ndetax' ) >= 0 or \
+		    cur_shape_expr.find( 'core.nfdetax' ) >= 0:
 	          ds_names[ 'axial' ].append( cur_name )
 	      #end if def_name...
 	      break

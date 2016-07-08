@@ -153,10 +153,10 @@ TOOLBAR_ITEMS = \
     'widget': 'Detector 2D Multi View', 'icon': 'Detector2DView.1.32.png',
     'type': 'detector'
     },
-    {
-    'widget': 'Detector 2D View', 'icon': 'Detector2DView.1.32.png',
-    'type': 'detector'
-    },
+#    {
+#    'widget': 'Detector 2D View', 'icon': 'Detector2DView.1.32.png',
+#    'type': 'detector'
+#    },
     { 'widget': 'separator' },
     {
     'widget': 'Volume Slicer 3D View', 'icon': 'Slicer3DView.1.32.png',
@@ -189,7 +189,7 @@ WIDGET_MAP = \
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
   'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DMultiView',
-  'Detector 2D View': 'widget.detector_view.Detector2DView',
+#  'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Time Plot': 'widget.time_plot.TimePlot',
   'Time Plots': 'widget.time_plots.TimePlots',
   'Volume 3D View': 'view3d.volume_view.Volume3DView',
@@ -583,6 +583,11 @@ WIDGET_MAP and TOOLBAR_ITEMS
 	  title = wc.widget.GetTitle()
           if title == 'Axial Plots':
 	    wc.widget.InitDataSetSelections( self.axialPlotTypes )
+          elif title == 'Detector 2D Multi View':
+	    wc.widget.InitDataSetSelections(
+	        self.state.detectorDataSet,
+		self.state.fixedDetectorDataSet
+		)
           elif title == 'Time Plots':
 	    wc.widget.InitDataSetSelections( [ 'scalar' ] )
       except Exception, ex:
@@ -1009,11 +1014,14 @@ Must be called from the UI thread.
 
 #			-- Detector mode
       if len( data.GetDataSetNames( 'detector' ) ) > 0:
-        widget_list.append( 'widget.detector_view.Detector2DView' )
+        widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
+        #widget_list.append( 'widget.detector_view.Detector2DView' )
 
       if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0:
-        if 'widget.detector_view.Detector2DView' not in widget_list:
-          widget_list.append( 'widget.detector_view.Detector2DView' )
+        if 'widget.detector_multi_view.Detector2DMultiView' not in widget_list:
+          widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
+        #if 'widget.detector_view.Detector2DView' not in widget_list:
+          #widget_list.append( 'widget.detector_view.Detector2DView' )
 
 #			-- Pin mode
       if len( data.GetDataSetNames( 'pin' ) ) > 0:
@@ -1037,7 +1045,7 @@ Must be called from the UI thread.
       if len( data.states ) > 1:
         widget_list.append( 'widget.time_plots.TimePlots' )
 
-      if True:
+      if False:
         widget_list = [
 #            'widget.core_view.Core2DView',
 #            'widget.assembly_view.Assembly2DView',

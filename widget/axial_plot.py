@@ -487,18 +487,20 @@ configuring the grid, plotting, and creating self.axline.
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
+	marker_size = None
 	ds_type = self.data.GetDataSetType( ds_name )
 	axial_values = self.data.core.axialMeshCenters
 	if ds_type.startswith( 'detector' ):
 	  axial_values = self.data.core.detectorMeshCenters
+	  marker_size = 12
 	  plot_type = '.'
 	elif ds_type.startswith( 'channel' ):
 	  plot_type = '--'
 	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
 	elif ds_type.startswith( 'fixed_detector' ):
-	  #xxxx different marker, points
 	  axial_values = self.data.core.fixedDetectorMeshCenters
+	  marker_size = 12
 	  plot_type = 'x'
 	else:
 	  plot_type = ':'
@@ -520,14 +522,20 @@ configuring the grid, plotting, and creating self.axline.
 	        legend_label + '@' + DataModel.ToAddrString( *rc ) \
 	        if rc else legend_label
 
-	    #xxxxx this dies here
 	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	    cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
 	    if cur_axis:
-	      cur_axis.plot(
-	          cur_values * scale, axial_values, plot_mode,
-	          label = cur_label, linewidth = 2
-	          )
+	      if marker_size is not None:
+	        cur_axis.plot(
+	            cur_values * scale, axial_values, plot_mode,
+	            label = cur_label, linewidth = 2,
+		    markersize = marker_size
+	            )
+	      else:
+	        cur_axis.plot(
+	            cur_values * scale, axial_values, plot_mode,
+	            label = cur_label, linewidth = 2
+	            )
 
 	    count += 1
 	  #end for rc, values

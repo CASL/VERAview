@@ -193,6 +193,7 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
     self.dataModel = None
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
+    self.fixedDetectorDataSet = 'fixed_detector_response'
     self.listeners = []
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = 'pin_powers'
@@ -200,7 +201,6 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
     self.scaleMode = 'all'
     self.stateIndex = -1
     self.timeDataSet = 'state'
-    self.fixedDetectorDataSet = 'fixed_detector_response'
 
     if 'assembly_index' in kwargs:
       self.assemblyIndex = kwargs[ 'assembly_index' ]

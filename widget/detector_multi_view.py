@@ -63,13 +63,17 @@ from widget import *
 
 
 DET_LINE_COLORS = [
-    ( 0, 0, 0, 255 ), ( 0, 0, 200, 255 ),
-    ( 0, 155, 0, 255 ), ( 0, 155, 155, 255 )
+    ( 0, 0, 0, 255 ),
+    ( 0, 155, 155, 255 ),
+    ( 0, 0, 200, 255 ),
+    ( 0, 155, 0, 255 )
     ]
 
 FIXED_LINE_COLORS = [
-    ( 200, 0, 0, 255 ), ( 200, 125, 0, 255 ),
-    ( 200, 0, 200, 255 ), ( 255, 192, 203, 255 )
+    ( 200, 0, 0, 255 ),
+    ( 200, 0, 200, 255 ),
+    ( 255, 192, 203, 255 ),
+    ( 200, 125, 0, 255 )
     ]
 
 
@@ -517,16 +521,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 		      [ cur_x, cur_ylo, cur_x, cur_yhi ],
 		      fill = line_color, width = fdet_line_wd
 		      )
-		  im_draw.line(
-		      [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
-		      fill = fdet_center_color, width = fdet_line_wd
-		      )
+#		  im_draw.line(
+#		      [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
+#		      fill = fdet_center_color, width = fdet_line_wd
+#		      )
 	        #end for i
 	      #end if values is not None
 
 	      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
 	    #end for self.fixedDetectorDataSets
-	  #end if det_ndx >= 0
+
+	  elif self.data.core.coreMap[ det_row, det_col ] > 0:
+	    im_draw.rectangle(
+	        [ det_x, det_y, det_x + det_wd, det_y + det_wd ],
+	        fill = ( 0, 0, 0, 0 ), outline = ( 155, 155, 155, 255 )
+	        )
+	  #end if-else det_ndx >= 0
 
 	  det_x += det_wd + det_gap
 	#end for det_col
@@ -562,10 +572,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       for i in range( 1, len( title_items ) ):
 	item = title_items[ i ]
         im_draw.text(
-	    ( title_x, det_y ),
+	    ( title_x + item[ 1 ], det_y + item[ 2 ] ),
 	    item[ 0 ], fill = item[ 3 ], font = pil_font
 	    )
-        title_x += item[ 1 ]
       #end for
 
       del im_draw
@@ -909,11 +918,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.InitDataSetSelections()	-
   #----------------------------------------------------------------------
-  def InitDataSetSelections( self, ds_types ):
+  def InitDataSetSelections( self, *ds_names ):
     """Special hook called in VeraViewFrame.LoadDataModel().
 """
     #xxx
-    pass
+
+    for name in ds_names:
+      ds_type = self.data.GetDataSetType( name )
+      if ds_type == 'detector':
+        self.detectorDataSets.add( name )
+      elif ds_type == 'fixed_detector':
+        self.fixedDetectorDataSets.add( name )
   #end InitDataSetSelections
 
 
@@ -1009,6 +1024,7 @@ be overridden by subclasses.
   def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxDetector().
 """
+    pass
     #xxx find max in all datasets
 #    if DataModel.IsValidObj( self.data ) and self.detectorDataSet is not None:
 #      self._OnFindMaxDetector( self.detectorDataSet, all_states_flag )
