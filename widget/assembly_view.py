@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-07-09	leerw@ornl.gov				-
+#	  Added assembly label in clipboard headers.
 #		2016-07-01	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-06-16	leerw@ornl.gov				-
@@ -154,10 +156,12 @@ Attrs/properties:
 
         #clip_data = dset.value[ :, :, axial_level, self.assemblyIndex[ 0 ] ]
         title = \
-'%s: Assembly=%d; Axial=%.3f; %s=%.3g; Col Range=[%d:%d]; Row Range=[%d:%d]' % \
+            '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' + \
+	    'Col Range=[%d,%d]; Row Range=[%d,%d]"' % \
 	    (
 	    self.pinDataSet,
 	    self.assemblyIndex[ 0 ] + 1,
+	    self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
 	    self.axialValue[ 0 ],
 	    #self.data.core.axialMeshCenters[ axial_level ],
 	    self.state.timeDataSet,
@@ -216,9 +220,10 @@ Attrs/properties:
       clip_data = np.ndarray( ( 1, ), dtype = np.float64 )
       clip_data[ 0 ] = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
 
-      title = '%s: Assembly=%d; Axial=%.3f; Pin=%d:%d; %s=%.3g' % (
+      title = '"%s: Assembly=%d %s; Axial=%.3f; Pin=(%d,%d); %s=%.3g"' % (
           self.pinDataSet,
 	  assy_ndx + 1,
+	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  pin_col + 1, pin_row + 1,
 	  self.state.timeDataSet,

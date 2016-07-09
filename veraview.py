@@ -589,7 +589,9 @@ WIDGET_MAP and TOOLBAR_ITEMS
 		self.state.fixedDetectorDataSet
 		)
           elif title == 'Time Plots':
-	    wc.widget.InitDataSetSelections( [ 'scalar' ] )
+	    wc.widget.InitDataSetSelections(
+	        [ 'detector', 'fixed_detector', 'pin', 'scalar' ]
+		)
       except Exception, ex:
         wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
     #end if-else

@@ -198,9 +198,10 @@ dataset names and ( rc, values ) pairs.
 
     for name, item in sorted( dataset_dict.iteritems() ):
       for rc in sorted( item.keys() ):
-        header += ',' + name
+        header += ',"' + name
 	if rc:
           header += '@' + DataModel.ToAddrString( *rc )
+        header += '"'
     csv_text += header + '\n'
 
     if cur_selection_flag:

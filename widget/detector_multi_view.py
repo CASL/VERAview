@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-07-09	leerw@ornl.gov				-
+#	  Implementing new clipboard ops.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Starting new, multi-dataset version.
 #	  Renaming "vanadium" to "fixed_detector".
@@ -113,53 +115,99 @@ Attrs/properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    #xxx
-    if True:
-      return  None
-
     csv_text = None
-    dset = None
-    is_valid = DataModel.IsValidObj( self.data, state_index = self.stateIndex )
-    if is_valid and \
-        self.data.core.detectorMeshCenters is not None and \
-	len( self.data.core.detectorMeshCenters ) > 0:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.detectorDataSet )
 
-    if dset is not None:
-      dset_value = dset.value
-      dset_shape = dset_value.shape
-
-      csv_text = '"%s: %s=%.3g"\n' % (
-	  self.detectorDataSet,
+#		-- Must be valid state
+#		--
+    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+#        self.data.core.detectorMeshCenters is not None and \
+#	len( self.data.core.detectorMeshCenters ) > 0:
+      core = self.data.GetCore()
+      csv_text = '"%s=%.3g"\n' % (
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
 
-#		-- Header row
-#		--
-      row_text = 'Row,Axial Mesh Center'
-      for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-        row_text += ',' + self.data.core.coreLabels[ 0 ][ det_col ]
-      csv_text += row_text + '\n'
+#			-- Detector datasets
+#			--
+      if core.detectorMeshCenters is not None and \
+          len( core.detectorMeshCenters ) > 0 and \
+	  len( self.detectorDataSets ) > 0:
+        for ds_name in sorted( self.detectorDataSets ):
+          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+          if dset is not None:
+            dset_value = dset.value
+            #dset_shape = dset_value.shape
+	    csv_text += ds_name + '\n'
+#						-- Header row
+            row_text = 'Row,Mesh'
+            for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
+            csv_text += row_text + '\n'
 
-      for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-        row_label = self.data.core.coreLabels[ 1 ][ det_row ]
+#						-- Data rows
+            for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+              row_label = core.coreLabels[ 1 ][ det_row ]
+	      for ax_ndx in \
+	          range( len( core.detectorMeshCenters ) - 1, -1, -1 ):
+	        ax_value = core.detectorMeshCenters[ ax_ndx ]
+	        row_text = '%s,%.7g' % ( row_label, ax_value )
+	        for det_col in \
+		    range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+                  det_ndx = core.detectorMap[ det_row, det_col ] - 1
+	          if det_ndx >= 0:
+	            row_text += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+	          else:
+	            row_text += ',0'
+	        #end for det_col
 
-	for ax_ndx in \
-	    range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
-	  ax_value = self.data.core.detectorMeshCenters[ ax_ndx ]
-	  row_text = '%s,%.7g' % ( row_label, ax_value )
-	  for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-            det_ndx = self.data.core.detectorMap[ det_row, det_col ] - 1
-	    if det_ndx >= 0:
-	      row_text += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
-	    else:
-	      row_text += ',0'
-	  #end for det cols
+	        csv_text += row_text + '\n'
+	      #end for ax
+            #end for det_row
+          #end if dset
+        #end for ds_name
+      #end if core.detectorMeshCenters
 
-	  csv_text += row_text + '\n'
-	#end for ax
-      #end for det rows
+#			-- Fixed detector datasets
+#			--
+      if core.fixedDetectorMeshCenters is not None and \
+          len( core.fixedDetectorMeshCenters ) > 0 and \
+	  len( self.fixedDetectorDataSets ) > 0:
+        for ds_name in sorted( self.fixedDetectorDataSets ):
+          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+          if dset is not None:
+            dset_value = dset.value
+            #dset_shape = dset_value.shape
+	    csv_text += ds_name + '\n'
+#						-- Header row
+            row_text = 'Row,Mesh Center'
+            for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
+            csv_text += row_text + '\n'
+
+#						-- Data rows
+            for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+              row_label = core.coreLabels[ 1 ][ det_row ]
+	      for ax_ndx in \
+	          range( len( core.fixedDetectorMeshCenters ) - 1, -1, -1 ):
+	        ax_value = core.fixedDetectorMeshCenters[ ax_ndx ]
+	        row_text = '%s,%.7g' % ( row_label, ax_value )
+	        for det_col in \
+		    range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+                  det_ndx = core.detectorMap[ det_row, det_col ] - 1
+	          if det_ndx >= 0:
+	            row_text += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+	          else:
+	            row_text += ',0'
+	        #end for det_col
+
+	        csv_text += row_text + '\n'
+	      #end for ax
+            #end for det_row
+          #end if dset
+        #end for ds_name
+      #end if core.fixedDetectorMeshCenters
+    #end if DataModel.IsValidObj
 
     return  csv_text
   #end _CreateClipboardAllData
@@ -186,38 +234,91 @@ Attrs/properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    #xxx
-    if True:
-      return  True
-
     csv_text = None
-    dset = None
+
+#		-- Must be valid state
+#		--
     is_valid = DataModel.IsValidObj(
         self.data,
 	detector_index = self.detectorIndex[ 0 ],
 	state_index = self.stateIndex
 	)
-    if is_valid and \
-        self.data.core.detectorMeshCenters is not None and \
-	len( self.data.core.detectorMeshCenters ) > 0:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.detectorDataSet )
-
-    if dset is not None:
-      dset_value = dset.value
-      dset_shape = dset_value.shape
-
+    if is_valid:
+      core = self.data.GetCore()
       det_ndx = self.detectorIndex[ 0 ]
-
-      csv_text = '"%s: Detector=%d; %s=%.3g"\n' % (
-	  self.detectorDataSet,
+      csv_text = '"Detector=%d %s; %s=%.3g"\n' % (
 	  det_ndx + 1,
+	  core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ),
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
-      for ax_ndx in range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
-        ax_value = self.data.core.detectorMeshCenters[ ax_ndx ]
-	csv_text += '%.7g,%.7g\n' % ( ax_value, dset_value[ ax_ndx, det_ndx ] )
-      #end for ax_ndx
+
+#			-- Detector datasets
+#			--
+      if core.detectorMeshCenters is not None and \
+          len( core.detectorMeshCenters ) > 0 and \
+	  len( self.detectorDataSets ) > 0:
+        header_row_text = 'Mesh'
+	data_rows = []
+        for ax_ndx in \
+	    range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
+	  data_rows.append( '%.7g' % core.detectorMeshCenters[ ax_ndx ] )
+
+        for ds_name in sorted( self.detectorDataSets ):
+          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+          if dset is not None:
+            dset_value = dset.value
+            #dset_shape = dset_value.shape
+	    header_row_text += ',' + ds_name
+
+	    row_ndx = 0
+            for ax_ndx in \
+	        range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
+	      data_rows[ row_ndx ] += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+	      row_ndx += 1
+            #end for ax_ndx
+          #end if dset
+        #end for ds_name
+
+	csv_text += header_row_text + '\n'
+	for r in data_rows:
+	  csv_text += r + '\n'
+      #end if core.detectorMeshCenters
+
+#			-- Fixed detector datasets
+#			--
+      if core.fixedDetectorMeshCenters is not None and \
+          len( core.fixedDetectorMeshCenters ) > 0 and \
+	  len( self.fixedDetectorDataSets ) > 0:
+        header_row_text = 'Mesh Center'
+	data_rows = []
+        for ax_ndx in \
+	    range( len( self.data.core.fixedDetectorMeshCenters ) - 1, -1, -1 ):
+	  data_rows.append( '%.7g' % core.fixedDetectorMeshCenters[ ax_ndx ] )
+
+        for ds_name in sorted( self.fixedDetectorDataSets ):
+          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+          if dset is not None:
+            dset_value = dset.value
+            #dset_shape = dset_value.shape
+	    header_row_text += ',' + ds_name
+
+	    row_ndx = 0
+	    ax_range = range(
+	        len( self.data.core.fixedDetectorMeshCenters ) - 1, -1, -1
+		)
+            for ax_ndx in ax_range:
+	      data_rows[ row_ndx ] += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+	      row_ndx += 1
+            #end for ax_ndx
+          #end if dset
+        #end for ds_name
+
+	csv_text += header_row_text + '\n'
+	for r in data_rows:
+	  csv_text += r + '\n'
+      #end if core.fixedDetectorMeshCenters
+    #end if is_valid
 
     return  csv_text
   #end _CreateClipboardSelectionData
@@ -1024,12 +1125,10 @@ be overridden by subclasses.
   def _OnFindMax( self, all_states_flag, ev ):
     """Calls _OnFindMaxDetector().
 """
-  def _OnFindMaxMultiDataSets( self, all_states_flag, *ds_names ):
-    if DataModel.IsValidObj( self.data ) and self.detectorDataSet is not None:
-      self._OnFindMaxMultiDataSets(
-          all_states_flag,
-	  self.detectorDataSets.union( self.fixedDetectorDataSets )
-	  )
+    if DataModel.IsValidObj( self.data ):
+      ds_list = \
+          list( self.detectorDataSets.union( self.fixedDetectorDataSets ) )
+      self._OnFindMaxMultiDataSets( all_states_flag, *ds_list )
   #end _OnFindMax
 
 

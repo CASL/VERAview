@@ -1118,9 +1118,8 @@ detector_index, pin_colrow, and/or state_index changes.
 
     if self.data is not None and ds_names:
       update_args = self.data.FindMultiDataSetMaxValue(
-          ds_name,
 	  -1 if all_states_flag else self.stateIndex,
-	  self
+	  self, *ds_names
 	  )
 
     if update_args:

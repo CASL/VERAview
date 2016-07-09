@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-07-09	leerw@ornl.gov				-
+#	  Fixed bug in DataModel.ReadDataSetValues2() where 'state' was
+#	  not processed correctly.
 #		2016-07-08	leerw@ornl.gov				-
 #	  Converting indexes from np.int64 to int.
 #	  Fixed bug in DataModel._ResolveDataSets() where detector and
@@ -2793,9 +2796,8 @@ at a time for better performance.
 	  if ds_def is None:
 	    ds_def = DATASET_DEFS[ 'scalar' ]
 	  ds_defs[ ds_name ] = ds_def
+	  ds_specs.append( spec )
 	#end if-else ds_name
-
-	ds_specs.append( spec )
       #end if spec
     #end for
 
@@ -2804,7 +2806,7 @@ at a time for better performance.
     for state_ndx in range( len( self.states ) ):
       for spec in ds_specs:
         ds_name = spec[ 'ds_name' ]
-	ds_def = ds_defs[ ds_name ]
+	ds_def = ds_defs.get( ds_name )
         dset = self.GetStateDataSet( state_ndx, ds_name )
 
 #			-- Scalar

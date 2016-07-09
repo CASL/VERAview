@@ -141,9 +141,10 @@ Properties:
 	if not isinstance( item, dict ):
 	  item = { '': item }
         for rc in sorted( item.keys() ):
-          header += ',' + name
+          header += ',"' + name
 	  if rc:
             header += '@' + DataModel.ToAddrString( *rc )
+          header += '"'
       csv_text += header + '\n'
 
 #			-- Write values
@@ -305,7 +306,8 @@ configuring the grid, plotting, and creating self.axline.
 	chan_rc = ( self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1 )
         title_line2 += 'Chan %s' % str( chan_rc )
 
-      if 'detector' in self.dataSetTypes:
+      if 'detector' in self.dataSetTypes or \
+          'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Det %d %s' % \
 	    ( self.detectorIndex[ 0 ] + 1,
@@ -315,12 +317,6 @@ configuring the grid, plotting, and creating self.axline.
         pin_rc = ( self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1 )
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Pin %s' % str( pin_rc )
-
-      if 'fixed_detector' in self.dataSetTypes:
-        if len( title_line2 ) > 0: title_line2 += ', '
-	title_line2 += 'Van %d %s' % \
-	    ( self.detectorIndex[ 0 ] + 1,
-	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
 
       if len( title_line2 ) > 0:
         title_str += '\n' + title_line2
@@ -336,19 +332,19 @@ configuring the grid, plotting, and creating self.axline.
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
+	marker_size = None
 	plot_type = '-'
 	ds_type = self.data.GetDataSetType( ds_name )
-#	axial_values = self.data.core.axialMeshCenters
 	if ds_type.startswith( 'detector' ):
-#	  axial_values = self.data.core.detectorMeshCenters
+	  marker_size = 12
 	  plot_type = '.'
 	elif ds_type.startswith( 'channel' ):
 	  plot_type = '--'
 	elif ds_type.startswith( 'pin' ):
 	  plot_type = '-'
 	elif ds_type.startswith( 'fixed_detector' ):
+	  marker_size = 12
 	  plot_type = 'x'
-#	  axial_values = self.data.core.fixedDetectorMeshCenters
 	  #plot_type = '-.'
 	else:
 	  plot_type = ':'
@@ -372,10 +368,17 @@ configuring the grid, plotting, and creating self.axline.
 
 	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
-	  cur_axis.plot(
-		self.refAxisValues, cur_values * scale, plot_mode,
-	        label = cur_label, linewidth = 2
-	        )
+	  if marker_size is not None:
+	    cur_axis.plot(
+		  self.refAxisValues, cur_values * scale, plot_mode,
+	          label = cur_label, linewidth = 2,
+		  markersize = marker_size
+	          )
+	  else:
+	    cur_axis.plot(
+		  self.refAxisValues, cur_values * scale, plot_mode,
+	          label = cur_label, linewidth = 2
+	          )
 
 	  count += 1
 	#end for rc, values
@@ -889,104 +892,6 @@ already read.
       #end for k
     #end if valid state
   #end _UpdateDataSetValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDataSetValues_slow()			-
-  #----------------------------------------------------------------------
-  def _UpdateDataSetValues_slow( self ):
-    """Rebuild dataset arrays to plot.
-"""
-    #del self.refAxisValues[ : ]
-    self.dataSetTypes.clear()
-    self.dataSetValues.clear()
-
-    #x new_ds_types = set()
-    #x new_ds_values = {}
-
-#		-- Must have data
-#		--
-    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
-      chan_colrow_list = None
-      pin_colrow_list = None
-
-#			-- Build reference axis values
-#			--
-      self.refAxisValues = self.data.ReadDataSetValues( self.state.timeDataSet )
-
-#			-- Build dict of arrays for selected datasets
-#			--
-      for k in self.dataSetSelections:
-        ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
-
-#				-- Must be visible
-#				--
-        if ds_rec[ 'visible' ] and ds_name is not None:
-	  ds_values = None
-	  ds_type = self.data.GetDataSetType( ds_name )
-
-#					-- Channel
-	  if ds_type.startswith( 'channel' ):
-#						-- Lazy creation
-	    if chan_colrow_list is None:
-              chan_colrow_list = list( self.auxChannelColRows )
-              chan_colrow_list.insert( 0, self.channelColRow )
-
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		assembly_index = self.assemblyIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ],
-		channel_colrows = chan_colrow_list
-		)
-            self.dataSetTypes.add( 'channel' )
-
-#					-- Detector
-	  elif ds_type.startswith( 'detector' ):
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		detector_index = self.detectorIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ]
-		)
-            self.dataSetTypes.add( 'detector' )
-
-#					-- Pin
-	  elif ds_type.startswith( 'pin' ):
-#						-- Lazy creation
-	    if pin_colrow_list is None:
-              pin_colrow_list = list( self.auxPinColRows )
-              pin_colrow_list.insert( 0, self.pinColRow )
-
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		assembly_index = self.assemblyIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ],
-		pin_colrows = pin_colrow_list
-		)
-            self.dataSetTypes.add( 'pin' )
-
-#					-- Fixed detector
-	  elif ds_type.startswith( 'fixed_detector' ):
-	    ds_values = self.data.ReadDataSetValues(
-	        ds_name,
-		detector_index = self.detectorIndex[ 0 ],
-		axial_value = self.axialValue[ 0 ]
-		)
-            self.dataSetTypes.add( 'fixed_detector' )
-
-#					-- Scalar
-	  else:
-	    ds_values = self.data.ReadDataSetValues( ds_name )
-            self.dataSetTypes.add( 'scalar' )
-
-	  #end if ds_type match
-
-	  if ds_values is not None:
-	    self.dataSetValues[ k ] = ds_values
-        #end if visible
-      #end for each dataset
-    #end if valid state
-  #end _UpdateDataSetValues_slow
 
 
   #----------------------------------------------------------------------

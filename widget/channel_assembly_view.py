@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-07-09	leerw@ornl.gov				-
+#	  Added assembly label in clipboard headers.
 #		2016-07-01	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-06-16	leerw@ornl.gov				-
@@ -131,17 +133,22 @@ Attrs/properties:
 	    ]
 
         title = \
-'%s: Assembly=%d; Axial=%.3f; %s=%.3g; Col Range=[%d:%d]; Row Range=[%d:%d]' % \
+            '%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' % \
 	    (
 	    self.channelDataSet,
 	    self.assemblyIndex[ 0 ] + 1,
+	    self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
 	    self.axialValue[ 0 ],
-	    #self.data.core.axialMeshCenters[ axial_level ],
 	    self.state.timeDataSet,
-	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet ),
+	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+            )
+	title += \
+	    ' Col Range=[%d,%d]; Row Range=[%d,%d]' % \
+	    (
 	    chan_col_start + 1, chan_col_end,
 	    chan_row_start + 1, chan_row_end
-            )
+	    )
+	title = '"' + title + '"'
         csv_text = DataModel.ToCSV( clip_data, title )
       #end if data in range
 

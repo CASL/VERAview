@@ -324,7 +324,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       pil_font = config[ 'pilFont' ]
       #value_font = config[ 'valueFont' ]
 
-      pdb.set_trace()
       dset = self.data.GetStateDataSet( state_ndx, self.detectorDataSet )
       #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
       ds_value = dset.value if dset is not None else None
