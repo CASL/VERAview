@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-07-11	leerw@ornl.gov				-
+#	  Implemented {Load,Save}Props().
 #		2016-04-18	leerw@ornl.gov				-
 #	  Using State.scaleMode.
 #		2016-04-09	leerw@ornl.gov				-
@@ -970,6 +972,30 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		ChannelAxial2DView.LoadProps()			-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in (
+	'assemblyIndex',
+	'channelColRow', 'channelDataSet'
+        ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    for p, m in ( ( 'mode', 'SetMode' ), ):
+      if p in props_dict:
+        method = getattr( self, m )
+	method( props_dict[ p ] )
+
+    super( ChannelAxial2DView, self ).LoadProps( props_dict )
+  #end LoadProps
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		ChannelAxial2DView._OnClick()			-
   #----------------------------------------------------------------------
   def _OnClick( self, ev ):
@@ -1049,6 +1075,25 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       self.cellRange = self.cellRangeStack.pop( -1 )
       self.Redraw()
   #end _OnUnzoom
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAxial2DView.SaveProps()			-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( ChannelAxial2DView, self ).SaveProps( props_dict )
+
+    for k in (
+	'assemblyIndex',
+	'channelColRow', 'channelDataSet',
+	'mode'
+        ):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------
