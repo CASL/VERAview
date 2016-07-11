@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-07-11	leerw@ornl.gov				-
+#	  Implementing text/table mode.
 #		2016-07-09	leerw@ornl.gov				-
 #	  Implementing new clipboard ops.
 #		2016-07-07	leerw@ornl.gov				-
@@ -63,6 +65,9 @@ from legend import *
 from raster_widget import *
 from widget import *
 
+"""
+ {240,163,255},{0,117,220},{153,63,0},{76,0,92},{25,25,25},{0,92,49},{43,206,72},{255,204,153},{128,128,128},{148,255,181},{143,124,0},{157,204,0},{194,0,136},{0,51,128},{255,164,5},{255,168,187},{66,102,0},{255,0,16},{94,241,242},{0,153,143},{224,255,102},{116,10,255},{153,0,0},{255,255,128},{255,255,0},{255,80,5}
+"""
 
 DET_LINE_COLORS = [
     ( 0, 0, 0, 255 ),
@@ -103,6 +108,14 @@ Attrs/properties:
     self.detectorIndex = ( -1, -1, -1 )
     #self.fixedDetectorDataSet = 'fixed_detector_response'
     self.fixedDetectorDataSets = set()
+    self.mode = 'plot'  # 'numbers', 'plot'
+
+#		-- Drawing properties
+#		--
+    self.fillColorOperable = ( 255, 255, 255, 255 )
+    self.fillColorUnoperable = ( 155, 155, 155, 255 )
+    self.lineColorGrid = ( 200, 200, 200, 255 )
+    self.lineColorFixedCenter = ( 255, 255, 255, 255 )
 
     super( Detector2DMultiView, self ).__init__( container, id )
   #end __init__
@@ -398,8 +411,6 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'detectorGap' ] = det_gap
     config[ 'detectorWidth' ] = det_wd
     config[ 'lineWidth' ] = max( 1, min( 4, det_gap >> 1 ) )
-#    config[ 'valueFont' ] = value_font
-#    config[ 'valueFontSize' ] = value_font_size
 
     return  config
   #end _CreateDrawConfig
@@ -435,7 +446,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       line_wd = config[ 'lineWidth' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
-      #value_font = config[ 'valueFont' ]
 
       core = self.data.GetCore()
       ds_range = self._GetDataRange()
@@ -452,16 +462,22 @@ If neither are specified, a default 'scale' value of 4 is used.
         axial_mesh_factor *= -1.0
       value_factor = (det_wd - 1) / value_delta
 
+      if self.mode == 'numbers':
+        ds_count = \
+	    len( self.detectorDataSets ) + len( self.fixedDetectorDataSets )
+        value_font_size = det_wd / (ds_count + 1)
+        value_font = \
+            PIL.ImageFont.truetype( self.valueFontPath, value_font_size )
+
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
 
-      op_color = ( 255, 255, 255, 255 )
-      noop_color = ( 155, 155, 155, 255 )
-      grid_color = ( 200, 200, 200, 255 )
+      #op_color = ( 255, 255, 255, 255 )
+      #noop_color = ( 155, 155, 155, 255 )
+      #grid_color = ( 200, 200, 200, 255 )
       line_color = ( 0, 0, 0, 255 )
-      fdet_center_color = ( 255, 255, 255, 255 )
-      fdet_line_color = ( 200, 0, 0, 255 )
+      #fdet_center_color = ( 255, 255, 255, 255 )
 
 #			-- Need first detector dataset to color cell border
 #			--
@@ -523,114 +539,135 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        color_ds_value - ds_range[ 0 ], value_delta, 255
 	        )
 
-	    brush_color = op_color
+	    fill_color = self.fillColorOperable
 	    if ds_operable is not None and len( ds_operable ) > det_ndx and \
 	        ds_operable[ det_ndx ] != 0:
-	      brush_color = noop_color
+	      fill_color = self.fillColorUnoperable
 
 	    im_draw.rectangle(
 	        [ det_x, det_y, det_x + det_wd, det_y + det_wd ],
-	        fill = brush_color, outline = pen_color
+	        fill = fill_color, outline = pen_color
 	        )
 
 #						-- Draw plot grid lines
-	    if det_wd >= 20:
-	      incr = det_wd / 4.0
-	      grid_y = det_y + 1
-	      while grid_y < det_y + det_wd - 1:
-	        im_draw.line(
-		    [ det_x + 1, grid_y, det_x + det_wd - 1, grid_y ],
-		    fill = grid_color
-		    )
-		grid_y += incr
-	      grid_x = det_x + 1
-	      while grid_x < det_x + det_wd - 1:
-	        im_draw.line(
-		    [ grid_x, det_y + 1, grid_x, det_y + det_wd - 1 ],
-		    fill = grid_color
-		    )
-	        grid_x += incr
-	    #end if det_wd ge 20 for grid lines
+	    if self.mode == 'numbers':
+	      #self.axialValue[ 2 or 3 ]
+              self._DrawNumbers(
+		  im_draw, core = core,
+		  axial_value = self.axialValue,
+		  state_ndx = state_ndx,
+		  det_ndx = det_ndx, det_wd = det_wd,
+		  det_x = det_x, det_y = det_y,
+		  value_font = value_font
+	          )
 
-#						-- Draw detector plots
-            color_ndx = 0
-	    for ds_name in sorted( self.detectorDataSets ):
-	      line_color = DET_LINE_COLORS[ color_ndx ]
-
-	      values = None
-	      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-	      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
-		dset_values = dset.value[ :, det_ndx ]
-		if len( dset_values ) == len( core.detectorMeshCenters ):
-		  values = dset_values
-
-	      if values is not None:
-	        last_x = None
-	        last_y = None
-	        for i in range( len( values ) ):
-	          dy = \
-		      (axial_mesh_max - core.detectorMeshCenters[ i ]) * \
-		      axial_mesh_factor
-	          dx = (values[ i ] - ds_range[ 0 ]) * value_factor
-	          cur_x = det_x + 1 + dx
-	          cur_y = det_y + 1 + dy
-
-	          if last_x is not None:
-	            im_draw.line(
-		        [ last_x, last_y, cur_x, cur_y ],
-		        fill = line_color, width = line_wd
-		        )
-	          last_x = cur_x
-	          last_y = cur_y
-	        #end for i
-	      #end if values is not None
-
-	      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
-	    #end for self.detectorDataSets
-
-#						-- Draw fixed detector bars
-	    fdet_line_wd = line_wd
-            color_ndx = 0
-	    for ds_name in sorted( self.fixedDetectorDataSets ):
-	      line_color = FIXED_LINE_COLORS[ color_ndx ]
-
-	      values = None
-	      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-	      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
-		dset_values = dset.value[ :, det_ndx ]
-		if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
-		  values = dset_values
-
-	      if values is not None:
-	        for i in range( len( values ) ):
-		  dy_center = \
-		    (axial_mesh_max - core.fixedDetectorMeshCenters[ i ]) * \
-		    axial_mesh_factor
-		  dy_lo = \
-		    (axial_mesh_max - core.fixedDetectorMesh[ i ]) * \
-		    axial_mesh_factor
-		  dy_hi = \
-		    (axial_mesh_max - core.fixedDetectorMesh[ i + 1 ]) * \
-		    axial_mesh_factor
-	          dx = (values[ i ] - ds_range[ 0 ]) * value_factor
-	          cur_x = det_x + 1 + dx
-	          cur_ylo = det_y + 1 + dy_lo
-	          cur_yhi = det_y + 2 + dy_hi
-		  cur_y_center = det_y + 1 + dy_center
-
-		  im_draw.line(
-		      [ cur_x, cur_ylo, cur_x, cur_yhi ],
-		      fill = line_color, width = fdet_line_wd
-		      )
-#		  im_draw.line(
-#		      [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
-#		      fill = fdet_center_color, width = fdet_line_wd
-#		      )
-	        #end for i
-	      #end if values is not None
-
-	      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
-	    #end for self.fixedDetectorDataSets
+	    else:
+              self._DrawPlots(
+		  im_draw,
+		  core = core, state_ndx = state_ndx,
+		  det_ndx = det_ndx, det_wd = det_wd,
+		  det_x = det_x, det_y = det_y,
+		  axial_max = axial_mesh_max, axial_factor = axial_mesh_factor,
+		  value_min = ds_range[ 0 ], value_factor = value_factor,
+		  line_wd = line_wd
+	          )
+#x	    if det_wd >= 20:
+#x	      incr = det_wd / 4.0
+#x	      grid_y = det_y + 1
+#x	      while grid_y < det_y + det_wd - 1:
+#x	        im_draw.line(
+#x		    [ det_x + 1, grid_y, det_x + det_wd - 1, grid_y ],
+#x		    fill = self.lineColorGrid
+#x		    )
+#x		grid_y += incr
+#x	      grid_x = det_x + 1
+#x	      while grid_x < det_x + det_wd - 1:
+#x	        im_draw.line(
+#x		    [ grid_x, det_y + 1, grid_x, det_y + det_wd - 1 ],
+#x		    fill = self.lineColorGrid
+#x		    )
+#x	        grid_x += incr
+#x	    #end if det_wd ge 20 for grid lines
+#x
+#x#						-- Draw detector plots
+#x            color_ndx = 0
+#x	    for ds_name in sorted( self.detectorDataSets ):
+#x	      line_color = DET_LINE_COLORS[ color_ndx ]
+#x
+#x	      values = None
+#x	      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+#x	      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
+#x		dset_values = dset.value[ :, det_ndx ]
+#x		if len( dset_values ) == len( core.detectorMeshCenters ):
+#x		  values = dset_values
+#x
+#x	      if values is not None:
+#x	        last_x = None
+#x	        last_y = None
+#x	        for i in range( len( values ) ):
+#x	          dy = \
+#x		      (axial_mesh_max - core.detectorMeshCenters[ i ]) * \
+#x		      axial_mesh_factor
+#x	          dx = (values[ i ] - ds_range[ 0 ]) * value_factor
+#x	          cur_x = det_x + 1 + dx
+#x	          cur_y = det_y + 1 + dy
+#x
+#x	          if last_x is not None:
+#x	            im_draw.line(
+#x		        [ last_x, last_y, cur_x, cur_y ],
+#x		        fill = line_color, width = line_wd
+#x		        )
+#x	          last_x = cur_x
+#x	          last_y = cur_y
+#x	        #end for i
+#x	      #end if values is not None
+#x
+#x	      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+#x	    #end for self.detectorDataSets
+#x
+#x#						-- Draw fixed detector bars
+#x	    fdet_line_wd = line_wd
+#x            color_ndx = 0
+#x	    for ds_name in sorted( self.fixedDetectorDataSets ):
+#x	      line_color = FIXED_LINE_COLORS[ color_ndx ]
+#x
+#x	      values = None
+#x	      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+#x	      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
+#x		dset_values = dset.value[ :, det_ndx ]
+#x		if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
+#x		  values = dset_values
+#x
+#x	      if values is not None:
+#x	        for i in range( len( values ) ):
+#x		  dy_center = \
+#x		    (axial_mesh_max - core.fixedDetectorMeshCenters[ i ]) * \
+#x		    axial_mesh_factor
+#x		  dy_lo = \
+#x		    (axial_mesh_max - core.fixedDetectorMesh[ i ]) * \
+#x		    axial_mesh_factor
+#x		  dy_hi = \
+#x		    (axial_mesh_max - core.fixedDetectorMesh[ i + 1 ]) * \
+#x		    axial_mesh_factor
+#x	          dx = (values[ i ] - ds_range[ 0 ]) * value_factor
+#x	          cur_x = det_x + 1 + dx
+#x	          cur_ylo = det_y + 1 + dy_lo
+#x	          cur_yhi = det_y + 2 + dy_hi
+#x		  cur_y_center = det_y + 1 + dy_center
+#x
+#x		  im_draw.line(
+#x		      [ cur_x, cur_ylo, cur_x, cur_yhi ],
+#x		      fill = line_color, width = fdet_line_wd
+#x		      )
+#x#		  im_draw.line(
+#x#		      [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
+#x#		      fill = self.lineColorFixedCenter, width = fdet_line_wd
+#x#		      )
+#x	        #end for i
+#x	      #end if values is not None
+#x
+#x	      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+#x	    #end for self.fixedDetectorDataSets
 
 	  elif self.data.core.coreMap[ det_row, det_col ] > 0:
 	    im_draw.rectangle(
@@ -771,6 +808,183 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     return  tip_str
   #end _CreateToolTipText
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._DrawNumbers()		-
+  #----------------------------------------------------------------------
+  def _DrawNumbers(
+      self,
+      im_draw, core, axial_value, state_ndx,
+      det_ndx, det_wd, det_x, det_y,
+      value_font
+      ):
+#		-- Draw detector values
+#		--
+    center_x = det_x + (det_wd >> 1)
+    text_y = det_y + 1
+    color_ndx = 0
+    for ds_name in sorted( self.detectorDataSets ):
+      text_color = DET_LINE_COLORS[ color_ndx ]
+
+      cur_value = None
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset is not None and \
+          dset.value.shape[ 1 ] > det_ndx and \
+	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
+	cur_value = '%.5g' % dset.value[ axial_value[ 1 ], det_ndx ]
+
+	wd, ht = value_font.getsize( cur_value )
+	im_draw.text(
+	    ( center_x - (wd >> 1), text_y ),
+	    cur_value, fill = text_color, font = value_font
+	    )
+	text_y += ht + 1
+      #end if valid value
+
+      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+    #end for ds_name in self.detectorDataSets
+
+#		-- Draw fixed detector values
+#		--
+    color_ndx = 0
+    for ds_name in sorted( self.fixedDetectorDataSets ):
+      text_color = FIXED_LINE_COLORS[ color_ndx ]
+
+      cur_value = None
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset is not None and \
+          dset.value.shape[ 1 ] > det_ndx and \
+	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
+	cur_value = '%.5g' % dset.value[ axial_value[ 2 ], det_ndx ]
+
+	wd, ht = value_font.getsize( cur_value )
+	im_draw.text(
+	    ( center_x - (wd >> 1), text_y ),
+	    cur_value, fill = text_color, font = value_font
+	    )
+	text_y += ht + 1
+      #end if valid value
+
+      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+    #end for ds_name in self.fixedDetectorDataSets
+  #end _DrawNumbers
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._DrawPlots()		-
+  #----------------------------------------------------------------------
+  def _DrawPlots(
+      self,
+      im_draw, core, state_ndx, line_wd,
+      det_ndx, det_wd, det_x, det_y,
+      axial_max, axial_factor,
+      value_min, value_factor
+      ):
+#		-- Draw grid lines
+#		--
+    if det_wd >= 20:
+      incr = det_wd / 4.0
+
+      grid_y = det_y + 1
+      while grid_y < det_y + det_wd - 1:
+        im_draw.line(
+	    [ det_x + 1, grid_y, det_x + det_wd - 1, grid_y ],
+	    fill = self.lineColorGrid
+	    )
+        grid_y += incr
+
+      grid_x = det_x + 1
+      while grid_x < det_x + det_wd - 1:
+        im_draw.line(
+	    [ grid_x, det_y + 1, grid_x, det_y + det_wd - 1 ],
+	    fill = self.lineColorGrid
+	    )
+        grid_x += incr
+    #end if det_wd ge 20 for grid lines
+
+#		-- Draw detector plots
+#		--
+    color_ndx = 0
+    for ds_name in sorted( self.detectorDataSets ):
+      line_color = DET_LINE_COLORS[ color_ndx ]
+
+      values = None
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
+        dset_values = dset.value[ :, det_ndx ]
+        if len( dset_values ) == len( core.detectorMeshCenters ):
+	  values = dset_values
+
+      if values is not None:
+        last_x = None
+	last_y = None
+	for i in range( len( values ) ):
+	  dy = \
+	      (axial_max - core.detectorMeshCenters[ i ]) * \
+              axial_factor
+	  dx = (values[ i ] - value_min) * value_factor
+	  cur_x = det_x + 1 + dx
+	  cur_y = det_y + 1 + dy
+
+	  if last_x is not None:
+	    im_draw.line(
+	        [ last_x, last_y, cur_x, cur_y ],
+		fill = line_color, width = line_wd
+		)
+	  last_x = cur_x
+	  last_y = cur_y
+	#end for i
+      #end if values is not None
+
+      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+    #end for ds_name in self.detectorDataSets
+
+#		-- Draw fixed detector plots
+#		--
+    fdet_line_wd = line_wd
+    color_ndx = 0
+    for ds_name in sorted( self.fixedDetectorDataSets ):
+      line_color = FIXED_LINE_COLORS[ color_ndx ]
+
+      values = None
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
+        dset_values = dset.value[ :, det_ndx ]
+        if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
+	  values = dset_values
+
+      if values is not None:
+        for i in range( len( values ) ):
+	  dy_center = \
+	      (axial_max - core.fixedDetectorMeshCenters[ i ]) * \
+	      axial_factor
+	  dy_lo = \
+	      (axial_max - core.fixedDetectorMesh[ i ]) * \
+	      axial_factor
+	  dy_hi = \
+	      (axial_max - core.fixedDetectorMesh[ i + 1 ]) * \
+	      axial_factor
+	  dx = (values[ i ] - value_min) * value_factor
+	  cur_x = det_x + 1 + dx
+	  cur_ylo = det_y + 1 + dy_lo
+	  cur_yhi = det_y + 2 + dy_hi
+	  cur_y_center = det_y + 1 + dy_center
+
+	  im_draw.line(
+	      [ cur_x, cur_ylo, cur_x, cur_yhi ],
+	      fill = line_color, width = fdet_line_wd
+	      )
+#          im_draw.line(
+#              [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
+#              fill = self.lineColorFixedCenter, width = fdet_line_wd
+#              )
+        #end for i
+      #end if values is not None
+
+      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+    #end for ds_name in self.fixedDetectorDataSets
+  #end _DrawPlots
 
 
   #----------------------------------------------------------------------

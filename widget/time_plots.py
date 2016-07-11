@@ -887,7 +887,8 @@ already read.
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
-        if ds_rec[ 'visible' ] and ds_name is not None:
+        if ds_rec[ 'visible' ] and ds_name is not None and \
+	    ds_name in results:
 	  self.dataSetValues[ k ] = results[ ds_name ]
       #end for k
     #end if valid state

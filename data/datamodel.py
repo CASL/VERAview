@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-07-11	leerw@ornl.gov				-
+#	  Fixed bug in DataModel.CreateAxialValue() where the core/pin
+#	  was based on axialMesh instead of axialMeshCenters.
 #		2016-07-09	leerw@ornl.gov				-
 #	  Fixed bug in DataModel.ReadDataSetValues2() where 'state' was
 #	  not processed correctly.
@@ -921,14 +924,16 @@ Parameters:
 
     if 'cm' in kwargs:
       axial_cm = kwargs[ 'cm' ]
-      core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'detector_ndx' in kwargs:
       det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], self.core.ndetax - 1 ) )
       axial_cm = self.core.detectorMeshCenters[ det_ndx ]
-      core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'core_ndx' in kwargs:
@@ -945,14 +950,16 @@ Parameters:
 
     elif 'value' in kwargs:
       axial_cm = kwargs[ 'value' ]
-      core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'fixed_detector_ndx' in kwargs:
       fdet_ndx = max( 0, min( kwargs[ 'fixed_detector_ndx' ], self.core.nfdetax - 1 ) )
       axial_cm = self.core.fixedDetectorMeshCenters[ fdet_ndx ]
-      core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
+      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
       det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
 
     return  ( axial_cm, core_ndx, det_ndx, fdet_ndx )
