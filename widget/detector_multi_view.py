@@ -381,7 +381,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       det_adv_wd = region_wd / self.cellRange[ -2 ]
 
       working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      # allow for multiple title lines
+      #region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 2)
       det_adv_ht = region_ht / self.cellRange[ -1 ]
 
       if det_adv_ht < det_adv_wd:
@@ -403,7 +405,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       # label : core : font-sp : legend
       wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
       ht = max( core_ht, legend_size[ 1 ] )
-      ht += (font_size << 1) + font_size
+      #ht += (font_size << 1) + font_size
+      ht += (font_size << 2)
 
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
@@ -573,103 +576,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  value_min = ds_range[ 0 ], value_factor = value_factor,
 		  line_wd = line_wd
 	          )
-#x	    if det_wd >= 20:
-#x	      incr = det_wd / 4.0
-#x	      grid_y = det_y + 1
-#x	      while grid_y < det_y + det_wd - 1:
-#x	        im_draw.line(
-#x		    [ det_x + 1, grid_y, det_x + det_wd - 1, grid_y ],
-#x		    fill = self.lineColorGrid
-#x		    )
-#x		grid_y += incr
-#x	      grid_x = det_x + 1
-#x	      while grid_x < det_x + det_wd - 1:
-#x	        im_draw.line(
-#x		    [ grid_x, det_y + 1, grid_x, det_y + det_wd - 1 ],
-#x		    fill = self.lineColorGrid
-#x		    )
-#x	        grid_x += incr
-#x	    #end if det_wd ge 20 for grid lines
-#x
-#x#						-- Draw detector plots
-#x            color_ndx = 0
-#x	    for ds_name in sorted( self.detectorDataSets ):
-#x	      line_color = DET_LINE_COLORS[ color_ndx ]
-#x
-#x	      values = None
-#x	      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-#x	      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
-#x		dset_values = dset.value[ :, det_ndx ]
-#x		if len( dset_values ) == len( core.detectorMeshCenters ):
-#x		  values = dset_values
-#x
-#x	      if values is not None:
-#x	        last_x = None
-#x	        last_y = None
-#x	        for i in range( len( values ) ):
-#x	          dy = \
-#x		      (axial_mesh_max - core.detectorMeshCenters[ i ]) * \
-#x		      axial_mesh_factor
-#x	          dx = (values[ i ] - ds_range[ 0 ]) * value_factor
-#x	          cur_x = det_x + 1 + dx
-#x	          cur_y = det_y + 1 + dy
-#x
-#x	          if last_x is not None:
-#x	            im_draw.line(
-#x		        [ last_x, last_y, cur_x, cur_y ],
-#x		        fill = line_color, width = line_wd
-#x		        )
-#x	          last_x = cur_x
-#x	          last_y = cur_y
-#x	        #end for i
-#x	      #end if values is not None
-#x
-#x	      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
-#x	    #end for self.detectorDataSets
-#x
-#x#						-- Draw fixed detector bars
-#x	    fdet_line_wd = line_wd
-#x            color_ndx = 0
-#x	    for ds_name in sorted( self.fixedDetectorDataSets ):
-#x	      line_color = FIXED_LINE_COLORS[ color_ndx ]
-#x
-#x	      values = None
-#x	      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-#x	      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
-#x		dset_values = dset.value[ :, det_ndx ]
-#x		if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
-#x		  values = dset_values
-#x
-#x	      if values is not None:
-#x	        for i in range( len( values ) ):
-#x		  dy_center = \
-#x		    (axial_mesh_max - core.fixedDetectorMeshCenters[ i ]) * \
-#x		    axial_mesh_factor
-#x		  dy_lo = \
-#x		    (axial_mesh_max - core.fixedDetectorMesh[ i ]) * \
-#x		    axial_mesh_factor
-#x		  dy_hi = \
-#x		    (axial_mesh_max - core.fixedDetectorMesh[ i + 1 ]) * \
-#x		    axial_mesh_factor
-#x	          dx = (values[ i ] - ds_range[ 0 ]) * value_factor
-#x	          cur_x = det_x + 1 + dx
-#x	          cur_ylo = det_y + 1 + dy_lo
-#x	          cur_yhi = det_y + 2 + dy_hi
-#x		  cur_y_center = det_y + 1 + dy_center
-#x
-#x		  im_draw.line(
-#x		      [ cur_x, cur_ylo, cur_x, cur_yhi ],
-#x		      fill = line_color, width = fdet_line_wd
-#x		      )
-#x#		  im_draw.line(
-#x#		      [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
-#x#		      fill = self.lineColorFixedCenter, width = fdet_line_wd
-#x#		      )
-#x	        #end for i
-#x	      #end if values is not None
-#x
-#x	      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
-#x	    #end for self.fixedDetectorDataSets
 
 	  elif self.data.core.coreMap[ det_row, det_col ] > 0:
 	    im_draw.rectangle(
@@ -702,20 +608,43 @@ If neither are specified, a default 'scale' value of 4 is used.
       #det_y += font_size - det_gap
       det_y += font_size >> 2
 
-      title_items = self._CreateTitleStrings( pil_font )
-      title_size = title_items[ 0 ][ 1 : 3 ]
-      title_x = max(
-	  font_size,
-	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
-	  )
+      title_items = self._CreateTitleStrings2( pil_font, core_region[ 3 ] )
+      start = 0
+      while start < len( title_items ):
+#				-- Find end of this line
+	end = len( title_items )
+        line_y = title_items[ start ][ 2 ]
+	for i in range( start, len( title_items ) ):
+	  if title_items[ i ][ 2 ] != line_y:
+	    end = i
+	    break
 
-      for i in range( 1, len( title_items ) ):
-	item = title_items[ i ]
-        im_draw.text(
-	    ( title_x + item[ 1 ], det_y + item[ 2 ] ),
-	    item[ 0 ], fill = item[ 3 ], font = pil_font
-	    )
-      #end for
+        wd = title_items[ end - 1 ][ 4 ]
+	line_x = (core_region[ 0 ] + core_region[ 2 ] - wd) >> 1
+	for i in range( start, end ):
+	  item = title_items[ i ]
+	  im_draw.text(
+	      ( line_x + item[ 1 ], det_y + line_y ),
+	      item[ 0 ], fill = item[ 3 ], font = pil_font
+	      )
+
+        start = end
+      #end while
+
+#x      title_items = self._CreateTitleStrings( pil_font )
+#x      title_size = title_items[ 0 ][ 1 : 3 ]
+#x      title_x = max(
+#x	  font_size,
+#x	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
+#x	  )
+#x
+#x      for i in range( 1, len( title_items ) ):
+#x	item = title_items[ i ]
+#x        im_draw.text(
+#x	    ( title_x + item[ 1 ], det_y + item[ 2 ] ),
+#x	    item[ 0 ], fill = item[ 3 ], font = pil_font
+#x	    )
+#x      #end for
 
       del im_draw
     #end if config exists
@@ -778,6 +707,63 @@ If neither are specified, a default 'scale' value of 4 is used.
     results.insert( 0, ( '_total_', xpos, ht ) )
     return  results
   #end _CreateTitleStrings
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._CreateTitleStrings2()	-
+  #----------------------------------------------------------------------
+  def _CreateTitleStrings2( self, pil_font, max_wd ):
+    """
+@return			[ ( string, x, y, color, xend ), ... ]
+"""
+    results = []
+
+    x = y = 0
+    phrase = '%s %.4g: ' % (
+        self.state.timeDataSet,
+	self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	)
+    cur_size = pil_font.getsize( phrase )
+    xend = x + cur_size[ 0 ]
+    results.append( ( phrase, x, y, ( 0, 0, 0, 255 ), xend ) )
+    x += cur_size[ 0 ]
+    wd = x
+    ht = y + cur_size[ 1 ]
+
+    color_ndx = 0
+    for ds_name in sorted( self.detectorDataSets ):
+      phrase = '%s, ' % ds_name
+      cur_size = pil_font.getsize( phrase )
+      xend = x + cur_size[ 0 ]
+      if xend > max_wd - 2:
+        x = 0
+	xend = x + cur_size[ 0 ]
+	y = ht
+	ht += cur_size[ 1 ] + 1
+      results.append( ( phrase, x, y, DET_LINE_COLORS[ color_ndx ], xend ) )
+      x = xend
+      wd = max( wd, x )
+      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+    #end for
+
+    color_ndx = 0
+    for ds_name in sorted( self.fixedDetectorDataSets ):
+      phrase = '%s, ' % ds_name
+      cur_size = pil_font.getsize( phrase )
+      xend = x + cur_size[ 0 ]
+      if xend > max_wd - 2:
+        x = 0
+	xend = x + cur_size[ 0 ]
+	y = ht
+	ht += cur_size[ 1 ] + 1
+      results.append( ( phrase, x, y, FIXED_LINE_COLORS[ color_ndx ], xend ) )
+      x = xend
+      wd = max( wd, x )
+      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+    #end for
+
+    return  results
+  #end _CreateTitleStrings2
 
 
   #----------------------------------------------------------------------

@@ -1411,7 +1411,14 @@ Must be called from the UI thread.
       self.SaveSession()
     except Exception, ex:
       msg = 'Error saving session:' + os.linesep + str( ex )
-      self.ShowMessageDialog( msg, 'Save Session' )
+      # dialog flashes, not modal.
+      #self.ShowMessageDialog( msg, 'Save Session' )
+      print >> sys.stderr, '[VERAView]\n', msg
+      wx.MessageBox(
+          msg, 'Save Configuration',
+	  wx.ICON_WARNING | wx.OK_DEFAULT,
+	  None
+          )
 
     data = self.state.GetDataModel()
     if data is not None:
