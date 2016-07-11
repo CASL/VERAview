@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-07-11	leerw@ornl.gov				-
+#	  Handling 'mode' correctly in LoadProps().
 #		2016-07-01	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-04-20	leerw@ornl.gov				-
@@ -990,11 +992,16 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyIndex', 'mode',
+	'assemblyIndex',
 	'pinColRow', 'pinDataSet'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
+
+    for p, m in ( ( 'mode', 'SetMode' ), ):
+      if p in props_dict:
+        method = getattr( self, m )
+	method( props_dict[ p ] )
 
     super( CoreAxial2DView, self ).LoadProps( props_dict )
   #end LoadProps
@@ -1132,7 +1139,7 @@ method via super.SaveProps().
     if button is None:
       for ch in self.GetParent().GetControlPanel().GetChildren():
         if isinstance( ch, wx.BitmapButton ) and \
-	    ch.GetToolTip().GetTip().find( 'Toggle Slice' ) >= 0:
+	    ch.GetToolTip().GetTip().find( 'Toggle Slice Axis' ) >= 0:
           button = ch
 	  break
     #end if

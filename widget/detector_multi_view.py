@@ -117,6 +117,8 @@ Attrs/properties:
     self.lineColorGrid = ( 200, 200, 200, 255 )
     self.lineColorFixedCenter = ( 255, 255, 255, 255 )
 
+    self.toolButtonDefs = [ ( 'plot_16x16', 'Toggle Mode', self._OnMode ) ]
+
     super( Detector2DMultiView, self ).__init__( container, id )
   #end __init__
 
@@ -819,6 +821,85 @@ If neither are specified, a default 'scale' value of 4 is used.
       det_ndx, det_wd, det_x, det_y,
       value_font
       ):
+
+    draw_items = []  # [ ( text, x, rely, color ) ]
+
+#		-- Build detector values
+#		--
+    center_x = det_x + (det_wd >> 1)
+    #text_y = det_y + 1
+    text_y = 0
+    color_ndx = 0
+    for ds_name in sorted( self.detectorDataSets ):
+      text_color = DET_LINE_COLORS[ color_ndx ]
+
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset is not None and \
+          dset.value.shape[ 1 ] > det_ndx and \
+	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
+	value_str, value_size = self._CreateValueDisplay(
+	    dset.value[ axial_value[ 1 ], det_ndx ], 3, value_font, det_wd
+	    )
+	draw_items.append(
+	    ( value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color )
+	    )
+#	im_draw.text(
+#	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
+#	    value_str, fill = text_color, font = value_font
+#	    )
+	text_y += value_size[ 1 ] + 1
+      #end if valid value
+
+      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+    #end for ds_name in self.detectorDataSets
+
+#		-- Build fixed detector values
+#		--
+    color_ndx = 0
+    for ds_name in sorted( self.fixedDetectorDataSets ):
+      text_color = FIXED_LINE_COLORS[ color_ndx ]
+
+      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      if dset is not None and \
+          dset.value.shape[ 1 ] > det_ndx and \
+	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
+	value_str, value_size = self._CreateValueDisplay(
+	    dset.value[ axial_value[ 2 ], det_ndx ], 3, value_font, det_wd
+	    )
+	draw_items.append(
+	    ( value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color )
+	    )
+#	im_draw.text(
+#	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
+#	    value_str, fill = text_color, font = value_font
+#	    )
+	text_y += value_size[ 1 ] + 1
+      #end if valid value
+
+      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+    #end for ds_name in self.fixedDetectorDataSets
+
+#		-- Render fixed detector values
+#		--
+    top = det_y + ((det_wd - text_y) >> 1)
+    for item in draw_items:
+      im_draw.text(
+          ( item[ 1 ], top + item[ 2 ] ),
+	  item[ 0 ], fill = item[ 3 ], font = value_font
+	  )
+    #end for item
+  #end _DrawNumbers
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._DrawNumbers_0()		-
+  #----------------------------------------------------------------------
+  def _DrawNumbers_0(
+      self,
+      im_draw, core, axial_value, state_ndx,
+      det_ndx, det_wd, det_x, det_y,
+      value_font
+      ):
 #		-- Draw detector values
 #		--
     center_x = det_x + (det_wd >> 1)
@@ -827,19 +908,22 @@ If neither are specified, a default 'scale' value of 4 is used.
     for ds_name in sorted( self.detectorDataSets ):
       text_color = DET_LINE_COLORS[ color_ndx ]
 
-      cur_value = None
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset is not None and \
           dset.value.shape[ 1 ] > det_ndx and \
 	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
-	cur_value = '%.5g' % dset.value[ axial_value[ 1 ], det_ndx ]
-
-	wd, ht = value_font.getsize( cur_value )
-	im_draw.text(
-	    ( center_x - (wd >> 1), text_y ),
-	    cur_value, fill = text_color, font = value_font
+	#cur_value = '%.5g' % dset.value[ axial_value[ 1 ], det_ndx ]
+	#wd, ht = value_font.getsize( cur_value )
+	value_str, value_size = self._CreateValueDisplay(
+	    dset.value[ axial_value[ 1 ], det_ndx ], 3, value_font, det_wd
 	    )
-	text_y += ht + 1
+
+	im_draw.text(
+	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
+	    value_str, fill = text_color, font = value_font
+	    )
+	#text_y += ht + 1
+	text_y += value_size[ 1 ] + 1
       #end if valid value
 
       color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
@@ -851,24 +935,25 @@ If neither are specified, a default 'scale' value of 4 is used.
     for ds_name in sorted( self.fixedDetectorDataSets ):
       text_color = FIXED_LINE_COLORS[ color_ndx ]
 
-      cur_value = None
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset is not None and \
           dset.value.shape[ 1 ] > det_ndx and \
 	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
-	cur_value = '%.5g' % dset.value[ axial_value[ 2 ], det_ndx ]
-
-	wd, ht = value_font.getsize( cur_value )
-	im_draw.text(
-	    ( center_x - (wd >> 1), text_y ),
-	    cur_value, fill = text_color, font = value_font
+	#cur_value = '%.5g' % dset.value[ axial_value[ 2 ], det_ndx ]
+	#wd, ht = value_font.getsize( cur_value )
+	value_str, value_size = self._CreateValueDisplay(
+	    dset.value[ axial_value[ 2 ], det_ndx ], 3, value_font, det_wd
 	    )
-	text_y += ht + 1
+	im_draw.text(
+	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
+	    value_str, fill = text_color, font = value_font
+	    )
+	text_y += value_size[ 1 ] + 1
       #end if valid value
 
       color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
     #end for ds_name in self.fixedDetectorDataSets
-  #end _DrawNumbers
+  #end _DrawNumbers_0
 
 
   #----------------------------------------------------------------------
@@ -1168,6 +1253,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView.GetToolButtonDefs()		-
+  #----------------------------------------------------------------------
+  def GetToolButtonDefs( self, data_model ):
+    """
+"""
+    return  self.toolButtonDefs
+  #end GetToolButtonDefs
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
@@ -1301,9 +1396,14 @@ be overridden by subclasses.
     for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       if k in props_dict:
         setattr( self, k, set( props_dict[ k ] ) )
+
     for k in ( 'detectorIndex', ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
+
+    for p, m in ( ( 'mode', 'SetMode' ), ):
+      if p in props_dict:
+        getattr( self, m )( props_dict[ p ] )
 
     super( Detector2DMultiView, self ).LoadProps( props_dict )
   #end LoadProps
@@ -1347,6 +1447,18 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._OnMode()			-
+  #----------------------------------------------------------------------
+  def _OnMode( self, ev ):
+    """Must be called from the event thread.
+"""
+    new_mode = 'plot' if self.mode == 'numbers' else 'numbers'
+    button = ev.GetEventObject()
+    self.SetMode( new_mode, button )
+  #end _OnMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.SaveProps()			-
   #----------------------------------------------------------------------
   def SaveProps( self, props_dict ):
@@ -1361,7 +1473,7 @@ method via super.SaveProps().
 #x      props_dict[ k ] = getattr( self, k )
     for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       props_dict[ k ] = list( getattr( self, k ) )
-    for k in ( 'detectorIndex', ):
+    for k in ( 'detectorIndex', 'mode' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1376,6 +1488,49 @@ method via super.SaveProps().
 #      wx.CallAfter( self.UpdateState, detector_dataset = ds_name )
 #      self.FireStateChange( detector_dataset = ds_name )
 #  #end SetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView.SetMode()			-
+  #----------------------------------------------------------------------
+  def SetMode( self, mode, button = None ):
+    """May be called from any thread.
+@param  mode		either 'plot' or 'numbers', defaulting to the former on
+			any other value
+@param  button		optional button to update
+"""
+    if mode != self.mode:
+      self.mode = 'numbers' if mode == 'numbers' else 'plot'
+      wx.CallAfter( self._SetModeImpl, button )
+  #end SetMode
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._SetModeImpl()		-
+  #----------------------------------------------------------------------
+  def _SetModeImpl( self, button = None ):
+    """Must be called from the event thread.
+@param  mode		mode, already setjdd
+			any other value
+@param  button		optional button to update
+"""
+    if button is None:
+      for ch in self.GetParent().GetControlPanel().GetChildren():
+        if isinstance( ch, wx.BitmapButton ) and \
+	    ch.GetToolTip().GetTip().find( 'Toggle Mode' ) >= 0:
+          button = ch
+	  break
+    #end if
+
+    if button is not None:
+      bmap = Widget.GetBitmap( self.mode + '_16x16' )
+      button.SetBitmapLabel( bmap )
+      button.Update()
+      self.GetParent().GetControlPanel().Layout()
+    #end if
+
+    self.Redraw()
+  #end _SetModeImpl
 
 
   #----------------------------------------------------------------------
