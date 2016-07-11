@@ -65,9 +65,6 @@ from legend import *
 from raster_widget import *
 from widget import *
 
-"""
- {240,163,255},{0,117,220},{153,63,0},{76,0,92},{25,25,25},{0,92,49},{43,206,72},{255,204,153},{128,128,128},{148,255,181},{143,124,0},{157,204,0},{194,0,136},{0,51,128},{255,164,5},{255,168,187},{66,102,0},{255,0,16},{94,241,242},{0,153,143},{224,255,102},{116,10,255},{153,0,0},{255,255,128},{255,255,0},{255,80,5}
-"""
 
 DET_LINE_COLORS = [
     ( 0, 0, 0, 255 ),
@@ -81,6 +78,36 @@ FIXED_LINE_COLORS = [
     ( 200, 0, 200, 255 ),
     ( 255, 192, 203, 255 ),
     ( 200, 125, 0, 255 )
+    ]
+
+LINE_COLORS = [
+    ( 0, 0, 0, 255 ),
+    ( 240, 163, 255, 255 ),
+    ( 0, 117, 220, 255 ),
+    ( 153, 63, 0, 255 ),
+    ( 76, 0, 92, 255 ),
+    ( 25, 25, 25, 255 ),
+    ( 0, 92, 49, 255 ),
+    ( 43, 206, 72, 255 ),
+    ( 255, 204, 153, 255 ),
+    ( 128, 128, 128, 255 ),
+    ( 148, 255, 181, 255 ),
+    ( 143, 124, 0, 255 ),
+    ( 157, 204, 0, 255 ),
+    ( 194, 0, 136, 255 ),
+    ( 0, 51, 128, 255 ),
+    ( 255, 164, 5, 255 ),
+    ( 255, 168, 187, 255 ),
+    ( 66, 102, 0, 255 ),
+    ( 255, 0, 16, 255 ),
+    ( 94, 241, 242, 255 ),
+    ( 0, 153, 143, 255 ),
+    ( 224, 255, 102, 255 ),
+    ( 116, 10, 255, 255 ),
+    ( 153, 0, 0, 255 ),
+    ( 255, 255, 128, 255 ),
+    ( 255, 255, 0, 255 ),
+    ( 255, 80, 5, 255 )
     ]
 
 
@@ -740,13 +767,17 @@ If neither are specified, a default 'scale' value of 4 is used.
 	xend = x + cur_size[ 0 ]
 	y = ht
 	ht += cur_size[ 1 ] + 1
-      results.append( ( phrase, x, y, DET_LINE_COLORS[ color_ndx ], xend ) )
+
+      #color = DET_LINE_COLORS[ color_ndx ]
+      color = LINE_COLORS[ color_ndx ]
+      results.append( ( phrase, x, y, color, xend ) )
       x = xend
       wd = max( wd, x )
-      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+      #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for
 
-    color_ndx = 0
+    #color_ndx = 0
     for ds_name in sorted( self.fixedDetectorDataSets ):
       phrase = '%s, ' % ds_name
       cur_size = pil_font.getsize( phrase )
@@ -756,10 +787,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 	xend = x + cur_size[ 0 ]
 	y = ht
 	ht += cur_size[ 1 ] + 1
-      results.append( ( phrase, x, y, FIXED_LINE_COLORS[ color_ndx ], xend ) )
+
+      #color = FIXED_LINE_COLORS[ color_ndx ]
+      color = LINE_COLORS[ color_ndx ]
+      results.append( ( phrase, x, y, color, xend ) )
       x = xend
       wd = max( wd, x )
-      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for
 
     return  results
@@ -817,7 +852,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     text_y = 0
     color_ndx = 0
     for ds_name in sorted( self.detectorDataSets ):
-      text_color = DET_LINE_COLORS[ color_ndx ]
+      #text_color = DET_LINE_COLORS[ color_ndx ]
+      text_color = LINE_COLORS[ color_ndx ]
 
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset is not None and \
@@ -836,14 +872,16 @@ If neither are specified, a default 'scale' value of 4 is used.
 	text_y += value_size[ 1 ] + 1
       #end if valid value
 
-      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+      #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for ds_name in self.detectorDataSets
 
 #		-- Build fixed detector values
 #		--
-    color_ndx = 0
+    #color_ndx = 0
     for ds_name in sorted( self.fixedDetectorDataSets ):
-      text_color = FIXED_LINE_COLORS[ color_ndx ]
+      #text_color = FIXED_LINE_COLORS[ color_ndx ]
+      text_color = LINE_COLORS[ color_ndx ]
 
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset is not None and \
@@ -862,7 +900,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	text_y += value_size[ 1 ] + 1
       #end if valid value
 
-      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for ds_name in self.fixedDetectorDataSets
 
 #		-- Render fixed detector values
@@ -978,7 +1017,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #		--
     color_ndx = 0
     for ds_name in sorted( self.detectorDataSets ):
-      line_color = DET_LINE_COLORS[ color_ndx ]
+      #line_color = DET_LINE_COLORS[ color_ndx ]
+      line_color = LINE_COLORS[ color_ndx ]
 
       values = None
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
@@ -1008,15 +1048,17 @@ If neither are specified, a default 'scale' value of 4 is used.
 	#end for i
       #end if values is not None
 
-      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+      #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for ds_name in self.detectorDataSets
 
 #		-- Draw fixed detector plots
 #		--
     fdet_line_wd = line_wd
-    color_ndx = 0
+    #color_ndx = 0
     for ds_name in sorted( self.fixedDetectorDataSets ):
-      line_color = FIXED_LINE_COLORS[ color_ndx ]
+      #line_color = FIXED_LINE_COLORS[ color_ndx ]
+      line_color = LINE_COLORS[ color_ndx ]
 
       values = None
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
@@ -1053,7 +1095,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         #end for i
       #end if values is not None
 
-      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for ds_name in self.fixedDetectorDataSets
   #end _DrawPlots
 
