@@ -10,6 +10,7 @@ zip -r ${name} \
     --exclude='.*.swp' \
     --exclude='*.[12]' \
     --exclude='*.py_' \
+    --exclude='*.pyc' \
     --exclude='canopy.run.sh' \
     veraview/bean \
     veraview/bin \
