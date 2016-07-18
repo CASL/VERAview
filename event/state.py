@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-07-18	leerw@ornl.gov				-
+#	  Added {Get,Set}DataSetByType().
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-06-30	leerw@ornl.gov				-
@@ -173,6 +175,32 @@ All indices are 0-based.
 We need to change to a single "coordinate" specifying the assembly/detector
 index and col,row, pin/channel col,row, and axial value.  Big change!!
 """
+
+#		-- Class Attributes
+#		--
+
+  DS_ATTR_BY_TYPE = \
+    {
+    'channel':
+      { 'attr': 'channelDataSet', 'mask': STATE_CHANGE_channelDataSet,
+        'param': 'channel_dataset' },
+    'detector':
+      { 'attr': 'detectorDataSet', 'mask': STATE_CHANGE_detectorDataSet,
+        'param': 'detector_dataset' },
+    'fixed_detector':
+      { 'attr': 'fixedDetectorDataSet',
+        'mask': STATE_CHANGE_fixedDetectorDataSet,
+        'param': 'fixed_detector_dataset' },
+    'pin':
+      { 'attr': 'pinDataSet', 'mask': STATE_CHANGE_pinDataSet,
+        'param': 'pin_dataset' },
+    'scalar':
+      { 'attr': 'scalarDataSet', 'mask': STATE_CHANGE_scalarDataSet,
+        'param': 'scalar_dataset' },
+    'time':
+      { 'attr': 'timeDataSet', 'mask': STATE_CHANGE_timeDataSet,
+        'param': 'time_dataset' }
+    }
 
 #		-- Object Methods
 #		--
@@ -483,6 +511,22 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetDataSetByType()				-
+  #----------------------------------------------------------------------
+  def GetDataSetByType( self, ds_type ):
+    """Returns the current dataset for the type.
+@param  ds_type		one of the categories/types defined in DataModel
+@return			current dataset or None
+"""
+    result = None
+    attr_rec = State.DS_ATTR_BY_TYPE.get( ds_type )
+    if attr_rec and hasattr( self, attr_rec[ 'attr' ] ):
+      result = getattr( self, attr_rec[ 'attr' ] )
+    return  result
+  #end GetDataSetByType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Load()						-
   #----------------------------------------------------------------------
   def Load( self, data_model = None ):
@@ -604,6 +648,30 @@ Keys passed and the corresponding state bit are:
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SetDataSetByType()				-
+  #----------------------------------------------------------------------
+  def SetDataSetByType( self, *ds_type_name_pairs ):
+    """Returns the current dataset for the type.
+@param  ds_type_name_pairs  category/type, name pairs to assign
+@return			reason mask
+"""
+    mask = 0
+    if ds_type_name_pairs:
+      for i in range( 0, len( ds_type_name_pairs ) - 1, 2 ):
+        ds_type = ds_type_name_pairs[ i ]
+        ds_name = ds_type_name_pairs[ i + 1 ]
+        attr_rec = State.DS_ATTR_BY_TYPE.get( ds_type )
+        if attr_rec and 'mask' in attr_rec and \
+	    hasattr( self, attr_rec[ 'attr' ] ):
+	  setattr( self, attr_rec[ 'attr' ], ds_name )
+	  mask |= attr_rec[ 'mask' ]
+    #end if ds_type_name_pairs
+
+    return  mask
+  #end SetDataSetByType
 
 
 #		-- Static Methods

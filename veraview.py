@@ -970,6 +970,13 @@ Must be called from the UI thread.
       ti_count += 1
     #end for
 
+#		-- Update main dataset menu
+#		--
+    title = TITLE
+    if file_path is not None:
+      title += (': %s' % os.path.basename( file_path ))
+    self.SetTitle( title )
+
 #		-- Update title
 #		--
     title = TITLE

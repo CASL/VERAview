@@ -183,7 +183,7 @@ widget.
 
 #		-- Listen for DataModel events
 #		--
-    data_model = State.FindDataModel( state )
+    #data_model = State.FindDataModel( state )
     #if data_model:
       #data_model.GetDataSetChangeEvent().addListener( self._OnDataSetChange )
 
@@ -745,7 +745,10 @@ definition array for a pullright.
       else:
 	name = item.GetLabel()
 	if name.startswith( 'Selected ' ):
-	  name = name[ 9 : ]
+	  #name = name[ 9 : ]
+	  tokens = name.split( ' ' )
+	  if len( tokens > 1 ):
+	    name = tokens[ 1 ]
         self.widget.SetDataSet( name )
       self.widget._BusyEnd()
   #end _OnDataSetMenuItem

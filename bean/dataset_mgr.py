@@ -36,6 +36,7 @@ from data.datamodel import *
 class DataSetManagerBean( wx.Panel ):
   """Panel with controls for adding and removing (for now) calculated
 average datasets.
+Not being used.
 """
 
 
@@ -376,6 +377,7 @@ class DataSetManagerDialog( wx.Dialog ):
   """
 Properties:
   bean			DataSetManagerBean reference
+Not being used.
 """
 
 

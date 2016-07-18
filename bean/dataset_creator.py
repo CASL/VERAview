@@ -31,6 +31,7 @@ from data.datamodel import *
 #------------------------------------------------------------------------
 class DataSetCreator( object ):
   """Task manager.
+Not being used.
 """
 
 
@@ -174,6 +175,7 @@ Must be called in the UI thread.
 class DataSetCreatorBean( wx.Panel ):
   """Panel with controls for specifying what axes of the dataset over
 which to average.
+Not being used.
 """
 
 
@@ -419,6 +421,7 @@ class DataSetCreatorDialog( wx.Dialog ):
   """
 Properties:
   bean			DataSetCreatorBean reference
+Not being used.
 """
 
 
