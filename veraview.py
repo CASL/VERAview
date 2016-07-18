@@ -95,6 +95,7 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required to run this program' )
 
+from bean.dataset_menu_item import *
 from bean.dataset_mgr import *
 from bean.grid_sizer_dialog import *
 
@@ -456,6 +457,7 @@ class VeraViewFrame( wx.Frame ):
     self.exposureBean = None
     self.grid = None
     self.scaleModeItems = {}
+    #x self.selectDataSetMenuItem = None
     self.timeDataSetMenu = None
     self.widgetToolBar = None
 
@@ -734,6 +736,10 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #    self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
 #    edit_menu.AppendItem( datasets_item )
 
+    #x self.selectDataSetMenuItem = DataSetMenuItem( edit_menu, 'subsingle' )
+    #x edit_menu.Bind( wx.EVT_MENU_OPEN, self.selectDataSetMenuItem._UpdateMenu, self.selectDataSetMenuItem )
+    #x edit_menu.AppendItem( self.selectDataSetMenuItem )
+
 #		 	-- Scale Mode
     scale_mode_menu = wx.Menu()
     check_item = None
@@ -970,12 +976,9 @@ Must be called from the UI thread.
       ti_count += 1
     #end for
 
-#		-- Update main dataset menu
+#		-- Update dataset selection menu
 #		--
-    title = TITLE
-    if file_path is not None:
-      title += (': %s' % os.path.basename( file_path ))
-    self.SetTitle( title )
+    #x self.selectDataSetMenuItem.SetState( self.state )
 
 #		-- Update title
 #		--

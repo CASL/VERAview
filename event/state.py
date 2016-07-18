@@ -658,7 +658,7 @@ Keys passed and the corresponding state bit are:
 @param  ds_type_name_pairs  category/type, name pairs to assign
 @return			reason mask
 """
-    mask = 0
+    mask = STATE_CHANGE_noop
     if ds_type_name_pairs:
       for i in range( 0, len( ds_type_name_pairs ) - 1, 2 ):
         ds_type = ds_type_name_pairs[ i ]

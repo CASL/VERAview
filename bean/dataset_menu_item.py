@@ -5,9 +5,8 @@
 #	HISTORY:							-
 #		2016-07-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, os, sys, time, traceback
-#import numpy as np
-#import pdb  #pdb.set_trace()
+import os, sys
+import pdb  #pdb.set_trace()
 
 try:
   import wx
@@ -19,9 +18,9 @@ from event.state import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		DataSetMenu					-
+#	CLASS:		DataSetMenuItem					-
 #------------------------------------------------------------------------
-class DataSetMenu( wx.MenuItem ):
+class DataSetMenuItem( wx.MenuItem ):
   """Task manager.
 Not being used.
 """
@@ -32,7 +31,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.__init__()				-
+  #	METHOD:		DataSetMenuItem.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self,
       parent_menu, mode = '',
@@ -57,7 +56,7 @@ Not being used.
 			in the data model
 @param  state		if not None, SetState()
 """
-    super( DataSetMenu, this ).__init__(
+    super( DataSetMenuItem, self ).__init__(
         parent_menu, wx.ID_ANY, 'Select Dataset',
 	subMenu = wx.Menu()
 	)
@@ -71,7 +70,7 @@ Not being used.
     self.mode = mode
     self.state = None
 
-    self.Bind( wx.EVT_MENU_OPEN, self._UpdateMenu )
+    #binder.Bind( wx.EVT_MENU_OPEN, self._UpdateMenu, self )
 
     if state is not None:
       self.SetState( state )
@@ -79,7 +78,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._ClearMenu()			-
+  #	METHOD:		DataSetMenuItem._ClearMenu()			-
   #----------------------------------------------------------------------
   def _ClearMenu( self, menu, excludes = [] ):
     """Recursively removes items.
@@ -102,7 +101,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.HandleStateChange()			-
+  #	METHOD:		DataSetMenuItem.HandleStateChange()		-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
     """
@@ -112,7 +111,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._OnDataSetMenuItem()		-
+  #	METHOD:		DataSetMenuItem._OnDataSetMenuItem()		-
   #----------------------------------------------------------------------
   def _OnDataSetMenuItem( self, ev ):
     ev.Skip()
@@ -139,7 +138,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._OnDerivedDataSetMenuItem()		-
+  #	METHOD:		DataSetMenuItem._OnDerivedDataSetMenuItem()	-
   #----------------------------------------------------------------------
   def _OnDerivedDataSetMenuItem( self, ev ):
     ev.Skip()
@@ -184,7 +183,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.SetState()				-
+  #	METHOD:		DataSetMenuItem.SetState()			-
   #----------------------------------------------------------------------
   def SetState( self, state ):
     """
@@ -237,7 +236,7 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._UpdateDerivedMenu()		-
+  #	METHOD:		DataSetMenuItem._UpdateDerivedMenu()		-
   #----------------------------------------------------------------------
   def _UpdateDerivedMenu( self, data_model ):
     """
@@ -312,11 +311,12 @@ Not being used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._UpdateMenu()			-
+  #	METHOD:		DataSetMenuItem._UpdateMenu()			-
   #----------------------------------------------------------------------
   def _UpdateMenu( self, ev ):
     """
 """
+    pdb.set_trace()
     data_model = State.FindDataModel( self.state )
     if data_model is not None and \
         self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
