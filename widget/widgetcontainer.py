@@ -493,34 +493,11 @@ definition array for a pullright.
         self.dataSetMenu.AppendItem( derived_item )
       #end if
 
-#			-- "Selected" items
-#			--
-#      if self.widget.GetDataSetDisplayMode() == 'selected':
-#        for ds_type in dataset_types:
-#	  if ds_type.find( ':' ) < 0 and \
-#	      len( data_model.GetDataSetNames( ds_type ) ) > 0:
-#            item = wx.MenuItem(
-#	        self.dataSetMenu, wx.ID_ANY,
-#		self.widget.GetSelectedDataSetName( ds_type ),
-#		kind = wx.ITEM_CHECK
-#		)
-#            self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-#            self.dataSetMenu.AppendItem( item )
-#	#end for
-#      #end if
-
       menu_bmap = widget.Widget.GetBitmap( 'data_icon_16x16' )
       self.dataSetMenuButton = wx.BitmapButton( control_panel, -1, menu_bmap )
 
       self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset to View' ) )
       self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
-#     self.dataSetMenuButton.Bind(
-#         wx.EVT_BUTTON,
-#	  functools.partial(
-#	      self._OnPopupMenu,
-#	      self.dataSetMenuButton, self.dataSetMenu
-#	      )
-#	  )
       cp_sizer.Add(
           self.dataSetMenuButton, 0,
 	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
@@ -578,17 +555,6 @@ definition array for a pullright.
     if widget_menu_def is not None:
       self.widgetMenu.AppendSeparator()
       self._CreateMenuFromDef( self.widgetMenu, widget_menu_def )
-#    if widget_menu_def is not None:
-#      self.widgetMenu.AppendSeparator()
-#      for label, handler in widget_menu_def:
-#	if label == '-':
-#          self.widgetMenu.AppendSeparator()
-#	else:
-#          item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, label )
-#          self.Bind( wx.EVT_MENU, handler, item )
-#	  self.widgetMenu.AppendItem( item )
-#      #end for
-#    #end if widget_menu_def exists
 
 #		-- Widget menu button
 #		--

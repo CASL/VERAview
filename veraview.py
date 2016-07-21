@@ -747,7 +747,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
     #x self.selectDataSetMenuItem = DataSetMenuItem( edit_menu, 'subsingle' )
     #x edit_menu.Bind( wx.EVT_MENU_OPEN, self.selectDataSetMenuItem._UpdateMenu, self.selectDataSetMenuItem )
     #x edit_menu.AppendItem( self.selectDataSetMenuItem )
-    self.dataSetMenu = DataSetMenu( 'subsingle' )
+    self.dataSetMenu = DataSetMenu( self, 'subsingle' )
     dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
     self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
     edit_menu.AppendItem( dataset_item )
@@ -939,7 +939,6 @@ Must be called from the UI thread.
 
 #		-- Update dataset selection menu
 #		--
-    #x self.selectDataSetMenuItem.SetState( self.state )
     self.dataSetMenu.SetState( self.state )
 
 #		-- Re-create time dataset menu

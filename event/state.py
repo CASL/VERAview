@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-07-21	leerw@ornl.gov				-
+#	  Added GetDataSetChanges().
 #		2016-07-18	leerw@ornl.gov				-
 #	  Added {Get,Set}DataSetByType().
 #		2016-07-07	leerw@ornl.gov				-
@@ -524,6 +526,24 @@ Keys passed and the corresponding state bit are:
       result = getattr( self, attr_rec[ 'attr' ] )
     return  result
   #end GetDataSetByType
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetDataSetChanges()				-
+  #----------------------------------------------------------------------
+  def GetDataSetChanges( self, reason ):
+    """Returns a dict of dataset selection changes by category/type
+@param  reason		reason mask
+@return			dict by category/type of new names
+"""
+    changes = {}
+    for ds_type, rec in State.DS_ATTR_BY_TYPE.iteritems():
+      if (reason & rec[ 'mask' ]) > 0:
+	changes[ ds_type ] = getattr( self, rec[ 'attr' ] )
+    #end for
+
+    return  changes
+  #end GetDataSetChanges
 
 
   #----------------------------------------------------------------------

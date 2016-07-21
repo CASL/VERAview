@@ -726,6 +726,12 @@ Properties:
   DEFAULT_range = ( sys.float_info.min, sys.float_info.max )
 
 
+#		-- Class Attributes
+#		--
+
+  dataSetNamesVersion_ = 0
+
+
 #		-- Object Methods
 #		--
 
@@ -810,7 +816,8 @@ passed, Read() must be called.
 	if ddef[ 'shape_expr' ].find( 'core.nax' ) >= 0:
 	  self.dataSetNames[ 'axial' ].append( ds_name )
 
-      self.dataSetNamesVersion += 1
+      #self.dataSetNamesVersion += 1
+      DataModel.dataSetNamesVersion_ += 1
     #end if ds_name is new
   #end AddDataSetName
 
@@ -839,7 +846,7 @@ passed, Read() must be called.
     self.dataSetDefs = None
     self.dataSetDefsByName = None
     self.dataSetNames = None
-    self.dataSetNamesVersion = 0
+    #self.dataSetNamesVersion = 0
     self.derivedFile = None
     self.derivedLabelsByType = None
     self.derivedStates = None
@@ -847,6 +854,8 @@ passed, Read() must be called.
     self.ranges = None
     self.rangesByStatePt = None
     self.states = None
+
+    DataModel.dataSetNamesVersion_ += 1
   #end Clear
 
 
@@ -1721,7 +1730,8 @@ returned.  Calls FindMaxValueAddr().
     """Used to determine the generation of dataset changes for menus and
 lists that must be rebuilt when the sets of available datasets change.
 """
-    return  self.dataSetNamesVersion
+    return  DataModel.dataSetNamesVersion_
+    #return  self.dataSetNamesVersion
   #end GetDataSetNamesVersion
 
 
