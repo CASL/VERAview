@@ -95,7 +95,8 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required to run this program' )
 
-from bean.dataset_menu_item import *
+#from bean.dataset_menu_item import *
+from bean.dataset_menu import *
 from bean.dataset_mgr import *
 from bean.grid_sizer_dialog import *
 
@@ -122,7 +123,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.50'
+TITLE = 'VERAView Version 1.0.51'
 
 TOOLBAR_ITEMS = \
   [
@@ -454,10 +455,10 @@ class VeraViewFrame( wx.Frame ):
 #    self.windowMenu = None
 
     self.axialBean = None
+    self.dataSetMenu = None
     self.exposureBean = None
     self.grid = None
     self.scaleModeItems = {}
-    #x self.selectDataSetMenuItem = None
     self.timeDataSetMenu = None
     self.widgetToolBar = None
 
@@ -732,13 +733,24 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.Bind( wx.EVT_MENU, self._OnCopy, copy_item )
     edit_menu.AppendItem( copy_item )
 
+    grid_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Resize &Grid\tCtrl+G' )
+    self.Bind( wx.EVT_MENU, self._OnGridResize, grid_item )
+    edit_menu.AppendItem( grid_item )
+
+    edit_menu.AppendSeparator()
+
 #    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets...' )
 #    self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
 #    edit_menu.AppendItem( datasets_item )
 
+#			-- Select dataset
     #x self.selectDataSetMenuItem = DataSetMenuItem( edit_menu, 'subsingle' )
     #x edit_menu.Bind( wx.EVT_MENU_OPEN, self.selectDataSetMenuItem._UpdateMenu, self.selectDataSetMenuItem )
     #x edit_menu.AppendItem( self.selectDataSetMenuItem )
+    self.dataSetMenu = DataSetMenu( 'subsingle' )
+    dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
+    self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
+    edit_menu.AppendItem( dataset_item )
 
 #		 	-- Scale Mode
     scale_mode_menu = wx.Menu()
@@ -767,12 +779,6 @@ WIDGET_MAP and TOOLBAR_ITEMS
 	subMenu = self.timeDataSetMenu
 	)
     edit_menu.AppendItem( time_item )
-
-    edit_menu.AppendSeparator()
-
-    grid_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Resize &Grid\tCtrl+G' )
-    self.Bind( wx.EVT_MENU, self._OnGridResize, grid_item )
-    edit_menu.AppendItem( grid_item )
 
 #		-- View Menu
 #		--
@@ -931,6 +937,11 @@ Must be called from the UI thread.
 
     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
 
+#		-- Update dataset selection menu
+#		--
+    #x self.selectDataSetMenuItem.SetState( self.state )
+    self.dataSetMenu.SetState( self.state )
+
 #		-- Re-create time dataset menu
 #		--
     while self.timeDataSetMenu.GetMenuItemCount() > 0:
@@ -975,10 +986,6 @@ Must be called from the UI thread.
 
       ti_count += 1
     #end for
-
-#		-- Update dataset selection menu
-#		--
-    #x self.selectDataSetMenuItem.SetState( self.state )
 
 #		-- Update title
 #		--
@@ -1414,6 +1421,67 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnSaveImageAllWidgets()		-
+  #----------------------------------------------------------------------
+  def _OnSaveImageAllWidgets( self, ev ):
+    """
+Must be called on the UI event thread.
+"""
+    self.SaveWidgetsImage()
+  #end _OnSaveImageAllWidgets
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnSaveSession()			-
+  #----------------------------------------------------------------------
+  def _OnSaveSession( self, ev ):
+    ev.Skip()
+
+    dialog = wx.FileDialog(
+        self, 'Save Session', '', '',
+	'VERAView session files (*.vview)|*.vview',
+	wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
+	)
+
+    if dialog.ShowModal() != wx.ID_CANCEL:
+      file_path = dialog.GetPath()
+      dialog.Destroy()
+      try:
+        self.SaveSession( file_path )
+      except Exception, ex:
+        msg = 'Error saving session:' + os.linesep + str( ex )
+        self.ShowMessageDialog( msg, 'Save Session' )
+  #end _OnSaveSession
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnScaleMode()			-
+  #----------------------------------------------------------------------
+  def _OnScaleMode( self, ev ):
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+
+    if item is not None:
+      mode = SCALE_MODES.get( item.GetLabel(), 'all' )
+      reason = self.state.Change( self.eventLocks, scale_mode = mode )
+      self.state.FireStateChange( reason )
+    #end if
+  #end _OnScaleMode
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnSelectDataSet()		-
+  #----------------------------------------------------------------------
+  def _OnSelectDataSet( self, ev ):
+    ev.Skip()
+    if self.dataSetMenu:
+      self.dataSetMenu._UpdateMenu( ev )
+      self.widgetToolBar.PopupMenu( self.dataSetMenu )
+  #end _OnSelectDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
@@ -1470,56 +1538,6 @@ Must be called from the UI thread.
     #self.Close()
     wx.App.Get().ExitMainLoop()
   #end _OnQuit_0
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnSaveImageAllWidgets()		-
-  #----------------------------------------------------------------------
-  def _OnSaveImageAllWidgets( self, ev ):
-    """
-Must be called on the UI event thread.
-"""
-    self.SaveWidgetsImage()
-  #end _OnSaveImageAllWidgets
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnSaveSession()			-
-  #----------------------------------------------------------------------
-  def _OnSaveSession( self, ev ):
-    ev.Skip()
-
-    dialog = wx.FileDialog(
-        self, 'Save Session', '', '',
-	'VERAView session files (*.vview)|*.vview',
-	wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
-	)
-
-    if dialog.ShowModal() != wx.ID_CANCEL:
-      file_path = dialog.GetPath()
-      dialog.Destroy()
-      try:
-        self.SaveSession( file_path )
-      except Exception, ex:
-        msg = 'Error saving session:' + os.linesep + str( ex )
-        self.ShowMessageDialog( msg, 'Save Session' )
-  #end _OnSaveSession
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnScaleMode()			-
-  #----------------------------------------------------------------------
-  def _OnScaleMode( self, ev ):
-    ev.Skip()
-    menu = ev.GetEventObject()
-    item = menu.FindItemById( ev.GetId() )
-
-    if item is not None:
-      mode = SCALE_MODES.get( item.GetLabel(), 'all' )
-      reason = self.state.Change( self.eventLocks, scale_mode = mode )
-      self.state.FireStateChange( reason )
-    #end if
-  #end _OnScaleMode
 
 
   #----------------------------------------------------------------------

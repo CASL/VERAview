@@ -1645,7 +1645,7 @@ returned.  Calls FindMaxValueAddr().
   #	METHOD:		DataModel.GetDataSetDef()			-
   #----------------------------------------------------------------------
   def GetDataSetDef( self, ds_type = None ):
-    """Accessor for the 'dataSetDefs' property.
+    """Looks up the dataset definition for the category/type.
 @param  ds_type		optional type name
 @return			if ds_type is not None, the definition for the type
 			or None if not found
@@ -1668,6 +1668,17 @@ returned.  Calls FindMaxValueAddr().
 """
     return  self.dataSetDefsByName.get( ds_name )
   #end GetDataSetDefByDsName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetDefs()			-
+  #----------------------------------------------------------------------
+  def GetDataSetDefs( self ):
+    """Accessor for the 'dataSetDefs' property.
+@return			dictory of dataset definitions
+"""
+    return  self.dataSetDefs
+  #end GetDataSetDefs
 
 
   #----------------------------------------------------------------------
