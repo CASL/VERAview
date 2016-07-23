@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-07-23	leerw@ornl.gov				-
+#	  Redefined menu definitions with dictionaries.
+#	  Added FindMenuItem().
 #		2016-04-23	leerw@ornl.gov				-
 #		2016-04-20	leerw@ornl.gov				-
 #		2016-04-19	leerw@ornl.gov				-
@@ -224,7 +227,51 @@ Must be called on the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		_CreateMenuFromDef()				-
   #----------------------------------------------------------------------
-  def _CreateMenuFromDef( self, menu, menu_def ):
+  def _CreateMenuFromDef( self, menu, item_defs ):
+    """Given a menu definition, creates the menu with any necessary
+pullrights.  Can be called recursively.  A menu definition is a list
+of tuples defining entries.  A tuple has two entries, the first of which
+is the name.  The special name '-' specifies a separator.  The second
+entry in the tuple can be a handle function for an item or another
+definition array for a pullright.
+
+@param  menu		wxMenu to populate or None to create one
+@param  item_defs	list of menu item definitions
+@return			menu or created menu
+"""
+    if item_defs is not None:
+      if menu is None:
+        menu = wx.Menu()
+
+      for item_def in item_defs:
+        label = item_def.get( 'label', '-' )
+	if label == '-':
+	  menu.AppendSeparator()
+
+	elif 'submenu' in item_def:
+	  submenu = self._CreateMenuFromDef( None, item_def[ 'submenu' ] )
+	  item = wx.MenuItem( menu, wx.ID_ANY, label, subMenu = submenu )
+	  menu.AppendItem( item )
+
+        elif 'handler' in item_def:
+	  item_kind = item_def.get( 'kind', wx.ITEM_NORMAL )
+          item = wx.MenuItem( menu, wx.ID_ANY, label, kind = item_kind )
+	  self.Bind( wx.EVT_MENU, item_def[ 'handler' ], item )
+	  menu.AppendItem( item )
+	  if 'checked' in item_def:
+	    item.Check()
+        #end if-elif
+      #end for item_def
+    #end if menu_def not None
+
+    return  menu
+  #end _CreateMenuFromDef
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateMenuFromDef1()				-
+  #----------------------------------------------------------------------
+  def _CreateMenuFromDef1( self, menu, menu_def ):
     """Given a menu definition, creates the menu with any necessary
 pullrights.  Can be called recursively.  A menu definition is a list
 of tuples defining entries.  A tuple has two entries, the first of which
@@ -240,7 +287,7 @@ definition array for a pullright.
       if menu is None:
         menu = wx.Menu()
 
-      for label, handler_or_def, in menu_def:
+      for label, handler_or_def in menu_def:
         if label == '-':
 	  menu.AppendSeparator()
 
@@ -257,7 +304,36 @@ definition array for a pullright.
     #end if menu_def not None
 
     return  menu
-  #end _CreateMenuFromDef
+  #end _CreateMenuFromDef1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		FindMenuItem()					-
+  #----------------------------------------------------------------------
+  def FindMenuItem( self, menu, *labels ):
+    """Locates the menu item in the menu hierarchy
+@param  menu		menu to search
+@param  labels		list of items representing item labels in the
+			pullright hierarchy
+@return			menu item if found or None
+"""
+    match = None
+    if menu and labels:
+      for item in menu.GetMenuItems():
+        if labels[ 0 ] == item.GetItemLabelText():
+	  if len( labels ) == 1:
+	    match = item
+	    break
+	  else:
+	    sub = item.GetSubMenu()
+	    if sub:
+	      match = self.FindMenuItem( sub, *labels[ 1 : ] )
+	  #end if-else
+	#end if labels match
+      #end for item
+
+    return  match
+  #end FindMenuItem
 
 
   #----------------------------------------------------------------------

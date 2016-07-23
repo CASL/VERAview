@@ -195,10 +195,18 @@ Properties:
     menu_def = super( TimePlots, self )._CreateMenuDef( data_model )
     more_def = \
       [
-	( '-', None ),
-        ( 'Edit Dataset Properties', self._OnEditDataSetProps )
-        #( 'Select Datasets', self._OnSelectDataSets )
+	{ 'label': '-' },
+        {
+	'label': 'Edit Dataset Properties',
+	'handler': self._OnEditDataSetProps
+	}
       ]
+#    more_def = \
+#      [
+#	( '-', None ),
+#        ( 'Edit Dataset Properties', self._OnEditDataSetProps )
+#        #( 'Select Datasets', self._OnSelectDataSets )
+#      ]
     return  menu_def + more_def
   #end _CreateMenuDef
 
@@ -564,9 +572,10 @@ XXX size according to how many datasets selected?
 """
     axis = 'left'
     for dtype in sorted( list( ds_types ) ):
-      self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
-        { 'axis': axis, 'scale': 1.0, 'visible': True }
-      axis = 'right' if axis == 'left' else ''
+      if self.data.HasDataSetType( dtype ):
+        self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
+          { 'axis': axis, 'scale': 1.0, 'visible': True }
+        axis = 'right' if axis == 'left' else ''
   #end InitDataSetSelections
 
 

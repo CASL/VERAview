@@ -318,7 +318,36 @@ If neither are specified, a default 'scale' value of 24 is used.
     """
 """
     menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef( data_model )
-    #menu_def.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
+    other_def = \
+      [
+        { 'label': 'Hide Pins', 'handler': self._OnTogglePins }
+      ]
+
+    hide_legend_ndx = -1
+    ndx = 0
+    for item_def in menu_def:
+      if 'Hide Legend' == item_def.get( 'label', '' ):
+        hide_legend_ndx = ndx + 1
+      ndx += 1
+    #end for
+
+    if hide_legend_ndx < 0:
+      result = menu_def + other_def
+    else:
+      result = \
+      menu_def[ : hide_legend_ndx ] + other_def + menu_def[ hide_legend_ndx : ]
+
+    return  result
+  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView._CreateMenuDef_old()	-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef_old( self, data_model ):
+    """
+"""
+    menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef( data_model )
     other_def = \
       [
 #	( '-', None ),
@@ -340,7 +369,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       menu_def[ : hide_legend_ndx ] + other_def + menu_def[ hide_legend_ndx : ]
 
     return  result
-  #end _CreateMenuDef
+  #end _CreateMenuDef_old
 
 
   #----------------------------------------------------------------------

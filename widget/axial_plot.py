@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-07-23	leerw@ornl.gov				-
+#	  Adding user-selectable scaling mode.
+#	  Redefined menu definitions with dictionaries.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-06-30	leerw@ornl.gov				-
@@ -159,6 +162,7 @@ Properties:
     self.fixedDetectorDataSet = 'fixed_detector_response'
     self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
+    self.scaleMode = 'selected'
 
     super( AxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
@@ -336,12 +340,45 @@ dataset names and ( rc, values ) pairs.
     """
 """
     menu_def = super( AxialPlot, self )._CreateMenuDef( data_model )
+
+    select_scale_def = \
+      [
+        {
+	'label': 'All Plots', 'kind': wx.ITEM_RADIO,
+	'handler': functools.partial( self._OnSetScaleMode, 'all' )
+	},
+        {
+	'label': 'Selected Plot', 'kind': wx.ITEM_RADIO, 'checked': True,
+	'handler': functools.partial( self._OnSetScaleMode, 'selected' )
+	}
+      ]
+#    select_scale_def = \
+#      [
+#        ( 'All Plots',
+#	   functools.partial( self._OnSetScaleMode, 'all' ) ),
+#        ( 'Selected Plot',
+#	   functools.partial( self._OnSetScaleMode, 'selected' ) )
+#      ]
+
     more_def = \
       [
-	( '-', None ),
-        ( 'Edit Dataset Properties', self._OnEditDataSetProps )
-        #( 'Select Datasets', self._OnSelectDataSets )
+        { 'label': '-' },
+	{
+	'label': 'Edit Dataset Properties',
+	'handler': self._OnEditDataSetProps
+	},
+	{
+	'label': 'Select Bottom Axis Scale Mode',
+	'submenu': select_scale_def
+	}
       ]
+#    more_def = \
+#      [
+#	( '-', None ),
+#        ( 'Edit Dataset Properties', self._OnEditDataSetProps )
+#        ( 'Select Bottom Axis Scale Mode', select_scale_def )
+#        #( 'Select Datasets', self._OnSelectDataSets )
+#      ]
     return  menu_def + more_def
   #end _CreateMenuDef
 
@@ -419,22 +456,39 @@ configuring the grid, plotting, and creating self.axline.
 
 #			-- Configure axes
 #			--
+#				-- Top
       if top_ds_name is not None and self.ax2 is not None:
         self.ax2.set_xlabel( top_ds_name, fontsize = label_font_size )
 	ds_range = self.data.GetRange(
-	    top_ds_name,
+	    self._GetDataSetName( top_ds_name ),
 	    self.stateIndex if self.state.scaleMode == 'state' else -1
 	    )
 	if self.data.IsValidRange( *ds_range ):
           self.ax2.set_xlim( *ds_range )
 	  self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
+#				-- Bottom, primary
+      self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
       self.ax.set_xlabel( bottom_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
-	  bottom_ds_name,
+	  self._GetDataSetName( bottom_ds_name ),
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
-      self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
+#					-- Scale over all plotted datasets?
+      if self.scaleMode == 'all':
+        for k in self.dataSetValues:
+	  if k != top_ds_name and k != bottom_ds_name:
+	    ds_name = self._GetDataSetName( k )
+	    cur_range = self.data.GetRange(
+	        self._GetDataSetName( k ),
+	        self.stateIndex if self.state.scaleMode == 'state' else -1
+	        )
+	    ds_range = (
+	        min( ds_range[ 0 ], cur_range[ 0 ] ),
+		max( ds_range[ 1 ], cur_range[ 1 ] )
+	        )
+        #end for k
+
       if self.data.IsValidRange( *ds_range ):
         self.ax.set_xlim( *ds_range )
         self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
@@ -716,10 +770,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """Initialize axes, 'ax', and 'ax2'.
 XXX size according to how many datasets selected?
 """
-    #xxxplacement
-    #self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
-    #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.7 ])
-    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
+    #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
+    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
     self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
@@ -732,9 +784,10 @@ XXX size according to how many datasets selected?
 """
     axis = 'bottom'
     for dtype in sorted( list( ds_types ) ):
-      self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
-        { 'axis': axis, 'scale': 1.0, 'visible': True }
-      axis = 'top' if axis == 'bottom' else ''
+      if self.data.HasDataSetType( dtype ):
+        self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
+          { 'axis': axis, 'scale': 1.0, 'visible': True }
+        axis = 'top' if axis == 'bottom' else ''
   #end InitDataSetSelections
 
 
@@ -804,12 +857,25 @@ be overridden by subclasses.
 	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
-	'pinColRow', 'pinDataSet', 'fixedDetectorDataSet'
+	'pinColRow', 'pinDataSet', 'fixedDetectorDataSet',
+	'scaleMode'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
     super( AxialPlot, self ).LoadProps( props_dict )
+
+#		-- Update scale mode radio menu item
+#		--
+    labels = [
+        'Select Bottom Axis Scale Mode',
+	'All Plots' if self.scaleMode == 'all' else 'Selected Plot'
+	]
+    select_item = \
+        self.container.FindMenuItem( self.container.GetWidgetMenu(), *labels )
+    if select_item:
+      select_item.Check()
+
     wx.CallAfter( self.UpdateState, replot = True )
   #end LoadProps
 
@@ -887,6 +953,20 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnSetScaleMode()				-
+  #----------------------------------------------------------------------
+  def _OnSetScaleMode( self, mode, ev ):
+    """Must be called from the UI thread.
+@param  mode		'all' or 'selected', defaulting to 'selected'
+"""
+    if mode != self.scaleMode:
+      self.scaleMode = mode
+      self.UpdateState( replot = True )
+    #end if mode changed
+  #end _OnSetScaleMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		AxialPlot._ResolveDataSetAxes()			-
   #----------------------------------------------------------------------
   def _ResolveDataSetAxes( self ):
@@ -954,7 +1034,8 @@ method via super.SaveProps().
 	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
-	'pinColRow', 'pinDataSet', 'fixedDetectorDataSet'
+	'pinColRow', 'pinDataSet', 'fixedDetectorDataSet',
+	'scaleMode'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps

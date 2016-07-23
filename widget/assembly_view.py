@@ -156,16 +156,18 @@ Attrs/properties:
 
         #clip_data = dset.value[ :, :, axial_level, self.assemblyIndex[ 0 ] ]
         title = \
-            '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' + \
-	    'Col Range=[%d,%d]; Row Range=[%d,%d]"' % \
+            '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' % \
 	    (
 	    self.pinDataSet,
 	    self.assemblyIndex[ 0 ] + 1,
 	    self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
 	    self.axialValue[ 0 ],
-	    #self.data.core.axialMeshCenters[ axial_level ],
 	    self.state.timeDataSet,
-	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet ),
+	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+            )
+        title += \
+	    'Col Range=[%d,%d]; Row Range=[%d,%d]"' % \
+	    (
 	    pin_col_start + 1, pin_col_end,
 	    pin_row_start + 1, pin_row_end
             )

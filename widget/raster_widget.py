@@ -618,21 +618,41 @@ specified, a default scale value of 8 is used.
 
     find_max_def = \
       [
-        ( 'All State Points',
-	   functools.partial( self._OnFindMax, True ) ),
-        ( 'Current State Point',
-	   functools.partial( self._OnFindMax, False ) )
+        {
+	'label': 'All State Points',
+	'handler': functools.partial( self._OnFindMax, True )
+	},
+        {
+	'label': 'Current State Point',
+	'handler': functools.partial( self._OnFindMax, False )
+	}
       ]
+#    find_max_def = \
+#      [
+#        ( 'All State Points',
+#	   functools.partial( self._OnFindMax, True ) ),
+#        ( 'Current State Point',
+#	   functools.partial( self._OnFindMax, False ) )
+#      ]
 
     raster_def = \
       [
-	( '-', None ),
-	( 'Find Maximum', find_max_def ),
-	( '-', None ),
-	( 'Hide Labels', self._OnToggleLabels ),
-	( 'Hide Legend', self._OnToggleLegend ),
-        ( 'Unzoom', self._OnUnzoom )
+	{ 'label': '-' },
+	{ 'label': 'Find Maximum', 'submenu': find_max_def },
+	{ 'label': '-' },
+	{ 'label': 'Hide Labels', 'handler': self._OnToggleLabels },
+	{ 'label': 'Hide Legend', 'handler': self._OnToggleLegend },
+        { 'label': 'Unzoom', 'handler': self._OnUnzoom }
       ]
+#    raster_def = \
+#      [
+#	( '-', None ),
+#	( 'Find Maximum', find_max_def ),
+#	( '-', None ),
+#	( 'Hide Labels', self._OnToggleLabels ),
+#	( 'Hide Legend', self._OnToggleLegend ),
+#        ( 'Unzoom', self._OnUnzoom )
+#      ]
     return  menu_def + raster_def
   #end _CreateMenuDef
 

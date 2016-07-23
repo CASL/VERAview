@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-07-23	leerw@ornl.gov				-
+#	  Redefined menu definitions with dictionaries.
 #		2016-06-27	leerw@ornl.gov				-
 #	  Implementing SaveProps().
 #		2016-06-23	leerw@ornl.gov				-
@@ -560,10 +562,19 @@ or append items.
 """
     return \
       [
-	( 'Copy Displayed Data', functools.partial( self._OnCopyData, False ) ),
-	( 'Copy Selected Data', functools.partial( self._OnCopyData, True ) ),
-        ( 'Copy Image', self._OnCopyImage )
+	{ 'label': 'Copy Displayed Data',
+	  'handler':functools.partial( self._OnCopyData, False ) },
+	{ 'label': 'Copy Selected Data',
+	  'handler': functools.partial( self._OnCopyData, True ) },
+        { 'label': 'Copy Image',
+	  'handler': self._OnCopyImage }
       ]
+#    return \
+#      [
+#	( 'Copy Displayed Data', functools.partial( self._OnCopyData, False ) ),
+#	( 'Copy Selected Data', functools.partial( self._OnCopyData, True ) ),
+#        ( 'Copy Image', self._OnCopyImage )
+#      ]
   #end _CreateMenuDef
 
 
