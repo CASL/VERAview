@@ -344,19 +344,19 @@ dataset names and ( rc, values ) pairs.
     select_scale_def = \
       [
         {
-	'label': 'All Plots', 'kind': wx.ITEM_RADIO,
+	'label': 'All Datasets', 'kind': wx.ITEM_RADIO,
 	'handler': functools.partial( self._OnSetScaleMode, 'all' )
 	},
         {
-	'label': 'Selected Plot', 'kind': wx.ITEM_RADIO, 'checked': True,
+	'label': 'Selected Dataset', 'kind': wx.ITEM_RADIO, 'checked': True,
 	'handler': functools.partial( self._OnSetScaleMode, 'selected' )
 	}
       ]
 #    select_scale_def = \
 #      [
-#        ( 'All Plots',
+#        ( 'All Datasets',
 #	   functools.partial( self._OnSetScaleMode, 'all' ) ),
-#        ( 'Selected Plot',
+#        ( 'Selected Dataset',
 #	   functools.partial( self._OnSetScaleMode, 'selected' ) )
 #      ]
 
@@ -478,7 +478,6 @@ configuring the grid, plotting, and creating self.axline.
       if self.scaleMode == 'all':
         for k in self.dataSetValues:
 	  if k != top_ds_name and k != bottom_ds_name:
-	    ds_name = self._GetDataSetName( k )
 	    cur_range = self.data.GetRange(
 	        self._GetDataSetName( k ),
 	        self.stateIndex if self.state.scaleMode == 'state' else -1
@@ -869,7 +868,7 @@ be overridden by subclasses.
 #		--
     labels = [
         'Select Bottom Axis Scale Mode',
-	'All Plots' if self.scaleMode == 'all' else 'Selected Plot'
+	'All Datasets' if self.scaleMode == 'all' else 'Selected Dataset'
 	]
     select_item = \
         self.container.FindMenuItem( self.container.GetWidgetMenu(), *labels )
@@ -953,7 +952,7 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnSetScaleMode()				-
+  #	METHOD:		AxialPlot._OnSetScaleMode()			-
   #----------------------------------------------------------------------
   def _OnSetScaleMode( self, mode, ev ):
     """Must be called from the UI thread.

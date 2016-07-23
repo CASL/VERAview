@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-07-23	leerw@ornl.gov				-
+#	  Adding user-selectable scaling mode.
+#	  Redefined menu definitions with dictionaries.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-06	leerw@ornl.gov				-
@@ -112,6 +115,7 @@ Properties:
     #self.refDataSet = 'state'
     self.scalarDataSet = 'keff'
     self.scalarValues = []
+    self.scaleMode = 'selected'
     #self.timeDataSet = 'state'
 
     super( TimePlots, self ).__init__( container, id, ref_axis = 'x' )
@@ -193,12 +197,28 @@ Properties:
     """
 """
     menu_def = super( TimePlots, self )._CreateMenuDef( data_model )
+
+    select_scale_def = \
+      [
+        {
+	'label': 'All Datasets', 'kind': wx.ITEM_RADIO,
+	'handler': functools.partial( self._OnSetScaleMode, 'all' )
+	},
+        {
+	'label': 'Selected Dataset', 'kind': wx.ITEM_RADIO, 'checked': True,
+	'handler': functools.partial( self._OnSetScaleMode, 'selected' )
+	}
+      ]
     more_def = \
       [
 	{ 'label': '-' },
         {
 	'label': 'Edit Dataset Properties',
 	'handler': self._OnEditDataSetProps
+	},
+	{
+	'label': 'Select Left Axis Scale Mode',
+	'submenu': select_scale_def
 	}
       ]
 #    more_def = \
@@ -276,22 +296,38 @@ configuring the grid, plotting, and creating self.axline.
 
 #			-- Configure axes
 #			--
+#				-- Right
       if right_ds_name is not None and self.ax2 is not None:
         self.ax2.set_ylabel( right_ds_name, fontsize = label_font_size )
 	ds_range = self.data.GetRange(
-	    right_ds_name,
+	    self._GetDataSetName( right_ds_name ),
 	    self.stateIndex if self.state.scaleMode == 'state' else -1
 	    )
 	if self.data.IsValidRange( *ds_range ):
           self.ax2.set_ylim( *ds_range )
 	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
+#				-- Left, primary
+      self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
       self.ax.set_ylabel( left_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
-	  left_ds_name,
+	  self._GetDataSetName( left_ds_name ),
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
-      self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
+#					-- Scale over all plotted datasets?
+      if self.scaleMode == 'all':
+        for k in self.dataSetValues:
+	  if k != right_ds_name and k != left_ds_name:
+	    cur_range = self.data.GetRange(
+	        self._GetDataSetName( k ),
+	        self.stateIndex if self.state.scaleMode == 'state' else -1
+	        )
+	    ds_range = (
+	        min( ds_range[ 0 ], cur_range[ 0 ] ),
+		max( ds_range[ 1 ], cur_range[ 1 ] )
+	        )
+        #end for k
+
       if self.data.IsValidRange( *ds_range ):
         self.ax.set_ylim( *ds_range )
         self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
@@ -645,13 +681,25 @@ be overridden by subclasses.
 	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
-	'pinColRow', 'pinDataSet',
-	'scalarDataSet', 'fixedDetectorDataSet'
+	'fixedDetectorDataSet', 'pinColRow', 'pinDataSet',
+	'scalarDataSet', 'scaleMode'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
     super( TimePlots, self ).LoadProps( props_dict )
+
+#		-- Update scale mode radio menu item
+#		--
+    labels = [
+        'Select Left Axis Scale Mode',
+	'All Datasets' if self.scaleMode == 'all' else 'Selected Dataset'
+	]
+    select_item = \
+        self.container.FindMenuItem( self.container.GetWidgetMenu(), *labels )
+    if select_item:
+      select_item.Check()
+
     wx.CallAfter( self.UpdateState, replot = True )
   #end LoadProps
 
@@ -698,6 +746,20 @@ be overridden by subclasses.
         self.UpdateState( state_index = ndx )
         self.FireStateChange( state_index = ndx )
   #end _OnMplMouseRelease
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TimePlots._OnSetScaleMode()			-
+  #----------------------------------------------------------------------
+  def _OnSetScaleMode( self, mode, ev ):
+    """Must be called from the UI thread.
+@param  mode		'all' or 'selected', defaulting to 'selected'
+"""
+    if mode != self.scaleMode:
+      self.scaleMode = mode
+      self.UpdateState( replot = True )
+    #end if mode changed
+  #end _OnSetScaleMode
 
 
   #----------------------------------------------------------------------
@@ -767,8 +829,8 @@ method via super.SaveProps().
 	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
 	'axialValue', 'channelColRow', 'channelDataSet',
 	'dataSetSelections', 'detectorDataSet',
-	'pinColRow', 'pinDataSet',
-	'scalarDataSet', 'fixedDetectorDataSet'
+	'fixedDetectorDataSet', 'pinColRow', 'pinDataSet',
+	'scalarDataSet', 'scaleMode'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
