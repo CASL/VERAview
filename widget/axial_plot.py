@@ -460,7 +460,7 @@ configuring the grid, plotting, and creating self.axline.
       if top_ds_name is not None and self.ax2 is not None:
         self.ax2.set_xlabel( top_ds_name, fontsize = label_font_size )
 	ds_range = self.data.GetRange(
-	    self._GetDataSetName( top_ds_name ),
+	    top_ds_name,
 	    self.stateIndex if self.state.scaleMode == 'state' else -1
 	    )
 	if self.data.IsValidRange( *ds_range ):
@@ -471,15 +471,16 @@ configuring the grid, plotting, and creating self.axline.
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
       self.ax.set_xlabel( bottom_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
-	  self._GetDataSetName( bottom_ds_name ),
+	  bottom_ds_name,
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
 #					-- Scale over all plotted datasets?
       if self.scaleMode == 'all':
         for k in self.dataSetValues:
-	  if k != top_ds_name and k != bottom_ds_name:
+	  cur_name = self._GetDataSetName( k )
+	  if cur_name != top_ds_name and cur_name != bottom_ds_name:
 	    cur_range = self.data.GetRange(
-	        self._GetDataSetName( k ),
+	        cur_name,
 	        self.stateIndex if self.state.scaleMode == 'state' else -1
 	        )
 	    ds_range = (

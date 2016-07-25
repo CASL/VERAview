@@ -300,7 +300,7 @@ configuring the grid, plotting, and creating self.axline.
       if right_ds_name is not None and self.ax2 is not None:
         self.ax2.set_ylabel( right_ds_name, fontsize = label_font_size )
 	ds_range = self.data.GetRange(
-	    self._GetDataSetName( right_ds_name ),
+	    right_ds_name,
 	    self.stateIndex if self.state.scaleMode == 'state' else -1
 	    )
 	if self.data.IsValidRange( *ds_range ):
@@ -311,15 +311,16 @@ configuring the grid, plotting, and creating self.axline.
       self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
       self.ax.set_ylabel( left_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
-	  self._GetDataSetName( left_ds_name ),
+	  left_ds_name,
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
 #					-- Scale over all plotted datasets?
       if self.scaleMode == 'all':
         for k in self.dataSetValues:
-	  if k != right_ds_name and k != left_ds_name:
+	  cur_name = self._GetDataSetName( k )
+	  if cur_name != right_ds_name and cur_name != left_ds_name:
 	    cur_range = self.data.GetRange(
-	        self._GetDataSetName( k ),
+	        cur_name,
 	        self.stateIndex if self.state.scaleMode == 'state' else -1
 	        )
 	    ds_range = (
