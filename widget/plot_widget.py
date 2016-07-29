@@ -47,7 +47,7 @@ except Exception:
 
 try:
   from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-  from matplotlib.backends.backend_wx import NavigationToolbar2Wx
+  from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
   from matplotlib.figure import Figure
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
@@ -178,7 +178,9 @@ Support Methods
     self.cursorLine = None  # axis line following the cursor
     self.data = None
     self.fig = None
+    self.toolbar = None
 
+    self.callbackIds = {}
     self.isLoaded = False
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
     self.stateIndex = -1
@@ -207,6 +209,23 @@ Support Methods
 
     return  bmap
   #end _CreateClipboardImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateMenuDef()				-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self, data_model ):
+    """
+"""
+    menu_def = super( PlotWidget, self )._CreateMenuDef( data_model )
+
+    toolbar_def = \
+      [
+        { 'label': 'Toggle Toolbar', 'handler': self._OnToggleToolBar }
+      ]
+
+    return  menu_def + toolbar_def
+  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
@@ -320,13 +339,18 @@ are axial values.
 #    else:
 #      self.ax = self.fig.add_subplot( 111 )
     self.canvas = FigureCanvas( self, -1, self.fig )
+    self.toolbar = NavigationToolbar( self.canvas )
+    self.toolbar.Show( False )
 
     sizer = wx.BoxSizer( wx.VERTICAL )
-    sizer.Add( self.canvas, 1, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND )
+    sizer.Add( self.toolbar, 0, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND, 1 )
+    sizer.Add( self.canvas, 1, wx.LEFT | wx.TOP | wx.BOTTOM | wx.EXPAND, 1 )
     self.SetSizer( sizer )
 
-    self.canvas.mpl_connect( 'button_release_event', self._OnMplMouseRelease )
-    self.canvas.mpl_connect( 'motion_notify_event', self._OnMplMouseMotion )
+    self.callbackIds[ 'button_release_event' ] = \
+      self.canvas.mpl_connect( 'button_release_event', self._OnMplMouseRelease )
+    self.callbackIds[ 'motion_notify_event' ] = \
+      self.canvas.mpl_connect( 'motion_notify_event', self._OnMplMouseMotion )
 
     self.Bind( wx.EVT_CLOSE, self._OnClose )
     self.Bind( wx.EVT_CONTEXT_MENU, self._OnContextMenu )
@@ -513,6 +537,30 @@ with super.
     if wd > 0 and ht > 0 and self.data is not None:
       self.UpdateState( replot = True )
   #end _OnSize
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnToggleToolBar()				-
+  #----------------------------------------------------------------------
+  def _OnToggleToolBar( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    if self.toolbar.IsShown():
+      self.toolbar.Show( False )
+      self.callbackIds[ 'button_release_event' ] = self.\
+          canvas.mpl_connect( 'button_release_event', self._OnMplMouseRelease )
+      self.callbackIds[ 'motion_notify_event' ] = self.\
+          canvas.mpl_connect( 'motion_notify_event', self._OnMplMouseMotion )
+
+    else:
+      for k, id in self.callbackIds.iteritems():
+        self.canvas.mpl_disconnect( id )
+      self.toolbar.Show( True )
+
+    self.GetSizer().Layout()
+  #end _OnToggleToolBar
 
 
   #----------------------------------------------------------------------
