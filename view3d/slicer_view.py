@@ -331,16 +331,16 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
     find_max_def = \
       [
-        ( 'All State Points',
-	   functools.partial( self._OnFindMax, True ) ),
-        ( 'Current State Point',
-	   functools.partial( self._OnFindMax, False ) )
+        { 'label': 'All State Points',
+	  'handler': functools.partial( self._OnFindMax, True ) },
+        { 'label': 'Current State Point',
+	  'handler': functools.partial( self._OnFindMax, False ) }
       ]
 
     my_def = \
       [
-	( '-', None ),
-	( 'Find Maximum', find_max_def )
+	{ 'label': '-' },
+	{ 'label': 'Find Maximum', 'submenu': find_max_def }
       ]
     return  menu_def + my_def
   #end _CreateMenuDef
