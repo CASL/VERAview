@@ -340,6 +340,8 @@ are axial values.
 #      self.ax = self.fig.add_subplot( 111 )
     self.canvas = FigureCanvas( self, -1, self.fig )
     self.toolbar = NavigationToolbar( self.canvas )
+    #self.toolbar.Realize()
+    self.toolbar.SetBackgroundColour( wx.Colour( 236, 236, 236, 255 ) )
     self.toolbar.Show( False )
 
     sizer = wx.BoxSizer( wx.VERTICAL )
@@ -548,6 +550,7 @@ with super.
     ev.Skip()
 
     if self.toolbar.IsShown():
+      self.toolbar.home( False )
       self.toolbar.Show( False )
       self.callbackIds[ 'button_release_event' ] = self.\
           canvas.mpl_connect( 'button_release_event', self._OnMplMouseRelease )
