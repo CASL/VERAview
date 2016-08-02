@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-09	leerw@ornl.gov				-
 #	  Added assembly label in clipboard headers.
 #		2016-07-01	leerw@ornl.gov				-
@@ -89,8 +91,8 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.channelColRow = None
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
+    self.colRow = None
     self.mode = ''
 
     super( Channel2DView, self ).__init__( container, id )
@@ -978,7 +980,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
+	STATE_CHANGE_channelDataSet, STATE_CHANGE_colRow,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -1041,9 +1043,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			-- Assy mode
 #			--
       else:  # 'assy'
-	if self.channelColRow[ 0 ] >= 0 and self.channelColRow[ 1 ] >= 0 and \
-	    self.channelColRow[ 0 ] <= self.data.core.npin and \
-	    self.channelColRow[ 1 ] <= self.data.core.npin:
+	if self.colRow[ 0 ] >= 0 and self.colRow[ 1 ] >= 0 and \
+	    self.colRow[ 0 ] <= self.data.core.npinx and \
+	    self.colRow[ 1 ] <= self.data.core.npiny:
           assy_region = self.config[ 'assemblyRegion' ]
 	  chan_gap = self.config[ 'channelGap' ]
 	  chan_wd = self.config[ 'channelWidth' ]
@@ -1052,8 +1054,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 	  rect = \
 	    [
-	      self.channelColRow[ 0 ] * chan_adv + assy_region[ 0 ],
-	      self.channelColRow[ 1 ] * chan_adv + assy_region[ 1 ],
+	      self.colRow[ 0 ] * chan_adv + assy_region[ 0 ],
+	      self.colRow[ 1 ] * chan_adv + assy_region[ 1 ],
 	      chan_adv, chan_adv
 	    ]
         #end if cell in drawing range
@@ -1138,8 +1140,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 """
     self.assemblyIndex = self.state.assemblyIndex
-    self.channelColRow = self.state.channelColRow
     self.channelDataSet = self.state.channelDataSet
+    self.colRow = self.state.colRow
   #end _LoadDataModelValues
 
 
@@ -1151,9 +1153,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in (
-	'assemblyIndex', 'channelColRow', 'channelDataSet', 'mode'
-        ):
+    for k in ( 'assemblyIndex', 'channelDataSet', 'colRow', 'mode' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1178,8 +1178,8 @@ be overridden by subclasses.
 	state_args[ 'assembly_index' ] = assy_ndx
 
       chan_addr = cell_info[ 3 : 5 ]
-      if chan_addr != self.channelColRow:
-	state_args[ 'channel_colrow' ] = chan_addr
+      if chan_addr != self.colRow:
+	state_args[ 'colrow' ] = chan_addr
 
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
@@ -1257,7 +1257,7 @@ be overridden by subclasses.
     """
 """
     chan_addr = self.FindChannel( *ev.GetPosition() )
-    if chan_addr is not None and chan_addr != self.channelColRow:
+    if chan_addr is not None and chan_addr != self.colRow:
       state_ndx = self.stateIndex
       ds_name = self.channelDataSet
       chan_value = 0.0
@@ -1278,7 +1278,7 @@ be overridden by subclasses.
 
       #if chan_value > 0.0:
       if not self.data.IsNoDataValue( ds_name, chan_value ):
-	self.FireStateChange( channel_colrow = chan_addr )
+	self.FireStateChange( colrow = chan_addr )
     #end if chan_addr changed
   #end _OnMouseUpAssy
 
@@ -1306,9 +1306,7 @@ method via super.SaveProps().
 """
     super( Channel2DView, self ).SaveProps( props_dict )
 
-    for k in (
-	'assemblyIndex', 'channelColRow', 'channelDataSet', 'mode'
-        ):
+    for k in ( 'assemblyIndex', 'channelDataSet', 'colRow', 'mode' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1369,9 +1367,11 @@ method via super.SaveProps().
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
-      changed = True
-      self.channelColRow = self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
+    if 'colrow' in kwargs:
+      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], mode = 'channel' )
+      if colrow != self.colRow:
+        changed = True
+        self.colRow = colrow
 
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-11	leerw@ornl.gov				-
 #	  Implemented {Load,Save}Props().
 #		2016-04-18	leerw@ornl.gov				-
@@ -58,8 +60,8 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.channelColRow = None
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
+    self.colRow = None
 
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
 
@@ -93,11 +95,11 @@ Properties:
 
       if self.mode == 'xz':
 	assy_row = self.assemblyIndex[ 2 ]
-	chan_row = self.channelColRow[ 1 ]
+	chan_row = self.colRow[ 1 ]
 	chan_count = dset_shape[ 0 ]
       else:
 	assy_col = self.assemblyIndex[ 1 ]
-	chan_col = self.channelColRow[ 0 ]
+	chan_col = self.colRow[ 0 ]
 	chan_count = dset_shape[ 1 ]
 
       clip_shape = (
@@ -208,12 +210,12 @@ Properties:
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       if self.mode == 'xz':
-	chan_row = self.channelColRow[ 1 ]
+	chan_row = self.colRow[ 1 ]
 	clip_data = dset_value[ chan_row, :, axial_level, assy_ndx ]
 	chan_title = 'Chan Row=%d' % (chan_row + 1)
 
       else:
-	chan_col = self.channelColRow[ 0 ]
+	chan_col = self.colRow[ 0 ]
 	clip_data = dset_value[ :, chan_col, axial_level, assy_ndx ]
 	chan_title = 'Chan Col=%d' % (chan_col + 1)
 
@@ -599,12 +601,10 @@ If neither are specified, a default 'scale' value of 4 is used.
     """
 @return  ( state_index, pin_offset )
 """
-#    colrow_ndx = 1 if self.mode == 'xz' else 0
-#    return  ( self.stateIndex, self.pinColRow[ colrow_ndx ] )
     if self.mode == 'xz':
-      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.channelColRow[ 1 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.colRow[ 1 ] )
     else:
-      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.channelColRow[ 0 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.colRow[ 0 ] )
     return  t
   #end _CreateStateTuple
 
@@ -727,7 +727,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       if self.mode == 'xz':
 	assy_row = self.assemblyIndex[ 2 ]
-        chan_row = self.pinColRow[ 1 ]
+        chan_row = self.colRow[ 1 ]
         assy_col = min(
             int( off_x / assy_wd ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
@@ -738,7 +738,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       else:
         assy_col = self.assemblyIndex[ 1 ]
-	chan_col = self.pinColRow[ 0 ]
+	chan_col = self.colRow[ 0 ]
 	assy_row = min(
 	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
@@ -793,7 +793,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
+	STATE_CHANGE_channelDataSet, STATE_CHANGE_colRow,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -943,9 +943,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			True if it matches the current state, false otherwise
 """
     if self.mode == 'xz':
-      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.channelColRow[ 1 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.colRow[ 1 ] )
     else:
-      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.channelColRow[ 0 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.colRow[ 0 ] )
     return  tpl == t
   #end IsTupleCurrent
 
@@ -958,16 +958,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     self.assemblyIndex = self.state.assemblyIndex
     self.channelDataSet = self.state.channelDataSet
-    self.channelColRow = self.state.channelColRow
+    self.colRow = self.state.colRow
 
-    if self.mode == 'xz':
-      self.channelOffset = \
-          self.assemblyIndex[ 2 ] * (self.data.core.npiny + 1) + \
-	  self.channelColRow[ 1 ]
-    else:
-      self.channelOffset = \
-          self.assemblyIndex[ 1 ] * (self.data.core.npinx + 1) + \
-	  self.channelColRow[ 0 ]
+#x    if self.mode == 'xz':
+#x      self.channelOffset = \
+#x          self.assemblyIndex[ 2 ] * (self.data.core.npiny + 1) + \
+#x	  self.colRow[ 1 ]
+#x    else:
+#x      self.channelOffset = \
+#x          self.assemblyIndex[ 1 ] * (self.data.core.npinx + 1) + \
+#x	  self.colRow[ 0 ]
   #end _LoadDataModelValues
 
 
@@ -979,10 +979,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in (
-	'assemblyIndex',
-	'channelColRow', 'channelDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'colRow', 'channelDataSet' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1010,16 +1007,16 @@ be overridden by subclasses.
 
       if self.mode == 'xz':
 	assy_ndx = ( cell_info[ 0 ], cell_info[ 1 ], self.assemblyIndex[ 2 ] )
-	chan_addr = ( cell_info[ 3 ], self.channelColRow[ 1 ] )
+	chan_addr = ( cell_info[ 3 ], self.colRow[ 1 ] )
       else:
 	assy_ndx = ( cell_info[ 0 ], self.assemblyIndex[ 1 ], cell_info[ 1 ] )
-	chan_addr = ( self.channelColRow[ 0 ], cell_info[ 3 ] )
+	chan_addr = ( self.colRow[ 0 ], cell_info[ 3 ] )
 
       if assy_ndx != self.assemblyIndex:
 	state_args[ 'assembly_index' ] = assy_ndx
 
-      if chan_addr != self.channelColRow:
-	state_args[ 'channel_colrow' ] = chan_addr
+      if chan_addr != self.colRow:
+	state_args[ 'colrow' ] = chan_addr
 
       axial_level = cell_info[ 2 ]
       if axial_level != self.axialValue[ 1 ]:
@@ -1087,11 +1084,7 @@ method via super.SaveProps().
 """
     super( ChannelAxial2DView, self ).SaveProps( props_dict )
 
-    for k in (
-	'assemblyIndex',
-	'channelColRow', 'channelDataSet',
-	'mode'
-        ):
+    for k in ( 'assemblyIndex', 'channelDataSet', 'colRow', 'mode' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1195,27 +1188,24 @@ method via super.SaveProps().
 #      if self.avgDataSet == '':
 #        self.avgDataSet = None
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
-      #changed = True
-      if kwargs[ 'channel_colrow' ][ chan_ndx ] != self.channelColRow[ chan_ndx ]:
-        resized = True
-	new_chan_index_flag = True
-      else:
-        changed = True
-      self.channelColRow = \
-          self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
-
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
         self.channelDataSet = kwargs[ 'channel_dataset' ]
 
-    if new_chan_index_flag:
-      self.channelOffset = \
-          self.assemblyIndex[ assy_ndx ] * (npin + 1) + \
-	  self.channelColRow[ chan_ndx ]
-    #end if new_pin_index_flag
+    if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
+      if kwargs[ 'colrow' ][ chan_ndx ] != self.colRow[ chan_ndx ]:
+        resized = True
+	new_pin_index_flag = True
+      else:
+        changed = True
+      self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ], 'channel' )
+
+#x    if new_chan_index_flag:
+#x      self.channelOffset = \
+#x          self.assemblyIndex[ assy_ndx ] * (npin + 1) + self.colRow[ chan_ndx ]
+#x    #end if new_pin_index_flag
 
 #    if (changed or resized) and self.config is not None:
 #      self._UpdateAvgValues( self.stateIndex )

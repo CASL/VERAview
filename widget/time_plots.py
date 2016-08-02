@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-23	leerw@ornl.gov				-
 #	  Adding user-selectable scaling mode.
 #	  Redefined menu definitions with dictionaries.
@@ -95,12 +97,11 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.auxChannelColRows = []
-    self.auxPinColRows = []
+    self.auxColRows = []
     self.ax2 = None
     self.axialValue = DataModel.CreateEmptyAxialValue()
-    self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
+    self.colRow = ( -1, -1 )
     self.dataSetDialog = None
     self.dataSetSelections = {}  # keyed by dataset name or pseudo name
     self.dataSetTypes = set()
@@ -108,7 +109,6 @@ Properties:
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
     self.fixedDetectorDataSet = 'fixed_detector_response'
-    self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     self.refAxisValues = np.empty( 0 )
@@ -347,9 +347,15 @@ configuring the grid, plotting, and creating self.axline.
           ( self.assemblyIndex[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
 
       title_line2 = ''
-      if 'channel' in self.dataSetTypes:
-	chan_rc = ( self.channelColRow[ 0 ] + 1, self.channelColRow[ 1 ] + 1 )
-        title_line2 += 'Chan %s' % str( chan_rc )
+      chan_flag = 'channel' in self.dataSetTypes
+      pin_flag = 'pin' in self.dataSetTypes
+      if chan_flag or pin_flag:
+	rc = ( self.colRow[ 0 ] + 1, self.colRow[ 1 ] + 1 )
+	prefix = \
+	    'Chan/Pin'  if chan_flag and pin_flag else \
+	    'Chan'  if chan_flag else \
+	    'Pin'
+        title_line2 += '%s %s' % ( prefix, str( rc ) )
 
       if 'detector' in self.dataSetTypes or \
           'fixed_detector' in self.dataSetTypes:
@@ -358,10 +364,10 @@ configuring the grid, plotting, and creating self.axline.
 	    ( self.detectorIndex[ 0 ] + 1,
 	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
 
-      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
-        pin_rc = ( self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1 )
-        if len( title_line2 ) > 0: title_line2 += ', '
-	title_line2 += 'Pin %s' % str( pin_rc )
+#      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
+#        pin_rc = ( self.pinColRow[ 0 ] + 1, self.pinColRow[ 1 ] + 1 )
+#        if len( title_line2 ) > 0: title_line2 += ', '
+#	title_line2 += 'Pin %s' % str( pin_rc )
 
       if len( title_line2 ) > 0:
         title_str += '\n' + title_line2
@@ -565,11 +571,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex,
-        STATE_CHANGE_auxChannelColRows, STATE_CHANGE_auxPinColRows,
+        STATE_CHANGE_auxColRows,
 	STATE_CHANGE_axialValue,
-	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
+	STATE_CHANGE_channelDataSet, STATE_CHANGE_colRow,
 	STATE_CHANGE_detectorIndex, STATE_CHANGE_detectorDataSet,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_scalarDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet,
 	STATE_CHANGE_fixedDetectorDataSet
@@ -642,21 +648,18 @@ XXX size according to how many datasets selected?
     if self.data is not None and self.data.HasData():
       assy_ndx = self.data.NormalizeAssemblyIndex( self.state.assemblyIndex )
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
-      chan_colrow = self.data.NormalizeChannelColRow( self.state.channelColRow )
+      colrow = self.data.NormalizeColRow( self.state.colRow )
       detector_ndx = self.data.NormalizeDetectorIndex( self.state.detectorIndex )
-      pin_colrow = self.data.NormalizePinColRow( self.state.pinColRow )
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
 	'assembly_index': assy_ndx,
-	'aux_channel_colrows': self.state.auxChannelColRows,
-	'aux_pin_colrows': self.state.auxPinColRows,
+	'aux_colrows': self.state.auxColRows,
 	'axial_value': axial_value,
-	'channel_colrow': chan_colrow,
 	'channel_dataset': self.state.channelDataSet,
+	'colrow': colrow,
 	'detector_dataset': self.state.detectorDataSet,
 	'detector_index': detector_ndx,
-	'pin_colrow': pin_colrow,
 	'pin_dataset': self.state.pinDataSet,
 	'scalar_dataset': self.state.scalarDataSet,
 	'state_index': state_ndx,
@@ -679,11 +682,10 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
-	'axialValue', 'channelColRow', 'channelDataSet',
-	'dataSetSelections', 'detectorDataSet',
-	'fixedDetectorDataSet', 'pinColRow', 'pinDataSet',
-	'scalarDataSet', 'scaleMode'
+	'assemblyIndex', 'auxColRows', 'axialValue',
+	'channelDataSet', 'colRow',
+	'dataSetSelections', 'detectorDataSet', 'fixedDetectorDataSet',
+	'pinDataSet', 'scalarDataSet', 'scaleMode'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -827,11 +829,10 @@ method via super.SaveProps().
     super( TimePlots, self ).SaveProps( props_dict )
 
     for k in (
-	'assemblyIndex', 'auxChannelColRows', 'auxPinColRows',
-	'axialValue', 'channelColRow', 'channelDataSet',
-	'dataSetSelections', 'detectorDataSet',
-	'fixedDetectorDataSet', 'pinColRow', 'pinDataSet',
-	'scalarDataSet', 'scaleMode'
+	'assemblyIndex', 'auxColRows', 'axialValue',
+	'channelDataSet', 'colRow',
+	'dataSetSelections', 'detectorDataSet', 'fixedDetectorDataSet',
+	'pinDataSet', 'scalarDataSet', 'scaleMode'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -867,23 +868,18 @@ Must be called from the event thread.
     """Rebuild dataset arrays to plot.
 Performance enhancement
 =======================
-Once aux{Channel,Pin}ColRows include the assembly and axial indexes,
+Once auxColRows include the assembly and axial indexes,
 compare each new dataset with what's in self.dataSetValues and only load
 new ones in new_ds_values, copying from self.dataSetValues for ones
 already read.
 """
-    #del self.refAxisValues[ : ]
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
-
-    #x new_ds_types = set()
-    #x new_ds_values = {}
 
 #		-- Must have data
 #		--
     if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
-      chan_colrow_list = None
-      pin_colrow_list = None
+      colrow_list = None
 
 #			-- Construct read specs
 #			--
@@ -905,13 +901,13 @@ already read.
 #					-- Channel
 	  elif ds_type.startswith( 'channel' ):
 #						-- Lazy creation
-	    if chan_colrow_list is None:
-              chan_colrow_list = list( self.auxChannelColRows )
-              chan_colrow_list.insert( 0, self.channelColRow )
+	    if colrow_list is None:
+              colrow_list = list( self.auxColRows )
+              colrow_list.insert( 0, self.colRow )
 
 	    spec[ 'assembly_index' ] = self.assemblyIndex[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	    spec[ 'channel_colrows' ] = chan_colrow_list
+	    spec[ 'colrows' ] = colrow_list
 	    specs.append( spec )
             self.dataSetTypes.add( 'channel' )
 
@@ -925,13 +921,13 @@ already read.
 #					-- Pin
 	  elif ds_type.startswith( 'pin' ):
 #						-- Lazy creation
-	    if pin_colrow_list is None:
-              pin_colrow_list = list( self.auxPinColRows )
-              pin_colrow_list.insert( 0, self.pinColRow )
+	    if colrow_list is None:
+              colrow_list = list( self.auxColRows )
+              colrow_list.insert( 0, self.colRow )
 
 	    spec[ 'assembly_index' ] = self.assemblyIndex[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	    spec[ 'pin_colrows' ] = pin_colrow_list
+	    spec[ 'colrows' ] = colrow_list
 	    specs.append( spec )
             self.dataSetTypes.add( 'pin' )
 
@@ -985,26 +981,14 @@ Must be called from the UI thread.
       self.assemblyIndex = kwargs[ 'assembly_index' ]
     #end if
 
-    if 'aux_channel_colrows' in kwargs and \
-        kwargs[ 'aux_channel_colrows' ] != self.auxChannelColRows:
+    if 'aux_colrows' in kwargs and kwargs[ 'aux_colrows' ] != self.auxColRows:
       replot = True
-      self.auxChannelColRows = self.data.\
-          NormalizeChannelColRows( kwargs[ 'aux_channel_colrows' ] )
-
-    if 'aux_pin_colrows' in kwargs and \
-        kwargs[ 'aux_pin_colrows' ] != self.auxPinColRows:
-      replot = True
-      self.auxPinColRows = self.data.\
-          NormalizePinColRows( kwargs[ 'aux_pin_colrows' ] )
+      self.auxColRows = \
+          self.data.NormalizeColRows( kwargs[ 'aux_colrows' ], 'channel' )
 
     if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
       replot = True
       self.axialValue = kwargs[ 'axial_value' ]
-    #end if
-
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
-      replot = True
-      self.channelColRow = kwargs[ 'channel_colrow' ]
     #end if
 
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
@@ -1013,6 +997,11 @@ Must be called from the UI thread.
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
+    #end if
+
+    if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
+      replot = True
+      self.colRow = kwargs[ 'colrow' ]
     #end if
 
     if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
@@ -1026,11 +1015,6 @@ Must be called from the UI thread.
     if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
       replot = True
       self.detectorIndex = kwargs[ 'detector_index' ]
-    #end if
-
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
-      replot = True
-      self.pinColRow = kwargs[ 'pin_colrow' ]
     #end if
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-11	leerw@ornl.gov				-
 #	  Handling 'mode' correctly in LoadProps().
 #		2016-07-01	leerw@ornl.gov				-
@@ -75,7 +77,7 @@ Properties:
     self.avgValues = {}
 
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
-    self.pinColRow = ( -1, -1 )
+    self.colRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
@@ -108,11 +110,11 @@ Properties:
 
       if self.mode == 'xz':
 	assy_row = self.assemblyIndex[ 2 ]
-	pin_row = self.pinColRow[ 1 ]
+	pin_row = self.colRow[ 1 ]
 	pin_count = dset_shape[ 0 ]
       else:
 	assy_col = self.assemblyIndex[ 1 ]
-	pin_col = self.pinColRow[ 0 ]
+	pin_col = self.colRow[ 0 ]
 	pin_count = dset_shape[ 1 ]
 
       clip_shape = (
@@ -223,12 +225,12 @@ Properties:
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       if self.mode == 'xz':
-	pin_row = self.pinColRow[ 1 ]
+	pin_row = self.colRow[ 1 ]
 	clip_data = dset_value[ pin_row, :, axial_level, assy_ndx ]
 	pin_title = 'Pin Row=%d' % (pin_row + 1)
 
       else:
-	pin_col = self.pinColRow[ 0 ]
+	pin_col = self.colRow[ 0 ]
 	clip_data = dset_value[ :, pin_col, axial_level, assy_ndx ]
 	pin_title = 'Pin Col=%d' % (pin_col + 1)
 
@@ -613,12 +615,10 @@ If neither are specified, a default 'scale' value of 4 is used.
     """
 @return  ( state_index, pin_offset )
 """
-#    colrow_ndx = 1 if self.mode == 'xz' else 0
-#    return  ( self.stateIndex, self.pinColRow[ colrow_ndx ] )
     if self.mode == 'xz':
-      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.pinColRow[ 1 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.colRow[ 1 ] )
     else:
-      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.pinColRow[ 0 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.colRow[ 0 ] )
     return  t
   #end _CreateStateTuple
 
@@ -741,7 +741,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       if self.mode == 'xz':
 	assy_row = self.assemblyIndex[ 2 ]
-        pin_row = self.pinColRow[ 1 ]
+        pin_row = self.colRow[ 1 ]
         assy_col = min(
             int( off_x / assy_wd ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
@@ -752,7 +752,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       else:
         assy_col = self.assemblyIndex[ 1 ]
-	pin_col = self.pinColRow[ 0 ]
+	pin_col = self.colRow[ 0 ]
 	assy_row = min(
 	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
@@ -806,7 +806,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -956,9 +956,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			True if it matches the current state, false otherwise
 """
     if self.mode == 'xz':
-      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.pinColRow[ 1 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 2 ], self.colRow[ 1 ] )
     else:
-      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.pinColRow[ 0 ] )
+      t = ( self.stateIndex, self.assemblyIndex[ 1 ], self.colRow[ 0 ] )
     return  tpl == t
   #end IsTupleCurrent
 
@@ -972,14 +972,14 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     self.avgValues.clear()
     self.assemblyIndex = self.state.assemblyIndex
     self.pinDataSet = self.state.pinDataSet
-    self.pinColRow = self.state.pinColRow
+    self.colRow = self.state.colRow
 
-    if self.mode == 'xz':
-      self.pinOffset = \
-          self.assemblyIndex[ 2 ] * self.data.core.npiny + self.pinColRow[ 1 ]
-    else:
-      self.pinOffset = \
-          self.assemblyIndex[ 1 ] * self.data.core.npinx + self.pinColRow[ 0 ]
+#x    if self.mode == 'xz':
+#x      self.pinOffset = \
+#x          self.assemblyIndex[ 2 ] * self.data.core.npiny + self.colRow[ 1 ]
+#x    else:
+#x      self.pinOffset = \
+#x          self.assemblyIndex[ 1 ] * self.data.core.npinx + self.colRow[ 0 ]
   #end _LoadDataModelValues
 
 
@@ -991,10 +991,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in (
-	'assemblyIndex',
-	'pinColRow', 'pinDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'colRow', 'pinDataSet' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1022,16 +1019,16 @@ be overridden by subclasses.
 
       if self.mode == 'xz':
 	assy_ndx = ( cell_info[ 0 ], cell_info[ 1 ], self.assemblyIndex[ 2 ] )
-	pin_addr = ( cell_info[ 3 ], self.pinColRow[ 1 ] )
+	pin_addr = ( cell_info[ 3 ], self.colRow[ 1 ] )
       else:
 	assy_ndx = ( cell_info[ 0 ], self.assemblyIndex[ 1 ], cell_info[ 1 ] )
-	pin_addr = ( self.pinColRow[ 0 ], cell_info[ 3 ] )
+	pin_addr = ( self.colRow[ 0 ], cell_info[ 3 ] )
 
       if assy_ndx != self.assemblyIndex:
 	state_args[ 'assembly_index' ] = assy_ndx
 
-      if pin_addr != self.pinColRow:
-	state_args[ 'pin_colrow' ] = pin_addr
+      if pin_addr != self.colRow:
+	state_args[ 'colrow' ] = pin_addr
 
       axial_level = cell_info[ 2 ]
       if axial_level != self.axialValue[ 1 ]:
@@ -1089,10 +1086,7 @@ method via super.SaveProps().
 """
     super( CoreAxial2DView, self ).SaveProps( props_dict )
 
-    for k in (
-	'assemblyIndex', 'mode',
-	'pinColRow', 'pinDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'colRow', 'mode', 'pinDataSet' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1231,14 +1225,13 @@ method via super.SaveProps().
         self.avgDataSet = None
       self.avgValues.clear()
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
-      #changed = True
-      if kwargs[ 'pin_colrow' ][ pin_ndx ] != self.pinColRow[ pin_ndx ]:
+    if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
+      if kwargs[ 'colrow' ][ pin_ndx ] != self.colRow[ pin_ndx ]:
         resized = True
 	new_pin_index_flag = True
       else:
         changed = True
-      self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+      self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ], 'pin' )
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'pin_dataset' ] )
@@ -1247,10 +1240,10 @@ method via super.SaveProps().
         self.pinDataSet = kwargs[ 'pin_dataset' ]
         self.avgValues.clear()
 
-    if new_pin_index_flag:
-      self.pinOffset = \
-          self.assemblyIndex[ assy_ndx ] * npin + self.pinColRow[ pin_ndx ]
-    #end if new_pin_index_flag
+#x    if new_pin_index_flag:
+#x      self.pinOffset = \
+#x          self.assemblyIndex[ assy_ndx ] * npin + self.colRow[ pin_ndx ]
+#x    #end if new_pin_index_flag
 
     if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )

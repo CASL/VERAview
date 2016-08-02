@@ -2174,8 +2174,8 @@ for NaN.  For now, we just assume 0.0 is "no data".
         maxx += 1
 	maxy += 1
       valid &= \
-          col >= 0 and col <= maxx and \
-	  row >= 0 and row <= maxy
+          col >= 0 and col < maxx and \
+	  row >= 0 and row < maxy
 
     if 'detector_index' in kwargs:
       val = kwargs[ 'detector_index' ]
@@ -2282,8 +2282,8 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #	METHOD:		DataModel.NormalizeColRow()			-
   #----------------------------------------------------------------------
   def NormalizeColRow( self, rc, mode = 'pin' ):
-    maxx = self.core.npinx
-    maxy = self.core.npiny
+    maxx = self.core.npinx - 1
+    maxy = self.core.npiny - 1
     if mode == 'channel':
       maxx += 1
       maxy += 1
@@ -2301,8 +2301,8 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #	METHOD:		DataModel.NormalizeColRows()			-
   #----------------------------------------------------------------------
   def NormalizeColRows( self, rc_list, mode = 'pin' ):
-    maxx = self.core.npinx
-    maxy = self.core.npiny
+    maxx = self.core.npinx - 1
+    maxy = self.core.npiny - 1
     if mode == 'channel':
       maxx += 1
       maxy += 1

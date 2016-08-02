@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-09	leerw@ornl.gov				-
 #	  Added assembly label in clipboard headers.
 #		2016-07-01	leerw@ornl.gov				-
@@ -85,9 +87,9 @@ Attrs/properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.auxChannelColRows = []
-    self.channelColRow = None
+    self.auxColRows = []
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
+    self.colRow = None
     self.showPins = True
 
     super( ChannelAssembly2DView, self ).__init__( container, id )
@@ -194,8 +196,8 @@ Attrs/properties:
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 
-      chan_row = min( self.channelColRow[ 1 ], dset_shape[ 0 ] - 1 )
-      chan_col = min( self.channelColRow[ 0 ], dset_shape[ 1 ] - 1 )
+      chan_row = min( self.colRow[ 1 ], dset_shape[ 0 ] - 1 )
+      chan_col = min( self.colRow[ 0 ], dset_shape[ 1 ] - 1 )
 
       clip_data = np.ndarray( ( 1, ), dtype = np.float64 )
       clip_data[ 0 ] = dset_value[ chan_row, chan_col, axial_level, assy_ndx ]
@@ -303,7 +305,7 @@ If neither are specified, a default 'scale' value of 24 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
     config[ 'channelGap' ] = chan_gap
     config[ 'channelWidth' ] = chan_wd
-    config[ 'lineWidth' ] = max( 1, chan_gap )
+    config[ 'lineWidth' ] = max( 1, chan_gap + 1 )
     config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
 
@@ -482,7 +484,7 @@ Must be called from the UI thread.
 	      )
 
 	  #Channel labeling
-	  if chan_row == min( self.data.core.npiny, self.cellRange[ 3 ] ) - 1:
+	  if chan_row == min( self.data.core.npiny, self.cellRange[ 3 ] - 1 ) - 1:
 	    label = '%d' % (chan_row + 2)
 	    label_size = label_font.getsize( label )
 	    label_y = chan_y + + chan_wd + chan_gap + \
@@ -514,7 +516,7 @@ Must be called from the UI thread.
 	        )
 
 	    #Channel labeling
-	    if chan_col == min( self.cellRange[ 2 ], self.data.core.npinx ) - 1:
+	    if chan_col == min( self.cellRange[ 2 ] - 1, self.data.core.npinx ) - 1:
 	      label = '%d' % (chan_col + 2)
 	      label_size = label_font.getsize( label )
 	      label_x = chan_x + chan_wd + chan_gap + \
@@ -664,7 +666,8 @@ Must be called from the UI thread.
               assembly_index = self.assemblyIndex,
 	      axial_level = self.axialValue[ 1 ],
 	      dataset_name = self.channelDataSet,
-	      chan_colrow = cell_info[ 1 : 3 ],
+	      colrow = cell_info[ 1 : 3 ],
+	      colrow_mode = 'channel',
 	      state_index = self.stateIndex
 	      )
 
@@ -767,9 +770,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """By default, all locks are enabled except
 """
     locks = set([
-        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_auxChannelColRows,
-	STATE_CHANGE_channelColRow, STATE_CHANGE_channelDataSet,
+        STATE_CHANGE_assemblyIndex,
+	STATE_CHANGE_auxColRows, STATE_CHANGE_axialValue,
+	STATE_CHANGE_channelDataSet, STATE_CHANGE_colRow,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -823,8 +826,8 @@ Subclasses should override as needed.
     result = bmap
 
     if self.config is not None:
-      addr_list = list( self.auxChannelColRows )
-      addr_list.insert( 0, self.channelColRow )
+      addr_list = list( self.auxColRows )
+      addr_list.insert( 0, self.colRow )
 
       new_bmap = None
       dc = None
@@ -889,8 +892,8 @@ Subclasses should override as needed.
     result = bmap
 
     if self.config is not None:
-      rel_col = self.channelColRow[ 0 ] - self.cellRange[ 0 ]
-      rel_row = self.channelColRow[ 1 ] - self.cellRange[ 1 ]
+      rel_col = self.colRow[ 0 ] - self.cellRange[ 0 ]
+      rel_row = self.colRow[ 1 ] - self.cellRange[ 1 ]
 
       if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
           rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
@@ -965,7 +968,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 """
     self.assemblyIndex = self.state.assemblyIndex
     self.channelDataSet = self.state.channelDataSet
-    self.channelColRow = self.state.channelColRow
+    self.colRow = self.state.colRow
   #end _LoadDataModelValues
 
 
@@ -978,9 +981,8 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyIndex', 'auxChannelColRows',
-	'channelColRow', 'channelDataSet',
-	'showPins'
+	'assemblyIndex', 'auxColRows',
+	'channelDataSet', 'colRow', 'showPins'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1003,11 +1005,12 @@ be overridden by subclasses.
     valid = False
     chan_addr = self.FindChannel( *ev.GetPosition() )
 
-    if chan_addr is not None and chan_addr != self.channelColRow:
+    if chan_addr is not None and chan_addr != self.colRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
-	  channel_colrow = chan_addr,
+	  colrow = chan_addr,
+	  colrow_mode = 'channel',
 	  state_index = self.stateIndex
 	  )
 
@@ -1023,19 +1026,18 @@ be overridden by subclasses.
 	    ]
 
       if not self.data.IsNoDataValue( self.channelDataSet, value ):
-        #self.FireStateChange( pin_colrow = pin_addr )
 	if is_aux:
-	  addrs = list( self.auxChannelColRows )
+	  addrs = list( self.auxColRows )
 	  if chan_addr in addrs:
 	    addrs.remove( chan_addr )
 	  else:
 	    addrs.append( chan_addr )
-	  self.FireStateChange( aux_channel_colrows = addrs )
+	  self.FireStateChange( aux_colrows = addrs )
 
 	else:
           self.FireStateChange(
-	      channel_colrow = chan_addr,
-	      aux_channel_colrows = []
+	      colrow = chan_addr,
+	      aux_colrows = []
 	      )
       #end if not nodata value
     #end if valid
@@ -1102,9 +1104,8 @@ method via super.SaveProps().
     super( ChannelAssembly2DView, self ).SaveProps( props_dict )
 
     for k in (
-	'assemblyIndex', 'auxChannelColRows',
-	'channelColRow', 'channelDataSet',
-	'showPins'
+	'assemblyIndex', 'auxColRows',
+	'channelDataSet', 'colRow', 'showPins'
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -1137,15 +1138,17 @@ method via super.SaveProps().
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
-    if 'aux_channel_colrows' in kwargs and \
-        kwargs[ 'aux_channel_colrows' ] not in self.auxChannelColRows:
-      changed = True
-      self.auxChannelColRows = self.data.\
-          NormalizeChannelColRows( kwargs[ 'aux_channel_colrows' ] )
+    if 'aux_colrows' in kwargs:
+      aux_colrows = self.data.NormalizeColRows( kwargs[ 'aux_colrows' ], 'channel' )
+      if aux_colrows != self.auxColRows:
+        changed = True
+	self.auxColRows = aux_colrows
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] != self.channelColRow:
-      changed = True
-      self.channelColRow = self.data.NormalizeChannelColRow( kwargs[ 'channel_colrow' ] )
+    if 'colrow' in kwargs:
+      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], 'channel' )
+      if colrow != self.colRow:
+        changed = True
+	self.colRow = colrow
 
     if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )

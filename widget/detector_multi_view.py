@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-11	leerw@ornl.gov				-
 #	  Implementing text/table mode.
 #		2016-07-09	leerw@ornl.gov				-
