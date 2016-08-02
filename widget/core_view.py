@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-09	leerw@ornl.gov				-
 #	  Added assembly label in clipboard headers.
 #		2016-06-27	leerw@ornl.gov				-
@@ -143,9 +145,9 @@ Properties:
     self.assemblyIndex = ( -1, -1, -1 )
     self.avgDataSet = None
     self.avgValues = {}
+    self.colRow = ( -1, -1 )
 
     self.mode = ''  # 'assy', 'core'
-    self.pinColRow = ( -1, -1 )
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     super( Core2DView, self ).__init__( container, id )
@@ -1107,7 +1109,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+	STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_scaleMode,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
@@ -1168,9 +1170,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			-- Assy mode
 #			--
       else:  # 'assy'
-	if self.pinColRow[ 0 ] >= 0 and self.pinColRow[ 1 ] >= 0 and \
-	    self.pinColRow[ 0 ] < self.data.core.npin and \
-	    self.pinColRow[ 1 ] < self.data.core.npin:
+	if self.colRow[ 0 ] >= 0 and self.colRow[ 1 ] >= 0 and \
+	    self.colRow[ 0 ] < self.data.core.npin and \
+	    self.colRow[ 1 ] < self.data.core.npin:
           assy_region = self.config[ 'assemblyRegion' ]
 	  pin_gap = self.config[ 'pinGap' ]
 	  pin_wd = self.config[ 'pinWidth' ]
@@ -1179,8 +1181,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 	  rect = \
 	    [
-	      self.pinColRow[ 0 ] * pin_adv + assy_region[ 0 ],
-	      self.pinColRow[ 1 ] * pin_adv + assy_region[ 1 ],
+	      self.colRow[ 0 ] * pin_adv + assy_region[ 0 ],
+	      self.colRow[ 1 ] * pin_adv + assy_region[ 1 ],
 	      pin_adv, pin_adv
 	    ]
         #end if cell in drawing range
@@ -1266,8 +1268,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     self.avgValues.clear()
     self.assemblyIndex = self.state.assemblyIndex
+    self.colRow = self.state.colRow
     self.pinDataSet = self.state.pinDataSet
-    self.pinColRow = self.state.pinColRow
   #end _LoadDataModelValues
 
 
@@ -1279,10 +1281,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in (
-	'assemblyIndex', 'mode',
-	'pinColRow', 'pinDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'colRow', 'mode', 'pinDataSet' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1311,8 +1310,8 @@ be overridden by subclasses.
 #	state_args[ 'pin_colrow' ] = pin_addr
       if ev.GetClickCount() > 1:
         pin_addr = cell_info[ 3 : 5 ]
-        if pin_addr != self.pinColRow:
-	  state_args[ 'pin_colrow' ] = pin_addr
+        if pin_addr != self.colRow:
+	  state_args[ 'colrow' ] = pin_addr
 
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
@@ -1395,7 +1394,7 @@ be overridden by subclasses.
     """
 """
     pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr is not None and pin_addr != self.pinColRow:
+    if pin_addr is not None and pin_addr != self.colRow:
 #      print >> sys.stderr, \
 #          '[Core2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
 
@@ -1423,7 +1422,7 @@ be overridden by subclasses.
 
       #if pin_value > 0.0:
       if not self.data.IsNoDataValue( ds_name, pin_value ):
-	self.FireStateChange( pin_colrow = pin_addr )
+	self.FireStateChange( colrow = pin_addr )
     #end if pin_addr changed
   #end _OnMouseUpAssy
 
@@ -1482,10 +1481,7 @@ method via super.SaveProps().
 """
     super( Core2DView, self ).SaveProps( props_dict )
 
-    for k in (
-	'assemblyIndex', 'mode',
-	'pinColRow', 'pinDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'colRow', 'mode', 'pinDataSet' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1579,9 +1575,14 @@ method via super.SaveProps().
         self.avgDataSet = None
       self.avgValues.clear()
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
-      changed = True
-      self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+#    if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
+#      changed = True
+#      self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ] )
+    if 'colrow' in kwargs:
+      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], mode = 'pin' )
+      if colrow != self.colRow:
+        changed = True
+        self.colRow = colrow
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'pin_dataset' ] )

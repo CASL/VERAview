@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-11	leerw@ornl.gov				-
 #	  Fixed bug in DataModel.CreateAxialValue() where the core/pin
 #	  was based on axialMesh instead of axialMeshCenters.
@@ -1194,9 +1196,9 @@ returned.  Calls FindMaxValueAddr().
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
 			compare against for changes: assemblyIndex, axialValue,
-			channelColRow, stateIndex
+			colRow, stateIndex
 @return			dict with possible keys: 'assembly_index',
-			'axial_value', 'channel_colrow', 'state_index'
+			'axial_value', 'colrow', 'state_index'
 """
     results = {}
 
@@ -1214,7 +1216,7 @@ returned.  Calls FindMaxValueAddr().
       if axial_value[ 0 ] >= 0.0:
         results[ 'axial_value' ] = axial_value
 
-      results[ 'channel_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+      results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
       results[ 'state_index' ] = state_ndx
 
     else:
@@ -1233,11 +1235,11 @@ returned.  Calls FindMaxValueAddr().
           results[ 'axial_value' ] = axial_value
 
       skip = False
-      if hasattr( cur_obj, 'channelColRow' ):
-        chan_colrow = getattr( cur_obj, 'channelColRow' )
-	skip = chan_colrow[ 1 ] == addr[ 0 ] and chan_colrow[ 0 ] == addr[ 1 ]
+      if hasattr( cur_obj, 'colRow' ):
+        colrow = getattr( cur_obj, 'colRow' )
+	skip = colrow[ 1 ] == addr[ 0 ] and colrow[ 0 ] == addr[ 1 ]
       if not skip:
-        results[ 'channel_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+        results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
 
       skip = hasattr( cur_obj, 'stateIndex' ) and \
           getattr( cur_obj, 'stateIndex' ) == state_ndx
@@ -1259,8 +1261,8 @@ to be a 'detector' dataset.
 Calls FindMaxValueAddr().
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
-			compare against for changes: assemblyIndex, axialValue,
-			channelColRow, detectorIndex, pinColRow, stateIndex
+			compare against for changes: axialValue,
+			detectorIndex, stateIndex
 @param  ds_names	dataset names to search
 @return			dict with possible keys: 'axial_value',
 			'detector_index', 'state_index'
@@ -1425,11 +1427,11 @@ specified datasets.  Calls FindMaxValueAddr().
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
 			compare against for changes: assemblyIndex, axialValue,
-			channelColRow, detectorIndex, pinColRow, stateIndex
+			colRow, detectorIndex, stateIndex
 @param  ds_names	dataset names to search
 @return			dict with possible keys: 'assembly_index',
-			'axial_value', 'channel_colrow', 'detector_index',
-			'pin_colrow', 'state_index'
+			'axial_value', 'colrow', 'detector_index',
+			'state_index'
 """
     results = {}
     max_ds_name, max_addr, max_state_ndx, max_value = None, None, None, None
@@ -1467,13 +1469,11 @@ specified datasets.  Calls FindMaxValueAddr().
             results[ 'axial_value' ] = axial_value
 
         skip = False
-	if cur_obj is not None and hasattr( cur_obj, 'channelColRow' ):
-          chan_colrow = getattr( cur_obj, 'channelColRow' )
-	  skip = \
-	      chan_colrow[ 1 ] == max_addr[ 0 ] and \
-	      chan_colrow[ 0 ] == max_addr[ 1 ]
+	if cur_obj is not None and hasattr( cur_obj, 'colRow' ):
+          colrow = getattr( cur_obj, 'colRow' )
+	  skip = colrow[ 1 ] == max_addr[ 0 ] and colrow[ 0 ] == max_addr[ 1 ]
         if not skip:
-          results[ 'channel_colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+          results[ 'colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1545,13 +1545,11 @@ specified datasets.  Calls FindMaxValueAddr().
             results[ 'axial_value' ] = axial_value
 
         skip = False
-        if cur_obj is not None and hasattr( cur_obj, 'pinColRow' ):
-          pin_colrow = getattr( cur_obj, 'pinColRow' )
-	  skip = \
-	      pin_colrow[ 1 ] == max_addr[ 0 ] and \
-	      pin_colrow[ 0 ] == max_addr[ 1 ]
+	if cur_obj is not None and hasattr( cur_obj, 'colRow' ):
+          colrow = getattr( cur_obj, 'colRow' )
+	  skip = colrow[ 1 ] == max_addr[ 0 ] and colrow[ 0 ] == max_addr[ 1 ]
         if not skip:
-          results[ 'pin_colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+          results[ 'colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1584,9 +1582,9 @@ returned.  Calls FindMaxValueAddr().
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
 			compare against for changes: assemblyIndex, axialValue,
-			pinColRow, stateIndex
+			colRow, stateIndex
 @return			dict with possible keys: 'assembly_index',
-			'axial_value', 'pin_colrow', 'state_index'
+			'axial_value', 'colrow', 'state_index'
 """
     results = {}
 
@@ -1604,7 +1602,7 @@ returned.  Calls FindMaxValueAddr().
       if axial_value[ 0 ] >= 0.0:
         results[ 'axial_value' ] = axial_value
 
-      results[ 'pin_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+      results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
       results[ 'state_index' ] = state_ndx
 
     else:
@@ -1623,11 +1621,11 @@ returned.  Calls FindMaxValueAddr().
           results[ 'axial_value' ] = axial_value
 
       skip = False
-      if hasattr( cur_obj, 'pinColRow' ):
-        pin_colrow = getattr( cur_obj, 'pinColRow' )
-	skip = pin_colrow[ 1 ] == addr[ 0 ] and pin_colrow[ 0 ] == addr[ 1 ]
+      if hasattr( cur_obj, 'colRow' ):
+        colrow = getattr( cur_obj, 'colRow' )
+	skip = colrow[ 1 ] == addr[ 0 ] and colrow[ 0 ] == addr[ 1 ]
       if not skip:
-        results[ 'pin_colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+        results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
 
       skip = hasattr( cur_obj, 'stateIndex' ) and \
           getattr( cur_obj, 'stateIndex' ) == state_ndx
@@ -2147,10 +2145,11 @@ for NaN.  For now, we just assume 0.0 is "no data".
 @param  kwargs		named values to check:
 			  'assembly_index'
 			  'axial_level'
-			  'channel_colrow'
+			  'colrow'
+			  'colrow_mode'
+			    (either 'channel', or 'pin', defaulting to 'pin')
 			  ('dataset_name' (requires 'state_index'))
 			  'detector_index'
-			  'pin_colrow'
 			  'state_index'
 """
     valid = True
@@ -2167,21 +2166,20 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'axial_level' ]
       valid &= val >= 0 and val < self.core.nax
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] is not None:
-      col, row = kwargs[ 'channel_colrow' ]
+    if 'colrow' in kwargs and kwargs[ 'colrow' ] is not None:
+      col, row = kwargs[ 'colrow' ]
+      maxx = self.core.npinx
+      maxy = self.core.npiny
+      if kwargs.get( 'colrow_mode', 'pin' ) == 'channel':
+        maxx += 1
+	maxy += 1
       valid &= \
-          col >= 0 and col <= self.core.npinx and \
-	  row >= 0 and row <= self.core.npiny
+          col >= 0 and col <= maxx and \
+	  row >= 0 and row <= maxy
 
     if 'detector_index' in kwargs:
       val = kwargs[ 'detector_index' ]
       valid &= val >= 0 and val < self.core.ndet
-
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] is not None:
-      col, row = kwargs[ 'pin_colrow' ]
-      valid &= \
-          col >= 0 and col < self.core.npinx and \
-	  row >= 0 and row < self.core.npiny
 
     if 'state_index' in kwargs:
       val = kwargs[ 'state_index' ]
@@ -2203,8 +2201,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 @param  kwargs		named values to check:
     'assembly_index'
     'axial_level'
-    'channel_colrow'
-    'pin_colrow'
+    'colrow'
 """
     valid = True
 
@@ -2219,17 +2216,17 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'axial_level' ]
       valid &= val >= 0 and val < shape_in[ 2 ]
 
-    if 'channel_colrow' in kwargs and kwargs[ 'channel_colrow' ] is not None:
-      col, row = kwargs[ 'channel_colrow' ]
+    if 'colrow' in kwargs and kwargs[ 'colrow' ] is not None:
+      col, row = kwargs[ 'colrow' ]
       valid &= \
           col >= 0 and col <= shape_in[ 0 ] and \
 	  row >= 0 and row <= shape_in[ 1 ]
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] is not None:
-      col, row = kwargs[ 'pin_colrow' ]
-      valid &= \
-          col >= 0 and col < shape_in[ 0 ] and \
-	  row >= 0 and row < shape_in[ 1 ]
+#    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] is not None:
+#      col, row = kwargs[ 'pin_colrow' ]
+#      valid &= \
+#          col >= 0 and col < shape_in[ 0 ] and \
+#	  row >= 0 and row < shape_in[ 1 ]
 
     return  valid
   #end IsValidForShape
@@ -2253,44 +2250,6 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.LoadExtraDataSet()			-
-  #----------------------------------------------------------------------
-#  def LoadExtraDataSet( self, ds_name, src_name = 'core', state_ndx = -1 ):
-#    """Retrieves an extra dataset.
-#@param  ds_name		name of dataset to load, required
-#@param  src_name	optional name of source dataset for a time-based
-#			dataset when combined with state_ndx, otherwise
-#			defaults to 'core'
-#@param  state_ndx	optional 0-based state point index when combined with
-#			src_name
-#@return			h5py.Dataset object or None if not found
-#
-#Datasets are stored using a fully-qualified in form 'src_name.ds_name'.
-#if both 'src_name' and 'state_ndx' are specified, the dataset is searched
-#using the fully-qualified name in the specified state point (if 'state_ndx'
-#is valid).  If 'src_name' or 'state_ndx' is omitted, the source is assumed
-#to be 'core', and the dataset is not associated with a state point.
-#"""
-#    dset = None
-#
-#    if self.h5ExtraFile is not None and ds_name is not None:
-#      qname = src_name + '.' + ds_name
-#
-#      if state_ndx < 0:
-#        if qname in self.h5ExtraFile:
-#	  dset = self.h5ExtraFile[ qname ]
-#      else:
-#        st = self.GetExtraState( state_ndx )
-#	if st is not None and qname in st.GetGroup():
-#	  dset = st.GetDataSet( qname )
-#      #end if-else core or state point
-#    #end if file exists
-#
-#    return  dset
-#  #end LoadExtraDataSet
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizeAssemblyIndex()		-
   #----------------------------------------------------------------------
   def NormalizeAssemblyIndex( self, assy_ndx ):
@@ -2302,14 +2261,6 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
       )
     return  result
   #end NormalizeAssemblyIndex
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizeAxialLevel()			-
-  #----------------------------------------------------------------------
-#  def NormalizeAxialLevel( self, axial_level ):
-#    return  max( 0, min( axial_level, self.core.nax - 1 ) )
-#  #end NormalizeAxialLevel
 
 
   #----------------------------------------------------------------------
@@ -2328,31 +2279,44 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizeChannelColRow()		-
+  #	METHOD:		DataModel.NormalizeColRow()			-
   #----------------------------------------------------------------------
-  def NormalizeChannelColRow( self, chan_rc ):
+  def NormalizeColRow( self, rc, mode = 'pin' ):
+    maxx = self.core.npinx
+    maxy = self.core.npiny
+    if mode == 'channel':
+      maxx += 1
+      maxy += 1
+
     result = \
       (
-      max( 0, min( chan_rc[ 0 ], self.core.npin ) ),
-      max( 0, min( chan_rc[ 1 ], self.core.npin ) )
+      max( 0, min( rc[ 0 ], maxx ) ),
+      max( 0, min( rc[ 1 ], maxy ) )
       )
     return  result
-  #end NormalizeChannelColRow
+  #end NormalizeColRow
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizeChannelColRows()		-
+  #	METHOD:		DataModel.NormalizeColRows()			-
   #----------------------------------------------------------------------
-  def NormalizeChannelColRows( self, chan_rc_list ):
+  def NormalizeColRows( self, rc_list, mode = 'pin' ):
+    maxx = self.core.npinx
+    maxy = self.core.npiny
+    if mode == 'channel':
+      maxx += 1
+      maxy += 1
+
     result = []
-    for chan_rc in chan_rc_list:
+    for rc in rc_list:
       result.append( (
-          max( 0, min( chan_rc[ 0 ], self.core.npin ) ),
-          max( 0, min( chan_rc[ 1 ], self.core.npin ) )
+          max( 0, min( rc[ 0 ], maxx ) ),
+          max( 0, min( rc[ 1 ], maxy ) )
 	  ) )
 
-    return  result
-  #end NormalizeChannelColRows
+    #return  result
+    return  list( set( result ) )
+  #end NormalizeColRows
 
 
   #----------------------------------------------------------------------
@@ -2372,30 +2336,30 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizePinColRow()			-
   #----------------------------------------------------------------------
-  def NormalizePinColRow( self, pin_rc ):
-    result = \
-        (
-        max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
-        max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
-        )
-
-    return  result
-  #end NormalizePinColRow
+#  def NormalizePinColRow( self, pin_rc ):
+#    result = \
+#        (
+#        max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
+#        max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
+#        )
+#
+#    return  result
+#  #end NormalizePinColRow
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizePinColRows()			-
   #----------------------------------------------------------------------
-  def NormalizePinColRows( self, pin_rc_list ):
-    result = []
-    for pin_rc in pin_rc_list:
-      result.append( (
-          max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
-          max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
-	  ) )
-
-    return  result
-  #end NormalizePinColRows
+#  def NormalizePinColRows( self, pin_rc_list ):
+#    result = []
+#    for pin_rc in pin_rc_list:
+#      result.append( (
+#          max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
+#          max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
+#	  ) )
+#
+#    return  result
+#  #end NormalizePinColRows
 
 
   #----------------------------------------------------------------------
@@ -2498,17 +2462,15 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   def ReadDataSetAxialValues( self,
       ds_name,
       assembly_index = 0,
-      channel_colrows = None,
+      colrows = None,
       detector_index = 0,
-      pin_colrows = None,
       state_index = 0
       ):
     """Reads axial values for a dataset for a specified state point.
 @param  ds_name		dataset name
 @param  assembly_index	0-based assembly index
 @param  detector_index	0-based detector index
-@param  channel_colrows	list of colrow pairs
-@param  pin_colrows	list of colrow pairs
+@param  colrows		list of colrow pairs
 @param  state_index	0-based state point index
 @return			None if dataset cannot be found,
 			dict by colrow of np.ndarray for datasets that vary
@@ -2534,11 +2496,9 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 	result = dset.value[ :, det_ndx ]
 
       else:
-        colrows = \
-            channel_colrows  if ds_type.startswith( 'channel' ) else \
-	    pin_colrows
-        #if not hasattr( colrows, '__iter__' ):
-          #colrows = [ colrows ]
+#        colrows = \
+#            channel_colrows  if ds_type.startswith( 'channel' ) else \
+#	    pin_colrows
         if colrows is not None:
           ds_shape = \
               ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
@@ -2639,17 +2599,15 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
       ds_name,
       assembly_index = 0,
       axial_value = 0.0,
-      channel_colrows = None,
-      detector_index = 0,
-      pin_colrows = None
+      colrows = None,
+      detector_index = 0
       ):
     """Reads values for a dataset across all state points.
 @param  ds_name		dataset name
 @param  assembly_index	0-based assembly index
 @param  detector_index	0-based detector index
 @param  axial_value	axial value in cm
-@param  channel_colrows	single or iterable of colrow pairs
-@param  pin_colrows	single or iterable of colrow pairs
+@param  colrows		single or iterable of colrow pairs
 @return			None if dataset cannot be found,
 			dict by colrow of np.ndarray for datasets that vary
 			by colrow,
@@ -2719,9 +2677,9 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 #		-- Others
 #		--
     else:
-      colrows = \
-          channel_colrows  if ds_def[ 'type' ].startswith( 'channel' ) else \
-	  pin_colrows
+#      colrows = \
+#          channel_colrows  if ds_def[ 'type' ].startswith( 'channel' ) else \
+#	  pin_colrows
       if not hasattr( colrows, '__iter__' ):
         colrows = [ colrows ]
 
@@ -2785,12 +2743,6 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #	METHOD:		DataModel.ReadDataSetValues2()			-
   #----------------------------------------------------------------------
   def ReadDataSetValues2( self, *ds_specs_in ):
-#      ds_name,
-#      assembly_index = 0,
-#      axial_value = 0.0,
-#      channel_colrows = None,
-#      detector_index = 0,
-#      pin_colrows = None
     """Reads values for a dataset across all state points, one state point
 at a time for better performance.
 @param  ds_specs_in	list of dataset specifications with the following keys:
@@ -2798,8 +2750,7 @@ at a time for better performance.
 	  assembly_index	0-based assembly index
 	  detector_index	0-based detector index for detector datasets
 	  axial_cm		axial value in cm
-	  channel_colrows	list of colrow pairs
-	  pin_colrows		list of colrow pairs
+	  colrows		list of colrow pairs
 @return			dict keyed by found ds_name of:
 			  dict keyed by colrow of np.ndarray for pin-based
 			  datasets,
@@ -2888,12 +2839,11 @@ at a time for better performance.
 #			-- Others are pin-based
 #			--
 	else:
-          colrows = \
-              spec.get( 'channel_colrows' ) \
-	      if ds_def[ 'type' ].startswith( 'channel' ) else \
-              spec.get( 'pin_colrows' )
-          #if not hasattr( colrows, '__iter__' ):
-            #colrows = [ colrows ]
+#          colrows = \
+#              spec.get( 'channel_colrows' ) \
+#	      if ds_def[ 'type' ].startswith( 'channel' ) else \
+#              spec.get( 'pin_colrows' )
+	  colrows = spec.get( 'colrows' )
 
 #				-- Must have colrows
           if colrows is not None:
@@ -2959,31 +2909,6 @@ at a time for better performance.
 
     return  result
   #end ReadDataSetValues2
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.RemoveExtraDataSet()			-
-  #----------------------------------------------------------------------
-#  def RemoveExtraDataSet( self, full_ds_name ):
-#    """Removes the named dataset from all extra states.
-#Note the fully-qualified name of a caculated dataset is 'source.name',
-#where 'source' is the name of the dataset from which the extra dataset was
-#calculated.
-#@param  full_ds_name	fully-qualified dataset name
-#"""
-#    if self.HasExtraDataSet( full_ds_name ):
-#      if full_ds_name.startswith( 'core' ):
-#        del self.h5ExtraFile[ full_ds_name ]
-#
-#      else:
-#        for st in self.GetExtraStates():
-#	  st.RemoveDataSet( full_ds_name )
-#	#end for
-#      #end if-else
-#
-#      self.h5ExtraFile.flush()
-#    #end if
-#  #end RemoveExtraDataSet
 
 
   #----------------------------------------------------------------------

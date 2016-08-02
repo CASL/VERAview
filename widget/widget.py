@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-23	leerw@ornl.gov				-
 #	  Redefined menu definitions with dictionaries.
 #		2016-06-27	leerw@ornl.gov				-
@@ -1072,7 +1074,7 @@ or _OnFindMaxPin().
   #----------------------------------------------------------------------
   def _OnFindMaxChannel( self, ds_name, all_states_flag ):
     """Handles 'channel' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_index, axial_value, channel_colrow, and/or
+FireStateChange() with assembly_index, axial_value, colrow, and/or
 state_index changes.
 @param  ds_name		name of dataset
 @param  all_states_flag	True for all states, False for current state
@@ -1120,8 +1122,8 @@ state_index changes.
   #----------------------------------------------------------------------
   def _OnFindMaxMultiDataSets( self, all_states_flag, *ds_names ):
     """Handles multi-dataset dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_index, axial_value, channel_colrow,
-detector_index, pin_colrow, and/or state_index changes.
+FireStateChange() with assembly_index, axial_value, colrow,
+detector_index, and/or state_index changes.
 @param  all_states_flag	True for all states, False for current state
 @param  ds_names	dataset names to search
 """
@@ -1143,7 +1145,7 @@ detector_index, pin_colrow, and/or state_index changes.
   #----------------------------------------------------------------------
   def _OnFindMaxPin( self, ds_name, all_states_flag ):
     """Handles 'pin' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_index, axial_value, pin_colrow, and/or
+FireStateChange() with assembly_index, axial_value, colrow, and/or
 state_index changes.
 @param  all_states_flag	True for all states, False for current state
 @param  ds_name		name of dataset

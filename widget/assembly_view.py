@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-09	leerw@ornl.gov				-
 #	  Added assembly label in clipboard headers.
 #		2016-07-01	leerw@ornl.gov				-
@@ -108,8 +110,8 @@ Attrs/properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
-    self.auxPinColRows = []
-    self.pinColRow = None
+    self.auxColRows = []
+    self.colRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
 
     super( Assembly2DView, self ).__init__( container, id )
@@ -216,8 +218,8 @@ Attrs/properties:
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 
-      pin_row = min( self.pinColRow[ 1 ], dset_shape[ 0 ] - 1 )
-      pin_col = min( self.pinColRow[ 0 ], dset_shape[ 1 ] - 1 )
+      pin_row = min( self.colRow[ 1 ], dset_shape[ 0 ] - 1 )
+      pin_col = min( self.colRow[ 0 ], dset_shape[ 1 ] - 1 )
       #clip_data = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
       clip_data = np.ndarray( ( 1, ), dtype = np.float64 )
       clip_data[ 0 ] = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
@@ -559,7 +561,8 @@ If neither are specified, a default 'scale' value of 24 is used.
             assembly_index = self.assemblyIndex,
 	    axial_level = self.axialValue[ 1 ],
 	    #dataset_name = self.pinDataSet,
-	    pin_colrow = cell_info[ 1 : 3 ],
+	    colrow = cell_info[ 1 : 3 ],
+	    colrow_mode = 'pin',
 	    state_index = self.stateIndex
 	    )
 
@@ -682,8 +685,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex,
-        STATE_CHANGE_auxPinColRows, STATE_CHANGE_axialValue,
-	STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+        STATE_CHANGE_auxColRows, STATE_CHANGE_axialValue,
+	STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
 	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
 	])
     return  locks
@@ -724,10 +727,9 @@ Subclasses should override as needed.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    #xxxxx auxPinColRows
     if self.config is not None:
-      addr_list = list( self.auxPinColRows )
-      addr_list.insert( 0, self.pinColRow )
+      addr_list = list( self.auxColRows )
+      addr_list.insert( 0, self.colRow )
 
       new_bmap = None
       dc = None
@@ -792,8 +794,8 @@ Subclasses should override as needed.
     result = bmap
 
     if self.config is not None:
-      rel_col = self.pinColRow[ 0 ] - self.cellRange[ 0 ]
-      rel_row = self.pinColRow[ 1 ] - self.cellRange[ 1 ]
+      rel_col = self.colRow[ 0 ] - self.cellRange[ 0 ]
+      rel_row = self.colRow[ 1 ] - self.cellRange[ 1 ]
 
       if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
           rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
@@ -867,8 +869,8 @@ attributes/properties that aren't already set in _LoadDataModel():
   stateIndex
 """
     self.assemblyIndex = self.state.assemblyIndex
+    self.colRow = self.state.colRow
     self.pinDataSet = self.state.pinDataSet
-    self.pinColRow = self.state.pinColRow
   #end _LoadDataModelValues
 
 
@@ -880,10 +882,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in (
-	'assemblyIndex', 'auxPinColRows',
-	'pinColRow', 'pinDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'auxColRows', 'colRow', 'pinDataSet' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -905,11 +904,11 @@ be overridden by subclasses.
     valid = False
     pin_addr = self.FindPin( *ev.GetPosition() )
 
-    if pin_addr is not None and pin_addr != self.pinColRow:
+    if pin_addr is not None and pin_addr != self.colRow:
       valid = self.data.IsValid(
           assembly_index = self.assemblyIndex[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
-	  pin_colrow = pin_addr,
+	  colrow = pin_addr,
 	  state_index = self.stateIndex
 	  )
 
@@ -925,17 +924,16 @@ be overridden by subclasses.
 	    ]
 
       if not self.data.IsNoDataValue( self.pinDataSet, value ):
-        #self.FireStateChange( pin_colrow = pin_addr )
 	if is_aux:
-	  addrs = list( self.auxPinColRows )
+	  addrs = list( self.auxColRows )
 	  if pin_addr in addrs:
 	    addrs.remove( pin_addr )
 	  else:
 	    addrs.append( pin_addr )
-	  self.FireStateChange( aux_pin_colrows = addrs )
+	  self.FireStateChange( aux_colrows = addrs )
 
 	else:
-          self.FireStateChange( pin_colrow = pin_addr, aux_pin_colrows = [] )
+          self.FireStateChange( colrow = pin_addr, aux_colrows = [] )
       #end if not nodata value
     #end if valid
   #end _OnClick
@@ -962,10 +960,7 @@ method via super.SaveProps().
 """
     super( Assembly2DView, self ).SaveProps( props_dict )
 
-    for k in (
-	'assemblyIndex', 'auxPinColRows',
-	'pinColRow', 'pinDataSet'
-        ):
+    for k in ( 'assemblyIndex', 'auxColRows', 'colRow', 'pinDataSet' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -997,15 +992,17 @@ method via super.SaveProps().
       changed = True
       self.assemblyIndex = kwargs[ 'assembly_index' ]
 
-    if 'aux_pin_colrows' in kwargs and \
-        kwargs[ 'aux_pin_colrows' ] not in self.auxPinColRows:
-      changed = True
-      self.auxPinColRows = self.data.\
-          NormalizePinColRows( kwargs[ 'aux_pin_colrows' ] )
+    if 'aux_colrows' in kwargs:
+      aux_colrows = self.data.NormalizeColRows( kwargs[ 'aux_colrows' ], 'pin' )
+      if aux_colrows != self.auxColRows:
+        changed = True
+	self.auxColRows = aux_colrows
 
-    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
-      changed = True
-      self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+    if 'colrow' in kwargs:
+      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], 'pin' )
+      if colrow != self.colRow:
+        changed = True
+	self.colRow = colrow
 
     if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'pin_dataset' ] )

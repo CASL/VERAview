@@ -123,7 +123,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.52'
+TITLE = 'VERAView Version 1.0.53'
 
 TOOLBAR_ITEMS = \
   [
@@ -1063,13 +1063,13 @@ Must be called from the UI thread.
       if len( data.states ) > 1:
         widget_list.append( 'widget.time_plots.TimePlots' )
 
-      if False:
+      if True:
         widget_list = [
-#            'widget.core_view.Core2DView',
-#            'widget.assembly_view.Assembly2DView',
-            'widget.detector_multi_view.Detector2DMultiView',
-            'widget.axial_plot.AxialPlot',
-            'widget.time_plots.TimePlots'
+            'widget.core_view.Core2DView',
+            'widget.assembly_view.Assembly2DView'
+#            'widget.detector_multi_view.Detector2DMultiView',
+#            'widget.axial_plot.AxialPlot',
+#            'widget.time_plots.TimePlots'
 #	    'widget.channel_view.Channel2DView',
 #	    'widget.channel_assembly_view.ChannelAssembly2DView'
 #	    'widget.channel_axial_view.ChannelAxial2DView',

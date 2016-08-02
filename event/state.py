@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-08-02	leerw@ornl.gov				-
+#	  Merging colrow events.
 #		2016-07-21	leerw@ornl.gov				-
 #	  Added GetDataSetChanges().
 #		2016-07-18	leerw@ornl.gov				-
@@ -64,20 +66,22 @@ STATE_CHANGE_noop = 0
 STATE_CHANGE_init = 0x1 << 0
 STATE_CHANGE_dataModel = 0x1 << 1
 STATE_CHANGE_assemblyIndex = 0x1 << 2
-#STATE_CHANGE_axialLevel = 0x1 << 3
+##STATE_CHANGE_axialLevel = 0x1 << 3
 STATE_CHANGE_axialValue = 0x1 << 3
 STATE_CHANGE_stateIndex = 0x1 << 4
-STATE_CHANGE_pinColRow = 0x1 << 5
+#STATE_CHANGE_pinColRow = 0x1 << 5
+STATE_CHANGE_colRow = 0x1 << 5
 STATE_CHANGE_pinDataSet = 0x1 << 6
 STATE_CHANGE_scalarDataSet = 0x1 << 7
 STATE_CHANGE_detectorDataSet = 0x1 << 8
 STATE_CHANGE_detectorIndex = 0x1 << 9
 STATE_CHANGE_channelDataSet = 0x1 << 10
-STATE_CHANGE_channelColRow = 0x1 << 11
+#STATE_CHANGE_channelColRow = 0x1 << 11
 STATE_CHANGE_timeDataSet = 0x1 << 12
 STATE_CHANGE_scaleMode = 0x1 << 13
-STATE_CHANGE_auxChannelColRows = 0x1 << 14
-STATE_CHANGE_auxPinColRows = 0x1 << 15
+#STATE_CHANGE_auxChannelColRows = 0x1 << 14
+#STATE_CHANGE_auxPinColRows = 0x1 << 15
+STATE_CHANGE_auxColRows = 0x1 << 15
 STATE_CHANGE_fixedDetectorDataSet = 0x1 << 16
 #STATE_CHANGE_ALL = 0x1fff
 
@@ -85,14 +89,16 @@ STATE_CHANGE_fixedDetectorDataSet = 0x1 << 16
 LOCKABLE_STATES = \
   (
   STATE_CHANGE_assemblyIndex,
-  STATE_CHANGE_auxChannelColRows,
-  STATE_CHANGE_auxPinColRows,
+#  STATE_CHANGE_auxChannelColRows,
+  STATE_CHANGE_auxColRows,
+#  STATE_CHANGE_auxPinColRows,
   STATE_CHANGE_axialValue,
-  STATE_CHANGE_channelColRow,
+#  STATE_CHANGE_channelColRow,
   STATE_CHANGE_channelDataSet,
+  STATE_CHANGE_colRow,
   STATE_CHANGE_detectorDataSet,
   STATE_CHANGE_detectorIndex,
-  STATE_CHANGE_pinColRow,
+#  STATE_CHANGE_pinColRow,
   STATE_CHANGE_pinDataSet,
   STATE_CHANGE_scalarDataSet,
   STATE_CHANGE_scaleMode,
@@ -106,13 +112,15 @@ EVENT_ID_NAMES = \
   [
     ( STATE_CHANGE_assemblyIndex, 'Assembly Index' ),
     ( STATE_CHANGE_axialValue, 'Axial Value' ),
-    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
-    ( STATE_CHANGE_auxChannelColRows, '2ndary Channel Column and Row' ),
+#    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
+#    ( STATE_CHANGE_auxChannelColRows, '2ndary Channel Column and Row' ),
     ( STATE_CHANGE_channelDataSet, 'Channel Dataset' ),
+    ( STATE_CHANGE_colRow, 'Pin/Channel Column and Row' ),
+    ( STATE_CHANGE_auxColRows, '2ndary Pin/Channel Column and Row' ),
     ( STATE_CHANGE_detectorDataSet, 'Detector Dataset' ),
     ( STATE_CHANGE_detectorIndex, 'Detector Index' ),
-    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
-    ( STATE_CHANGE_auxPinColRows, '2ndary Pin Column and Row' ),
+#    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
+#    ( STATE_CHANGE_auxPinColRows, '2ndary Pin Column and Row' ),
     ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
     ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
     ( STATE_CHANGE_stateIndex, 'State Point Index' ),
@@ -133,21 +141,15 @@ All indices are 0-based.
 | assemblyIndex        | ( int index, int column,  | assembly_index            |
 |                      |   int row )               |                           |
 +----------------------+---------------------------+---------------------------+
-| auxChannelColRows    | list of ( col, row        | aux_channel_colrows       |
-|                      |   assy_ndx, assy_col      |                           |
-|                      |   assy_row )              |                           |
-+----------------------+---------------------------+---------------------------+
-| auxPinColRows        | list of ( col, row        | aux_pin_colrows           |
-|                      |   assy_ndx, assy_col      |                           |
-|                      |   assy_row )              |                           |
+| auxColRows           | list of ( col, row )      | aux_colrows               |
 +----------------------+---------------------------+---------------------------+
 | axialValue           | ( value(cm), core-index,  | axial_value               |
 |                      |   detector-index,         |                           |
 |                      |   fixed-det-index )       |                           |
 +----------------------+---------------------------+---------------------------+
-| channelColRow        | ( int column, int row )   | channel_colrow            |
-+----------------------+---------------------------+---------------------------+
 | channelDataSet       | str name                  | channel_dataset           |
++----------------------+---------------------------+---------------------------+
+| colRow               | ( int column, int row )   | colrow                    |
 +----------------------+---------------------------+---------------------------+
 | dataModel            | DataModel object          | data_model                |
 +----------------------+---------------------------+---------------------------+
@@ -159,8 +161,6 @@ All indices are 0-based.
 | fixedDetectorDataSet | str name                  | fixed_detector_dataset    |
 +----------------------+---------------------------+---------------------------+
 | listeners            | list of objects to notify on change events            |
-+----------------------+---------------------------+---------------------------+
-| pinColRow            | ( int column, int row )   | pin_colrow                |
 +----------------------+---------------------------+---------------------------+
 | pinDataSet           | str name                  | pin_dataset               |
 +----------------------+---------------------------+---------------------------+
@@ -214,18 +214,16 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
   def __init__( self, *args, **kwargs ):
     self.assemblyIndex = ( -1, -1, -1 )
     #self.axialLevel = -1
-    self.auxChannelColRows = []
-    self.auxPinColRows = []
+    self.auxColRows = []
     self.axialValue = DataModel.CreateEmptyAxialValue()
     #self.axialValue = ( 0.0, -1, -1, -1 )
-    self.channelColRow = ( -1, -1 )
     self.channelDataSet = 'channel_liquid_temps [C]'
+    self.colRow = ( -1, -1 )
     self.dataModel = None
     self.detectorDataSet = 'detector_response'
     self.detectorIndex = ( -1, -1, -1 )
     self.fixedDetectorDataSet = 'fixed_detector_response'
     self.listeners = []
-    self.pinColRow = ( -1, -1 )
     self.pinDataSet = 'pin_powers'
     self.scalarDataSet = 'keff'
     self.scaleMode = 'all'
@@ -234,16 +232,20 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
 
     if 'assembly_index' in kwargs:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
-    if 'aux_channel_colrows' in kwargs:
-      self.auxChannelColRows = kwargs[ 'aux_channel_colrows' ]
-    if 'aux_pin_colrows' in kwargs:
-      self.auxPinColRows = kwargs[ 'aux_pin_colrows' ]
+#    if 'aux_channel_colrows' in kwargs:
+#      self.auxChannelColRows = kwargs[ 'aux_channel_colrows' ]
+    if 'aux_colrows' in kwargs:
+      self.auxColRows = kwargs[ 'aux_colrows' ]
+#    if 'aux_pin_colrows' in kwargs:
+#      self.auxPinColRows = kwargs[ 'aux_pin_colrows' ]
     if 'axial_value' in kwargs:
       self.axialValue = kwargs[ 'axial_value' ]
-    if 'channel_colrow' in kwargs:
-      self.channelColRow = kwargs[ 'channel_colrow' ]
+#    if 'channel_colrow' in kwargs:
+#      self.channelColRow = kwargs[ 'channel_colrow' ]
     if 'channel_dataset' in kwargs:
       self.channelDataSet = kwargs[ 'channel_dataset' ]
+    if 'colrow' in kwargs:
+      self.colRow = kwargs[ 'colrow' ]
     if 'data_model' in kwargs:
       self.dataModel = kwargs[ 'data_model' ]
     if 'detector_dataset' in kwargs:
@@ -252,8 +254,8 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
       self.detectorIndex = kwargs[ 'detector_index' ]
     if 'fixed_detector_dataset' in kwargs:
       self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
-    if 'pin_colrow' in kwargs:
-      self.pinColRow = kwargs[ 'pin_colrow' ]
+#    if 'pin_colrow' in kwargs:
+#      self.pinColRow = kwargs[ 'pin_colrow' ]
     if 'pin_dataset' in kwargs:
       self.pinDataSet = kwargs[ 'pin_dataset' ]
     if 'scalar_dataset' in kwargs:
@@ -274,10 +276,10 @@ index and col,row, pin/channel col,row, and axial value.  Big change!!
     """This needs to be updated.  Perhaps dump the JSON sans dataModel.
 """
     result = \
-        'assembly=%s,axial=%s,datasets=(%s,%s),pin=%d,%d,state=%d' % ( \
+        'assembly=%s,axial=%s,datasets=(%s,%s),colrow=%d,%d,state=%d' % ( \
 	    str( self.assemblyIndex ), str( self.axialValue ), \
 	    self.pinDataSet, self.scalarDataSet, \
-	    self.pinColRow[ 1 ], self.pinColRow[ 0 ], self.stateIndex \
+	    self.colRow[ 1 ], self.colRow[ 0 ], self.stateIndex \
 	    )
     return  result
   #end __str__
@@ -307,16 +309,14 @@ by locks.
 
 Keys passed and the corresponding state bit are:
   assembly_index	STATE_CHANGE_assemblyIndex
-  aux_channel_colrows	STATE_CHANGE_auxChannelColRows
-  aux_pin_colrows	STATE_CHANGE_auxPinColRows
+  aux_colrows		STATE_CHANGE_auxColRows
   axial_value		STATE_CHANGE_axialValue
-  data_model		STATE_CHANGE_dataModel
-  channel_colrow	STATE_CHANGE_channelColRow
   channel_dataset	STATE_CHANGE_channelDataSet
+  colrow		STATE_CHANGE_colRow
+  data_model		STATE_CHANGE_dataModel
   detector_dataset	STATE_CHANGE_detectorDataSet
   detector_index	STATE_CHANGE_detectorIndex
   fixed_detector_dataset	STATE_CHANGE_fixedDetectorDataSet
-  pin_colrow		STATE_CHANGE_pinColRow
   pin_dataset		STATE_CHANGE_pinDataSet
   scalar_dataset	STATE_CHANGE_scalarDataSet
   scale_mode		STATE_CHANGE_scaleMode
@@ -330,28 +330,21 @@ Keys passed and the corresponding state bit are:
       self.assemblyIndex = kwargs[ 'assembly_index' ]
       reason |= STATE_CHANGE_assemblyIndex
 
-    if 'aux_channel_colrows' in kwargs and locks[ STATE_CHANGE_auxChannelColRows ]:
-      self.auxChannelColRows = kwargs[ 'aux_channel_colrows' ]
-      reason |= STATE_CHANGE_auxChannelColRows
-
-    if 'aux_pin_colrows' in kwargs and locks[ STATE_CHANGE_auxPinColRows ]:
-      self.auxPinColRows = kwargs[ 'aux_pin_colrows' ]
-      reason |= STATE_CHANGE_auxPinColRows
+    if 'aux_colrows' in kwargs and locks[ STATE_CHANGE_auxColRows ]:
+      self.auxColRows = kwargs[ 'aux_colrows' ]
+      reason |= STATE_CHANGE_auxColRows
 
     if 'axial_value' in kwargs and locks[ STATE_CHANGE_axialValue ]:
       self.axialValue = kwargs[ 'axial_value' ]
       reason |= STATE_CHANGE_axialValue
-#    if 'axial_level' in kwargs and locks[ STATE_CHANGE_axialLevel ]:
-#      self.axialLevel = kwargs[ 'axial_level' ]
-#      reason |= STATE_CHANGE_axialLevel
-
-    if 'channel_colrow' in kwargs and locks[ STATE_CHANGE_channelColRow ]:
-      self.channelColRow = kwargs[ 'channel_colrow' ]
-      reason |= STATE_CHANGE_channelColRow
 
     if 'channel_dataset' in kwargs and locks[ STATE_CHANGE_channelDataSet ]:
       self.channelDataSet = kwargs[ 'channel_dataset' ]
       reason |= STATE_CHANGE_channelDataSet
+
+    if 'colrow' in kwargs and locks[ STATE_CHANGE_colRow ]:
+      self.colRow = kwargs[ 'colrow' ]
+      reason |= STATE_CHANGE_colRow
 
     if 'data_model' in kwargs:
       self.dataModel = kwargs[ 'data_model' ]
@@ -369,10 +362,6 @@ Keys passed and the corresponding state bit are:
         locks[ STATE_CHANGE_fixedDetectorDataSet ]:
       self.fixedDetectorDataSet = kwargs[ 'fixed_detector_dataset' ]
       reason |= STATE_CHANGE_fixedDetectorDataSet
-
-    if 'pin_colrow' in kwargs and locks[ STATE_CHANGE_pinColRow ]:
-      self.pinColRow = kwargs[ 'pin_colrow' ]
-      reason |= STATE_CHANGE_pinColRow
 
     if 'pin_dataset' in kwargs and locks[ STATE_CHANGE_pinDataSet ]:
       self.pinDataSet = kwargs[ 'pin_dataset' ]
@@ -433,20 +422,17 @@ Keys passed and the corresponding state bit are:
 #      if hasattr( self, 'assemblyIndex' ) and \
 #          self.state.assemblyIndex != self.assemblyIndex:
 
-    if (reason & STATE_CHANGE_auxChannelColRows) > 0:
-      update_args[ 'aux_channel_colrows' ] = self.auxChannelColRows
-
-    if (reason & STATE_CHANGE_auxPinColRows) > 0:
-      update_args[ 'aux_pin_colrows' ] = self.auxPinColRows
+    if (reason & STATE_CHANGE_auxColRows) > 0:
+      update_args[ 'aux_colrows' ] = self.auxColRows
 
     if (reason & STATE_CHANGE_axialValue) > 0:
       update_args[ 'axial_value' ] = self.axialValue
 
-    if (reason & STATE_CHANGE_channelColRow) > 0:
-      update_args[ 'channel_colrow' ] = self.channelColRow
-
     if (reason & STATE_CHANGE_channelDataSet) > 0:
       update_args[ 'channel_dataset' ] = self.channelDataSet
+
+    if (reason & STATE_CHANGE_colRow) > 0:
+      update_args[ 'colrow' ] = self.colRow
 
     if (reason & STATE_CHANGE_dataModel) > 0:
       update_args[ 'data_model' ] = self.dataModel
@@ -459,9 +445,6 @@ Keys passed and the corresponding state bit are:
 
     if (reason & STATE_CHANGE_fixedDetectorDataSet) > 0:
       update_args[ 'fixed_detector_dataset' ] = self.fixedDetectorDataSet
-
-    if (reason & STATE_CHANGE_pinColRow) > 0:
-      update_args[ 'pin_colrow' ] = self.pinColRow
 
     if (reason & STATE_CHANGE_pinDataSet) > 0:
       update_args[ 'pin_dataset' ] = self.pinDataSet
@@ -564,15 +547,13 @@ Keys passed and the corresponding state bit are:
       self.assemblyIndex = data_model.NormalizeAssemblyIndex( undefined3 )
       self.axialValue = data_model.NormalizeAxialValue( undefined_ax )
       self.channelDataSet = data_model.GetFirstDataSet( 'channel' )
-      self.channelColRow = data_model.NormalizePinColRow( undefined2 )
+      self.colRow = data_model.NormalizeColRow( undefined2 )
       self.detectorDataSet = data_model.GetFirstDataSet( 'detector' )
       self.detectorIndex = data_model.NormalizeDetectorIndex( undefined3 )
       self.fixedDetectorDataSet = data_model.GetFirstDataSet( 'fixed_detector' )
-      self.pinColRow = data_model.NormalizePinColRow( undefined2 )
       self.pinDataSet = 'pin_powers' \
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
 	  data_model.GetFirstDataSet( 'pin' )
-      #self.scalarDataSet = data_model.GetFirstDataSet( 'scalar' )
       self.scalarDataSet = data_model.GetDefaultScalarDataSet()
       self.stateIndex = data_model.NormalizeStateIndex( -1 )
       self.timeDataSet = 'exposure' \
@@ -583,19 +564,17 @@ Keys passed and the corresponding state bit are:
     else:
       self.assemblyIndex = undefined3
       self.axialValue = undefined_ax
-      self.channelColRow = undefined2
       self.channelDataSet = None
+      self.colRow = undefined2
       self.detectorDataSet = None
       self.detectorIndex = undefined3
       self.fixedDetectorDataSet = None
-      self.pinColRow = undefined2
       self.pinDataSet = None
       self.scalarDataSet = None
       self.stateIndex = -1
       self.timeDataSet = 'state'
 
-    self.auxChannelColRows = []
-    self.auxPinColRows = []
+    self.auxColRows = []
   #end Load
 
 
@@ -607,11 +586,10 @@ Keys passed and the corresponding state bit are:
 @param  props_dict	dict containing property values
 """
     for k in (
-        'assemblyIndex', 'auxChannelColRows', 'auxPinColRows', 'axialValue', 
-        'channelColRow', 'channelDataSet',
+        'assemblyIndex', 'auxColRows', 'axialValue', 
+        'channelDataSet', 'colRow',
         'detectorDataSet', 'detectorIndex', 'fixedDetectorDataSet',
-        'pinColRow', 'pinDataSet', 
-        'scalarDataSet', 'scaleMode', 
+        'pinDataSet', 'scalarDataSet', 'scaleMode', 
         'stateIndex', 'timeDataSet',
         ):
       if k in props_dict:
@@ -659,11 +637,10 @@ Keys passed and the corresponding state bit are:
 @param  props_dict	dict to which to write property values
 """
     for k in (
-        'assemblyIndex', 'auxChannelColRows', 'auxPinColRows', 'axialValue', 
-        'channelColRow', 'channelDataSet',
+        'assemblyIndex', 'auxColRows', 'axialValue', 
+        'channelDataSet', 'colRow',
         'detectorDataSet', 'detectorIndex', 'fixedDetectorDataSet',
-        'pinColRow', 'pinDataSet', 
-        'scalarDataSet', 'scaleMode', 
+        'pinDataSet', 'scalarDataSet', 'scaleMode', 
         'stateIndex', 'timeDataSet',
         ):
       props_dict[ k ] = getattr( self, k )
@@ -706,15 +683,13 @@ Keys passed and the corresponding state bit are:
     """
 @return		dict with all True for
 		STATE_CHANGE_assemblyIndex,
-		STATE_CHANGE_auxChannelColRows,
-		STATE_CHANGE_auxPinColRows,
+		STATE_CHANGE_auxColRows,
 		STATE_CHANGE_axialValue,
-		STATE_CHANGE_channelColRow,
 		STATE_CHANGE_channelDataSet,
+		STATE_CHANGE_colRow,
 		STATE_CHANGE_detectorDataSet,
 		STATE_CHANGE_detectorIndex,
 		STATE_CHANGE_fixedDetectorDataSet,
-		STATE_CHANGE_pinColRow,
 		STATE_CHANGE_pinDataSet,
 		STATE_CHANGE_scalarDataSet,
 		STATE_CHANGE_scaleMode,
