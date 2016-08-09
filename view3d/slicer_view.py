@@ -58,7 +58,7 @@ class Slicer3DView( Widget ):
     #self.autoSync = True
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
-    self.pinColRow = None
+    self.colRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
 
@@ -119,7 +119,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         {
         'assembly_index': assembly_index,
         'axial_value': axial_value,
-        'pin_colrow': pin_colrow
+        'colrow': colrow
         }
     #end if data defined
 
@@ -141,12 +141,12 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     z = self.meshLevels[ self.axialValue[ 1 ] ]
 
     assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
-    x = core.npinx * assy_col + self.pinColRow[ 0 ]
+    x = core.npinx * assy_col + self.colRow[ 0 ]
 
     assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
     y = \
         core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
-	self.pinColRow[ 1 ]
+	self.colRow[ 1 ]
 
     return  ( z, x, y )
   #end CalcSlicePosition
@@ -409,7 +409,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   def GetEventLockSet( self ):
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-        STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+        STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
         STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
         ])
     return  locks
@@ -478,7 +478,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
       self.coreExtent = self.data.ExtractSymmetryExtent()
-      self.pinColRow = self.state.pinColRow
+      self.colRow = self.state.colRow
       #self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
 
@@ -616,9 +616,9 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         position_changed = True
         self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
-      if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+      if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
         position_changed = True
-        self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+        self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ] )
 
       if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
         data_changed = True

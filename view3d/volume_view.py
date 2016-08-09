@@ -55,7 +55,7 @@ class Volume3DView( Widget ):
     self.autoSync = True
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
-    self.pinColRow = None
+    self.colRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
 
@@ -311,7 +311,7 @@ class Volume3DView( Widget ):
   def GetEventLockSet( self ):
     locks = set([
         STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-        STATE_CHANGE_pinColRow, STATE_CHANGE_pinDataSet,
+        STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
         STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
         ])
     return  locks
@@ -380,7 +380,7 @@ class Volume3DView( Widget ):
       self.assemblyIndex = self.state.assemblyIndex
       self.axialValue = self.state.axialValue
       self.coreExtent = self.data.ExtractSymmetryExtent()
-      self.pinColRow = self.state.pinColRow
+      self.colRow = self.state.colRow
       #self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
 
@@ -456,9 +456,9 @@ class Volume3DView( Widget ):
         position_changed = True
         self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
-      if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] != self.pinColRow:
+      if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
         position_changed = True
-        self.pinColRow = self.data.NormalizePinColRow( kwargs[ 'pin_colrow' ] )
+        self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ] )
 
       if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
         data_changed = True

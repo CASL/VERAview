@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-08-09	leerw@ornl.gov				-
+#	  Including secondary selections in _CreateClipboardSelectionData().
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-09	leerw@ornl.gov				-
@@ -198,7 +200,53 @@ Attrs/properties:
   #	METHOD:		Assembly2DView._CreateClipboardSelectionData()	-
   #----------------------------------------------------------------------
   def _CreateClipboardSelectionData( self, cur_selection_flag = False ):
-    """Retrieves the data for the current assembly selection.
+    """Retrieves the data for the current pin selection(s).
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+
+    if dset is not None:
+      dset_value = dset.value
+      dset_shape = dset_value.shape
+      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+
+      colrows = list( self.auxColRows )
+      colrows.insert( 0, self.colRow )
+
+      csv_text = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"\n' % (
+          self.pinDataSet,
+	  assy_ndx + 1,
+	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.axialValue[ 0 ],
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+      for rc in colrows:
+	csv_text += '"(%d,%d)",%.7g\n' % (
+	    rc[ 0 ] + 1, rc[ 1 ] + 1,
+	    dset_value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
+	    )
+    #end if dset is not None
+
+    return  csv_text
+  #end _CreateClipboardSelectionData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:	Assembly2DView._CreateClipboardSelectionData_orig()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardSelectionData_orig( self, cur_selection_flag = False ):
+    """Retrieves the data for the current pin selection(s).
 @return			text or None
 """
     csv_text = None
@@ -237,7 +285,7 @@ Attrs/properties:
     #end if dset is not None
 
     return  csv_text
-  #end _CreateClipboardSelectionData
+  #end _CreateClipboardSelectionData_orig
 
 
   #----------------------------------------------------------------------
