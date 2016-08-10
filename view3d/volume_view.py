@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		volume_view.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Changed _CreateClipboardData() signature.
 #		2016-03-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import bisect, functools, math, os, sys
@@ -151,9 +153,24 @@ class Volume3DView( Widget ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView._CreateClipboardAllData()		-
+  #	METHOD:		Volume3DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
-  def _CreateClipboardAllData( self ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardDisplayedData()  if mode == 'displayed' else \
+        self._CreateClipboardSelectedData()
+#        self._CreateClipboardSelectionData() if cur_selection_flag else \
+#        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView._CreateClipboardDisplayedData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardDisplayedData( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -169,21 +186,7 @@ class Volume3DView( Widget ):
     #end if
 
     return  csv_text
-  #end _CreateClipboardAllData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView._CreateClipboardData()		-
-  #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
+  #end _CreateClipboardDisplayedData
 
 
   #----------------------------------------------------------------------
@@ -208,9 +211,9 @@ class Volume3DView( Widget ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView._CreateClipboardSelectionData()	-
+  #	METHOD:		Volume3DView._CreateClipboardSelectedData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData( self ):
+  def _CreateClipboardSelectedData( self ):
     """Retrieves the data for the state, axial, and assembly.
 @return			text or None
 """
@@ -226,15 +229,24 @@ class Volume3DView( Widget ):
           )
 
     if valid:
-      pos = self.viz.GetSlicePosition()
-      print >> sys.stderr, \
-          '[_CreateClipboardSelectionData] pos=' + str( pos )
-      csv_text = '"Axial=%d,Col=%d,Row=%d\n' % pos
-      csv_text += '%.7g' % matrix[ pos[ 2 ], pos[ 0 ], pos[ 1 ] ]
+      #pos = self.viz.GetSlicePosition()
+      # z, x, y
+      core = self.data.GetCore()
+      z = self.meshLevels[ self.axialValue[ 1 ] ]
+
+      assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
+      x = core.npinx * assy_col + self.colRow[ 0 ]
+
+      assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
+      y = \
+          core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
+          self.colRow[ 1 ]
+      csv_text = '"Axial=%d,Col=%d,Row=%d\n' % ( z, x, y )
+      csv_text += '%.7g' % matrix[ y, z, x, ]
     #end if
 
     return  csv_text
-  #end _CreateClipboardSelectionData
+  #end _CreateClipboardSelectedData
 
 
   #----------------------------------------------------------------------

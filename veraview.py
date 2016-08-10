@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Turning off 3D widgets on config load.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-01	leerw@ornl.gov				-
@@ -1122,19 +1124,22 @@ Note this defines a new State as well as widgets in the grid.
 
     for props in widget_config.GetWidgetProps():
       if 'classpath' in props:
-        con = self.CreateWidget( props[ 'classpath' ], False )
-	con.widget.LoadProps( props )
+#			-- 3D widgets won't auto load
+	if props[ 'classpath' ].find( '3D' ) < 0:
+          con = self.CreateWidget( props[ 'classpath' ], False )
+	  con.widget.LoadProps( props )
 
-	#xxx we need a cheaper way to check for the types
-	if check_types:
-	  must_remove = True
-	  for t in con.widget.GetDataSetTypes():
-	    if data.HasDataSetType( t ):
-	      must_remove = False
-	      addit = True
-	  if must_remove:
-	    con.OnClose( None )
-	#end if check_types
+	  #xxx we need a cheaper way to check for the types
+	  if check_types:
+	    must_remove = True
+	    for t in con.widget.GetDataSetTypes():
+	      if data.HasDataSetType( t ):
+	        must_remove = False
+	        addit = True
+	    if must_remove:
+	      con.OnClose( None )
+	  #end if check_types
+	#end if not 3D
       #end if classpath
     #end for props
 

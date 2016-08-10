@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Changed _CreateClipboardData() signature.
 #		2016-03-08	leerw@ornl.gov				-
 #	  Getting correct figure for mlab.savefig() call.
 #		2016-03-07	leerw@ornl.gov				-
@@ -233,9 +235,24 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardAllData()		-
+  #	METHOD:		Slicer3DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
-  def _CreateClipboardAllData( self ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardDisplayedData()  if mode == 'displayed' else \
+        self._CreateClipboardSelectedData()
+#        self._CreateClipboardSelectionData() if cur_selection_flag else \
+#        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView._CreateClipboardDisplayedData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardDisplayedData( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -251,21 +268,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     #end if
 
     return  csv_text
-  #end _CreateClipboardAllData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardData()		-
-  #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
+  #end _CreateClipboardDisplayedData
 
 
   #----------------------------------------------------------------------
@@ -290,9 +293,9 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._CreateClipboardSelectionData()	-
+  #	METHOD:		Slicer3DView._CreateClipboardSelectedData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData( self ):
+  def _CreateClipboardSelectedData( self ):
     """Retrieves the data for the state, axial, and assembly.
 @return			text or None
 """
@@ -311,13 +314,13 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       #pos = self.CalcSlicePosition()
       pos = self.viz.GetSlicePosition()
       print >> sys.stderr, \
-          '[_CreateClipboardSelectionData] pos=' + str( pos )
+          '[_CreateClipboardSelectedData] pos=' + str( pos )
       csv_text = '"Axial=%d,Col=%d,Row=%d\n' % pos
       csv_text += '%.7g' % matrix[ pos[ 2 ], pos[ 0 ], pos[ 1 ] ]
     #end if
 
     return  csv_text
-  #end _CreateClipboardSelectionData
+  #end _CreateClipboardSelectedData
 
 
   #----------------------------------------------------------------------
