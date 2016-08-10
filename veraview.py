@@ -587,7 +587,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
           wc = self.Create2DWidget( widget_class, refit_flag )
 	  title = wc.widget.GetTitle()
           if title == 'Axial Plots':
-	    wc.widget.InitDataSetSelections( self.axialPlotTypes )
+	    #wc.widget.InitDataSetSelections( self.axialPlotTypes )
+	    wc.widget.InitDataSetSelections( [ 'channel', 'pin' ] )
           elif title == 'Detector 2D Multi View':
 	    wc.widget.InitDataSetSelections(
 	        self.state.detectorDataSet,
@@ -595,7 +596,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
 		)
           elif title == 'Time Plots':
 	    wc.widget.InitDataSetSelections(
-	        [ 'detector', 'fixed_detector', 'pin', 'scalar' ]
+	        [ 'channel', 'pin' ]
+	        #[ 'detector', 'fixed_detector', 'pin', 'scalar' ]
 		)
       except Exception, ex:
         wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
