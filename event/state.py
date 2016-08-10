@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Changed Load() to start with indexes in the center of the core.
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-21	leerw@ornl.gov				-
@@ -546,10 +548,25 @@ Keys passed and the corresponding state bit are:
     self.scaleMode = 'all'
 
     if data_model is not None:
-      self.assemblyIndex = data_model.NormalizeAssemblyIndex( undefined3 )
-      self.axialValue = data_model.NormalizeAxialValue( undefined_ax )
+      core = data_model.GetCore()
+
+      #self.assemblyIndex = data_model.NormalizeAssemblyIndex( undefined3 )
+      extent = data_model.ExtractSymmetryExtent()
+      col = extent[ 0 ] + (extent[ 4 ] >> 1)
+      row = extent[ 1 ] + (extent[ 5 ] >> 1)
+      ndx = core.coreMap[ row, col ] - 1
+      self.assemblyIndex = data_model.NormalizeAssemblyIndex( ( ndx, col, row ) )
+
+      #self.axialValue = data_model.NormalizeAxialValue( undefined_ax )
+      self.axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
+
       self.channelDataSet = data_model.GetFirstDataSet( 'channel' )
-      self.colRow = data_model.NormalizeColRow( undefined2 )
+
+      #self.colRow = data_model.NormalizeColRow( undefined2 )
+      col = max( 0, (core.npinx >> 1) - 1 )
+      row = max( 0, (core.npiny >> 1) - 1 )
+      self.colRow = data_model.NormalizeColRow( ( col, row ) )
+
       self.detectorDataSet = data_model.GetFirstDataSet( 'detector' )
       self.detectorIndex = data_model.NormalizeDetectorIndex( undefined3 )
       self.fixedDetectorDataSet = data_model.GetFirstDataSet( 'fixed_detector' )
