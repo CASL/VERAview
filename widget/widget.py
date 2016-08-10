@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Changed _CreateClipboardData() signature.
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-23	leerw@ornl.gov				-
@@ -470,24 +472,34 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Widget.CreateAnimateImages()			-
+  #	METHOD:		Widget._CreateClipboardData()			-
   #----------------------------------------------------------------------
-#  def CreateAnimateImages( self, temp_dir, over = 'axial' ):
-#    """
+#  def _CreateClipboardData( self, cur_selection_flag = False, all_states = False ):
+#    """Method that should be overridden by subclasses to create a text
+#representation of the data displayed.  This implementation returns None.
+#Note what determines the selection is up to the subclass.
+#
+#@param  cur_selection_flag  if True, only the current selection is copied
+#@return			text to copy to the clipboard
 #"""
-#    return  False
-#  #end CreateAnimateImages
+#    return  None
+#  #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------
   #	METHOD:		Widget._CreateClipboardData()			-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
     """Method that should be overridden by subclasses to create a text
 representation of the data displayed.  This implementation returns None.
 Note what determines the selection is up to the subclass.
 
-@param  cur_selection_flag  if True, only the current selection is copied
+@param  mode		one of the following or anything a widget wishes
+			to define
+    'displayed'            - all data displayed
+    'selected'             - current selection
+    'selected_all_axials'  - current selection across all axials
+    'selected_all_states'  - current selection across all states
 @return			text to copy to the clipboard
 """
     return  None
@@ -565,9 +577,9 @@ or append items.
     return \
       [
 	{ 'label': 'Copy Displayed Data',
-	  'handler':functools.partial( self._OnCopyData, False ) },
+	  'handler':functools.partial( self._OnCopyData, 'displayed' ) },
 	{ 'label': 'Copy Selected Data',
-	  'handler': functools.partial( self._OnCopyData, True ) },
+	  'handler': functools.partial( self._OnCopyData, 'selected' ) },
         { 'label': 'Copy Image',
 	  'handler': self._OnCopyImage }
       ]
@@ -975,14 +987,14 @@ method via super.SaveProps() at the end.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._OnCopyData()				-
   #----------------------------------------------------------------------
-  def _OnCopyData( self, selection_flag, ev ):
+  def _OnCopyData( self, mode, ev ):
     """Handler for a Copy Data action.  Calls _CreateClipboardData() to get
 the data as text.  If the text is not None or empty, this method copies it to
 the clipboard.
 """
     ev.Skip()
 
-    data_text = self._CreateClipboardData( selection_flag )
+    data_text = self._CreateClipboardData( mode )
     if data_text is not None and len( data_text ) > 0:
       if not wx.TheClipboard.Open():
         wx.MessageBox(

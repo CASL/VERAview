@@ -153,9 +153,25 @@ Attrs/properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._CreateClipboardAllData()	-
+  #	METHOD:		Detector2DMultiView._CreateClipboardData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardAllData( self, cur_selection_flag = False ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardDisplayedData()  if mode == 'displayed' else \
+        self._CreateClipboardSelectedData()
+#        self._CreateClipboardSelectionData() \
+#        if cur_selection_flag else \
+#        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:	Detector2DMultiView._CreateClipboardDisplayedData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardDisplayedData( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -254,27 +270,13 @@ Attrs/properties:
     #end if DataModel.IsValidObj
 
     return  csv_text
-  #end _CreateClipboardAllData
+  #end _CreateClipboardDisplayedData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._CreateClipboardData()	-
+  #	METHOD:	Detector2DMultiView._CreateClipboardSelectedData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:	Detector2DMultiView._CreateClipboardSelectionData()	-
-  #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData( self, cur_selection_flag = False ):
+  def _CreateClipboardSelectedData( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -365,7 +367,7 @@ Attrs/properties:
     #end if is_valid
 
     return  csv_text
-  #end _CreateClipboardSelectionData
+  #end _CreateClipboardSelectedData
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Added clipboard copy option for selected data across all states.
 #		2016-08-09	leerw@ornl.gov				-
 #	  Including secondary selections in _CreateClipboardSelectionData().
 #		2016-08-02	leerw@ornl.gov				-
@@ -99,9 +101,29 @@ Attrs/properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ChannelAssembly2DView._CreateClipboardAllData()	-
+  #	METHOD:		ChannelAssembly2DView._CreateClipboardData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardAllData( self, cur_selection_flag = False ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardDisplayedData() if mode == 'displayed' else \
+        self._CreateClipboardSelectedDataAllAxials() \
+	  if mode == 'selected_all_axials' else \
+        self._CreateClipboardSelectedDataAllStates() \
+	  if mode == 'selected_all_states' else \
+        self._CreateClipboardSelectedData()
+#        self._CreateClipboardSelectionData() \
+#        if cur_selection_flag else \
+#        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:	ChannelAssembly2DView._CreateClipboardDisplayedData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardDisplayedData( self ):
     """Retrieves the data for the current assembly selection.
 @return			text or None
 """
@@ -157,28 +179,14 @@ Attrs/properties:
       #end if data in range
 
     return  csv_text
-  #end _CreateClipboardAllData
+  #end _CreateClipboardDisplayedData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ChannelAssembly2DView._CreateClipboardData()	-
+  #	METHOD:	ChannelAssembly2DView._CreateClipboardSelectedData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:	ChannelAssembly2DView._CreateClipboardSelectionData()	-
-  #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData( self, cur_selection_flag = False ):
-    """Retrieves the data for the current assembly selection.
+  def _CreateClipboardSelectedData( self ):
+    """Retrieves the data for the current channel selection(s).
 @return			text or None
 """
     csv_text = None
@@ -217,14 +225,71 @@ Attrs/properties:
     #end if dset is not None
 
     return  csv_text
-  #end _CreateClipboardSelectionData
+  #end _CreateClipboardSelectedData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:	ChannelAssembly2DView._CreateClipboardSelectionData_orig()-
+  #	METHOD:								-
+  #	ChannelAssembly2DView._CreateClipboardSelectedDataAllAxials()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData_orig( self, cur_selection_flag = False ):
-    """Retrieves the data for the current assembly selection.
+  def _CreateClipboardSelectedDataAllAxials( self ):
+    """Retrieves the data for the current pin selection(s) across all axials.
+@return			text or None
+"""
+    csv_text = None
+    dset = None
+    is_valid = DataModel.IsValidObj(
+	self.data,
+        assembly_index = self.assemblyIndex[ 0 ],
+	#axial_level = self.axialValue[ 1 ],
+	state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+
+    if dset is not None:
+      core = self.data.GetCore()
+      dset_shape = dset.value.shape
+      #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+
+      colrows = list( self.auxColRows )
+      colrows.insert( 0, self.colRow )
+
+      csv_text = '"%s: Assembly=%d %s; %s=%.3g"\n' % (
+          self.channelDataSet,
+	  assy_ndx + 1,
+	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.state.timeDataSet,
+	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+          )
+      row_text = 'Axial'
+      for rc in colrows:
+        row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
+      csv_text += row_text + '\n'
+
+      for axial_level in range( dset_shape[ 2 ] - 1, -1, -1 ):
+	row_text = '%.3f' % core.axialMeshCenters[ axial_level ]
+	for rc in colrows:
+	  row_text += ',%.7g' % \
+	      dset.value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
+	#end for rc
+
+        csv_text += row_text + '\n'
+      #end for axial_level
+    #end if dset is not None
+
+    return  csv_text
+  #end _CreateClipboardSelectedDataAllAxials
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:								-
+  #	ChannelAssembly2DView._CreateClipboardSelectedDataAllStates()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardSelectedDataAllStates( self ):
+    """Retrieves the data for the current channel selection(s) across
+all state points.
 @return			text or None
 """
     csv_text = None
@@ -239,30 +304,41 @@ Attrs/properties:
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
 
     if dset is not None:
-      dset_value = dset.value
-      dset_shape = dset_value.shape
+      dset_shape = dset.value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
 
-      chan_row = min( self.colRow[ 1 ], dset_shape[ 0 ] - 1 )
-      chan_col = min( self.colRow[ 0 ], dset_shape[ 1 ] - 1 )
+      colrows = list( self.auxColRows )
+      colrows.insert( 0, self.colRow )
 
-      clip_data = np.ndarray( ( 1, ), dtype = np.float64 )
-      clip_data[ 0 ] = dset_value[ chan_row, chan_col, axial_level, assy_ndx ]
-
-      title = '%s: Assembly=%d; Axial=%.3f; Channel=%d:%d; %s=%.3g' % (
-	  self.channelDataSet,
+      csv_text = '"%s: Assembly=%d %s; Axial=%.3f"\n' % (
+          self.channelDataSet,
 	  assy_ndx + 1,
-	  self.axialValue[ 0 ],
-	  chan_col + 1, chan_row + 1,
-	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.axialValue[ 0 ]
           )
-      csv_text = DataModel.ToCSV( clip_data, title )
+      row_text = self.state.timeDataSet
+      for rc in colrows:
+        row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
+      csv_text += row_text + '\n'
+
+      for state_ndx in range( 0, self.data.GetStatesCount() ):
+        dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
+	if dset is not None:
+	  row_text = '%.3g' % \
+	      self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+	  for rc in colrows:
+	    row_text += ',%.7g' % \
+	        dset.value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
+	  #end for rc
+
+          csv_text += row_text + '\n'
+	#end if dset
+      #end for state_ndx
     #end if dset is not None
 
     return  csv_text
-  #end _CreateClipboardSelectionData_orig
+  #end _CreateClipboardSelectedDataAllStates
 
 
   #----------------------------------------------------------------------
@@ -368,6 +444,34 @@ If neither are specified, a default 'scale' value of 24 is used.
     """
 """
     menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef( data_model )
+
+#		-- Add Copy Selected Options
+#		--
+    ndx = 0
+    for item in menu_def:
+      if item.get( 'label', '' ) == 'Copy Selected Data':
+        break
+      ndx += 1
+    #end for
+
+    if ndx < len( menu_def ):
+      new_item = \
+        {
+	'label': 'Copy Selected Data All States',
+	'handler': functools.partial( self._OnCopyData, 'selected_all_states' )
+	}
+      menu_def.insert( ndx + 1, new_item )
+
+      new_item = \
+        {
+	'label': 'Copy Selected Data All Axials',
+	'handler': functools.partial( self._OnCopyData, 'selected_all_axials' )
+	}
+      menu_def.insert( ndx + 1, new_item )
+    #end if ndx
+
+#		-- Add Pin Toggle Item
+#		--
     other_def = \
       [
         { 'label': 'Hide Pins', 'handler': self._OnTogglePins }
@@ -378,6 +482,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     for item_def in menu_def:
       if 'Hide Legend' == item_def.get( 'label', '' ):
         hide_legend_ndx = ndx + 1
+	break
       ndx += 1
     #end for
 

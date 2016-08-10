@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Changed _CreateClipboardData() signature.
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-23	leerw@ornl.gov				-
@@ -243,11 +245,12 @@ dataset names and ( rc, values ) pairs.
   #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardData()				-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
     csv_text = None
+    cur_selection_flag = mode != 'displayed'
 
 #		-- Must be valid state
 #		--

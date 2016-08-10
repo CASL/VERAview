@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Changed _CreateClipboardData() signature.
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-09	leerw@ornl.gov				-
@@ -430,9 +432,25 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardAllData()		-
+  #	METHOD:		Core2DView._CreateClipboardData()		-
   #----------------------------------------------------------------------
-  def _CreateClipboardAllData( self ):
+  def _CreateClipboardData( self, mode = 'displayed' ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    return \
+        self._CreateClipboardDisplayedData()  if mode == 'displayed' else \
+        self._CreateClipboardSelectedData()
+#        self._CreateClipboardSelectionData() \
+#        if cur_selection_flag else \
+#        self._CreateClipboardAllData()
+  #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._CreateClipboardDisplayedData()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardDisplayedData( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -507,27 +525,13 @@ If neither are specified, a default 'scale' value of 24 is used.
       csv_text = DataModel.ToCSV( clip_data, ( title1, title2 ) )
 
     return  csv_text
-  #end _CreateClipboardAllData
+  #end _CreateClipboardDisplayedData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardData()		-
+  #	METHOD:		Core2DView._CreateClipboardSelectedData()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardData( self, cur_selection_flag = False ):
-    """Retrieves the data for the state and axial.
-@return			text or None
-"""
-    return \
-        self._CreateClipboardSelectionData() \
-        if cur_selection_flag else \
-        self._CreateClipboardAllData()
-  #end _CreateClipboardData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateClipboardSelectionData()	-
-  #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData( self ):
+  def _CreateClipboardSelectedData( self ):
     """Retrieves the data for the state, axial, and assembly.
 @return			text or None
 """
@@ -564,7 +568,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       csv_text = DataModel.ToCSV( clip_data, title )
 
     return  csv_text
-  #end _CreateClipboardSelectionData
+  #end _CreateClipboardSelectedData
 
 
   #----------------------------------------------------------------------
