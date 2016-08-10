@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		env3d.py					-
 #	HISTORY:							-
+#		2016-08-10	leerw@ornl.gov				-
+#	  Added Environment3D.IsAvailable().
 #		2015-12-23	leerw@ornl.gov				-
 #	  Added Environment3DLoader and Environment3D.LoadAndCall().
 #		2015-12-07	leerw@ornl.gov				-
@@ -36,11 +38,33 @@ Static properties (use accessors):
 #		-- Class Attributes
 #		--
 
+  available_ = None
+
   loaded_ = False
 
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Environment3D.IsAvailable()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsAvailable( **kwargs ):
+    """
+@return			True if Mayavi appears to be loaded
+"""
+    if Environment3D.available_ is None:
+      try:
+        from traits.api import HasTraits, Instance, Array, on_trait_change
+	Environment3D.available_ = True
+      except Exception, ex:
+	Environment3D.available_ = False
+    #end if
+
+    return  Environment3D.available_
+  #end IsAvailable
 
 
   #----------------------------------------------------------------------

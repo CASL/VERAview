@@ -5,6 +5,8 @@
 #	HISTORY:							-
 #		2016-08-10	leerw@ornl.gov				-
 #	  Turning off 3D widgets on config load.
+#	  Using Environment3D.IsAvailable() as a test for enabling the
+#	  3D widgets.
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-01	leerw@ornl.gov				-
@@ -164,11 +166,11 @@ TOOLBAR_ITEMS = \
     { 'widget': 'separator' },
     {
     'widget': 'Volume Slicer 3D View', 'icon': 'Slicer3DView.1.32.png',
-    'type': 'pin'
+    'type': 'pin', 'func': lambda d: Environment3D.IsAvailable()
     },
     {
     'widget': 'Volume 3D View', 'icon': 'Volume3DView.1.32.png',
-    'type': 'pin'
+    'type': 'pin', 'func': lambda d: Environment3D.IsAvailable()
     },
     { 'widget': 'separator' },
     {
@@ -228,6 +230,7 @@ class VeraViewApp( wx.App ):
     self.filepath = None
     self.firstLoop = True
     self.frame = None
+    self.skipSession = False
     self.state = None
 
     wx.ToolTip.Enable( True )
@@ -277,7 +280,7 @@ unnecessary.
       opened = False
 
       if self.filepath is None:
-        session = WidgetConfig.ReadUserSession()
+        session = None if self.skipSession else WidgetConfig.ReadUserSession()
         if session is not None:
 	  data_path = session.GetFilePath()
 	  if os.path.exists( data_path ):
@@ -349,19 +352,19 @@ unnecessary.
     try:
       parser = argparse.ArgumentParser()
 
-      parser.add_argument(
-	  '--assembly',
-	  default = 0,
-	  type = int,
-	  help = 'optional 1-based index of assembly to display'
-          )
+#      parser.add_argument(
+#	  '--assembly',
+#	  default = 0,
+#	  type = int,
+#	  help = 'optional 1-based index of assembly to display'
+#          )
 
-      parser.add_argument(
-	  '-a', '--axial',
-	  default = 0,
-	  type = int,
-	  help = 'optional 1-based index of core axial to display'
-          )
+#      parser.add_argument(
+#	  '-a', '--axial',
+#	  default = 0,
+#	  type = int,
+#	  help = 'optional 1-based index of core axial to display'
+#          )
 
 #      parser.add_argument(
 #	  '-d', '--dataset',
@@ -374,11 +377,17 @@ unnecessary.
           )
 
       parser.add_argument(
-	  '-s', '--state',
-	  default = 0,
-	  type = int,
-	  help = 'optional 1-based index of state to display' 
+	  '--skip-startup-session-check',
+	  action = 'store_true',
+	  help = 'skip the check for a session on startup when no file path is specified'
           )
+
+#      parser.add_argument(
+#	  '-s', '--state',
+#	  default = 0,
+#	  type = int,
+#	  help = 'optional 1-based index of state to display' 
+#          )
 
 #      parser.add_argument(
 #	  '--scale',
@@ -397,18 +406,19 @@ unnecessary.
 #			-- Create State
 #			--
       state = State()
-      if args.assembly is not None and args.assembly > 0:
-        state.assemblyIndex = ( args.assembly - 1, 0, 0 )
-      if args.axial is not None and args.axial > 0:
-        state.axialValue = DataModel.CreateEmptyAxialValue()
-      elif args.state is not None and args.state > 0:
-        state.stateIndex = args.state - 1
+#      if args.assembly is not None and args.assembly > 0:
+#        state.assemblyIndex = ( args.assembly - 1, 0, 0 )
+#      if args.axial is not None and args.axial > 0:
+#        state.axialValue = DataModel.CreateEmptyAxialValue()
+#      elif args.state is not None and args.state > 0:
+#        state.stateIndex = args.state - 1
 
 #			-- Create App
 #			--
       #app = VeraViewApp( redirect = False )  # redirect = False
       app = VeraViewApp()
       app.filepath = args.file_path
+      app.skipSession = args.skip_startup_session_check
       app.state = state
 
       app.frame = VeraViewFrame( app, state )
@@ -1493,7 +1503,8 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
     try:
-      self.SaveSession()
+      if self.app.filepath is not None:
+        self.SaveSession()
     except Exception, ex:
       msg = 'Error saving session:' + os.linesep + str( ex )
       # dialog flashes, not modal.
