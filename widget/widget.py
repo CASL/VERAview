@@ -819,11 +819,14 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.GetSelectedDataSetName()			-
   #----------------------------------------------------------------------
-  def GetSelectedDataSetName( self, ds_type ):
+  def GetSelectedDataSetName( self, ds_type = None ):
     """
 @param  ds_type		dataset type/category
 """
-    return  'Selected ' + ds_type + ' dataset'
+    return \
+        'Selected ' + ds_type + ' dataset'  if ds_type else \
+	'Selected dataset'
+    #return  'Selected ' + ds_type + ' dataset'
   #end GetSelectedDataSetName
 
 

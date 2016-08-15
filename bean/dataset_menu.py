@@ -50,8 +50,8 @@ class DataSetMenu( wx.Menu ):
     'single'		- single selection, flat menu
     'submulti'		- multiple selections, per-type submenus
     'subselected'	- multiple selections with "Selected xxx" items,
-			  per-type submenus
-    'subsingle'		- single selection, per-type submenus
+			  per-type submenus (not implemented)
+    'subsingle'		- single selection, per-type submenus (only one tested)
 @param  ds_callback	for multiple selections, this item will be called
 			with methods {Is,Toggle}DataSetVisible()
 @param  ds_types	defined allowed types, where None means all types
@@ -75,6 +75,24 @@ class DataSetMenu( wx.Menu ):
     if state is not None:
       self.SetState( state )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu._CheckSingleItem()			-
+  #----------------------------------------------------------------------
+  def _CheckSingleItem( self, menu, checked_item ):
+    """DFS walk through menus and items.
+"""
+    for i in range( menu.GetMenuItemCount() ):
+      item = menu.FindItemByPosition( i )
+      sub_menu = item.GetSubMenu()
+      if sub_menu is not None:
+        self._CheckSingleItem( sub_menu, checked_item )
+      elif item.GetKind() == wx.ITEM_CHECK:
+        item.Check( item.GetId() == checked_item.GetId() )
+        #item.Check( item == checked_item )
+    #end for
+  #end _CheckSingleItem
 
 
   #----------------------------------------------------------------------
@@ -146,9 +164,14 @@ class DataSetMenu( wx.Menu ):
       ds_type = data.GetDataSetType( ds_name ) if ds_name else None
       if ds_type:
         item = self._FindMenuItem( ds_type, ds_name )
-        if item and item.GetKind() == wx.ITEM_RADIO and \
-	    item.GetItemLabelText() == ds_name:
-          item.Check()
+	if item and item.GetItemLabelText() == ds_name:
+	  if self.IsSingleSelection():
+	    self._CheckSingleItem( self, item )
+	  else:
+	    item.Check()
+#        if item and item.GetKind() == wx.ITEM_RADIO and \
+#	    item.GetItemLabelText() == ds_name:
+#          item.Check()
 
 #    else:
 #      changes = self.state.GetDataSetChanges( reason )
@@ -162,6 +185,14 @@ class DataSetMenu( wx.Menu ):
 #      #end if changes
     #if-else
   #end HandleStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu.IsSingleSelection()			-
+  #----------------------------------------------------------------------
+  def IsSingleSelection( self ):
+    return  self.mode == '' or self.mode.find( 'single' ) >= 0
+  #end IsSingleSelection
 
 
   #----------------------------------------------------------------------
@@ -216,11 +247,13 @@ class DataSetMenu( wx.Menu ):
     item = menu.FindItemById( ev.GetId() )
     if item is not None:
       ds_name = item.GetItemLabelText()
-      if item.GetKind() == wx.ITEM_CHECK:
+      #if item.GetKind() == wx.ITEM_CHECK:
+      if not self.IsSingleSelection():
         if self.dataSetCallback:
 	  self.dataSetCallback.ToggleDataSetVisible( ds_name )
       else:
-	reason = self.state.Change( cur_dataset = ds_name )
+	self._CheckSingleItem( self, item )
+	reason = self.state.Change( None, cur_dataset = ds_name )
         self.state.FireStateChange( reason )
 #        data_model = self.state.GetDataModel()
 #	ds_type = data_model.GetDataSetType( ds_name ) \
@@ -262,12 +295,15 @@ class DataSetMenu( wx.Menu ):
             if self.dataSetCallback:
 	      self.dataSetCallback.ToggleDataSetVisible( der_ds_name )
 	  else:
-	    ds_type = data_model.GetDataSetType( der_ds_name ) \
-	        if data_model is not None else None
-	    if ds_type:
-	      reason = self.state.SetDataSetByType( ds_type, der_ds_name )
-	      if reason != STATE_CHANGE_noop:
-	        self.state.FireStateChange( reason )
+	    reason = self.state.Change( None, cur_dataset = der_ds_name )
+	    self.state.FireStateChange( reason )
+#Back to one selected dataset
+#	    ds_type = data_model.GetDataSetType( der_ds_name ) \
+#	        if data_model is not None else None
+#	    if ds_type:
+#	      reason = self.state.SetDataSetByType( ds_type, der_ds_name )
+#	      if reason != STATE_CHANGE_noop:
+#	        self.state.FireStateChange( reason )
           #end if-else item.GetKind()
 	#end if der_ds_name
       #end if item is not None
@@ -275,7 +311,7 @@ class DataSetMenu( wx.Menu ):
     except Exception, ex:
       wx.MessageBox(
           str( ex ), 'Calculate Derived Dataset',
-          wx.OK_DEFAULT, self
+          wx.OK_DEFAULT, self.GetWindow()
           )
   #end _OnDerivedDataSetMenuItem
 
@@ -446,7 +482,7 @@ class DataSetMenu( wx.Menu ):
     data_model = State.FindDataModel( self.state )
     if data_model is not None and \
         self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
-      single_flag = self.mode == '' or self.mode.find( 'single' ) >= 0
+      single_flag = self.IsSingleSelection()
 
 #			-- Remove existing items
 #			--
@@ -458,13 +494,16 @@ class DataSetMenu( wx.Menu ):
         pullright_flag = \
 	    self.mode.startswith( 'sub' ) and len( self.dataSetTypes ) > 1
 	selected_flag = self.mode.find( 'selected' ) >= 0
-	kind = wx.ITEM_RADIO if single_flag else wx.ITEM_CHECK
+#No radio if we don't have a selected dataset for each category
+#	kind = wx.ITEM_RADIO if single_flag else wx.ITEM_CHECK
+	kind = wx.ITEM_CHECK
 
 #				-- Pullrights
 	if pullright_flag:
 	  ndx = 0
+	  cur_selection = self.state.GetCurDataSet()
 	  for dtype in self.dataSetTypes:
-	    cur_selection = self.state.GetDataSetByType( dtype )
+	    #cur_selection = self.state.GetDataSetByType( dtype )
 	    dataset_names = data_model.GetDataSetNames( dtype )
 	    dtype_menu = wx.Menu()
 	    for name in dataset_names:
@@ -491,12 +530,15 @@ class DataSetMenu( wx.Menu ):
 	  selected_ds_names = []
 	  cur_selection = None
 	  for dtype in self.dataSetTypes:
-	    if cur_selection is None:
-	      cur_selection = self.state.GetDataSetByType( dtype )
+#	    if cur_selection is None:
+#	      cur_selection = self.state.GetDataSetByType( dtype )
 	    dataset_names += data_model.GetDataSetNames( dtype )
-	    if selected_flag and dtype.find( ':' ) < 0:
-	      selected_ds_names.append( 'Selected ' + dtype + ' dataset' )
+#	    if selected_flag and dtype.find( ':' ) < 0:
+#	      selected_ds_names.append( 'Selected ' + dtype + ' dataset' )
 	  #end for dtype
+	  if selected_flag:
+	    selected_ds_names = [ 'Selected dataset' ]
+	  cur_selection = self.state.GetCurDataSet()
 
 	  dataset_names.sort()
 	  if selected_ds_names:
@@ -512,9 +554,9 @@ class DataSetMenu( wx.Menu ):
 		False
 
 	    item = wx.MenuItem( self, wx.ID_ANY, name, kind = kind )
-	    item.Check( check )
 	    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	    sub.InsertItem( ndx, item )
+	    self.InsertItem( ndx, item )
+	    item.Check( check )
 	    ndx += 1
 	  #end for name
 	#end if-else pullright_flag

@@ -767,7 +767,10 @@ WIDGET_MAP and TOOLBAR_ITEMS
     #x self.selectDataSetMenuItem = DataSetMenuItem( edit_menu, 'subsingle' )
     #x edit_menu.Bind( wx.EVT_MENU_OPEN, self.selectDataSetMenuItem._UpdateMenu, self.selectDataSetMenuItem )
     #x edit_menu.AppendItem( self.selectDataSetMenuItem )
-    self.dataSetMenu = DataSetMenu( self, 'subsingle' )
+    self.dataSetMenu = DataSetMenu(
+        self, 'subsingle',
+	ds_types = [ 'channel', 'detector', 'fixed_detector', 'pin', 'scalar' ]
+	)
     dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
     self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
     edit_menu.AppendItem( dataset_item )
@@ -1092,8 +1095,8 @@ Must be called from the UI thread.
             'widget.assembly_view.Assembly2DView',
 #            'widget.core_axial_view.CoreAxial2DView',
 ##            'widget.detector_multi_view.Detector2DMultiView',
-#            'widget.axial_plot.AxialPlot',
-#            'widget.time_plots.TimePlots',
+            'widget.axial_plot.AxialPlot',
+            'widget.time_plots.TimePlots',
 #	    'widget.channel_view.Channel2DView',
 #	    'widget.channel_assembly_view.ChannelAssembly2DView',
 #	    'widget.channel_axial_view.ChannelAxial2DView',
@@ -1133,6 +1136,7 @@ Note this defines a new State as well as widgets in the grid.
 @param  check_types	true to check widget dataset types
 """
     print >> sys.stderr, '[VeraViewFrame._LoadWidgetConfig]'
+    #xxxxx recreate derived datasets
 
     self.state.LoadProps( widget_config.GetStateProps() )
     if check_types:
@@ -1860,6 +1864,7 @@ Must be called from the UI thread.
 @param  file_path	path of VERAView (.vview) file or None to save the
 			user session file
 """
+    #xxxxx list derived datasets to be re-created
     config = WidgetConfig()
 
     fr_size = self.GetSize()
@@ -2070,8 +2075,9 @@ class VeraViewGrid( wx.Panel ):
     grid = self.GetSizer()
     items = []
     for item in self.GetChildren():
-      items.append( item )
-      grid.Detach( item )
+      if isinstance( item, WidgetContainer ):
+        items.append( item )
+        grid.Detach( item )
 
     for item in self.GetChildren():
       item.SetMinSize( new_size )

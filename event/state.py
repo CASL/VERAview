@@ -277,11 +277,12 @@ a HandleStateChange( self, reason ) method.
   #----------------------------------------------------------------------
   #	METHOD:		Change()					-
   #----------------------------------------------------------------------
-  def Change( self, locks, **kwargs ):
+  def Change( self, locks = None, **kwargs ):
     """Applies the property changes specified in kwargs that are allowed
 by locks.
 @param  locks		dictionary of True/False values for each of the
-			STATE_CHANGE_xxx indexes
+			STATE_CHANGE_xxx indexes, where None means enable
+			all events
 @param  kwargs		name, value pairs with which to update this
 
 Keys passed and the corresponding state bit are:
@@ -297,6 +298,8 @@ Keys passed and the corresponding state bit are:
 @return			change reason mask
 """
     reason = STATE_CHANGE_noop
+    if locks is None:
+      locks = State.CreateLocks()
 
     if 'assembly_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
       self.assemblyAddr = kwargs[ 'assembly_addr' ]

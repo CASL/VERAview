@@ -1062,10 +1062,12 @@ Must be called from the UI event thread
       if widget_ds_types:
         for dtype in widget_ds_types:
 	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
-	  if selected_flag and dtype.find( ':' ) < 0 and \
-	      data_model.HasDataSetType( dtype ):
-	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
+#Back to just one selected dataset
+#	  if selected_flag and dtype.find( ':' ) < 0 and \
+#	      data_model.HasDataSetType( dtype ):
+#	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
         #end for
+	selected_ds_names = [ 'Selected dataset' ]
       #end if
 
 #				-- Populate dataset items

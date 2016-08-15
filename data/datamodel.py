@@ -2415,14 +2415,14 @@ being one greater in each dimension.
   #----------------------------------------------------------------------
   def ReadDataSetAxialValues( self,
       ds_name,
-      assembly_addr = 0,
+      assembly_index = 0,
       sub_addrs = None,
       detector_index = 0,
       state_index = 0
       ):
     """Reads axial values for a dataset for a specified state point.
 @param  ds_name		dataset name
-@param  assembly_addr	0-based assembly index
+@param  assembly_index	0-based assembly index
 @param  detector_index	0-based detector index
 @param  sub_addrs	list of sub_addr pairs
 @param  state_index	0-based state point index
@@ -2458,7 +2458,7 @@ being one greater in each dimension.
               ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	      ds_def[ 'shape' ]
 
-          assy_ndx = max( 0, min( assembly_addr, ds_shape[ 3 ] - 1 ) )
+          assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
           if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
 	    result = {}
