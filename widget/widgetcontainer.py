@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-08-15	leerw@ornl.gov				-
+#	  New State and event names.
 #		2016-07-23	leerw@ornl.gov				-
 #	  Redefined menu definitions with dictionaries.
 #	  Added FindMenuItem().
@@ -490,11 +492,10 @@ definition array for a pullright.
 #		--
     lock_set = self.widget.GetEventLockSet()
     self.eventsMenu = wx.Menu()
-    for ev_pair in EVENT_ID_NAMES:
-      ev_id = ev_pair[ 0 ]
+    for ev_id, ev_name in LOCKABLE_STATES:
       if ev_id in lock_set:
         item = wx.MenuItem(
-            self.eventsMenu, wx.ID_ANY, ev_pair[ 1 ],
+            self.eventsMenu, wx.ID_ANY, ev_name,
 	    kind = wx.ITEM_CHECK
 	    )
         self.Bind(
@@ -838,24 +839,6 @@ definition array for a pullright.
 	  wx.OK_DEFAULT, self
 	  )
   #end _OnDerivedDataSetMenuItem
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnEventCheckBox()				-
-  #----------------------------------------------------------------------
-#  def _OnEventCheckBox( self, state_change_id, ev ):
-#    """Handles events from an event lock checkbox
-#"""
-#    ev.Skip()
-#
-#    obj = ev.GetEventObject()
-#    self.eventLocks[ state_change_id ] = obj.IsChecked()
-#
-#    if obj.IsChecked():
-#      self.widget.HandleStateChange( state_change_id )
-#
-#    print >> sys.stderr, '[WidgetContainer._OnEventCheckBox] event_id=%d, checked=%d' % ( state_change_id, obj.IsChecked() )
-#  #end _OnEventCheckBox
 
 
   #----------------------------------------------------------------------

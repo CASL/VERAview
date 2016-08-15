@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-08-15	leerw@ornl.gov				-
+#	  New State events.
 #		2016-07-21	leerw@ornl.gov				-
 #		2016-07-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
@@ -138,17 +140,26 @@ class DataSetMenu( wx.Menu ):
     if (reason & load_mask) > 0:
       self._LoadDataModel()
 
-    else:
-      changes = self.state.GetDataSetChanges( reason )
-      if changes:
-        #data_model = self.state.GetDataModel()
-        for ds_type, ds_name in changes.iteritems():
-          item = self._FindMenuItem( ds_type, ds_name )
-          if item and item.GetKind() == wx.ITEM_RADIO and \
-	      item.GetItemLabelText() == self.state.GetDataSetByType( ds_type ):
-            item.Check()
-        #end for ds_type, ds_name
-      #end if changes
+    elif (reason & STATE_CHANGE_curDataSet) > 0:
+      data = self.state.GetDataModel()
+      ds_name = self.state.GetCurDataSet()
+      ds_type = data.GetDataSetType( ds_name ) if ds_name else None
+      if ds_type:
+        item = self._FindMenuItem( ds_type, ds_name )
+        if item and item.GetKind() == wx.ITEM_RADIO and \
+	    item.GetItemLabelText() == ds_name:
+          item.Check()
+
+#    else:
+#      changes = self.state.GetDataSetChanges( reason )
+#      if changes:
+#        for ds_type, ds_name in changes.iteritems():
+#          item = self._FindMenuItem( ds_type, ds_name )
+#          if item and item.GetKind() == wx.ITEM_RADIO and \
+#	      item.GetItemLabelText() == self.state.GetDataSetByType( ds_type ):
+#            item.Check()
+#        #end for ds_type, ds_name
+#      #end if changes
     #if-else
   #end HandleStateChange
 
@@ -209,13 +220,15 @@ class DataSetMenu( wx.Menu ):
         if self.dataSetCallback:
 	  self.dataSetCallback.ToggleDataSetVisible( ds_name )
       else:
-        data_model = self.state.GetDataModel()
-	ds_type = data_model.GetDataSetType( ds_name ) \
-	    if data_model is not None else None
-	if ds_type:
-	  reason = self.state.SetDataSetByType( ds_type, ds_name )
-	  if reason != STATE_CHANGE_noop:
-	    self.state.FireStateChange( reason )
+	reason = self.state.Change( cur_dataset = ds_name )
+        self.state.FireStateChange( reason )
+#        data_model = self.state.GetDataModel()
+#	ds_type = data_model.GetDataSetType( ds_name ) \
+#	    if data_model is not None else None
+#	if ds_type:
+#	  reason = self.state.SetDataSetByType( ds_type, ds_name )
+#	  if reason != STATE_CHANGE_noop:
+#	    self.state.FireStateChange( reason )
 	#end if data_model is not None
       #end if-else item.GetKind()
     #end if item is not None

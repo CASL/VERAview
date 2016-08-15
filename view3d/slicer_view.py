@@ -107,7 +107,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         #assy_row = core.nassy - 1 - int( slice_y / core.npiny )
         assy_col = int( slice_x / core.npinx ) + self.coreExtent[ 0 ]
         assy_row = self.coreExtent[ 3 ] - 1 - int( slice_y / core.npiny )
-	assembly_index = self.data.CreateAssemblyIndex( assy_col, assy_row )
+	assembly_index = self.data.CreateAssemblyAddr( assy_col, assy_row )
 
 	pin_col = int( slice_x ) % core.npinx
 	pin_row = core.npiny - (int( slice_y ) % core.npiny)

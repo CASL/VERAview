@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-08-15	leerw@ornl.gov				-
+#	  State/event refactoring.
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-11	leerw@ornl.gov				-
@@ -880,9 +882,9 @@ passed, Read() must be called.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.CreateAssemblyIndex()			-
+  #	METHOD:		DataModel.CreateAssemblyAddr()			-
   #----------------------------------------------------------------------
-  def CreateAssemblyIndex( self, col, row ):
+  def CreateAssemblyAddr( self, col, row ):
     """Creates tuple from the column and row indexes.
 @param  col		0-based column index
 @param  row		0-based row index
@@ -892,13 +894,13 @@ passed, Read() must be called.
         ( self.core.coreMap[ row, col ], col, row ) \
 	if self.core is not None else \
 	( -1, -1, -1 )
-  #end CreateAssemblyIndex
+  #end CreateAssemblyAddr
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.CreateAssemblyIndexFromIndex()	-
+  #	METHOD:		DataModel.CreateAssemblyAddrFromIndex()		-
   #----------------------------------------------------------------------
-  def CreateAssemblyIndexFromIndex( self, assy_ndx ):
+  def CreateAssemblyAddrFromIndex( self, assy_ndx ):
     """Creates tuple from the column and row indexes.
 @param  assy_ndx	0-based assembly index
 @return			0-based ( assy_ndx, col, row )
@@ -909,7 +911,7 @@ passed, Read() must be called.
       place = places[ -1 ]
       result = ( assy_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
     return  result
-  #end CreateAssemblyIndexFromIndex
+  #end CreateAssemblyAddrFromIndex
 
 
   #----------------------------------------------------------------------
@@ -1111,9 +1113,9 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.CreateDetectorIndex()			-
+  #	METHOD:		DataModel.CreateDetectorAddr()			-
   #----------------------------------------------------------------------
-  def CreateDetectorIndex( self, col, row ):
+  def CreateDetectorAddr( self, col, row ):
     """Creates tuple from the column and row indexes.
 @param  col		0-based column index
 @param  row		0-based row index
@@ -1123,13 +1125,13 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
         ( self.core.detectorMap[ row, col ] - 1, col, row ) \
 	if self.core is not None else \
 	( -1, -1, -1 )
-  #end CreateDetectorIndex
+  #end CreateDetectorAddr
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.CreateDetectorIndexFromIndex()	-
+  #	METHOD:		DataModel.CreateDetectorAddrFromIndex()		-
   #----------------------------------------------------------------------
-  def CreateDetectorIndexFromIndex( self, det_ndx ):
+  def CreateDetectorAddrFromIndex( self, det_ndx ):
     """Creates tuple from the column and row indexes.
 @param  det_ndx		0-based detector index
 @return			0-based ( det_ndx, col, row )
@@ -1140,7 +1142,7 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
       place = places[ -1 ]
       result = ( det_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
     return  result
-  #end CreateDetectorIndexFromIndex
+  #end CreateDetectorAddrFromIndex
 
 
   #----------------------------------------------------------------------
@@ -1195,10 +1197,10 @@ returned.  Calls FindMaxValueAddr().
 @param  ds_name		name of dataset
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
-			compare against for changes: assemblyIndex, axialValue,
-			colRow, stateIndex
-@return			dict with possible keys: 'assembly_index',
-			'axial_value', 'colrow', 'state_index'
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'sub_addr', 'state_index'
 """
     results = {}
 
@@ -1207,27 +1209,17 @@ returned.  Calls FindMaxValueAddr().
     if addr is None:
       pass
 
-    elif cur_obj is None:
-      assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
-      if assy_ndx[ 0 ] >= 0:
-        results[ 'assembly_index' ] = assy_ndx
-
-      axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
-      if axial_value[ 0 ] >= 0.0:
-        results[ 'axial_value' ] = axial_value
-
-      results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
-      results[ 'state_index' ] = state_ndx
-
     else:
-      skip = hasattr( cur_obj, 'assemblyIndex' ) and \
-          getattr( cur_obj, 'assemblyIndex' )[ 0 ] == addr[ 3 ]
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'assemblyAddr' ) and \
+          getattr( cur_obj, 'assemblyAddr' )[ 0 ] == addr[ 3 ]
       if not skip:
-	assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
-	if assy_ndx[ 0 ] >= 0:
-          results[ 'assembly_index' ] = assy_ndx
+	assy_addr = self.CreateAssemblyAddrFromIndex( addr[ 3 ] )
+	if assy_addr[ 0 ] >= 0:
+          results[ 'assembly_addr' ] = assy_addr
 
-      skip = hasattr( cur_obj, 'axialValue' ) and \
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'axialValue' ) and \
           getattr( cur_obj, 'axialValue' )[ 1 ] == addr[ 2 ]
       if not skip:
         axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
@@ -1235,13 +1227,14 @@ returned.  Calls FindMaxValueAddr().
           results[ 'axial_value' ] = axial_value
 
       skip = False
-      if hasattr( cur_obj, 'colRow' ):
-        colrow = getattr( cur_obj, 'colRow' )
-	skip = colrow[ 1 ] == addr[ 0 ] and colrow[ 0 ] == addr[ 1 ]
+      if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+        sub_addr = getattr( cur_obj, 'subAddr' )
+	skip = sub_addr[ 1 ] == addr[ 0 ] and sub_addr[ 0 ] == addr[ 1 ]
       if not skip:
-        results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+        results[ 'sub_addr' ] = ( addr[ 1 ], addr[ 0 ] )
 
-      skip = hasattr( cur_obj, 'stateIndex' ) and \
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'stateIndex' ) and \
           getattr( cur_obj, 'stateIndex' ) == state_ndx
       if not skip:
         results[ 'state_index' ] = state_ndx
@@ -1254,18 +1247,18 @@ returned.  Calls FindMaxValueAddr().
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.FindDetectorMaxValue()		-
   #----------------------------------------------------------------------
-  def FindDetectorMaxValue( self, state_ndx, cur_obj, *ds_names ):
+  def FindDetectorMaxValue( self, ds_name, state_ndx, cur_obj = None ):
     """Creates dict with detector addresses for the "first" (right- and
 bottom-most) occurence of the maximum value of the dataset, which is assumed
 to be a 'detector' dataset.
 Calls FindMaxValueAddr().
+@param  ds_name		name of dataset
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
-			compare against for changes: axialValue,
-			detectorIndex, stateIndex
-@param  ds_names	dataset names to search
-@return			dict with possible keys: 'axial_value',
-			'detector_index', 'state_index'
+			compare against for changes: assemblyAddr, axialValue,
+			stateIndex
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'state_index'
 """
     results = {}
 
@@ -1274,33 +1267,25 @@ Calls FindMaxValueAddr().
     if addr is None:
       pass
 
-    elif cur_obj is None:
-      axial_value = self.CreateAxialValue( detector_ndx = addr[ 0 ] )
-      if axial_value[ 0 ] >= 0.0:
-        results[ 'axial_value' ] = axial_value
-
-      det_ndx = self.CreateDetectorIndexFromIndex( addr[ 1 ] )
-      if det_ndx[ 0 ] >= 0:
-        results[ 'detector_index' ] = det_ndx
-
-      results[ 'state_index' ] = state_ndx
-
     else:
-      skip = hasattr( cur_obj, 'axialValue' ) and \
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'axialValue' ) and \
           getattr( cur_obj, 'axialValue' )[ 2 ] == addr[ 0 ]
       if not skip:
 	axial_value = self.CreateAxialValue( detector_ndx = addr[ 0 ] )
         if axial_value[ 0 ] >= 0.0:
           results[ 'axial_value' ] = axial_value
 
-      skip = hasattr( cur_obj, 'detectorIndex' ) and \
-          getattr( cur_obj, 'detectorIndex' )[ 0 ] == addr[ 1 ]
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'assemblyAddr' ) and \
+          getattr( cur_obj, 'assemblyAddr' )[ 0 ] == addr[ 1 ]
       if not skip:
-	det_ndx = self.CreateDetectorIndexFromIndex( addr[ 1 ] )
-	if det_ndx[ 0 ] >= 0:
-          results[ 'detector_index' ] = det_ndx
+	det_addr = self.CreateDetectorAddrFromIndex( addr[ 1 ] )
+	if det_addr[ 0 ] >= 0:
+          results[ 'assemblyAddr' ] = det_addr
 
-      skip = hasattr( cur_obj, 'stateIndex' ) and \
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'stateIndex' ) and \
           getattr( cur_obj, 'stateIndex' ) == state_ndx
       if not skip:
         results[ 'state_index' ] = state_ndx
@@ -1346,7 +1331,7 @@ descending.  Note bisect only does ascending.
         if value > values[ 0 ]:
 	  match_ndx = 0
 	elif value <= values[ -1 ]:
-	  match_ndx = len( values ) -1
+	  match_ndx = len( values ) - 1
 	else:
 	  for i in range( len( values ) ):
 	    if values[ i ] < value:
@@ -1378,7 +1363,8 @@ descending.  Note bisect only does ascending.
     """Finds the first address of the max value
 @param  ds_name		name of dataset to search
 @param  state_ndx	0-based state point index, or -1 for all states
-@return			( addr indices or None, state_ndx, max_value or None )
+@return			( dataset addr indices or None, state_ndx,
+			  max_value or None )
 """
     addr = None
     max_value = None
@@ -1426,12 +1412,11 @@ descending.  Note bisect only does ascending.
 specified datasets.  Calls FindMaxValueAddr().
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
-			compare against for changes: assemblyIndex, axialValue,
-			colRow, detectorIndex, stateIndex
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
 @param  ds_names	dataset names to search
-@return			dict with possible keys: 'assembly_index',
-			'axial_value', 'colrow', 'detector_index',
-			'state_index'
+@return			dict with possible keys: 'assembly_addr',
+			'axial_value', 'state_index', 'sub_addr'
 """
     results = {}
     max_ds_name, max_addr, max_state_ndx, max_value = None, None, None, None
@@ -1453,12 +1438,12 @@ specified datasets.  Calls FindMaxValueAddr().
 
       if ds_type == 'channel':
 	skip = cur_obj is not None and \
-	    hasattr( cur_obj, 'assemblyIndex' ) and \
-            getattr( cur_obj, 'assemblyIndex' )[ 0 ] == max_addr[ 3 ]
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 3 ]
 	if not skip:
-          assy_ndx = self.CreateAssemblyIndexFromIndex( max_addr[ 3 ] )
+          assy_ndx = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
           if assy_ndx[ 0 ] >= 0:
-            results[ 'assembly_index' ] = assy_ndx
+            results[ 'assembly_addr' ] = assy_ndx
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'axialValue' ) and \
@@ -1469,11 +1454,13 @@ specified datasets.  Calls FindMaxValueAddr().
             results[ 'axial_value' ] = axial_value
 
         skip = False
-	if cur_obj is not None and hasattr( cur_obj, 'colRow' ):
-          colrow = getattr( cur_obj, 'colRow' )
-	  skip = colrow[ 1 ] == max_addr[ 0 ] and colrow[ 0 ] == max_addr[ 1 ]
+	if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+          sub_addr = getattr( cur_obj, 'subAddr' )
+	  skip = \
+	      sub_addr[ 1 ] == max_addr[ 0 ] and \
+	      sub_addr[ 0 ] == max_addr[ 1 ]
         if not skip:
-          results[ 'colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+          results[ 'sub_addr' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1491,12 +1478,12 @@ specified datasets.  Calls FindMaxValueAddr().
             results[ 'axial_value' ] = axial_value
 
         skip = cur_obj is not None and \
-	    hasattr( cur_obj, 'detectorIndex' ) and \
-            getattr( cur_obj, 'detectorIndex' )[ 0 ] == max_addr[ 1 ]
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 1 ]
         if not skip:
-	  det_ndx = self.CreateDetectorIndexFromIndex( max_addr[ 1 ] )
+	  det_ndx = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
 	  if det_ndx[ 0 ] >= 0:
-            results[ 'detector_index' ] = det_ndx
+            results[ 'assemblyAddr' ] = det_ndx
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1514,12 +1501,12 @@ specified datasets.  Calls FindMaxValueAddr().
             results[ 'axial_value' ] = axial_value
 
         skip = cur_obj is not None and \
-	    hasattr( cur_obj, 'detectorIndex' ) and \
-            getattr( cur_obj, 'detectorIndex' )[ 0 ] == max_addr[ 1 ]
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 1 ]
         if not skip:
-	  det_ndx = self.CreateDetectorIndexFromIndex( max_addr[ 1 ] )
+	  det_ndx = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
 	  if det_ndx[ 0 ] >= 0:
-            results[ 'detector_index' ] = det_ndx
+            results[ 'assemblyAddr' ] = det_ndx
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1529,12 +1516,12 @@ specified datasets.  Calls FindMaxValueAddr().
 
       elif ds_type == 'pin':
         skip = cur_obj is not None and \
-	    hasattr( cur_obj, 'assemblyIndex' ) and \
-            getattr( cur_obj, 'assemblyIndex' )[ 0 ] == max_addr[ 3 ]
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 3 ]
         if not skip:
-	  assy_ndx = self.CreateAssemblyIndexFromIndex( max_addr[ 3 ] )
+	  assy_ndx = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
 	  if assy_ndx[ 0 ] >= 0:
-            results[ 'assembly_index' ] = assy_ndx
+            results[ 'assembly_addr' ] = assy_ndx
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'axialValue' ) and \
@@ -1545,11 +1532,13 @@ specified datasets.  Calls FindMaxValueAddr().
             results[ 'axial_value' ] = axial_value
 
         skip = False
-	if cur_obj is not None and hasattr( cur_obj, 'colRow' ):
-          colrow = getattr( cur_obj, 'colRow' )
-	  skip = colrow[ 1 ] == max_addr[ 0 ] and colrow[ 0 ] == max_addr[ 1 ]
+	if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+          sub_addr = getattr( cur_obj, 'subAddr' )
+	  skip = \
+	      sub_addr[ 1 ] == max_addr[ 0 ] and \
+	      sub_addr[ 0 ] == max_addr[ 1 ]
         if not skip:
-          results[ 'colrow' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+          results[ 'sub_addr' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1581,10 +1570,10 @@ returned.  Calls FindMaxValueAddr().
 @param  ds_name		name of dataset
 @param  state_ndx	0-based state point index, or -1 for all states
 @param  cur_obj		optional object with attributes/properties to
-			compare against for changes: assemblyIndex, axialValue,
-			colRow, stateIndex
-@return			dict with possible keys: 'assembly_index',
-			'axial_value', 'colrow', 'state_index'
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'sub_addr', 'state_index'
 """
     results = {}
 
@@ -1593,27 +1582,17 @@ returned.  Calls FindMaxValueAddr().
     if addr is None:
       pass
 
-    elif cur_obj is None:
-      assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
-      if assy_ndx[ 0 ] >= 0:
-        results[ 'assembly_index' ] = assy_ndx
-
-      axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
-      if axial_value[ 0 ] >= 0.0:
-        results[ 'axial_value' ] = axial_value
-
-      results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
-      results[ 'state_index' ] = state_ndx
-
     else:
-      skip = hasattr( cur_obj, 'assemblyIndex' ) and \
-          getattr( cur_obj, 'assemblyIndex' )[ 0 ] == addr[ 3 ]
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'assemblyAddr' ) and \
+          getattr( cur_obj, 'assemblyAddr' )[ 0 ] == addr[ 3 ]
       if not skip:
-	assy_ndx = self.CreateAssemblyIndexFromIndex( addr[ 3 ] )
-	if assy_ndx[ 0 ] >= 0:
-          results[ 'assembly_index' ] = assy_ndx
+	assy_addr = self.CreateAssemblyAddrFromIndex( addr[ 3 ] )
+	if assy_addr[ 0 ] >= 0:
+          results[ 'assembly_addr' ] = assy_addr
 
-      skip = hasattr( cur_obj, 'axialValue' ) and \
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'axialValue' ) and \
           getattr( cur_obj, 'axialValue' )[ 1 ] == addr[ 2 ]
       if not skip:
         axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
@@ -1621,13 +1600,14 @@ returned.  Calls FindMaxValueAddr().
           results[ 'axial_value' ] = axial_value
 
       skip = False
-      if hasattr( cur_obj, 'colRow' ):
-        colrow = getattr( cur_obj, 'colRow' )
-	skip = colrow[ 1 ] == addr[ 0 ] and colrow[ 0 ] == addr[ 1 ]
+      if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+        sub_addr = getattr( cur_obj, 'subAddr' )
+	skip = sub_addr[ 1 ] == addr[ 0 ] and sub_addr[ 0 ] == addr[ 1 ]
       if not skip:
-        results[ 'colrow' ] = ( addr[ 1 ], addr[ 0 ] )
+        results[ 'sub_addr' ] = ( addr[ 1 ], addr[ 0 ] )
 
-      skip = hasattr( cur_obj, 'stateIndex' ) and \
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'stateIndex' ) and \
           getattr( cur_obj, 'stateIndex' ) == state_ndx
       if not skip:
         results[ 'state_index' ] = state_ndx
@@ -2143,10 +2123,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
   def IsValid( self, **kwargs ):
     """Checks values for validity w/in ranges available for this dataset
 @param  kwargs		named values to check:
-			  'assembly_index'
+			  'assembly_addr'
 			  'axial_level'
-			  'colrow'
-			  'colrow_mode'
+			  'sub_addr'
+			  'sub_addr_mode'
 			    (either 'channel', or 'pin', defaulting to 'pin')
 			  ('dataset_name' (requires 'state_index'))
 			  'detector_index'
@@ -2154,9 +2134,8 @@ for NaN.  For now, we just assume 0.0 is "no data".
 """
     valid = True
 
-    if 'assembly_index' in kwargs:
-      val = kwargs[ 'assembly_index' ]
-#      valid = val >= 0 and val < self.core.nass
+    if 'assembly_addr' in kwargs:
+      val = kwargs[ 'assembly_addr' ]
       if hasattr( val, '__iter__' ):
         valid &= val is not None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
       else:
@@ -2166,11 +2145,11 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'axial_level' ]
       valid &= val >= 0 and val < self.core.nax
 
-    if 'colrow' in kwargs and kwargs[ 'colrow' ] is not None:
-      col, row = kwargs[ 'colrow' ]
+    if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] is not None:
+      col, row = kwargs[ 'sub_addr' ]
       maxx = self.core.npinx
       maxy = self.core.npiny
-      if kwargs.get( 'colrow_mode', 'pin' ) == 'channel':
+      if kwargs.get( 'sub_addr_mode', 'pin' ) == 'channel':
         maxx += 1
 	maxy += 1
       valid &= \
@@ -2199,14 +2178,14 @@ for NaN.  For now, we just assume 0.0 is "no data".
     """Checks values for ge 0 and w/in shape range.
 @param  shape_in	shape against which to validate
 @param  kwargs		named values to check:
-    'assembly_index'
+    'assembly_addr'
     'axial_level'
-    'colrow'
+    'sub_addr'
 """
     valid = True
 
-    if 'assembly_index' in kwargs:
-      val = kwargs[ 'assembly_index' ]
+    if 'assembly_addr' in kwargs:
+      val = kwargs[ 'assembly_addr' ]
       if hasattr( val, '__iter__' ):
         valid &= val is not None and val[ 0 ] >= 0 and val[ 0 ] < shape_in[ 3 ]
       else:
@@ -2216,17 +2195,11 @@ for NaN.  For now, we just assume 0.0 is "no data".
       val = kwargs[ 'axial_level' ]
       valid &= val >= 0 and val < shape_in[ 2 ]
 
-    if 'colrow' in kwargs and kwargs[ 'colrow' ] is not None:
-      col, row = kwargs[ 'colrow' ]
+    if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] is not None:
+      col, row = kwargs[ 'sub_addr' ]
       valid &= \
           col >= 0 and col <= shape_in[ 0 ] and \
 	  row >= 0 and row <= shape_in[ 1 ]
-
-#    if 'pin_colrow' in kwargs and kwargs[ 'pin_colrow' ] is not None:
-#      col, row = kwargs[ 'pin_colrow' ]
-#      valid &= \
-#          col >= 0 and col < shape_in[ 0 ] and \
-#	  row >= 0 and row < shape_in[ 1 ]
 
     return  valid
   #end IsValidForShape
@@ -2250,9 +2223,9 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizeAssemblyIndex()		-
+  #	METHOD:		DataModel.NormalizeAssemblyAddr()		-
   #----------------------------------------------------------------------
-  def NormalizeAssemblyIndex( self, assy_ndx ):
+  def NormalizeAssemblyAddr( self, assy_ndx ):
     result = \
       (
       max( 0, min( assy_ndx[ 0 ], self.core.nass - 1 ) ),
@@ -2260,7 +2233,7 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
       max( 0, min( assy_ndx[ 2 ], self.core.nassy - 1 ) )
       )
     return  result
-  #end NormalizeAssemblyIndex
+  #end NormalizeAssemblyAddr
 
 
   #----------------------------------------------------------------------
@@ -2279,47 +2252,6 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizeColRow()			-
-  #----------------------------------------------------------------------
-  def NormalizeColRow( self, rc, mode = 'pin' ):
-    maxx = self.core.npinx - 1
-    maxy = self.core.npiny - 1
-    if mode == 'channel':
-      maxx += 1
-      maxy += 1
-
-    result = \
-      (
-      max( 0, min( rc[ 0 ], maxx ) ),
-      max( 0, min( rc[ 1 ], maxy ) )
-      )
-    return  result
-  #end NormalizeColRow
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizeColRows()			-
-  #----------------------------------------------------------------------
-  def NormalizeColRows( self, rc_list, mode = 'pin' ):
-    maxx = self.core.npinx - 1
-    maxy = self.core.npiny - 1
-    if mode == 'channel':
-      maxx += 1
-      maxy += 1
-
-    result = []
-    for rc in rc_list:
-      result.append( (
-          max( 0, min( rc[ 0 ], maxx ) ),
-          max( 0, min( rc[ 1 ], maxy ) )
-	  ) )
-
-    #return  result
-    return  list( set( result ) )
-  #end NormalizeColRows
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizeDetectorIndex()		-
   #----------------------------------------------------------------------
   def NormalizeDetectorIndex( self, det_ndx ):
@@ -2334,40 +2266,62 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizePinColRow()			-
-  #----------------------------------------------------------------------
-#  def NormalizePinColRow( self, pin_rc ):
-#    result = \
-#        (
-#        max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
-#        max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
-#        )
-#
-#    return  result
-#  #end NormalizePinColRow
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.NormalizePinColRows()			-
-  #----------------------------------------------------------------------
-#  def NormalizePinColRows( self, pin_rc_list ):
-#    result = []
-#    for pin_rc in pin_rc_list:
-#      result.append( (
-#          max( 0, min( pin_rc[ 0 ], self.core.npin - 1 ) ),
-#          max( 0, min( pin_rc[ 1 ], self.core.npin - 1 ) )
-#	  ) )
-#
-#    return  result
-#  #end NormalizePinColRows
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizeStateIndex()			-
   #----------------------------------------------------------------------
   def NormalizeStateIndex( self, state_ndx ):
     return  max( 0, min( state_ndx, len( self.states ) - 1 ) )
   #end NormalizeStateIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.NormalizeSubAddr()			-
+  #----------------------------------------------------------------------
+  def NormalizeSubAddr( self, addr, mode = 'pin' ):
+    """Normalizes the address, accounting for channel shape being one greater
+in each dimension.
+@param  addr		0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+"""
+    maxx = self.core.npinx - 1
+    maxy = self.core.npiny - 1
+    if mode == 'channel':
+      maxx += 1
+      maxy += 1
+
+    result = \
+      (
+      max( 0, min( addr[ 0 ], maxx ) ),
+      max( 0, min( addr[ 1 ], maxy ) )
+      )
+    return  result
+  #end NormalizeSubAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.NormalizeSubAddrs()			-
+  #----------------------------------------------------------------------
+  def NormalizeSubAddrs( self, addr_list, mode = 'pin' ):
+    """Normalizes each address in the list, accounting for channel shape
+being one greater in each dimension.
+@param  addr_list	list of 0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+"""
+    maxx = self.core.npinx - 1
+    maxy = self.core.npiny - 1
+    if mode == 'channel':
+      maxx += 1
+      maxy += 1
+
+    result = []
+    for addr in addr_list:
+      result.append( (
+          max( 0, min( addr[ 0 ], maxx ) ),
+          max( 0, min( addr[ 1 ], maxy ) )
+	  ) )
+
+    #return  result
+    return  list( set( result ) )
+  #end NormalizeSubAddrs
 
 
   #----------------------------------------------------------------------
@@ -2461,20 +2415,20 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #----------------------------------------------------------------------
   def ReadDataSetAxialValues( self,
       ds_name,
-      assembly_index = 0,
-      colrows = None,
+      assembly_addr = 0,
+      sub_addrs = None,
       detector_index = 0,
       state_index = 0
       ):
     """Reads axial values for a dataset for a specified state point.
 @param  ds_name		dataset name
-@param  assembly_index	0-based assembly index
+@param  assembly_addr	0-based assembly index
 @param  detector_index	0-based detector index
-@param  colrows		list of colrow pairs
+@param  sub_addrs	list of sub_addr pairs
 @param  state_index	0-based state point index
 @return			None if dataset cannot be found,
-			dict by colrow of np.ndarray for datasets that vary
-			by colrow,
+			dict by sub_addr of np.ndarray for datasets that vary
+			by sub_addr,
 			np.ndarray for other datasets
 """
     result = None
@@ -2499,30 +2453,30 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 #        colrows = \
 #            channel_colrows  if ds_type.startswith( 'channel' ) else \
 #	    pin_colrows
-        if colrows is not None:
+        if sub_addrs is not None:
           ds_shape = \
               ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	      ds_def[ 'shape' ]
 
-          assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+          assy_ndx = max( 0, min( assembly_addr, ds_shape[ 3 ] - 1 ) )
 
           if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
 	    result = {}
-            colrow_set = set()
-            for colrow in colrows:
-	      colrow = (
-	          min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
-	          min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+            sub_addr_set = set()
+            for sub_addr in sub_addrs:
+	      sub_addr = (
+	          min( sub_addr[ 0 ], ds_shape[ 1 ] - 1 ),
+	          min( sub_addr[ 1 ], ds_shape[ 0 ] - 1 )
 	          )
-	      if colrow not in colrow_set:
-	        colrow_set.add( colrow )
-	        result[ colrow ] = \
-	            dset.value[ colrow[ 1 ], colrow[ 0 ], :, assy_ndx ]
-            #end for colrow
+	      if sub_addr not in sub_addr_set:
+	        sub_addr_set.add( sub_addr )
+	        result[ sub_addr ] = \
+	            dset.value[ sub_addr[ 1 ], sub_addr[ 0 ], :, assy_ndx ]
+            #end for sub_addr
           else:
 	    result = dset.value[ 0, 0, :, assy_ndx ]
           #end if-else ds_shape
-        #end if colrows
+        #end if sub_addrs
       #end if-else ds_type
     #end if dset is not None
 
@@ -2597,20 +2551,20 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #----------------------------------------------------------------------
   def ReadDataSetValues( self,
       ds_name,
-      assembly_index = 0,
+      assembly_addr = 0,
       axial_value = 0.0,
-      colrows = None,
+      sub_addrs = None,
       detector_index = 0
       ):
     """Reads values for a dataset across all state points.
 @param  ds_name		dataset name
-@param  assembly_index	0-based assembly index
+@param  assembly_addr	0-based assembly index
 @param  detector_index	0-based detector index
 @param  axial_value	axial value in cm
-@param  colrows		single or iterable of colrow pairs
+@param  sub_addrs	single or iterable of sub_addr pairs
 @return			None if dataset cannot be found,
-			dict by colrow of np.ndarray for datasets that vary
-			by colrow,
+			dict by sub_addr of np.ndarray for datasets that vary
+			by sub_addr,
 			np.ndarray for other datasets
 """
     result = None
@@ -2680,41 +2634,41 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 #      colrows = \
 #          channel_colrows  if ds_def[ 'type' ].startswith( 'channel' ) else \
 #	  pin_colrows
-      if not hasattr( colrows, '__iter__' ):
-        colrows = [ colrows ]
+      if not hasattr( sub_addrs, '__iter__' ):
+        sub_addrs = [ sub_addrs ]
 
       ds_shape = \
           ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	  ds_def[ 'shape' ]
 
-      assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+      assy_ndx = max( 0, min( assembly_addr, ds_shape[ 3 ] - 1 ) )
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
       if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
 	result = {}
-        colrow_set = set()
-        for colrow in colrows:
-	  colrow = (
-	      min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
-	      min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+        sub_addr_set = set()
+        for sub_addr in sub_addrs:
+	  sub_addr = (
+	      min( sub_addr[ 0 ], ds_shape[ 1 ] - 1 ),
+	      min( sub_addr[ 1 ], ds_shape[ 0 ] - 1 )
 	      )
-	  colrow_set.add( colrow )
-	  result[ colrow ] = []
-        colrows_sorted = sorted( colrow_set )
+	  sub_addr_set.add( sub_addr )
+	  result[ sub_addr ] = []
+        sub_addrs_sorted = sorted( sub_addr_set )
 
         #for st in self.states:
           #dset = st.GetDataSet( ds_name )
         for i in range( len( self.states ) ):
 	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is None:
-	    for colrow in colrows_sorted:
-	      result[ colrow ].append( 0.0 )
+	    for sub_addr in sub_addrs_sorted:
+	      result[ sub_addr ].append( 0.0 )
 	  else:
-	    for colrow in colrows_sorted:
-	      value = \
-	          dset.value[ colrow[ 1 ], colrow[ 0 ], axial_level, assy_ndx ]
-	      result[ colrow ].append( value )
+	    for sub_addr in sub_addrs_sorted:
+	      value = dset.\
+	          value[ sub_addr[ 1 ], sub_addr[ 0 ], axial_level, assy_ndx ]
+	      result[ sub_addr ].append( value )
         #end for st
 
 	for k in result:
@@ -2747,12 +2701,12 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
 at a time for better performance.
 @param  ds_specs_in	list of dataset specifications with the following keys:
 	  ds_name		required dataset name
-	  assembly_index	0-based assembly index
+	  assembly_addr		0-based assembly index
 	  detector_index	0-based detector index for detector datasets
 	  axial_cm		axial value in cm
-	  colrows		list of colrow pairs
+	  sub_addrs		list of sub_addr pairs
 @return			dict keyed by found ds_name of:
-			  dict keyed by colrow of np.ndarray for pin-based
+			  dict keyed by sub_addr of np.ndarray for pin-based
 			  datasets,
 			  np.ndarray for datasets that are not pin-based
 """
@@ -2843,17 +2797,17 @@ at a time for better performance.
 #              spec.get( 'channel_colrows' ) \
 #	      if ds_def[ 'type' ].startswith( 'channel' ) else \
 #              spec.get( 'pin_colrows' )
-	  colrows = spec.get( 'colrows' )
+	  sub_addrs = spec.get( 'sub_addrs' )
 
-#				-- Must have colrows
-          if colrows is not None:
+#				-- Must have sub_addrs
+          if sub_addrs is not None:
             ds_shape = \
                 ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	        ds_def[ 'shape' ]
 
             if dset is not None:
-	      assembly_index = spec.get( 'assembly_index', 0 )
-              assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+	      assembly_addr = spec.get( 'assembly_addr', 0 )
+              assy_ndx = max( 0, min( assembly_addr, ds_shape[ 3 ] - 1 ) )
 
 	      axial_cm = spec.get( 'axial_cm', 0.0 )
               ax_value = self.CreateAxialValue( cm = axial_cm )
@@ -2866,22 +2820,22 @@ at a time for better performance.
 	        ds_result = {}
 	        result[ ds_name ] = ds_result
 
-              colrow_set = set()
-              for colrow in colrows:
-	        colrow = (
-	            min( colrow[ 0 ], ds_shape[ 1 ] - 1 ),
-	            min( colrow[ 1 ], ds_shape[ 0 ] - 1 )
+              sub_addr_set = set()
+              for sub_addr in sub_addrs:
+	        sub_addr = (
+	            min( sub_addr[ 0 ], ds_shape[ 1 ] - 1 ),
+	            min( sub_addr[ 1 ], ds_shape[ 0 ] - 1 )
 	            )
-		if colrow not in colrow_set:
-	          colrow_set.add( colrow )
-		  if colrow not in ds_result:
-		    ds_result[ colrow ] = []
+		if sub_addr not in sub_addr_set:
+	          sub_addr_set.add( sub_addr )
+		  if sub_addr not in ds_result:
+		    ds_result[ sub_addr ] = []
 		  value = 0.0
 		  if dset is not None:
 	            value = dset.\
-		        value[ colrow[ 1 ], colrow[ 0 ], axial_ndx, assy_ndx ]
-		  ds_result[ colrow ].append( value )
-	      #end for colrow
+		      value[ sub_addr[ 1 ], sub_addr[ 0 ], axial_ndx, assy_ndx ]
+		  ds_result[ sub_addr ].append( value )
+	      #end for sub_addr
 
 	    else:
 	      if ds_name not in result:
@@ -2892,7 +2846,7 @@ at a time for better performance.
 	        value = dset.value[ 0, 0, axial_ndx, assy_ndx ]
 	      result[ ds_name ].append( value )
             #end if-else ds_shape
-	  #end if colrows specified
+	  #end if sub_addrs specified
         #end if-else ds_def[ 'type' ]
       #end for spec
     #end for state_ndx

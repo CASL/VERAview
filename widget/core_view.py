@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-08-15	leerw@ornl.gov				-
+#	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
 #	  Changed _CreateClipboardData() signature.
 #		2016-08-02	leerw@ornl.gov				-
@@ -144,10 +146,10 @@ Properties:
   #	METHOD:		Core2DView.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    self.assemblyIndex = ( -1, -1, -1 )
+    self.assemblyAddr = ( -1, -1, -1 )
     self.avgDataSet = None
     self.avgValues = {}
-    self.colRow = ( -1, -1 )
+    self.subAddr = ( -1, -1 )
 
     self.mode = ''  # 'assy', 'core'
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
@@ -285,7 +287,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
     tuple_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = assy_ndx,
+        assembly_addr = assy_ndx,
 	axial_level = axial_level,
 	state_index = state_ndx
 	)
@@ -539,7 +541,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_addr = self.assemblyAddr[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -549,7 +551,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
-      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+      assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       #clip_shape = ( dset_shape[ 0 ], dset_shape[ 1 ] )
@@ -560,7 +562,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       title = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"' % (
 	  self.pinDataSet,
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -941,8 +943,8 @@ The config and data attributes are good to go.
 			( state_index, axial_level )
 """
     return \
-        ( self.stateIndex, self.assemblyIndex[ 0 ], self.axialValue[ 1 ],
-	  self.assemblyIndex[ 1 ], self.assemblyIndex[ 2 ] ) \
+        ( self.stateIndex, self.assemblyAddr[ 0 ], self.axialValue[ 1 ],
+	  self.assemblyAddr[ 1 ], self.assemblyAddr[ 2 ] ) \
         if self.mode == 'assy' else \
         ( self.stateIndex, self.axialValue[ 1 ] )
   #end _CreateStateTuple
@@ -1112,10 +1114,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 """
     locks = set([
-        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
+        STATE_CHANGE_axialValue,
+	STATE_CHANGE_coordinates,
+	STATE_CHANGE_curDataSet,
 	STATE_CHANGE_scaleMode,
-	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
+	STATE_CHANGE_stateIndex
 	])
     return  locks
   #end GetEventLockSet
@@ -1153,8 +1156,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			-- Core mode
 #			--
       if self.config[ 'mode' ] == 'core':
-        rel_col = self.assemblyIndex[ 1 ] - self.cellRange[ 0 ]
-        rel_row = self.assemblyIndex[ 2 ] - self.cellRange[ 1 ]
+        rel_col = self.assemblyAddr[ 1 ] - self.cellRange[ 0 ]
+        rel_row = self.assemblyAddr[ 2 ] - self.cellRange[ 1 ]
 
         if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
             rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
@@ -1174,9 +1177,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			-- Assy mode
 #			--
       else:  # 'assy'
-	if self.colRow[ 0 ] >= 0 and self.colRow[ 1 ] >= 0 and \
-	    self.colRow[ 0 ] < self.data.core.npin and \
-	    self.colRow[ 1 ] < self.data.core.npin:
+	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
+	    self.subAddr[ 0 ] < self.data.core.npin and \
+	    self.subAddr[ 1 ] < self.data.core.npin:
           assy_region = self.config[ 'assemblyRegion' ]
 	  pin_gap = self.config[ 'pinGap' ]
 	  pin_wd = self.config[ 'pinWidth' ]
@@ -1185,8 +1188,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 	  rect = \
 	    [
-	      self.colRow[ 0 ] * pin_adv + assy_region[ 0 ],
-	      self.colRow[ 1 ] * pin_adv + assy_region[ 1 ],
+	      self.subAddr[ 0 ] * pin_adv + assy_region[ 0 ],
+	      self.subAddr[ 1 ] * pin_adv + assy_region[ 1 ],
 	      pin_adv, pin_adv
 	    ]
         #end if cell in drawing range
@@ -1249,10 +1252,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       result = \
           tpl is not None and len( tpl ) >= 5 and \
           tpl[ 0 ] == self.stateIndex and \
-	  tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
+	  tpl[ 1 ] == self.assemblyAddr[ 0 ] and \
 	  tpl[ 2 ] == self.axialValue[ 1 ] and \
-	  tpl[ 3 ] == self.assemblyIndex[ 1 ] and \
-	  tpl[ 4 ] == self.assemblyIndex[ 2 ]
+	  tpl[ 3 ] == self.assemblyAddr[ 1 ] and \
+	  tpl[ 4 ] == self.assemblyAddr[ 2 ]
 
     else:
       result = \
@@ -1271,9 +1274,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 """
     self.avgValues.clear()
-    self.assemblyIndex = self.state.assemblyIndex
-    self.colRow = self.state.colRow
-    self.pinDataSet = self.state.pinDataSet
+    self.assemblyAddr = self.state.assemblyAddr
+    self.pinDataSet = self.state.curDataSet
+    self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
 
@@ -1285,7 +1288,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'assemblyIndex', 'colRow', 'mode', 'pinDataSet' ):
+    for k in ( 'assemblyAddr', 'subAddr', 'mode', 'pinDataSet' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1305,17 +1308,14 @@ be overridden by subclasses.
     cell_info = self.FindAssembly( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
-      assy_ndx = cell_info[ 0 : 3 ]
-      if assy_ndx != self.assemblyIndex:
-	state_args[ 'assembly_index' ] = assy_ndx
+      assy_addr = cell_info[ 0 : 3 ]
+      if assy_addr != self.assemblyAddr:
+	state_args[ 'assembly_addr' ] = assy_addr
 
-#      pin_addr = cell_info[ 3 : 5 ]
-#      if pin_addr != self.pinColRow:
-#	state_args[ 'pin_colrow' ] = pin_addr
       if ev.GetClickCount() > 1:
         pin_addr = cell_info[ 3 : 5 ]
-        if pin_addr != self.colRow:
-	  state_args[ 'colrow' ] = pin_addr
+        if pin_addr != self.subAddr:
+	  state_args[ 'sub_addr' ] = pin_addr
 
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
@@ -1330,8 +1330,8 @@ be overridden by subclasses.
     """Do post drag things after drag processing.
 """
     if right - left == 1 and bottom - top == 1:
-      self.assemblyIndex = self.dragStartCell
-      self.FireStateChange( assembly_index = self.assemblyIndex )
+      self.assemblyAddr = self.dragStartCell
+      self.FireStateChange( assembly_addr = self.assemblyAddr )
       self._SetMode( 'assy' )
     else:
       self._SetMode( 'core' )
@@ -1368,16 +1368,16 @@ be overridden by subclasses.
 	ds_value = dset.value
 #	pin_value = ds_value[
 #	    pin_addr[ 1 ], pin_addr[ 0 ],
-#	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+#	    self.axialValue[ 1 ], self.assemblyAddr[ 0 ]
 #	    ]
 	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
 	    pin_addr[ 0 ] < ds_value.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
+	    self.assemblyAddr[ 0 ] < ds_value.shape[ 3 ]:
 	  pin_value = ds_value[
 	      pin_addr[ 1 ], pin_addr[ 0 ],
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
-	      self.assemblyIndex[ 0 ]
-	      #min( self.assemblyIndex[ 0 ], ds_value.shape[ 3 ] - 1 )
+	      self.assemblyAddr[ 0 ]
+	      #min( self.assemblyAddr[ 0 ], ds_value.shape[ 3 ] - 1 )
 	      ]
       #end if
 
@@ -1398,9 +1398,7 @@ be overridden by subclasses.
     """
 """
     pin_addr = self.FindPin( *ev.GetPosition() )
-    if pin_addr is not None and pin_addr != self.colRow:
-#      print >> sys.stderr, \
-#          '[Core2DView._OnMouseUp] new pinColRow=%s' % str( pin_addr )
+    if pin_addr is not None and pin_addr != self.subAddr:
 
       state_ndx = self.stateIndex
       ds_name = self.pinDataSet
@@ -1412,21 +1410,21 @@ be overridden by subclasses.
         ds_value = dset.value
 #	pin_value = ds_value[
 #	    pin_addr[ 1 ], pin_addr[ 0 ],
-#	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+#	    self.axialValue[ 1 ], self.assemblyAddr[ 0 ]
 #	    ]
 	if pin_addr[ 1 ] < ds_value.shape[ 0 ] and \
 	    pin_addr[ 0 ] < ds_value.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < ds_value.shape[ 3 ]:
+	    self.assemblyAddr[ 0 ] < ds_value.shape[ 3 ]:
 	  pin_value = ds_value[
 	      pin_addr[ 1 ], pin_addr[ 0 ],
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
-	      self.assemblyIndex[ 0 ]
+	      self.assemblyAddr[ 0 ]
 	      ]
       #end if ds_name
 
       #if pin_value > 0.0:
       if not self.data.IsNoDataValue( ds_name, pin_value ):
-	self.FireStateChange( colrow = pin_addr )
+	self.FireStateChange( sub_addr = pin_addr )
     #end if pin_addr changed
   #end _OnMouseUpAssy
 
@@ -1485,7 +1483,7 @@ method via super.SaveProps().
 """
     super( Core2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyIndex', 'colRow', 'mode', 'pinDataSet' ):
+    for k in ( 'assemblyAddr', 'subAddr', 'mode', 'pinDataSet' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1497,8 +1495,8 @@ method via super.SaveProps().
     """May be called from any thread.
 """
     if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
-      self.FireStateChange( pin_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
+      self.FireStateChange( cur_dataset = ds_name )
   #end SetDataSet
 
 
@@ -1567,9 +1565,10 @@ method via super.SaveProps().
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
-    if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+    if 'assembly_addr' in kwargs and \
+        kwargs[ 'assembly_addr' ] != self.assemblyAddr:
       changed = True
-      self.assemblyIndex = kwargs[ 'assembly_index' ]
+      self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
     #xxx avgValues is deprecated
     if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
@@ -1579,21 +1578,19 @@ method via super.SaveProps().
         self.avgDataSet = None
       self.avgValues.clear()
 
-#    if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
-#      changed = True
-#      self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ] )
-    if 'colrow' in kwargs:
-      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], mode = 'pin' )
-      if colrow != self.colRow:
-        changed = True
-        self.colRow = colrow
-
-    if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
-      ds_type = self.data.GetDataSetType( kwargs[ 'pin_dataset' ] )
+    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
+      ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-        self.pinDataSet = kwargs[ 'pin_dataset' ]
+        self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
+
+    if 'sub_addr' in kwargs:
+      sub_addr = \
+          self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], mode = 'pin' )
+      if sub_addr != self.subAddr:
+        changed = True
+        self.subAddr = sub_addr
 
     if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )

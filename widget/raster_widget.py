@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-08-15	leerw@ornl.gov				-
+#	  New State events.
 #		2016-06-30	leerw@ornl.gov				-
 #	  Added isLoaded with check in _LoadDataModel() against call to
 #	  _LoadDataModelValues().

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		events_chooser.py				-
 #	HISTORY:							-
+#		2016-08-15	leerw@ornl.gov				-
+#	  New State and event names.
 #		2016-06-27	leerw@ornl.gov				-
 #	  Moved EVENT_ID_NAMES to event/state.py.
 #		2015-05-28	leerw@ornl.gov				-
@@ -21,23 +23,6 @@ except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
 from event.state import *
-
-
-# Moved to event/state.py
-#EVENT_ID_NAMES = \
-#  [
-#    ( STATE_CHANGE_assemblyIndex, 'Assembly Index' ),
-#    ( STATE_CHANGE_axialValue, 'Axial Value' ),
-#    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
-#    ( STATE_CHANGE_channelDataSet, 'Channel Dataset' ),
-#    ( STATE_CHANGE_detectorIndex, 'Detector Index' ),
-#    ( STATE_CHANGE_detectorDataSet, 'Detector Dataset' ),
-#    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
-#    ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
-#    ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
-#    ( STATE_CHANGE_stateIndex, 'State Point Index' ),
-#    ( STATE_CHANGE_vanadiumDataSet, 'Vanadium Dataset' )
-#  ]
 
 
 #------------------------------------------------------------------------
@@ -143,10 +128,9 @@ manipulating Events.  That is done with _CreateEventsUI().
     sizer = wx.BoxSizer( wx.VERTICAL )
     self.SetSizer( sizer )
 
-    for ev_pair in EVENT_ID_NAMES:
-      ev_id = ev_pair[ 0 ]
+    for ev_id, ev_name in LOCKABLE_STATES:
       if ev_id in event_set:
-        cbox = wx.CheckBox( self, -1, label = ev_pair[ 1 ] )
+        cbox = wx.CheckBox( self, -1, label = ev_name )
 #        cbox.Bind(
 #            wx.EVT_CHECKBOX,
 #	    functools.partial( self._OnCheckBox, ev_id )
