@@ -488,8 +488,9 @@ in GridSizer when adding grids.
 @param  wc		WidgetContainer instance to add
 @param  refit_flag	True to refit the window after adding
 """
-#    grow_flag = False
-    grow_flag = True
+#xxxxx check setting grow_flag *only* when a row is added on other platforms
+    grow_flag = False
+#    grow_flag = True
     grid_sizer = self.grid.GetSizer()
     widget_count = len( self.grid.GetChildren() )
     widget_space = grid_sizer.GetCols() * grid_sizer.GetRows()
@@ -499,6 +500,7 @@ in GridSizer when adding grids.
         grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
       elif grid_sizer.GetCols() > grid_sizer.GetRows():
 	grid_sizer.SetRows( grid_sizer.GetRows() + 1 )
+	grow_flag = True
       else:
         grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
     #end if
@@ -585,7 +587,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
 """
     wc = None
 
-    if State.FindDataModel( self.state ) is None:
+    data = State.FindDataModel( self.state )
+    if data is None:
       msg = 'A VERAOutput file must be opened'
       wx.MessageDialog( self, msg, 'Add Widget' ).ShowWindowModal()
 
@@ -600,9 +603,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
 	    #wc.widget.InitDataSetSelections( self.axialPlotTypes )
 	    wc.widget.InitDataSetSelections( [ 'channel', 'pin' ] )
           elif title == 'Detector 2D Multi View':
+	    pass
 	    wc.widget.InitDataSetSelections(
-	        self.state.detectorDataSet,
-		self.state.fixedDetectorDataSet
+	        data.GetFirstDataSet( 'detector' ),
+	        data.GetFirstDataSet( 'fixed_detector' )
+#	        self.state.detectorDataSet,
+#		self.state.fixedDetectorDataSet
 		)
           elif title == 'Time Plots':
 	    wc.widget.InitDataSetSelections(
@@ -919,7 +925,10 @@ WIDGET_MAP and TOOLBAR_ITEMS
     #self.SetSize( ( 640, 480 ) )
 
     display_size = wx.DisplaySize()
-    if display_size[ 0 ] >= 1200 and display_size[ 1 ] >= 800:
+    #if display_size[ 0 ] >= 1200 and display_size[ 1 ] >= 800:
+    if display_size[ 0 ] >= 1024 and display_size[ 1 ] >= 768:
+      self.SetSize( ( 1024, 768 ) )
+    elif display_size[ 0 ] >= 800 and display_size[ 1 ] >= 600:
       self.SetSize( ( 800, 600 ) )
     else:
       self.SetSize( ( 640, 480 ) )
@@ -1080,7 +1089,7 @@ Must be called from the UI thread.
       if True:
         widget_list = [
             'widget.core_view.Core2DView',
-#            'widget.assembly_view.Assembly2DView',
+            'widget.assembly_view.Assembly2DView',
 #            'widget.core_axial_view.CoreAxial2DView',
 ##            'widget.detector_multi_view.Detector2DMultiView',
 #            'widget.axial_plot.AxialPlot',
