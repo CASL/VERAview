@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-08-16	leerw@ornl.gov				-
+#	  Messing with widget sizing in grids.
 #		2016-08-10	leerw@ornl.gov				-
 #	  Turning off 3D widgets on config load.
 #	  Using Environment3D.IsAvailable() as a test for enabling the
@@ -502,18 +504,21 @@ in GridSizer when adding grids.
 	grid_sizer.SetRows( grid_sizer.GetRows() + 1 )
 	grow_flag = True
       else:
+	#grow_flag = grid_sizer.GetCols() >= 2
         grid_sizer.SetCols( grid_sizer.GetCols() + 1 )
     #end if
 
+    frame_size = self.GetSize()
     self.grid._FreezeWidgets()
     grid_sizer.Add( wc, 0, wx.ALIGN_CENTER | wx.EXPAND, 0 )
     self.grid.Layout()
 #		-- If you don't call Fit() here, the window will not grow
 #		-- with the addition of the new widget
-    if grow_flag:
-      self.Fit()
-    #self.grid._FreezeWidgets( False )
+#x    if grow_flag:
+#x      refit_flag = True
+#x      #self.Fit()
 
+    #self.grid._FreezeWidgets( False )
     if refit_flag:
       wx.CallAfter( self._Refit, False, self.grid._FreezeWidgets, False )
     else:
@@ -1093,13 +1098,13 @@ Must be called from the UI thread.
         widget_list = [
             'widget.core_view.Core2DView',
             'widget.assembly_view.Assembly2DView',
-#            'widget.core_axial_view.CoreAxial2DView',
+            'widget.core_axial_view.CoreAxial2DView',
 ##            'widget.detector_multi_view.Detector2DMultiView',
             'widget.axial_plot.AxialPlot',
             'widget.time_plots.TimePlots',
-#	    'widget.channel_view.Channel2DView',
-#	    'widget.channel_assembly_view.ChannelAssembly2DView',
-#	    'widget.channel_axial_view.ChannelAxial2DView',
+##	    'widget.channel_view.Channel2DView',
+##	    'widget.channel_assembly_view.ChannelAssembly2DView',
+##	    'widget.channel_axial_view.ChannelAxial2DView',
             ]
 
 #			-- Create widgets
@@ -1807,7 +1812,10 @@ Must be called from the UI thread.
         new_size[ 1 ] > display_size[ 1 ]:
       if not self.IsMaximized():
         self.Maximize()
+      #new_size = self.GetSize()
 
+    #grid_size = self.grid.GetSize()
+    #if grid_size[ 0 ] > new_size[ 0 ] or grid_size[ 1 ] > new_size[ 1 ] :
     self.grid.FitWidgets( apply_widget_ratio )
     self.Fit()
 

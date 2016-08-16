@@ -149,10 +149,10 @@ Properties:
     self.assemblyAddr = ( -1, -1, -1 )
     self.avgDataSet = None
     self.avgValues = {}
-    self.subAddr = ( -1, -1 )
 
     self.mode = ''  # 'assy', 'core'
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
+    self.subAddr = ( -1, -1 )
 
     super( Core2DView, self ).__init__( container, id )
   #end __init__

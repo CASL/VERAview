@@ -432,6 +432,7 @@ definition array for a pullright.
       raise ValueError( 'Class "%s" not found in module "%s"' % (class_name, module_path ) )
 
     self.widget = cls( self, -1, **kwargs )
+    #self.widget.SetMinClientSize( ( 300, 240 ) )
 
 #		-- Create Control Panel
 #		--
