@@ -1066,7 +1066,7 @@ attributes/properties that aren't already set in _LoadDataModel():
   stateIndex
 """
     self.assemblyAddr = self.state.assemblyAddr
-    self.pinDataSet = self.state.curDataSet
+    self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 

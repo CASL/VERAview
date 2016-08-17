@@ -828,7 +828,10 @@ XXX size according to how many datasets selected?
 to be passed to UpdateState().  Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
+    self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
+        { 'axis': 'bottom', 'scale': 1.0, 'visible': True }
     self.dataSetDialog = None
+
     if self.data is not None and self.data.HasData():
       assy_addr = self.data.NormalizeAssemblyAddr( self.state.assemblyAddr )
       aux_sub_addrs = self.data.\

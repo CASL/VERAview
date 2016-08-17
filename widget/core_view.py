@@ -643,8 +643,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       font_size = self._CalcFontSize( 768 )
 
-      core_wd = self.cellRange[ -2 ] * assy_advance
-      core_ht = self.cellRange[ -1 ] * assy_advance
+      core_wd = region_wd = self.cellRange[ -2 ] * assy_advance
+      core_ht = region_ht = self.cellRange[ -1 ] * assy_advance
 
       # label : core : font-sp : legend
       wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
@@ -663,6 +663,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
+    config[ 'coreFullRegion' ] = \
+        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, region_wd, region_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'mode' ] = 'core'
     config[ 'pinWidth' ] = pin_wd
@@ -1014,9 +1016,9 @@ The config and data attributes are good to go.
 
 	pin_wd = self.config[ 'pinWidth' ]
 	pin_col = int( (off_x % assy_advance) / pin_wd )
-	if pin_col >= self.data.core.npin: pin_col = -1
+	if pin_col >= self.data.core.npinx: pin_col = -1
 	pin_row = int( (off_y % assy_advance) / pin_wd )
-	if pin_row >= self.data.core.npin: pin_row = -1
+	if pin_row >= self.data.core.npiny: pin_row = -1
 
 	result = ( assy_ndx, cell_x, cell_y, pin_col, pin_row )
       #end if event within display
@@ -1275,7 +1277,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
-    self.pinDataSet = self.state.curDataSet
+    self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
@@ -1586,8 +1588,7 @@ method via super.SaveProps().
         self.avgValues.clear()
 
     if 'sub_addr' in kwargs:
-      sub_addr = \
-          self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], mode = 'pin' )
+      sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
       if sub_addr != self.subAddr:
         changed = True
         self.subAddr = sub_addr

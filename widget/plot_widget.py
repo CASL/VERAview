@@ -371,7 +371,8 @@ _LoadDataModelValues()
 """
     print >> sys.stderr, '[PlotWidget._LoadDataModel]'
 
-    self.data = State.FindDataModel( self.state )
+    #self.data = State.FindDataModel( self.state )
+    super( PlotWidget, self )._LoadDataModel()
     if self.data is not None and self.data.HasData() and \
         not self.isLoaded:
       self.isLoaded = True

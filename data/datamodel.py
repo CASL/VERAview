@@ -2124,6 +2124,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
     """Checks values for validity w/in ranges available for this dataset
 @param  kwargs		named values to check:
 			  'assembly_addr'
+			  'assembly_index'
 			  'axial_level'
 			  'sub_addr'
 			  'sub_addr_mode'
@@ -2140,6 +2141,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
         valid &= val is not None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
       else:
         valid &= val >= 0 and val < self.core.nass
+
+    if 'assembly_index' in kwargs:
+      val = kwargs[ 'assembly_index' ]
+      valid &= val >= 0 and val < self.core.nass
 
     if 'axial_level' in kwargs:
       val = kwargs[ 'axial_level' ]

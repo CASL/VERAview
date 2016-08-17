@@ -822,6 +822,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         STATE_CHANGE_axialValue,
 	STATE_CHANGE_coordinates,
 	STATE_CHANGE_curDataSet,
+	STATE_CHANGE_scaleMode,
 	STATE_CHANGE_stateIndex
 	])
     return  locks
@@ -986,7 +987,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
-    self.pinDataSet = self.state.curDataSet
+    self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.subAddr = self.state.subAddr
 
 #x    if self.mode == 'xz':
@@ -1113,8 +1114,8 @@ method via super.SaveProps().
     """May be called from any thread.
 """
     if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
-      self.FireStateChange( pin_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
+      self.FireStateChange( cur_dataset = ds_name )
   #end SetDataSet
 
 
@@ -1224,7 +1225,6 @@ method via super.SaveProps().
 
     if 'assembly_addr' in kwargs and \
         kwargs[ 'assembly_addr' ] != self.assemblyAddr:
-      #changed = True
       if kwargs[ 'assembly_addr' ][ assy_ndx ] != self.assemblyAddr[ assy_ndx ]:
         resized = True
 	new_pin_index_flag = True
@@ -1247,11 +1247,11 @@ method via super.SaveProps().
         self.avgValues.clear()
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
-      if kwargs[ 'sub_addr' ][ pin_ndx ] != self.subAddr[ pin_ndx ]:
-        resized = True
-	new_pin_index_flag = True
-      else:
-        changed = True
+#      if kwargs[ 'sub_addr' ][ pin_ndx ] != self.subAddr[ pin_ndx ]:
+#        resized = True
+#	new_pin_index_flag = True
+#      else:
+#        changed = True
       self.subAddr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
 
 #x    if new_pin_index_flag:

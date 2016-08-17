@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-08-17	leerw@ornl.gov				-
+#	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
 #	  Added clipboard copy option for selected data across all states.
 #		2016-08-09	leerw@ornl.gov				-
@@ -90,11 +92,11 @@ Attrs/properties:
   #	METHOD:		ChannelAssembly2DView.__init__()		-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    self.assemblyIndex = ( -1, -1, -1 )
-    self.auxColRows = []
+    self.assemblyAddr = ( -1, -1, -1 )
+    self.auxSubAddrs = []
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
-    self.colRow = None
     self.showPins = True
+    self.subAddr = None
 
     super( ChannelAssembly2DView, self ).__init__( container, id )
   #end __init__
@@ -131,7 +133,7 @@ Attrs/properties:
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_index = self.assemblyAddr[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -155,15 +157,15 @@ Attrs/properties:
 	clip_data = dset_value[
 	    chan_row_start : chan_row_end,
 	    chan_col_start : chan_col_end,
-	    axial_level, self.assemblyIndex[ 0 ]
+	    axial_level, self.assemblyAddr[ 0 ]
 	    ]
 
         title = \
             '%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' % \
 	    (
 	    self.channelDataSet,
-	    self.assemblyIndex[ 0 ] + 1,
-	    self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	    self.assemblyAddr[ 0 ] + 1,
+	    self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	    self.axialValue[ 0 ],
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -193,7 +195,7 @@ Attrs/properties:
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_index = self.assemblyAddr[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -204,20 +206,20 @@ Attrs/properties:
       dset_value = dset.value
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
-      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+      assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
-      colrows = list( self.auxColRows )
-      colrows.insert( 0, self.colRow )
+      sub_addrs = list( self.auxSubAddrs )
+      sub_addrs.insert( 0, self.subAddr )
 
       csv_text = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"\n' % (
           self.channelDataSet,
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
-      for rc in colrows:
+      for rc in sub_addrs:
 	csv_text += '"(%d,%d)",%.7g\n' % (
 	    rc[ 0 ] + 1, rc[ 1 ] + 1,
 	    dset_value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
@@ -240,7 +242,7 @@ Attrs/properties:
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_index = self.assemblyAddr[ 0 ],
 	#axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -251,26 +253,26 @@ Attrs/properties:
       core = self.data.GetCore()
       dset_shape = dset.value.shape
       #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
-      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+      assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
-      colrows = list( self.auxColRows )
-      colrows.insert( 0, self.colRow )
+      sub_addrs = list( self.auxSubAddrs )
+      sub_addrs.insert( 0, self.subAddr )
 
       csv_text = '"%s: Assembly=%d %s; %s=%.3g"\n' % (
           self.channelDataSet,
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
       row_text = 'Axial'
-      for rc in colrows:
+      for rc in sub_addrs:
         row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
       csv_text += row_text + '\n'
 
       for axial_level in range( dset_shape[ 2 ] - 1, -1, -1 ):
 	row_text = '%.3f' % core.axialMeshCenters[ axial_level ]
-	for rc in colrows:
+	for rc in sub_addrs:
 	  row_text += ',%.7g' % \
 	      dset.value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
 	#end for rc
@@ -296,7 +298,7 @@ all state points.
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_index = self.assemblyAddr[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -306,19 +308,19 @@ all state points.
     if dset is not None:
       dset_shape = dset.value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
-      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+      assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
-      colrows = list( self.auxColRows )
-      colrows.insert( 0, self.colRow )
+      sub_addrs = list( self.auxSubAddrs )
+      sub_addrs.insert( 0, self.subAddr )
 
       csv_text = '"%s: Assembly=%d %s; Axial=%.3f"\n' % (
           self.channelDataSet,
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ]
           )
       row_text = self.state.timeDataSet
-      for rc in colrows:
+      for rc in sub_addrs:
         row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
       csv_text += row_text + '\n'
 
@@ -327,7 +329,7 @@ all state points.
 	if dset is not None:
 	  row_text = '%.3g' % \
 	      self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
-	  for rc in colrows:
+	  for rc in sub_addrs:
 	    row_text += ',%.7g' % \
 	        dset.value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
 	  #end for rc
@@ -802,7 +804,7 @@ Must be called from the UI thread.
     """
 @return			( state_index, assy_ndx, axial_level )
 """
-    return  ( self.stateIndex, self.assemblyIndex[ 0 ], self.axialValue[ 1 ] )
+    return  ( self.stateIndex, self.assemblyAddr[ 0 ], self.axialValue[ 1 ] )
   #end _CreateStateTuple
 
 
@@ -816,11 +818,10 @@ Must be called from the UI thread.
     tip_str = ''
     valid = cell_info is not None and \
         self.data.IsValid(
-              assembly_index = self.assemblyIndex,
+              assembly_index = self.assemblyAddr,
 	      axial_level = self.axialValue[ 1 ],
-	      dataset_name = self.channelDataSet,
-	      colrow = cell_info[ 1 : 3 ],
-	      colrow_mode = 'channel',
+	      sub_addr = cell_info[ 1 : 3 ],
+	      sub_addr_mode = 'channel',
 	      state_index = self.stateIndex
 	      )
 
@@ -831,7 +832,7 @@ Must be called from the UI thread.
       if dset is not None:
         value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
-	    self.axialValue[ 1 ], self.assemblyIndex[ 0 ]
+	    self.axialValue[ 1 ], self.assemblyAddr[ 0 ]
 	    ]
 
       #if value > 0.0:
@@ -923,10 +924,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """By default, all locks are enabled except
 """
     locks = set([
-        STATE_CHANGE_assemblyIndex,
-	STATE_CHANGE_auxColRows, STATE_CHANGE_axialValue,
-	STATE_CHANGE_channelDataSet, STATE_CHANGE_colRow,
-	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
+        STATE_CHANGE_axialValue,
+	STATE_CHANGE_coordinates,
+	STATE_CHANGE_curDataSet,
+	STATE_CHANGE_scaleMode,
+	STATE_CHANGE_stateIndex
 	])
     return  locks
   #end GetEventLockSet
@@ -979,8 +981,8 @@ Subclasses should override as needed.
     result = bmap
 
     if self.config is not None:
-      addr_list = list( self.auxColRows )
-      addr_list.insert( 0, self.colRow )
+      addr_list = list( self.auxSubAddrs )
+      addr_list.insert( 0, self.subAddr )
 
       new_bmap = None
       dc = None
@@ -1045,8 +1047,8 @@ Subclasses should override as needed.
     result = bmap
 
     if self.config is not None:
-      rel_col = self.colRow[ 0 ] - self.cellRange[ 0 ]
-      rel_row = self.colRow[ 1 ] - self.cellRange[ 1 ]
+      rel_col = self.subAddr[ 0 ] - self.cellRange[ 0 ]
+      rel_row = self.subAddr[ 1 ] - self.cellRange[ 1 ]
 
       if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
           rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
@@ -1104,7 +1106,7 @@ Subclasses should override as needed.
     result = \
         tpl is not None and len( tpl ) >= 3 and \
 	tpl[ 0 ] == self.stateIndex and \
-	tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
+	tpl[ 1 ] == self.assemblyAddr[ 0 ] and \
 	tpl[ 2 ] == self.axialValue[ 1 ]
     return  result
   #end IsTupleCurrent
@@ -1114,14 +1116,11 @@ Subclasses should override as needed.
   #	METHOD:		ChannelAssembly2DView._LoadDataModelValues()	-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
-    """This noop version should be implemented in subclasses to initialize
-attributes/properties that aren't already set in _LoadDataModel():
-  axialValue
-  stateIndex
+    """
 """
-    self.assemblyIndex = self.state.assemblyIndex
-    self.channelDataSet = self.state.channelDataSet
-    self.colRow = self.state.colRow
+    self.assemblyAddr = self.state.assemblyAddr
+    self.channelDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
 
@@ -1134,8 +1133,8 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyIndex', 'auxColRows',
-	'channelDataSet', 'colRow', 'showPins'
+	'assemblyAddr', 'auxSubAddrs', 'channelDataSet',
+	'showPins', 'subAddr'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1158,12 +1157,12 @@ be overridden by subclasses.
     valid = False
     chan_addr = self.FindChannel( *ev.GetPosition() )
 
-    if chan_addr is not None and chan_addr != self.colRow:
+    if chan_addr is not None and chan_addr != self.subAddr:
       valid = self.data.IsValid(
-          assembly_index = self.assemblyIndex[ 0 ],
+          assembly_index = self.assemblyAddr[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
-	  colrow = chan_addr,
-	  colrow_mode = 'channel',
+	  sub_addr = chan_addr,
+	  sub_addr_mode = 'channel',
 	  state_index = self.stateIndex
 	  )
 
@@ -1175,22 +1174,22 @@ be overridden by subclasses.
         value = dset[
             chan_addr[ 1 ], chan_addr[ 0 ],
 	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
-	    min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
       if not self.data.IsNoDataValue( self.channelDataSet, value ):
 	if is_aux:
-	  addrs = list( self.auxColRows )
+	  addrs = list( self.auxSubAddrs )
 	  if chan_addr in addrs:
 	    addrs.remove( chan_addr )
 	  else:
 	    addrs.append( chan_addr )
-	  self.FireStateChange( aux_colrows = addrs )
+	  self.FireStateChange( aux_sub_addrs = addrs )
 
 	else:
           self.FireStateChange(
-	      colrow = chan_addr,
-	      aux_colrows = []
+	      sub_addr = chan_addr,
+	      aux_sub_addrs = []
 	      )
       #end if not nodata value
     #end if valid
@@ -1257,8 +1256,8 @@ method via super.SaveProps().
     super( ChannelAssembly2DView, self ).SaveProps( props_dict )
 
     for k in (
-	'assemblyIndex', 'auxColRows',
-	'channelDataSet', 'colRow', 'showPins'
+	'assemblyAddr', 'auxSubAddrs', 'channelDataSet',
+	'showPins', 'subAddr'
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -1271,8 +1270,8 @@ method via super.SaveProps().
     """May be called from any thread.
 """
     if ds_name != self.channelDataSet:
-      wx.CallAfter( self.UpdateState, channel_dataset = ds_name )
-      self.FireStateChange( channel_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
+      self.FireStateChange( cur_dataset = ds_name )
   #end SetDataSet
 
 
@@ -1287,27 +1286,29 @@ method via super.SaveProps().
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
-    if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+    if 'assembly_addr' in kwargs and \
+        kwargs[ 'assembly_addr' ] != self.assemblyAddr:
       changed = True
-      self.assemblyIndex = kwargs[ 'assembly_index' ]
+      self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
-    if 'aux_colrows' in kwargs:
-      aux_colrows = self.data.NormalizeColRows( kwargs[ 'aux_colrows' ], 'channel' )
-      if aux_colrows != self.auxColRows:
+    if 'aux_sub_addrs' in kwargs:
+      aux_sub_addrs = \
+          self.data.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'channel' )
+      if aux_sub_addrs != self.auxSubAddrs:
         changed = True
-	self.auxColRows = aux_colrows
+	self.auxSubAddrs = aux_sub_addrs
 
-    if 'colrow' in kwargs:
-      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], 'channel' )
-      if colrow != self.colRow:
-        changed = True
-	self.colRow = colrow
-
-    if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
-      ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )
+    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.channelDataSet:
+      ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-        self.channelDataSet = kwargs[ 'channel_dataset' ]
+        self.channelDataSet = kwargs[ 'cur_dataset' ]
+
+    if 'sub_addr' in kwargs:
+      sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'channel' )
+      if sub_addr != self.subAddr:
+        changed = True
+	self.subAddr = sub_addr
 
     if changed:
       kwargs[ 'changed' ] = True

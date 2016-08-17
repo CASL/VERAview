@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-08-17	leerw@ornl.gov				-
+#	  Added _FindFirstDataSet().
 #		2016-08-15	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -331,6 +333,7 @@ Widget Class Hierarchy
     self.busy = False
     #self.busyCursor = None
     self.container = container
+    self.data = None
     self.state = None
 
     #self.derivedLabels = None
@@ -618,6 +621,34 @@ The default implementation returns None.
     #return  wx.EmptyImage( 400, 300 )
     return  None
   #end CreatePrintImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._FindFirstDataSet()			-
+  #----------------------------------------------------------------------
+  def _FindFirstDataSet( self, ds_name_in = None ):
+    """Finds the first dataset available from the types supported by this.
+@param  ds_name_in	optional dataset name to try first for a match against
+			supported types
+@return			dataset name or None
+"""
+    ds_name = None
+    if self.data is not None and self.data.HasData():
+      ds_types = self.GetDataSetTypes()
+      if self.data.GetDataSetType( ds_name_in ) in ds_types:
+        ds_name = ds_name_in
+      else:
+        for t in ds_types:
+	  ds_name_in = self.data.GetFirstDataSet( t )
+	  if ds_name_in:
+	    ds_name = ds_name_in
+	    break
+	#end for
+      #end if-else ds_name_in in ds_types
+    #end if self.data
+
+    return  ds_name
+  #end _FindFirstDataSet
 
 
   #----------------------------------------------------------------------
@@ -948,9 +979,10 @@ return True, in which case ToggleDataSetVisible() should also be overridden.
   #	METHOD:		Widget._LoadDataModel()				-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
-    """Must be implemented by extensions.  This is a noop implementation
+    """Must be implemented by extensions calling this method, which only
+initializes the data property.
 """
-    pass
+    self.data = State.FindDataModel( self.state )
   #end _LoadDataModel
 
 

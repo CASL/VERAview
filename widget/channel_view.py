@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-08-17	leerw@ornl.gov				-
+#	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
 #	  Changed _CreateClipboardData() signature.
 #		2016-08-02	leerw@ornl.gov				-
@@ -92,10 +94,10 @@ Properties:
   #	METHOD:		Channel2DView.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    self.assemblyIndex = ( -1, -1, -1 )
+    self.assemblyAddr = ( -1, -1, -1 )
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
-    self.colRow = None
     self.mode = ''
+    self.subAddr = None
 
     super( Channel2DView, self ).__init__( container, id )
   #end __init__
@@ -398,7 +400,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_index = self.assemblyAddr[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -481,7 +483,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_index = self.assemblyIndex[ 0 ],
+        assembly_index = self.assemblyAddr[ 0 ],
 	axial_level = self.axialValue[ 1 ],
 	state_index = self.stateIndex
 	)
@@ -491,7 +493,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     if dset is not None:
       dset_value = dset.value
       dset_shape = dset_value.shape
-      assy_ndx = min( self.assemblyIndex[ 0 ], dset_shape[ 3 ] - 1 )
+      assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       clip_data = dset_value[ :, :, axial_level, assy_ndx ]
@@ -499,7 +501,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       title = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"' % (
 	  self.channelDataSet,
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyIndex[ 1 : 3 ] ),
+	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  #self.data.core.axialMeshCenters[ axial_level ],
 	  self.state.timeDataSet,
@@ -823,8 +825,8 @@ The config and data attributes are good to go.
 			( state_index, axial_level )
 """
     return \
-        ( self.stateIndex, self.assemblyIndex[ 0 ], self.axialValue[ 1 ],
-	  self.assemblyIndex[ 1 ], self.assemblyIndex[ 2 ] ) \
+        ( self.stateIndex, self.assemblyAddr[ 0 ], self.axialValue[ 1 ],
+	  self.assemblyAddr[ 1 ], self.assemblyAddr[ 2 ] ) \
         if self.mode == 'assy' else \
         ( self.stateIndex, self.axialValue[ 1 ] )
   #end _CreateStateTuple
@@ -890,9 +892,9 @@ The config and data attributes are good to go.
 
 	chan_wd = self.config[ 'channelWidth' ]
 	chan_col = int( (off_x % assy_advance) / chan_wd )
-	if chan_col > self.data.core.npin: chan_col = -1
+	if chan_col > self.data.core.npinx: chan_col = -1
 	chan_row = int( (off_y % assy_advance) / chan_wd )
-	if chan_row > self.data.core.npin: chan_row = -1
+	if chan_row > self.data.core.npiny: chan_row = -1
 
 	result = ( assy_ndx, cell_x, cell_y, chan_col, chan_row )
       #end if event within display
@@ -983,9 +985,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 """
     locks = set([
-        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-	STATE_CHANGE_channelDataSet, STATE_CHANGE_colRow,
-	STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
+        STATE_CHANGE_axialValue,
+	STATE_CHANGE_coordinates,
+	STATE_CHANGE_curDataSet,
+	STATE_CHANGE_scaleMode,
+	STATE_CHANGE_stateIndex
 	])
     return  locks
   #end GetEventLockSet
@@ -1026,8 +1030,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			-- Core mode
 #			--
       elif self.config[ 'mode' ] == 'core':
-        rel_col = self.assemblyIndex[ 1 ] - self.cellRange[ 0 ]
-        rel_row = self.assemblyIndex[ 2 ] - self.cellRange[ 1 ]
+        rel_col = self.assemblyAddr[ 1 ] - self.cellRange[ 0 ]
+        rel_row = self.assemblyAddr[ 2 ] - self.cellRange[ 1 ]
 
         if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
             rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
@@ -1047,9 +1051,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			-- Assy mode
 #			--
       else:  # 'assy'
-	if self.colRow[ 0 ] >= 0 and self.colRow[ 1 ] >= 0 and \
-	    self.colRow[ 0 ] <= self.data.core.npinx and \
-	    self.colRow[ 1 ] <= self.data.core.npiny:
+	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
+	    self.subAddr[ 0 ] <= self.data.core.npinx and \
+	    self.subAddr[ 1 ] <= self.data.core.npiny:
           assy_region = self.config[ 'assemblyRegion' ]
 	  chan_gap = self.config[ 'channelGap' ]
 	  chan_wd = self.config[ 'channelWidth' ]
@@ -1058,8 +1062,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 	  rect = \
 	    [
-	      self.colRow[ 0 ] * chan_adv + assy_region[ 0 ],
-	      self.colRow[ 1 ] * chan_adv + assy_region[ 1 ],
+	      self.subAddr[ 0 ] * chan_adv + assy_region[ 0 ],
+	      self.subAddr[ 1 ] * chan_adv + assy_region[ 1 ],
 	      chan_adv, chan_adv
 	    ]
         #end if cell in drawing range
@@ -1122,10 +1126,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       result = \
           tpl is not None and len( tpl ) >= 5 and \
           tpl[ 0 ] == self.stateIndex and \
-	  tpl[ 1 ] == self.assemblyIndex[ 0 ] and \
+	  tpl[ 1 ] == self.assemblyAddr[ 0 ] and \
 	  tpl[ 2 ] == self.axialValue[ 1 ] and \
-	  tpl[ 3 ] == self.assemblyIndex[ 1 ] and \
-	  tpl[ 4 ] == self.assemblyIndex[ 2 ]
+	  tpl[ 3 ] == self.assemblyAddr[ 1 ] and \
+	  tpl[ 4 ] == self.assemblyAddr[ 2 ]
 
     else:
       result = \
@@ -1143,9 +1147,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def _LoadDataModelValues( self ):
     """
 """
-    self.assemblyIndex = self.state.assemblyIndex
-    self.channelDataSet = self.state.channelDataSet
-    self.colRow = self.state.colRow
+    self.assemblyAddr = self.state.assemblyAddr
+    self.channelDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
 
@@ -1157,7 +1161,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'assemblyIndex', 'channelDataSet', 'colRow', 'mode' ):
+    for k in ( 'assemblyAddr', 'channelDataSet', 'mode', 'subAddr' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1177,13 +1181,14 @@ be overridden by subclasses.
     cell_info = self.FindAssembly( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
-      assy_ndx = cell_info[ 0 : 3 ]
-      if assy_ndx != self.assemblyIndex:
-	state_args[ 'assembly_index' ] = assy_ndx
+      assy_addr = cell_info[ 0 : 3 ]
+      if assy_addr != self.assemblyAddr:
+	state_args[ 'assembly_addr' ] = assy_addr
 
-      chan_addr = cell_info[ 3 : 5 ]
-      if chan_addr != self.colRow:
-	state_args[ 'colrow' ] = chan_addr
+      if ev.GetClickCount() > 1:
+        chan_addr = cell_info[ 3 : 5 ]
+        if chan_addr != self.subAddr:
+	  state_args[ 'sub_addr' ] = chan_addr
 
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
@@ -1198,8 +1203,8 @@ be overridden by subclasses.
     """Do post drag things after drag processing.
 """
     if right - left == 1 and bottom - top == 1:
-      self.assemblyIndex = self.dragStartCell
-      self.FireStateChange( assembly_index = self.assemblyIndex )
+      self.assemblyAddr = self.dragStartCell
+      self.FireStateChange( assembly_addr = self.assemblyAddr )
       self._SetMode( 'assy' )
     else:
       self._SetMode( 'core' )
@@ -1236,13 +1241,13 @@ be overridden by subclasses.
         dset_array = dset.value
 	if chan_addr[ 1 ] < dset_array.shape[ 0 ] and \
 	    chan_addr[ 0 ] < dset_array.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < dset_array.shape[ 3 ]:
+	    self.assemblyAddr[ 0 ] < dset_array.shape[ 3 ]:
 	  chan_value = dset_array[
 	      chan_addr[ 1 ], chan_addr[ 0 ],
 	      min( self.axialValue[ 1 ], dset_array.shape[ 2 ] - 1 ),
-	      self.assemblyIndex[ 0 ]
+	      self.assemblyAddr[ 0 ]
 	      ]
-#	    self.axialBean.axialLevel, self.assemblyIndex
+#	    self.axialBean.axialLevel, self.assemblyAddr
 
       #if chan_value > 0.0:
       if not self.data.IsNoDataValue( ds_name, chan_value ):
@@ -1261,7 +1266,7 @@ be overridden by subclasses.
     """
 """
     chan_addr = self.FindChannel( *ev.GetPosition() )
-    if chan_addr is not None and chan_addr != self.colRow:
+    if chan_addr is not None and chan_addr != self.subAddr:
       state_ndx = self.stateIndex
       ds_name = self.channelDataSet
       chan_value = 0.0
@@ -1272,17 +1277,17 @@ be overridden by subclasses.
         dset_array = dset.value
 	if chan_addr[ 1 ] < dset_array.shape[ 0 ] and \
 	    chan_addr[ 0 ] < dset_array.shape[ 1 ] and \
-	    self.assemblyIndex[ 0 ] < dset_array.shape[ 3 ]:
+	    self.assemblyAddr[ 0 ] < dset_array.shape[ 3 ]:
 	  chan_value = dset_array[
 	      chan_addr[ 1 ], chan_addr[ 0 ],
 	      min( self.axialValue[ 1 ], dset_array.shape[ 2 ] - 1 ),
-	      self.assemblyIndex[ 0 ]
+	      self.assemblyAddr[ 0 ]
 	      ]
-#	    self.axialBean.axialLevel, self.assemblyIndex
+#	    self.axialBean.axialLevel, self.assemblyAddr
 
       #if chan_value > 0.0:
       if not self.data.IsNoDataValue( ds_name, chan_value ):
-	self.FireStateChange( colrow = chan_addr )
+	self.FireStateChange( sub_addr = chan_addr )
     #end if chan_addr changed
   #end _OnMouseUpAssy
 
@@ -1310,7 +1315,7 @@ method via super.SaveProps().
 """
     super( Channel2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyIndex', 'channelDataSet', 'colRow', 'mode' ):
+    for k in ( 'assemblyAddr', 'channelDataSet', 'mode', 'subAddr' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1322,8 +1327,8 @@ method via super.SaveProps().
     """May be called from any thread.
 """
     if ds_name != self.channelDataSet:
-      wx.CallAfter( self.UpdateState, channel_dataset = ds_name )
-      self.FireStateChange( channel_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
+      self.FireStateChange( cur_dataset = ds_name )
   #end SetDataSet
 
 
@@ -1367,21 +1372,23 @@ method via super.SaveProps().
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
-    if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+    if 'assembly_addr' in kwargs and \
+        kwargs[ 'assembly_addr' ] != self.assemblyAddr:
       changed = True
-      self.assemblyIndex = kwargs[ 'assembly_index' ]
+      self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
-    if 'colrow' in kwargs:
-      colrow = self.data.NormalizeColRow( kwargs[ 'colrow' ], mode = 'channel' )
-      if colrow != self.colRow:
-        changed = True
-        self.colRow = colrow
-
-    if 'channel_dataset' in kwargs and kwargs[ 'channel_dataset' ] != self.channelDataSet:
-      ds_type = self.data.GetDataSetType( kwargs[ 'channel_dataset' ] )
+    if 'cur_dataset' in kwargs and \
+        kwargs[ 'cur_dataset' ] != self.channelDataSet:
+      ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-        self.channelDataSet = kwargs[ 'channel_dataset' ]
+        self.channelDataSet = kwargs[ 'cur_dataset' ]
+
+    if 'sub_addr' in kwargs:
+      sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'channel' )
+      if sub_addr != self.subAddr:
+        changed = True
+        self.subAddr = sub_addr
 
     if changed:
       kwargs[ 'changed' ] = True

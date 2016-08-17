@@ -239,7 +239,6 @@ _CreateValueString()
     self.cellRangeStack = []
     self.config = None
     self.curSize = None
-    self.data = None
     self.dragStartCell = None
     self.dragStartPosition = None
     self.isLoaded = False
@@ -1106,7 +1105,8 @@ Sets attributes:
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     print >> sys.stderr, '[RasterWidget._LoadDataModel]'
-    self.data = State.FindDataModel( self.state )
+    #self.data = State.FindDataModel( self.state )
+    super( RasterWidget, self )._LoadDataModel()
     if self.data is not None and self.data.HasData() and \
         not self.isLoaded:
       self.isLoaded = True

@@ -603,23 +603,21 @@ WIDGET_MAP and TOOLBAR_ITEMS
           self.Create3DWidget( widget_class, refit_flag )
         else:
           wc = self.Create2DWidget( widget_class, refit_flag )
-	  title = wc.widget.GetTitle()
-          if title == 'Axial Plots':
-	    #wc.widget.InitDataSetSelections( self.axialPlotTypes )
-	    wc.widget.InitDataSetSelections( [ 'channel', 'pin' ] )
-          elif title == 'Detector 2D Multi View':
-	    pass
-	    wc.widget.InitDataSetSelections(
-	        data.GetFirstDataSet( 'detector' ),
-	        data.GetFirstDataSet( 'fixed_detector' )
-#	        self.state.detectorDataSet,
-#		self.state.fixedDetectorDataSet
-		)
-          elif title == 'Time Plots':
-	    wc.widget.InitDataSetSelections(
-	        [ 'channel', 'pin' ]
-	        #[ 'detector', 'fixed_detector', 'pin', 'scalar' ]
-		)
+#x	  title = wc.widget.GetTitle()
+#x          if title == 'Axial Plots':
+#x	    #wc.widget.InitDataSetSelections( self.axialPlotTypes )
+#x	    wc.widget.InitDataSetSelections( [ 'channel', 'pin' ] )
+#x          elif title == 'Detector 2D Multi View':
+#x	    pass
+#x	    wc.widget.InitDataSetSelections(
+#x	        data.GetFirstDataSet( 'detector' ),
+#x	        data.GetFirstDataSet( 'fixed_detector' )
+#x		)
+#x          elif title == 'Time Plots':
+#x	    wc.widget.InitDataSetSelections(
+#x	        [ 'channel', 'pin' ]
+#x	        #[ 'detector', 'fixed_detector', 'pin', 'scalar' ]
+#x		)
       except Exception, ex:
         wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
     #end if-else
@@ -1102,9 +1100,9 @@ Must be called from the UI thread.
 ##            'widget.detector_multi_view.Detector2DMultiView',
             'widget.axial_plot.AxialPlot',
             'widget.time_plots.TimePlots',
-##	    'widget.channel_view.Channel2DView',
-##	    'widget.channel_assembly_view.ChannelAssembly2DView',
-##	    'widget.channel_axial_view.ChannelAxial2DView',
+	    'widget.channel_view.Channel2DView',
+	    'widget.channel_assembly_view.ChannelAssembly2DView',
+	    'widget.channel_axial_view.ChannelAxial2DView',
             ]
 
 #			-- Create widgets
