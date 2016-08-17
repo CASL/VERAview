@@ -1092,7 +1092,7 @@ Must be called from the UI thread.
       if len( data.states ) > 1:
         widget_list.append( 'widget.time_plots.TimePlots' )
 
-      if True:
+      if False:
         widget_list = [
             'widget.core_view.Core2DView',
             'widget.assembly_view.Assembly2DView',

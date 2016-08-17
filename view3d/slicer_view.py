@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-08-17	leerw@ornl.gov				-
+#	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
 #	  Changed _CreateClipboardData() signature.
 #		2016-03-08	leerw@ornl.gov				-
@@ -51,7 +53,7 @@ class Slicer3DView( Widget ):
   #	METHOD:		Slicer3DView.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    self.assemblyIndex = ( -1, -1, -1 )
+    self.assemblyAddr = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
     self.coreExtent = None  # left, top, right + 1, bottom + 1, dx, dy
     #self.curSize = None
@@ -60,9 +62,9 @@ class Slicer3DView( Widget ):
     #self.autoSync = True
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
-    self.colRow = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
+    self.subAddr = None
 
 #    self.toolButtonDefs = \
 #      [
@@ -81,11 +83,11 @@ class Slicer3DView( Widget ):
   #	METHOD:		Slicer3DView.CalcDataState()			-
   #----------------------------------------------------------------------
   def CalcDataState( self, slice_position ):
-    """Calculates axialValue (axial_cm, core_ndx, detector_ndx ),
-assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
+    """Calculates axial_value (axial_cm, core_ndx, detector_ndx ),
+assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 @param  slice_position	[ z, x, y ]
-@return			dict with 'axial_value', 'assembly_ndex', and
-			'pin_colrow' keys, or None if no data
+@return			dict with 'assembly_addr', 'axial_value', and
+			'sub_addr' keys, or None if no data
 """
     rec = None
 
@@ -107,21 +109,21 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
         #assy_row = core.nassy - 1 - int( slice_y / core.npiny )
         assy_col = int( slice_x / core.npinx ) + self.coreExtent[ 0 ]
         assy_row = self.coreExtent[ 3 ] - 1 - int( slice_y / core.npiny )
-	assembly_index = self.data.CreateAssemblyAddr( assy_col, assy_row )
+	assembly_addr = self.data.CreateAssemblyAddr( assy_col, assy_row )
 
 	pin_col = int( slice_x ) % core.npinx
 	pin_row = core.npiny - (int( slice_y ) % core.npiny)
-	pin_colrow = ( pin_col, pin_row )
+	sub_addr = ( pin_col, pin_row )
       else:
-        assembly_index = ( -1, -1, -1 )
-        pin_colrow = ( -1, -1 )
+        assembly_addr = ( -1, -1, -1 )
+        sub_addr = ( -1, -1 )
       #end if-else
 
       rec = \
         {
-        'assembly_index': assembly_index,
+        'assembly_addr': assembly_addr,
         'axial_value': axial_value,
-        'colrow': colrow
+        'sub_addr': sub_addr
         }
     #end if data defined
 
@@ -142,13 +144,13 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 #	--
     z = self.meshLevels[ self.axialValue[ 1 ] ]
 
-    assy_col = self.assemblyIndex[ 1 ] - self.coreExtent[ 0 ]
-    x = core.npinx * assy_col + self.colRow[ 0 ]
+    assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
+    x = core.npinx * assy_col + self.subAddr[ 0 ]
 
-    assy_row = self.assemblyIndex[ 2 ] - self.coreExtent[ 1 ]
+    assy_row = self.assemblyAddr[ 2 ] - self.coreExtent[ 1 ]
     y = \
         core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
-	self.colRow[ 1 ]
+	self.subAddr[ 1 ]
 
     return  ( z, x, y )
   #end CalcSlicePosition
@@ -306,7 +308,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     if matrix is not None and self.meshLevels is not None:
       valid = DataModel.IsValidObj(
 	  self.data,
-	  assembly_index = self.assemblyIndex[ 0 ],
+	  assembly_index = self.assemblyAddr[ 0 ],
 	  axial_level = self.axialValue[ 1 ]
           )
 
@@ -411,9 +413,10 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
     locks = set([
-        STATE_CHANGE_assemblyIndex, STATE_CHANGE_axialValue,
-        STATE_CHANGE_colRow, STATE_CHANGE_pinDataSet,
-        STATE_CHANGE_stateIndex, STATE_CHANGE_timeDataSet
+        STATE_CHANGE_axialValue,
+        STATE_CHANGE_coordinates,
+        STATE_CHANGE_curDataSet,
+        STATE_CHANGE_stateIndex
         ])
     return  locks
   #end GetEventLockSet
@@ -478,10 +481,10 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
   def _LoadDataModel( self ):
     self.data = State.FindDataModel( self.state )
     if self.data is not None and self.data.HasData():
-      self.assemblyIndex = self.state.assemblyIndex
+      self.assemblyAddr = self.state.assemblyAddr
       self.axialValue = self.state.axialValue
       self.coreExtent = self.data.ExtractSymmetryExtent()
-      self.colRow = self.state.colRow
+      self.subAddr = self.state.subAddr
       #self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
 
@@ -494,7 +497,7 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 #	    wx.ICON_INFORMATION | wx.OK_DEFAULT
 #	    )
 #      else:
-      self.pinDataSet = self.state.pinDataSet
+      self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
 
       self._UpdateData()
     #end if
@@ -541,20 +544,20 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
 #    #print >> sys.stderr, '[Slicer3DView._OnSlicePosition]', str( rec )
 #
 #    if rec is not None:
-#      if rec[ 'assembly_index' ] != self.assemblyIndex:
-#        self.assemblyIndex = rec[ 'assembly_index' ]
+#      if rec[ 'assembly_addr' ] != self.assemblyAddr:
+#        self.assemblyAddr = rec[ 'assembly_addr' ]
 #      else:
-#        del rec[ 'assembly_index' ]
+#        del rec[ 'assembly_addr' ]
 #
 #      if rec[ 'axial_value' ] != self.axialValue:
 #        self.axialValue = self.data.NormalizeAxialValue( rec[ 'axial_value' ] )
 #      else:
 #        del rec[ 'axial_value' ]
 #
-#      if rec[ 'pin_colrow' ] != self.pinColRow:
-#        self.pinColRow = self.data.NormalizePinColRow( rec[ 'pin_colrow' ] )
+#      if rec[ 'sub_addr' ] != self.subAddr:
+#        self.subAddr = self.data.NormalizePinSubAddr( rec[ 'sub_addr' ] )
 #      else:
-#        del rec[ 'pin_colrow' ]
+#        del rec[ 'sub_addr' ]
 #
 ##      if self.autoSync and len( rec ) > 0:
 ##        self.FireStateChange( **rec )
@@ -611,30 +614,32 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       position_changed = kwargs.get( 'position_changed', False )
       data_changed = kwargs.get( 'data_changed', False )
 
-      if 'assembly_index' in kwargs and kwargs[ 'assembly_index' ] != self.assemblyIndex:
+      if 'assembly_addr' in kwargs and \
+          kwargs[ 'assembly_addr' ] != self.assemblyAddr:
         position_changed = True
-	self.assemblyIndex = kwargs[ 'assembly_index' ]
+	self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
-      if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+      if 'axial_value' in kwargs and \
+          kwargs[ 'axial_value' ] != self.axialValue:
         position_changed = True
         self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
-      if 'colrow' in kwargs and kwargs[ 'colrow' ] != self.colRow:
-        position_changed = True
-        self.colRow = self.data.NormalizeColRow( kwargs[ 'colrow' ] )
-
-      if 'pin_dataset' in kwargs and kwargs[ 'pin_dataset' ] != self.pinDataSet:
-        data_changed = True
-        self.pinDataSet = kwargs[ 'pin_dataset' ]
+      if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
+        ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
+        if ds_type and ds_type in self.GetDataSetTypes():
+          data_changed = True
+          self.pinDataSet = kwargs[ 'pin_dataset' ]
 
       if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
         data_changed = True
         self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
 
+      if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
+        position_changed = True
+        self.subAddr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ] )
+
       if data_changed:
         self._UpdateData()
-
-#      elif position_changed and self.autoSync:
       elif position_changed:
         self._UpdateSlicePositions()
     #end try
