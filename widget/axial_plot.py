@@ -294,13 +294,13 @@ dataset names and ( rc, values ) pairs.
 	  elif ds_type.startswith( 'detector' ):
 	    if 'detector' not in title_set:
 	      title_set.add( 'detector' )
-	      title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
+	      title += '; Detector=%d' % ( self.assemblyAddr[ 0 ] + 1 )
 	    detector_mesh_datasets[ ds_display_name ] = data_set_item
 
 	  elif ds_type.startswith( 'fixed_detector' ):
 	    if 'detector' not in title_set:
 	      title_set.add( 'detector' )
-	      title += '; Detector=%d' % ( self.detectorIndex[ 0 ] + 1 )
+	      title += '; Detector=%d' % ( self.assemblyAddr[ 0 ] + 1 )
 	    fixed_detector_mesh_datasets[ ds_display_name ] = data_set_item
 
 	  else:
@@ -520,12 +520,12 @@ configuring the grid, plotting, and creating self.axline.
 	    'Pin'
         title_line2 += '%s %s' % ( prefix, str( rc ) )
 
-      #if 'detector' in self.dataSetTypes: # and self.detectorIndex[ 0 ] >= 0
+      #if 'detector' in self.dataSetTypes: # and self.assemblyAddr[ 0 ] >= 0
       if 'detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Det %d %s' % \
-	    ( self.detectorIndex[ 0 ] + 1,
-	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
+	    ( self.assemblyAddr[ 0 ] + 1,
+	      self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ) )
 
 #      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
 #        pin_rc = ( self.pinsubAddr[ 0 ] + 1, self.pinsubAddr[ 1 ] + 1 )
@@ -535,8 +535,8 @@ configuring the grid, plotting, and creating self.axline.
       if 'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Van %d %s' % \
-	    ( self.detectorIndex[ 0 ] + 1,
-	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
+	    ( self.assemblyAddr[ 0 ] + 1,
+	      self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ) )
 
       if len( title_line2 ) > 0:
         title_str += '\n' + title_line2
@@ -839,7 +839,7 @@ to be passed to UpdateState().  Assume self.data is valid.
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
       sub_addr = \
           self.data.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
-      #detector_ndx = self.data.NormalizeDetectorIndex( self.state.detectorIndex )
+      #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
@@ -1090,7 +1090,7 @@ Must be called from the event thread.
 	  elif ds_type.startswith( 'detector' ):
 	    ds_values = self.data.ReadDataSetAxialValues(
 	        ds_name,
-		detector_index = self.detectorIndex[ 0 ],
+		detector_index = self.assemblyAddr[ 0 ],
 		state_index = self.stateIndex
 		)
             self.dataSetTypes.add( 'detector' )
@@ -1114,7 +1114,7 @@ Must be called from the event thread.
 	  elif ds_type.startswith( 'fixed_detector' ):
 	    ds_values = self.data.ReadDataSetAxialValues(
 	        ds_name,
-		detector_index = self.detectorIndex[ 0 ],
+		detector_index = self.assemblyAddr[ 0 ],
 		state_index = self.stateIndex
 		)
             self.dataSetTypes.add( 'fixed_detector' )

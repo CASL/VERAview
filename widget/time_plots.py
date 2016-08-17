@@ -365,8 +365,8 @@ configuring the grid, plotting, and creating self.axline.
           'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
 	title_line2 += 'Det %d %s' % \
-	    ( self.detectorIndex[ 0 ] + 1,
-	      self.data.core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ) )
+	    ( self.assemblyAddr[ 0 ] + 1,
+	      self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ) )
 
 #      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
 #        pin_rc = ( self.pinsubAddr[ 0 ] + 1, self.pinsubAddr[ 1 ] + 1 )
@@ -657,7 +657,7 @@ XXX size according to how many datasets selected?
       assy_addr = self.data.NormalizeAssemblyAddr( self.state.assemblyAddr )
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
       sub_addr = self.data.NormalizeSubAddr( self.state.subAddr )
-      #detector_ndx = self.data.NormalizeDetectorIndex( self.state.detectorIndex )
+      #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
@@ -913,7 +913,7 @@ already read.
 
 #					-- Detector
 	  elif ds_type.startswith( 'detector' ):
-	    spec[ 'detector_index' ] = self.detectorIndex[ 0 ]
+	    spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
 	    specs.append( spec )
             self.dataSetTypes.add( 'detector' )
@@ -933,7 +933,7 @@ already read.
 
 #					-- Fixed detector
 	  elif ds_type.startswith( 'fixed_detector' ):
-	    spec[ 'detector_index' ] = self.detectorIndex[ 0 ]
+	    spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
 	    specs.append( spec )
             self.dataSetTypes.add( 'fixed_detector' )

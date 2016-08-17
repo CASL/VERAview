@@ -113,6 +113,7 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
+#xxxxx do this like CoreView
     csv_text = None
     dset = None
     is_valid = DataModel.IsValidObj(

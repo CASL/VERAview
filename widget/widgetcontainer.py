@@ -1056,19 +1056,21 @@ Must be called from the UI event thread
 
 #			-- Must have datasets
 #			--
+      display_mode = self.widget.GetDataSetDisplayMode()
       selected_ds_names = []
-      selected_flag = self.widget.GetDataSetDisplayMode() == 'selected'
+#_      selected_flag = display_mode == 'selected'
       dataset_names = []
       widget_ds_types = self.widget.GetDataSetTypes()
       if widget_ds_types:
         for dtype in widget_ds_types:
 	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
-#Back to just one selected dataset
-#	  if selected_flag and dtype.find( ':' ) < 0 and \
-#	      data_model.HasDataSetType( dtype ):
-#	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
+#_Back to just one selected dataset
+#_	  if selected_flag and dtype.find( ':' ) < 0 and \
+#_	      data_model.HasDataSetType( dtype ):
+#_	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
         #end for
-	selected_ds_names = [ 'Selected dataset' ]
+	if display_mode == 'selected':
+	  selected_ds_names = [ 'Selected dataset' ]
       #end if
 
 #				-- Populate dataset items

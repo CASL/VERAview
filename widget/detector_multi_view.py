@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-08-17	leerw@ornl.gov				-
+#	  New State events.
 #		2016-08-02	leerw@ornl.gov				-
 #	  Merging colrow events.
 #		2016-07-11	leerw@ornl.gov				-
@@ -131,11 +133,8 @@ Attrs/properties:
   #	METHOD:		Detector2DMultiView.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
-    #self.detectorDataSet = kwargs.get( 'dataset', 'detector_response' )
-    #self.detectorDataSet = 'detector_response'
+    self.detectorAddr = ( -1, -1, -1 )
     self.detectorDataSets = set()
-    self.detectorIndex = ( -1, -1, -1 )
-    #self.fixedDetectorDataSet = 'fixed_detector_response'
     self.fixedDetectorDataSets = set()
     self.mode = 'plot'  # 'numbers', 'plot'
 
@@ -286,15 +285,15 @@ Attrs/properties:
 #		--
     is_valid = DataModel.IsValidObj(
         self.data,
-	detector_index = self.detectorIndex[ 0 ],
+	detector_index = self.detectorAddr[ 0 ],
 	state_index = self.stateIndex
 	)
     if is_valid:
       core = self.data.GetCore()
-      det_ndx = self.detectorIndex[ 0 ]
+      det_ndx = self.detectorAddr[ 0 ]
       csv_text = '"Detector=%d %s; %s=%.3g"\n' % (
 	  det_ndx + 1,
-	  core.CreateAssyLabel( *self.detectorIndex[ 1 : 3 ] ),
+	  core.CreateAssyLabel( *self.detectorAddr[ 1 : 3 ] ),
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
@@ -1144,7 +1143,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    )
 	cell_y = max( self.cellRange[ 1 ], cell_y )
 
-	result = self.data.CreateDetectorIndex( cell_x, cell_y )
+	result = self.data.CreateDetectorAddr( cell_x, cell_y )
 	#det_ndx = self.data.core.detectorMap[ cell_y, cell_x ] - 1
 	#result = ( det_ndx, cell_x, cell_y )
       #end if event within display
@@ -1244,8 +1243,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """Returns 'multi'
 @return			'multi'
 """
-    #xxx
-    #return  'selected'
     return  'multi'
   #end GetDataSetDisplayMode
 
@@ -1311,8 +1308,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     result = bmap
 
     if self.config is not None:
-      rel_col = self.detectorIndex[ 1 ] - self.cellRange[ 0 ]
-      rel_row = self.detectorIndex[ 2 ] - self.cellRange[ 1 ]
+      rel_col = self.detectorAddr[ 1 ] - self.cellRange[ 0 ]
+      rel_row = self.detectorAddr[ 2 ] - self.cellRange[ 1 ]
 
       if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
           rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
@@ -1364,9 +1361,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def InitDataSetSelections( self, *ds_names ):
     """Special hook called in VeraViewFrame.LoadDataModel().
+@deprecated
 """
-    #xxx
-
     for name in ds_names:
       ds_type = self.data.GetDataSetType( name )
       if ds_type == 'detector':
@@ -1406,13 +1402,21 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._LoadDataModelValues()		-
+  #	METHOD:		Detector2DMultiView._LoadDataModelValues()	-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """
 """
+    self.detectorAddr = self.state.assemblyAddr
+
+    if self.data is not None and self.data.HasData():
+      ds_name = self.data.GetFirstDataSet( 'detector' )
+      if ds_name:
+        self.detectorDataSets.add( ds_name )
+      ds_name = self.data.GetFirstDataSet( 'fixed_detector' )
+      if ds_name:
+        self.fixedDetectorDataSets.add( ds_name )
     #self.detectorDataSet = self.state.detectorDataSet
-    self.detectorIndex = self.state.detectorIndex
     #self.fixedDetectorDataSet = self.state.fixedDetectorDataSet
   #end _LoadDataModelValues
 
@@ -1425,13 +1429,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-#	'detectorDataSet', 'detectorDataSets', 'detectorIndex',
-#	'fixedDetectorDataSet', 'fixedDetectorDataSets'
     for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       if k in props_dict:
         setattr( self, k, set( props_dict[ k ] ) )
 
-    for k in ( 'detectorIndex', ):
+    for k in ( 'detectorAddr', ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1455,14 +1457,14 @@ be overridden by subclasses.
 #		--
     valid = False
     det = self.FindDetector( *ev.GetPosition() )
-    if det is not None and det[ 0 ] >= 0 and det != self.detectorIndex:
+    if det is not None and det[ 0 ] >= 0 and det != self.detectorAddr:
       valid = self.data.IsValid(
 	  detector_index = det[ 0 ],
 	  state_index = self.stateIndex
 	  )
 
     if valid:
-      self.FireStateChange( detector_index = det )
+      self.FireStateChange( assembly_addr = det )
     #end if valid
   #end _OnClick
 
@@ -1501,13 +1503,9 @@ method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
     super( Detector2DMultiView, self ).SaveProps( props_dict )
-#	'detectorDataSet', 'detectorDataSets', 'detectorIndex',
-#	'fixedDetectorDataSet', 'fixedDetectorDataSets'
-#x    for k in ( 'detectorDataSets', 'detectorIndex', 'fixedDetectorDataSets' ):
-#x      props_dict[ k ] = getattr( self, k )
     for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       props_dict[ k ] = list( getattr( self, k ) )
-    for k in ( 'detectorIndex', 'mode' ):
+    for k in ( 'detectorAddr', 'mode' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1615,15 +1613,10 @@ Must be called from the event thread.
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
-#    if 'detector_dataset' in kwargs and kwargs[ 'detector_dataset' ] != self.detectorDataSet:
-#      ds_type = self.data.GetDataSetType( kwargs[ 'detector_dataset' ] )
-#      if ds_type and ds_type in self.GetDataSetTypes():
-#        resized = True
-#        self.detectorDataSet = kwargs[ 'detector_dataset' ]
-
-    if 'detector_index' in kwargs and kwargs[ 'detector_index' ] != self.detectorIndex:
+    if 'assembly_addr' in kwargs and \
+        kwargs[ 'assembly_addr' ] != self.detectorAddr:
       changed = True
-      self.detectorIndex = kwargs[ 'detector_index' ]
+      self.detectorAddr = kwargs[ 'assembly_addr' ]
 
 #    if 'fixed_detector_dataset' in kwargs and kwargs[ 'fixed_detector_dataset' ] != self.fixedDetectorDataSet:
 #      ds_type = self.data.GetDataSetType( kwargs[ 'fixed_detector_dataset' ] )
