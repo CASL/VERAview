@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-08-18	leerw@ornl.gov				-
+#	  Redefining axial levels in preparation for multiple files.
+#	  Renaming detectorMeshCenters to proper detectorMesh
 #		2016-08-15	leerw@ornl.gov				-
 #	  State/event refactoring.
 #		2016-08-02	leerw@ornl.gov				-
@@ -137,7 +140,8 @@
 #		2014-12-28	leerw@ornl.gov				-
 #		2014-10-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import copy, cStringIO, h5py, json, math, os, sys, tempfile, threading, traceback
+import bisect, copy, cStringIO, h5py, json, math, os, sys, \
+    tempfile, threading, traceback
 import numpy as np
 import pdb
 
@@ -272,7 +276,7 @@ Properties:
 			origin top,left (row, col)
   coreSym		symmetry value
   detectorMap		np.ndarray of assembly indexes (row, col)
-  detectorMeshCenters	np.ndarray of center-of-mesh values
+  detectorMesh		np.ndarray of center-of-mesh values
   group			HDF5 group
   nass			number of full core assemblies
   nassx			number of core assembly columns
@@ -366,7 +370,7 @@ Properties:
     self.coreMap = None
     self.coreSym = 0
     self.detectorMap = None
-    self.detectorMeshCenters = None
+    self.detectorMesh = None
     self.group = None
     self.nass = 0
     self.nassx = 0
@@ -608,15 +612,12 @@ Properties:
 #		-- (starts at top)
     item = self._FindInGroup( 'detector_mesh', core_group )
     if item is not None:
-#				-- Numpy magic
+#				-- Detector meshes are not centers
       t = np.copy( item.value )
-#x      t2 = np.r_[ t, np.roll( t, -1 ) ]
-#x      self.detectorMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
-#x      self.ndetax = item.shape[ 0 ] - 1
-      self.detectorMeshCenters = t
+      self.detectorMesh = t
       self.ndetax = item.shape[ 0 ]
     else:
-      self.detectorMeshCenters = self.axialMeshCenters
+      self.detectorMesh = self.axialMeshCenters
       self.ndetax = self.nax
     #end if detector_mesh
 
@@ -626,7 +627,7 @@ Properties:
     item = self._FindInGroup( 'fixed_detector_mesh', core_group )
     if item is not None:
       self.fixedDetectorMesh = item.value
-#				-- Numpy magic
+#				-- Numpy magic for centers
       t = np.copy( item.value )
       t2 = np.r_[ t, np.roll( t, -1 ) ]
       self.fixedDetectorMeshCenters = \
@@ -675,8 +676,8 @@ Properties:
     obj[ 'coreSym' ] = self.coreSym
     if self.detectorMap is not None:
       obj[ 'detectorMap' ] = self.detectorMap.tolist()
-    if self.detectorMeshCenters is not None:
-      obj[ 'detectorMeshCenters' ] = self.detectorMeshCenters.tolist()
+    if self.detectorMesh is not None:
+      obj[ 'detectorMesh' ] = self.detectorMesh.tolist()
     obj[ 'nass' ] = self.nass
     obj[ 'nassx' ] = self.nassx
     obj[ 'nassy' ] = self.nassy
@@ -717,6 +718,7 @@ Properties:
   derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
   h5File		h5py.File
+  maxAxialValue		maximum axial value (cm) 
   ranges		dict of ranges ( min, max ) by dataset
   rangesByStatePt	list by statept index of dicts by dataset of ranges 
   rangesLock		threading.RLock for ranges dict
@@ -939,12 +941,12 @@ Parameters:
       axial_cm = kwargs[ 'cm' ]
       #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'detector_ndx' in kwargs:
       det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], self.core.ndetax - 1 ) )
-      axial_cm = self.core.detectorMeshCenters[ det_ndx ]
+      axial_cm = self.core.detectorMesh[ det_ndx ]
       #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
@@ -952,20 +954,20 @@ Parameters:
     elif 'core_ndx' in kwargs:
       core_ndx = max( 0, min( kwargs[ 'core_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
-      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'pin_ndx' in kwargs: # huh?
       core_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
-      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'value' in kwargs:
       axial_cm = kwargs[ 'value' ]
       #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
       fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'fixed_detector_ndx' in kwargs:
@@ -973,7 +975,7 @@ Parameters:
       axial_cm = self.core.fixedDetectorMeshCenters[ fdet_ndx ]
       #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      det_ndx = self.FindListIndex( self.core.detectorMeshCenters, axial_cm )
+      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
 
     return  ( axial_cm, core_ndx, det_ndx, fdet_ndx )
   #end CreateAxialValue
@@ -1327,6 +1329,44 @@ descending.  Note bisect only does ascending.
     match_ndx = -1
 
     if values is not None and len( values ) > 0:
+#			-- Descending
+      if values[ 0 ] > values[ -1 ]:
+        lo = 0
+	hi = len( values )
+        while lo < hi:
+	  mid = ( lo + hi ) // 2
+          if value > values[ mid ]:  hi = mid
+          else:  lo = mid + 1
+        match_ndx = min( lo, len( values ) - 1 )
+
+#			-- Ascending
+      else:
+        match_ndx = min(
+            bisect.bisect_left( values, value ),
+	    len( values ) - 1
+	    )
+    #end if not empty list
+
+    return  match_ndx
+  #end FindListIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindListIndex1()			-
+  #----------------------------------------------------------------------
+  def FindListIndex1( self, values, value ):
+    """Values in the list are assumed to be in order, either ascending or
+descending.  Note bisect only does ascending.
+@param  values		list of values
+@param  value		value to search
+@return			0-based index N, values[ N ]
+			'a': values[ N ] <= value < values[ N + 1 ]
+			'd': values[ N ] >= value > values[ N + 1 ]
+"""
+    match_ndx = -1
+
+    if values is not None and len( values ) > 0:
+#			-- Descending
       if values[ 0 ] > values[ -1 ]:
         if value > values[ 0 ]:
 	  match_ndx = 0
@@ -1339,6 +1379,7 @@ descending.  Note bisect only does ascending.
 	      break
 	#end if
 
+#			-- Ascending
       else:
 	if value < values[ 0 ]:
 	  match_ndx = 0
@@ -1353,7 +1394,7 @@ descending.  Note bisect only does ascending.
     #end if not empty list
 
     return  match_ndx
-  #end FindListIndex
+  #end FindListIndex1
 
 
   #----------------------------------------------------------------------
@@ -2949,8 +2990,8 @@ ds_names	dict of dataset names by dataset type
 
 #				-- Resolve detector_mesh if necessary
 #now in Core.ReadImpl()
-#          if core.detectorMeshCenters is None:
-#            core.detectorMeshCenters = core.axialMeshCenters
+#          if core.detectorMesh is None:
+#            core.detectorMesh = core.axialMeshCenters
 #            core.ndetax = core.nax
 #            core.ndet = core.nass
 

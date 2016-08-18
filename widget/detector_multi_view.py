@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-08-18	leerw@ornl.gov				-
+#	  Renamed detectorMeshCenters to correct detectorMesh.
 #		2016-08-17	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-02	leerw@ornl.gov				-
@@ -179,8 +181,8 @@ Attrs/properties:
 #		-- Must be valid state
 #		--
     if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-#        self.data.core.detectorMeshCenters is not None and \
-#	len( self.data.core.detectorMeshCenters ) > 0:
+#        self.data.core.detectorMesh is not None and \
+#	len( self.data.core.detectorMesh ) > 0:
       core = self.data.GetCore()
       csv_text = '"%s=%.3g"\n' % (
 	  self.state.timeDataSet,
@@ -189,8 +191,8 @@ Attrs/properties:
 
 #			-- Detector datasets
 #			--
-      if core.detectorMeshCenters is not None and \
-          len( core.detectorMeshCenters ) > 0 and \
+      if core.detectorMesh is not None and \
+          len( core.detectorMesh ) > 0 and \
 	  len( self.detectorDataSets ) > 0:
         for ds_name in sorted( self.detectorDataSets ):
           dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
@@ -208,8 +210,8 @@ Attrs/properties:
             for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
               row_label = core.coreLabels[ 1 ][ det_row ]
 	      for ax_ndx in \
-	          range( len( core.detectorMeshCenters ) - 1, -1, -1 ):
-	        ax_value = core.detectorMeshCenters[ ax_ndx ]
+	          range( len( core.detectorMesh ) - 1, -1, -1 ):
+	        ax_value = core.detectorMesh[ ax_ndx ]
 	        row_text = '%s,%.7g' % ( row_label, ax_value )
 	        for det_col in \
 		    range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
@@ -225,7 +227,7 @@ Attrs/properties:
             #end for det_row
           #end if dset
         #end for ds_name
-      #end if core.detectorMeshCenters
+      #end if core.detectorMesh
 
 #			-- Fixed detector datasets
 #			--
@@ -300,14 +302,13 @@ Attrs/properties:
 
 #			-- Detector datasets
 #			--
-      if core.detectorMeshCenters is not None and \
-          len( core.detectorMeshCenters ) > 0 and \
+      if core.detectorMesh is not None and \
+          len( core.detectorMesh ) > 0 and \
 	  len( self.detectorDataSets ) > 0:
         header_row_text = 'Mesh'
 	data_rows = []
-        for ax_ndx in \
-	    range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
-	  data_rows.append( '%.7g' % core.detectorMeshCenters[ ax_ndx ] )
+        for ax_ndx in range( len( core.detectorMesh ) - 1, -1, -1 ):
+	  data_rows.append( '%.7g' % core.detectorMesh[ ax_ndx ] )
 
         for ds_name in sorted( self.detectorDataSets ):
           dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
@@ -318,7 +319,7 @@ Attrs/properties:
 
 	    row_ndx = 0
             for ax_ndx in \
-	        range( len( self.data.core.detectorMeshCenters ) - 1, -1, -1 ):
+	        range( len( self.data.core.detectorMesh ) - 1, -1, -1 ):
 	      data_rows[ row_ndx ] += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
 	      row_ndx += 1
             #end for ax_ndx
@@ -328,7 +329,7 @@ Attrs/properties:
 	csv_text += header_row_text + '\n'
 	for r in data_rows:
 	  csv_text += r + '\n'
-      #end if core.detectorMeshCenters
+      #end if core.detectorMesh
 
 #			-- Fixed detector datasets
 #			--
@@ -470,8 +471,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       config = self.config
 
     if config is not None and tuple_valid:
-#	self.data.core.detectorMeshCenters is not None and \
-#	len( self.data.core.detectorMeshCenters ) > 0:
+#	self.data.core.detectorMesh is not None and \
+#	len( self.data.core.detectorMesh ) > 0:
       im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       det_gap = config[ 'detectorGap' ]
@@ -1027,7 +1028,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       dset = self.data.GetStateDataSet( state_ndx, ds_name )
       if dset is not None and dset.value.shape[ 1 ] > det_ndx:
         dset_values = dset.value[ :, det_ndx ]
-        if len( dset_values ) == len( core.detectorMeshCenters ):
+        if len( dset_values ) == len( core.detectorMesh ):
 	  values = dset_values
 
       if values is not None:
@@ -1035,7 +1036,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	last_y = None
 	for i in range( len( values ) ):
 	  dy = \
-	      (axial_max - core.detectorMeshCenters[ i ]) * \
+	      (axial_max - core.detectorMesh[ i ]) * \
               axial_factor
 	  dx = (values[ i ] - value_min) * value_factor
 	  cur_x = det_x + 1 + dx
@@ -1177,8 +1178,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     axial_mesh_min = None
 
     if len( self.detectorDataSets ) > 0:
-      axial_mesh_max = np.amax( core.detectorMeshCenters )
-      axial_mesh_min = np.amin( core.detectorMeshCenters )
+      axial_mesh_max = np.amax( core.detectorMesh )
+      axial_mesh_min = np.amin( core.detectorMesh )
 
     if len( self.fixedDetectorDataSets ) > 0:
       #using core.fixedDetectorMesh instead of core.fixedDetectorMeshCenters
