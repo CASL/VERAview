@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-08-19	leerw@ornl.gov				-
+#	  New DataModelMgr.
 #		2016-08-15	leerw@ornl.gov				-
 #	  Reducing events to one selected dataset, one coordinate,
 #	  axial value, and one time.
@@ -64,6 +66,7 @@ import numpy as np
 import pdb
 
 from data.datamodel import *
+from data.datamodel_mgr import *
 
 
 # New, reduced set of events
@@ -72,7 +75,7 @@ STATE_CHANGE_init = 0x1 << 0
 STATE_CHANGE_axialValue = 0x1 << 1
 STATE_CHANGE_coordinates = 0x1 << 2
 STATE_CHANGE_curDataSet = 0x1 << 3
-STATE_CHANGE_dataModel = 0x1 << 4
+STATE_CHANGE_dataModelMgr = 0x1 << 4
 STATE_CHANGE_scaleMode = 0x1 << 5
 STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
@@ -186,7 +189,7 @@ All indices are 0-based.
 | curDataSet  | curDataSet     | cur_dataset    | name of selected dataset     |
 |             |                |                | (of any type)                |
 +-------------+----------------+----------------+------------------------------+
-| dataModel   | dataModel      | data_model     | data.DataModel object        |
+| dataModelMgr| dataModelMgr   | data_model_mgr | data.DataModelMgr object     |
 +-------------+----------------+----------------+------------------------------+
 | scaleMode   | scaleMode      | scale_mode     | 'all' or 'state'             |
 +-------------+----------------+----------------+------------------------------+
@@ -234,7 +237,7 @@ All indices are 0-based.
     self.auxSubAddrs = []
     self.axialValue = DataModel.CreateEmptyAxialValue()
     self.curDataSet = 'pin_powers'
-    self.dataModel = None
+    self.dataModelMgr = DataModelMgr()
     self.listeners = []
     self.scaleMode = 'all'
     self.stateIndex = -1
@@ -249,7 +252,7 @@ All indices are 0-based.
   #	METHOD:		__str__()					-
   #----------------------------------------------------------------------
   def __str__( self ):
-    """This needs to be updated.  Perhaps dump the JSON sans dataModel.
+    """This needs to be updated.  Perhaps dump the JSON sans dataModelMgr.
 """
     coord = self.assemblyAddr + self.colRow + tuple( self.auxColRows )
     result = 'axial=%s,coord=%s,dataset=%s,scale=%s,state=%d,time=%s' % \
@@ -290,7 +293,7 @@ Keys passed and the corresponding state bit are:
   aux_sub_addrs		STATE_CHANGE_coordinates
   axial_value		STATE_CHANGE_axialValue
   cur_dataset		STATE_CHANGE_curDataSet
-  data_model		STATE_CHANGE_dataModel
+  data_model_mgr	STATE_CHANGE_dataModelMgr
   scale_mode		STATE_CHANGE_scaleMode
   state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
@@ -317,9 +320,9 @@ Keys passed and the corresponding state bit are:
       self.curDataSet = kwargs[ 'cur_dataset' ]
       reason |= STATE_CHANGE_curDataSet
 
-    if 'data_model' in kwargs:
-      self.dataModel = kwargs[ 'data_model' ]
-      reason |= STATE_CHANGE_dataModel
+    if 'data_model_mgr' in kwargs:
+      self.dataModelMgr = kwargs[ 'data_model_mgr' ]
+      reason |= STATE_CHANGE_dataModelMgr
 
     if 'scale_mode' in kwargs and locks[ STATE_CHANGE_scaleMode ]:
       self.scaleMode = kwargs[ 'scale_mode' ]
@@ -383,8 +386,8 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_curDataSet) > 0:
       update_args[ 'cur_dataset' ] = self.curDataSet
 
-    if (reason & STATE_CHANGE_dataModel) > 0:
-      update_args[ 'data_model' ] = self.dataModel
+    if (reason & STATE_CHANGE_dataModelMgr) > 0:
+      update_args[ 'data_model_mgr' ] = self.dataModelMgr
 
     if (reason & STATE_CHANGE_scaleMode) > 0:
       update_args[ 'scale_mode' ] = self.scaleMode
@@ -464,14 +467,14 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataModel()					-
+  #	METHOD:		GetDataModelMgr()				-
   #----------------------------------------------------------------------
-  def GetDataModel( self ):
-    """Accessor for the dataModel property.
-@return			DataModel object
+  def GetDataModelMgr( self ):
+    """Accessor for the dataModelMgr property.
+@return			DataModelMgr object
 """
-    return  self.dataModel
-  #end GetDataModel
+    return  self.dataModelMgr
+  #end GetDataModelMgr
 
 
   #----------------------------------------------------------------------
@@ -553,11 +556,12 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Load()						-
+  #	METHOD:		Init()						-
   #----------------------------------------------------------------------
-  def Load( self, data_model = None ):
-    """
-@param  data_model	if None, use the current dataModel
+  def Init( self, data_model ):
+    """Initializes with the specified data_model.  It is assumed data_model
+has already been added to dataModelMgr.
+@param  data_model	DataModel to use for initializing properties
 """
     undefined_ax = DataModel.CreateEmptyAxialValue()
     #undefined_ax = ( 0.0, -1, -1 )
@@ -565,7 +569,8 @@ Keys passed and the corresponding state bit are:
     undefined3 = ( -1, -1, -1 )
 
     del self.auxSubAddrs[ : ]
-    self.dataModel = data_model
+    #if data_model_mgr is not None:
+      #self.dataModelMgr = data_model_mgr
     self.scaleMode = 'all'
 
     if data_model is not None:
@@ -612,7 +617,7 @@ Keys passed and the corresponding state bit are:
       self.timeDataSet = 'state'
 
     self.auxColRows = []
-  #end Load
+  #end Init
 
 
   #----------------------------------------------------------------------
@@ -728,14 +733,14 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		FindDataModel()					-
+  #	METHOD:		FindDataModelMgr()				-
   #----------------------------------------------------------------------
   @staticmethod
-  def FindDataModel( state ):
-    data_model = None
-    if state is not None and state.dataModel is not None:
-      data_model = state.dataModel
+  def FindDataModelMgr( state ):
+    data_model_mgr = None
+    if state is not None and state.dataModelMgr is not None:
+      data_model_mgr = state.dataModelMgr
 
-    return  data_model
-  #end FindDataModel
+    return  data_model_mgr
+  #end FindDataModelMgr
 #end State

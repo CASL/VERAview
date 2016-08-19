@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-08-19	leerw@ornl.gov				-
+#	  New DataModelMgr.
 #		2016-08-16	leerw@ornl.gov				-
 #	  Messing with widget sizing in grids.
 #		2016-08-10	leerw@ornl.gov				-
@@ -108,6 +110,7 @@ from bean.grid_sizer_dialog import *
 
 from data.config import Config
 from data.datamodel import *
+from data.datamodel_mgr import *
 
 from event.state import *
 
@@ -592,8 +595,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
 """
     wc = None
 
-    data = State.FindDataModel( self.state )
-    if data is None:
+    data_mgr = State.FindDataModelMgr( self.state )
+    if data_mgr is None or not data_mgr.HasData():
       msg = 'A VERAOutput file must be opened'
       wx.MessageDialog( self, msg, 'Add Widget' ).ShowWindowModal()
 
@@ -640,15 +643,15 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame.GetDataModel()			-
+  #	METHOD:		VeraViewFrame.GetDataModelMgr()			-
   #----------------------------------------------------------------------
-  def GetDataModel( self ):
-    """Convenience accessor for the state.dataModel property.
-@return			DataModel object
+  def GetDataModelMgr( self ):
+    """Convenience accessor for the state.dataModelMgr property.
+@return			DataModelMgr object
 """
     #return  None if self.state is None else self.state.GetDataModel()
-    return  State.FindDataModel( self.state )
-  #end GetDataModel
+    return  State.FindDataModelMgr( self.state )
+  #end GetDataModelMgr
 
 
   #----------------------------------------------------------------------
@@ -950,9 +953,10 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, widget_config = None ):
+  def LoadDataModel( self, data_model, file_path, widget_config = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
+@param  data_model	data_model
 @param  file_path	path to VERAOutput file
 @param  widget_config	optional WidgetConfig instance
 """
@@ -961,8 +965,8 @@ Must be called from the UI thread.
 #x    if widget_config is not None:
 #x      self.state.LoadProps( widget_config.GetStateProps() )
 
-    data = self.state.GetDataModel()
-    self.SetRepresentedFilename( file_path )
+    data_mgr = self.state.GetDataModelMgr()
+    self.SetRepresentedFilename( file_path )  #xxxxx
 
     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
 
@@ -1753,7 +1757,9 @@ Must be called from the UI thread.
       }
 
     try:
-      data_model = DataModel( file_path )
+      data_model_mgr = self.state.GetDataModelMgr()
+      #data_model = DataModel( file_path )
+      data_model = data_model_mgr.OpenModel( file_path )
       messages = data_model.Check()
 
       status[ 'data_model' ] = data_model
@@ -1790,12 +1796,16 @@ Must be called from the UI thread.
 	#wx.CallAfter( dlg, ShowModal )
 
       elif 'data_model' in status and 'file_path' in status:
-	self.state.Load( status[ 'data_model' ] )
-	wx.CallAfter(
-	    self.LoadDataModel,
-	    status[ 'file_path' ],
-	    status.get( 'widget_config' )
-	    )
+	dmgr = self.state.GetDataModelMgr()
+	if dmgr.GetModelCount() == 1:
+	  self.state.Init( status[ 'data_model' ] )
+	  wx.CallAfter(
+	      self.LoadDataModel,
+	      status[ 'data_model' ],
+	      status[ 'file_path' ],
+	      status.get( 'widget_config' )
+	      )
+	#end if only one model
     #end if
   #end _OpenFileEnd
 

@@ -209,6 +209,7 @@ class DataSetMenu( wx.Menu ):
 
 #		-- Process datamodel
 #		--
+    #xxxxx
     data_model = State.FindDataModel( self.state )
     if data_model is not None:
       have_derived_flag = False
