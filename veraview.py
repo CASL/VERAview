@@ -514,9 +514,9 @@ in GridSizer when adding grids.
     self.grid.Layout()
 #		-- If you don't call Fit() here, the window will not grow
 #		-- with the addition of the new widget
-#x    if grow_flag:
-#x      refit_flag = True
-#x      #self.Fit()
+    if grow_flag:
+      refit_flag = True
+      #self.Fit()
 
     #self.grid._FreezeWidgets( False )
     if refit_flag:
@@ -548,8 +548,6 @@ in GridSizer when adding grids.
     """Must be called on the UI thread.
 @return		widget container object
 """
-    #print >> sys.stderr, '[VeraViewFrame.CreateWidget]'
-
     wc = WidgetContainer( self.grid, widget_class, self.state )
     self._AddWidgetContainer( wc, refit_flag )
     return  wc
@@ -1114,7 +1112,7 @@ Must be called from the UI thread.
 	    ( w, str( self.grid.GetSize() ) )
       #end for
 
-      self._Refit( True )
+      self._Refit( False )  # True
     #end if-else widget_config
 
 #		-- Set bean ranges and values
@@ -1410,7 +1408,7 @@ Note this defines a new State as well as widgets in the grid.
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
     if item is not None and item.GetLabel() in WIDGET_MAP:
-      self.CreateWidget( WIDGET_MAP[ item.GetLabel() ] )
+      self.CreateWidget( WIDGET_MAP[ item.GetItemLabelText() ] )
   #end _OnNew
 
 
@@ -1806,12 +1804,12 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   def _Refit( self, apply_widget_ratio = False, *additionals ):
     display_size = wx.DisplaySize()
-    new_size = self.GetSize()
-    if new_size[ 0 ] > display_size[ 0 ] or \
-        new_size[ 1 ] > display_size[ 1 ]:
+    frame_size = self.GetSize()
+    if frame_size[ 0 ] > display_size[ 0 ] or \
+        frame_size[ 1 ] > display_size[ 1 ]:
       if not self.IsMaximized():
         self.Maximize()
-      #new_size = self.GetSize()
+        frame_size = self.GetSize()
 
     #grid_size = self.grid.GetSize()
     #if grid_size[ 0 ] > new_size[ 0 ] or grid_size[ 1 ] > new_size[ 1 ] :
@@ -1986,6 +1984,8 @@ class VeraViewGrid( wx.Panel ):
 
     if apply_widget_ratio:
       temp_wd = int( math.floor( item_ht * WIDGET_PREF_RATIO ) )
+
+#			-- Constrained by width
       if temp_wd > item_wd:
         item_ht = int( math.floor( item_wd / WIDGET_PREF_RATIO ) )
       else:
@@ -2031,10 +2031,12 @@ class VeraViewGrid( wx.Panel ):
 """
     if freeze_flag:
       for item in self.GetChildren():
-        item.Freeze()
+	if not item.IsFrozen():
+          item.Freeze()
     else:
       for item in self.GetChildren():
-        item.Thaw()
+	if item.IsFrozen():
+          item.Thaw()
   #end _FreezeWidgets
 
 
