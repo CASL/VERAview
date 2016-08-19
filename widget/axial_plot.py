@@ -369,7 +369,7 @@ dataset names and ( rc, values ) pairs.
       [
         { 'label': '-' },
 	{
-	'label': 'Edit Dataset Properties',
+	'label': 'Edit Dataset Properties...',
 	'handler': self._OnEditDataSetProps
 	},
 	{
@@ -1071,8 +1071,11 @@ Must be called from the event thread.
 	  ds_values = None
 	  ds_type = self.data.GetDataSetType( ds_name )
 
+	  if ds_name in self.dataSetValues:
+	    ds_values = self.dataSetValues[ ds_name ]
+
 #					-- Channel
-	  if ds_type.startswith( 'channel' ):
+	  elif ds_type.startswith( 'channel' ):
 #						-- Lazy creation
 	    if sub_addr_list is None:
               sub_addr_list = list( self.auxSubAddrs )

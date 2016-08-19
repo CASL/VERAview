@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-08-19	leerw@ornl.gov				-
+#	  Add capability for user selection of the X-axis dataset.
 #		2016-08-15	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -15,7 +17,7 @@
 #		2016-07-07	leerw@ornl.gov				-
 #	  Renaming "vanadium" to "fixed_detector".
 #		2016-07-06	leerw@ornl.gov				-
-#	  Not acception timeDataSet changes.
+#	  Not accepting timeDataSet changes.
 #		2016-06-30	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-06-16	leerw@ornl.gov				-
@@ -114,6 +116,7 @@ Properties:
     #self.detectorIndex = ( -1, -1, -1 )
     #self.fixedDetectorDataSet = 'fixed_detector_response'
 
+    self.refAxisDataSet = ''
     self.refAxisValues = np.empty( 0 )
     #self.refDataSet = 'state'
     #self.scalarDataSet = 'keff'
@@ -217,8 +220,12 @@ Properties:
       [
 	{ 'label': '-' },
         {
-	'label': 'Edit Dataset Properties',
+	'label': 'Edit Dataset Properties...',
 	'handler': self._OnEditDataSetProps
+	},
+	{
+	'label': 'Select Left Axis Dataset...',
+	'handler': self._OnShowLeftAxisDataSetMenu
 	},
 	{
 	'label': 'Select Left Axis Scale Mode',
@@ -290,6 +297,25 @@ configuring the grid, plotting, and creating self.axline.
 #	'Versus ' + self.state.timeDataSet,
 #	fontsize = self.titleFontSize
 #	)
+    if self.refAxisDataSet:
+      rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
+      xaxis_label = '%s: %d %s %s' % (
+	  self.refAxisDataSet,
+	  self.assemblyAddr[ 0 ] + 1,
+          self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  str( rc )
+          )
+      self.ax.set_xlim(
+	  np.amin( self.refAxisValues ),
+	  np.amax( self.refAxisValues )
+          )
+#      ref_axis_range = self.data.GetRange(
+#          self.refAxisDataSet,
+#          self.stateIndex if self.state.scaleMode == 'state' else -1
+#	  )
+#      self.ax.set_xlim( *ref_axis_range )
+    else:
+      xaxis_label = self.state.timeDataSet
 
 #		-- Something to plot?
 #		--
@@ -312,7 +338,8 @@ configuring the grid, plotting, and creating self.axline.
 	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
 #				-- Left, primary
-      self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
+      #self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
+      self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
       self.ax.set_ylabel( left_ds_name, fontsize = label_font_size )
       ds_range = self.data.GetRange(
 	  left_ds_name,
@@ -342,11 +369,6 @@ configuring the grid, plotting, and creating self.axline.
       show_assy_addr = \
           self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 
-#      title_str = 'Assy %d %s, %s %.3g' % \
-#          ( self.assemblyAddr[ 0 ] + 1, show_assy_addr,
-#	    self.state.state.timeDataSet,
-#	    self.data.GetTimeValue( self.stateIndex, self.state.state.timeDataSet )
-#	    )
       title_str = 'Assy %d %s, Axial %.3f' % \
           ( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
 
@@ -606,7 +628,8 @@ XXX size according to how many datasets selected?
     #xxxplacement
     #self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
     #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
-    self.ax = self.fig.add_axes([ 0.15, 0.12, 0.75, 0.65 ])
+    #self.ax = self.fig.add_axes([ 0.15, 0.12, 0.75, 0.65 ])
+    self.ax = self.fig.add_axes([ 0.15, 0.12, 0.72, 0.65 ])
     self.ax2 = self.ax.twinx() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
@@ -687,7 +710,8 @@ be overridden by subclasses.
 """
     for k in (
 	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'scaleMode', 'subAddr'
+	'curDataSet', 'dataSetSelections', 'refAxisDataSet',
+	'scaleMode', 'subAddr'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -754,6 +778,27 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TimePlots._OnSelectLeftAxisDataSet()		-
+  #----------------------------------------------------------------------
+  def _OnSelectLeftAxisDataSet( self, ev ):
+    """Must be called from the UI thread.
+"""
+    ev.Skip()
+
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item is not None:
+      label = item.GetItemLabelText()
+
+      new_value = '' if label == 'Time Dataset' else label
+      if new_value != self.refAxisDataSet:
+        self.refAxisDataSet = new_value
+	self.UpdateState( replot = True )
+    #end if
+  #end _OnSelectLeftAxisDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		TimePlots._OnSetScaleMode()			-
   #----------------------------------------------------------------------
   def _OnSetScaleMode( self, mode, ev ):
@@ -765,6 +810,63 @@ be overridden by subclasses.
       self.UpdateState( replot = True )
     #end if mode changed
   #end _OnSetScaleMode
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TimePlots._OnShowLeftAxisDataSetMenu()		-
+  #----------------------------------------------------------------------
+  def _OnShowLeftAxisDataSetMenu( self, ev ):
+    """Must be called from the UI thread.
+"""
+    ev.Skip()
+
+    if self.data is None:
+      wx.MessageBox(
+	  'No data are loaded', 'Select Left Axis Dataset',
+	  wx.ICON_WARNING | wx.OK_DEFAULT, None
+          )
+
+    else:
+      ds_types = self.GetDataSetTypes()
+      menu_types = []
+      if 'channel' in ds_types:
+        menu_types.append( 'channel' )
+      if 'pin' in ds_types:
+        menu_types.append( 'pin' )
+
+#			-- Create pullrights
+#			--
+      menu = wx.Menu()
+      for ty in menu_types:
+	ds_names = self.data.GetDataSetNames( ty )
+	if ds_names:
+	  type_menu = wx.Menu()
+	  for ds_name in ds_names:
+	    item = wx.MenuItem(
+	        type_menu, wx.ID_ANY, ds_name,
+		kind = wx.ITEM_CHECK
+		)
+	    self.container.Bind( wx.EVT_MENU, self._OnSelectLeftAxisDataSet, item )
+	    type_menu.AppendItem( item )
+	    if ds_name == self.refAxisDataSet:
+	      item.Check()
+	  #end for ds_name
+
+          type_item = wx.MenuItem( menu, wx.ID_ANY, ty, subMenu = type_menu )
+	  menu.AppendItem( type_item )
+	#end if ds_names
+      #end for ty
+
+      item = \
+          wx.MenuItem( menu, wx.ID_ANY, 'Time Dataset', kind = wx.ITEM_CHECK )
+      self.container.Bind( wx.EVT_MENU, self._OnSelectLeftAxisDataSet, item )
+      menu.AppendItem( item )
+      if not self.refAxisDataSet:
+        item.Check()
+
+      self.container.widgetMenuButton.PopupMenu( menu )
+    #end if-else self.data
+  #end _OnShowLeftAxisDataSetMenu
 
 
   #----------------------------------------------------------------------
@@ -832,7 +934,8 @@ method via super.SaveProps().
 
     for k in (
 	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'scaleMode', 'subAddr'
+	'curDataSet', 'dataSetSelections', 'refAxisDataSet',
+	'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -884,16 +987,27 @@ already read.
 #			-- Construct read specs
 #			--
       specs = []
-      specs.append( { 'ds_name': self.state.timeDataSet} )
+      spec_names = set()
+      if self.refAxisDataSet:
+        specs.append({
+	    'assembly_index': self.assemblyAddr[ 0 ],
+	    'axial_cm': self.axialValue[ 0 ],
+	    'ds_name': '*' + self.refAxisDataSet,
+	    'sub_addrs': [ self.subAddr ]
+	    })
+      else:
+        specs.append( { 'ds_name': self.state.timeDataSet} )
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	ds_name = self._GetDataSetName( k )
 
 #				-- Must be visible
-        if ds_rec[ 'visible' ] and ds_name is not None:
+        if ds_rec[ 'visible' ] and ds_name is not None and \
+	    ds_name not in spec_names:
 	  ds_type = self.data.GetDataSetType( ds_name )
 	  spec = { 'ds_name': ds_name }
+	  spec_names.add( ds_name )
 
 	  if ds_type is None:
 	    pass
@@ -905,7 +1019,7 @@ already read.
               sub_addr_list = list( self.auxSubAddrs )
               sub_addr_list.insert( 0, self.subAddr )
 
-	    spec[ 'assembly_addr' ] = self.assemblyAddr[ 0 ]
+	    spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
 	    spec[ 'sub_addrs' ] = sub_addr_list
 	    specs.append( spec )
@@ -925,7 +1039,7 @@ already read.
               sub_addr_list = list( self.auxSubAddrs )
               sub_addr_list.insert( 0, self.subAddr )
 
-	    spec[ 'assembly_addr' ] = self.assemblyAddr[ 0 ]
+	    spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
 	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
 	    spec[ 'sub_addrs' ] = sub_addr_list
 	    specs.append( spec )
@@ -950,7 +1064,12 @@ already read.
 #			--
       results = self.data.ReadDataSetValues2( *specs )
 
-      self.refAxisValues = results[ self.state.timeDataSet ]
+      #self.refAxisValues = results[ self.state.timeDataSet ]
+      if self.refAxisDataSet:
+	values_dict = results[ '*' + self.refAxisDataSet ]
+	self.refAxisValues = values_dict.itervalues().next()
+      else:
+        self.refAxisValues = results[ self.state.timeDataSet ]
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]

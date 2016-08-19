@@ -2597,14 +2597,14 @@ being one greater in each dimension.
   #----------------------------------------------------------------------
   def ReadDataSetValues( self,
       ds_name,
-      assembly_addr = 0,
+      assembly_index = 0,
       axial_value = 0.0,
       sub_addrs = None,
       detector_index = 0
       ):
     """Reads values for a dataset across all state points.
 @param  ds_name		dataset name
-@param  assembly_addr	0-based assembly index
+@param  assembly_index	0-based assembly index
 @param  detector_index	0-based detector index
 @param  axial_value	axial value in cm
 @param  sub_addrs	single or iterable of sub_addr pairs
@@ -2687,7 +2687,7 @@ being one greater in each dimension.
           ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	  ds_def[ 'shape' ]
 
-      assy_ndx = max( 0, min( assembly_addr, ds_shape[ 3 ] - 1 ) )
+      assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
@@ -2748,6 +2748,7 @@ at a time for better performance.
 @param  ds_specs_in	list of dataset specifications with the following keys:
 	  ds_name		required dataset name
 	  assembly_addr		0-based assembly index
+	  assembly_index	0-based assembly index
 	  detector_index	0-based detector index for detector datasets
 	  axial_cm		axial value in cm
 	  sub_addrs		list of sub_addr pairs
@@ -2770,7 +2771,8 @@ at a time for better performance.
 	  result[ ds_name ] = \
 	    np.array( range( 1, len( self.states ) + 1 ), dtype = np.float64 )
 	elif ds_name not in ds_defs:
-	  ds_def = self.GetDataSetDefByDsName( ds_name )
+	  lookup_ds_name = ds_name[ 1 : ] if ds_name[ 0 ] == '*' else ds_name
+	  ds_def = self.GetDataSetDefByDsName( lookup_ds_name )
 	  #if ds_def is not None:
 	  if ds_def is None:
 	    ds_def = DATASET_DEFS[ 'scalar' ]
@@ -2785,8 +2787,9 @@ at a time for better performance.
     for state_ndx in range( len( self.states ) ):
       for spec in ds_specs:
         ds_name = spec[ 'ds_name' ]
+	lookup_ds_name = ds_name[ 1 : ] if ds_name[ 0 ] == '*' else ds_name
 	ds_def = ds_defs.get( ds_name )
-        dset = self.GetStateDataSet( state_ndx, ds_name )
+        dset = self.GetStateDataSet( state_ndx, lookup_ds_name )
 
 #			-- Scalar
 #			--
@@ -2852,8 +2855,11 @@ at a time for better performance.
 	        ds_def[ 'shape' ]
 
             if dset is not None:
-	      assembly_addr = spec.get( 'assembly_addr', 0 )
-              assy_ndx = max( 0, min( assembly_addr, ds_shape[ 3 ] - 1 ) )
+	      assembly_index = spec.get(
+	          'assembly_index',
+		  spec.get( 'assembly_addr', 0 )
+		  )
+              assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
 	      axial_cm = spec.get( 'axial_cm', 0.0 )
               ax_value = self.CreateAxialValue( cm = axial_cm )

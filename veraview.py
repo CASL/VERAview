@@ -1518,8 +1518,10 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
+    data = self.state.GetDataModel()
     try:
-      if self.app.filepath is not None:
+      #if self.app.filepath is not None:
+      if data is not None:
         self.SaveSession()
     except Exception, ex:
       msg = 'Error saving session:' + os.linesep + str( ex )
@@ -1532,7 +1534,6 @@ Must be called on the UI event thread.
 	  None
           )
 
-    data = self.state.GetDataModel()
     if data is not None:
       data.Close()
     #self.Close()
