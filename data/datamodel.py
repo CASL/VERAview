@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-08-20	leerw@ornl.gov				-
+#	  Fixed bug in FindMultiDataSetMaxValue() finding axial value for
+#	  a fixed_detector dataset and setting 'assembly_addr' in results.
 #		2016-08-18	leerw@ornl.gov				-
 #	  Redefining axial levels in preparation for multiple files.
 #	  Renaming detectorMeshCenters to proper detectorMesh
@@ -1482,9 +1485,9 @@ specified datasets.  Calls FindMaxValueAddr().
 	    hasattr( cur_obj, 'assemblyAddr' ) and \
             getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 3 ]
 	if not skip:
-          assy_ndx = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
-          if assy_ndx[ 0 ] >= 0:
-            results[ 'assembly_addr' ] = assy_ndx
+          assy_addr = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
+          if assy_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = assy_addr
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'axialValue' ) and \
@@ -1522,9 +1525,9 @@ specified datasets.  Calls FindMaxValueAddr().
 	    hasattr( cur_obj, 'assemblyAddr' ) and \
             getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 1 ]
         if not skip:
-	  det_ndx = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
-	  if det_ndx[ 0 ] >= 0:
-            results[ 'assemblyAddr' ] = det_ndx
+	  det_addr = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
+	  if det_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = det_addr
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1537,7 +1540,7 @@ specified datasets.  Calls FindMaxValueAddr().
 	    hasattr( cur_obj, 'axialValue' ) and \
             getattr( cur_obj, 'axialValue' )[ 3 ] == max_addr[ 0 ]
         if not skip:
-	  axial_value = self.CreateAxialValue( detector_ndx = max_addr[ 0 ] )
+	  axial_value = self.CreateAxialValue( fixed_detector_ndx = max_addr[ 0 ] )
           if axial_value[ 0 ] >= 0.0:
             results[ 'axial_value' ] = axial_value
 
@@ -1545,9 +1548,9 @@ specified datasets.  Calls FindMaxValueAddr().
 	    hasattr( cur_obj, 'assemblyAddr' ) and \
             getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 1 ]
         if not skip:
-	  det_ndx = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
-	  if det_ndx[ 0 ] >= 0:
-            results[ 'assemblyAddr' ] = det_ndx
+	  det_addr = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
+	  if det_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = det_addr
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'stateIndex' ) and \
@@ -1560,9 +1563,9 @@ specified datasets.  Calls FindMaxValueAddr().
 	    hasattr( cur_obj, 'assemblyAddr' ) and \
             getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 3 ]
         if not skip:
-	  assy_ndx = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
-	  if assy_ndx[ 0 ] >= 0:
-            results[ 'assembly_addr' ] = assy_ndx
+	  assy_addr = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
+	  if assy_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = assy_addr
 
         skip = cur_obj is not None and \
 	    hasattr( cur_obj, 'axialValue' ) and \

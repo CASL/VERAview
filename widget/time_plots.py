@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-08-20	leerw@ornl.gov				-
+#	  Properly naming the X-Axis menu item and methods.
 #		2016-08-19	leerw@ornl.gov				-
 #	  Add capability for user selection of the X-axis dataset.
 #		2016-08-15	leerw@ornl.gov				-
@@ -224,12 +226,12 @@ Properties:
 	'handler': self._OnEditDataSetProps
 	},
 	{
-	'label': 'Select Left Axis Dataset...',
-	'handler': self._OnShowLeftAxisDataSetMenu
-	},
-	{
 	'label': 'Select Left Axis Scale Mode',
 	'submenu': select_scale_def
+	},
+	{
+	'label': 'Select X-Axis Dataset...',
+	'handler': self._OnShowXAxisDataSetMenu
 	}
       ]
 #    more_def = \
@@ -779,9 +781,9 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		TimePlots._OnSelectLeftAxisDataSet()		-
+  #	METHOD:		TimePlots._OnSelectXAxisDataSet()		-
   #----------------------------------------------------------------------
-  def _OnSelectLeftAxisDataSet( self, ev ):
+  def _OnSelectXAxisDataSet( self, ev ):
     """Must be called from the UI thread.
 """
     ev.Skip()
@@ -796,7 +798,7 @@ be overridden by subclasses.
         self.refAxisDataSet = new_value
 	self.UpdateState( replot = True )
     #end if
-  #end _OnSelectLeftAxisDataSet
+  #end _OnSelectXAxisDataSet
 
 
   #----------------------------------------------------------------------
@@ -814,16 +816,16 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		TimePlots._OnShowLeftAxisDataSetMenu()		-
+  #	METHOD:		TimePlots._OnShowXAxisDataSetMenu()		-
   #----------------------------------------------------------------------
-  def _OnShowLeftAxisDataSetMenu( self, ev ):
+  def _OnShowXAxisDataSetMenu( self, ev ):
     """Must be called from the UI thread.
 """
     ev.Skip()
 
     if self.data is None:
       wx.MessageBox(
-	  'No data are loaded', 'Select Left Axis Dataset',
+	  'No data are loaded', 'Select X-Axis Dataset',
 	  wx.ICON_WARNING | wx.OK_DEFAULT, None
           )
 
@@ -847,7 +849,7 @@ be overridden by subclasses.
 	        type_menu, wx.ID_ANY, ds_name,
 		kind = wx.ITEM_CHECK
 		)
-	    self.container.Bind( wx.EVT_MENU, self._OnSelectLeftAxisDataSet, item )
+	    self.container.Bind( wx.EVT_MENU, self._OnSelectXAxisDataSet, item )
 	    type_menu.AppendItem( item )
 	    if ds_name == self.refAxisDataSet:
 	      item.Check()
@@ -860,14 +862,14 @@ be overridden by subclasses.
 
       item = \
           wx.MenuItem( menu, wx.ID_ANY, 'Time Dataset', kind = wx.ITEM_CHECK )
-      self.container.Bind( wx.EVT_MENU, self._OnSelectLeftAxisDataSet, item )
+      self.container.Bind( wx.EVT_MENU, self._OnSelectXAxisDataSet, item )
       menu.AppendItem( item )
       if not self.refAxisDataSet:
         item.Check()
 
       self.container.widgetMenuButton.PopupMenu( menu )
     #end if-else self.data
-  #end _OnShowLeftAxisDataSetMenu
+  #end _OnShowXAxisDataSetMenu
 
 
   #----------------------------------------------------------------------
