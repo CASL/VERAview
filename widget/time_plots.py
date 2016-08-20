@@ -309,6 +309,7 @@ configuring the grid, plotting, and creating self.axline.
 	  np.amin( self.refAxisValues ),
 	  np.amax( self.refAxisValues )
           )
+      self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 #      ref_axis_range = self.data.GetRange(
 #          self.refAxisDataSet,
 #          self.stateIndex if self.state.scaleMode == 'state' else -1
@@ -629,7 +630,7 @@ XXX size according to how many datasets selected?
     #self.ax = self.fig.add_axes([ 0.1, 0.1, 0.85, 0.65 ])
     #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
     #self.ax = self.fig.add_axes([ 0.15, 0.12, 0.75, 0.65 ])
-    self.ax = self.fig.add_axes([ 0.15, 0.12, 0.72, 0.65 ])
+    self.ax = self.fig.add_axes([ 0.15, 0.12, 0.68, 0.65 ])
     self.ax2 = self.ax.twinx() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 

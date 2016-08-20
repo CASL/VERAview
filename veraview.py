@@ -3,9 +3,15 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-08-20	leerw@ornl.gov				-
+#	  Changing initial widgets to pin and plots only.
+#	  Assigning last frame size on load.
+#		2016-08-19	leerw@ornl.gov				-
+#	  More messing with widget sizing in grids.
 #		2016-08-16	leerw@ornl.gov				-
 #	  Messing with widget sizing in grids.
 #		2016-08-10	leerw@ornl.gov				-
+#	  Added --skip-startup-session-check command-line arg.
 #	  Turning off 3D widgets on config load.
 #	  Using Environment3D.IsAvailable() as a test for enabling the
 #	  3D widgets.
@@ -280,10 +286,11 @@ unnecessary.
       #self.frame.GetStatusBar().SetStatusText( '' )
 
       opened = False
+      session = WidgetConfig.ReadUserSession()
 
       if self.filepath is None:
-        session = None if self.skipSession else WidgetConfig.ReadUserSession()
-        if session is not None:
+        #session = None if self.skipSession else WidgetConfig.ReadUserSession()
+        if session is not None and not self.skipSession:
 	  data_path = session.GetFilePath()
 	  if os.path.exists( data_path ):
             ans = wx.MessageBox(
@@ -294,7 +301,7 @@ unnecessary.
                 )
             if ans == wx.YES:
 	      opened = True
-	      self.frame.OpenFile( data_path, session )
+	      self.frame.OpenFile( data_path, session = session )
 
       elif os.path.exists( self.filepath ):
 	if self.filepath.lower().endswith( '.vview' ):
@@ -306,10 +313,10 @@ unnecessary.
 	        )
 	  else:
             opened = True
-	    self.frame.OpenFile( data_path, session )
+	    self.frame.OpenFile( data_path, session = session )
 	else:
 	  opened = True
-	  self.frame.OpenFile( self.filepath )
+	  self.frame.OpenFile( self.filepath, config = session )
 
       if not opened:
         self.frame._OnOpenFile( None )
@@ -948,16 +955,14 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, widget_config = None ):
+  def LoadDataModel( self, file_path, config = None, session = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
-@param  widget_config	optional WidgetConfig instance
+@param  config		optional WidgetConfig instance for frame config
+@param  session		optional WidgetConfig instance for session restoration
 """
     print >> sys.stderr, '[VeraViewFrame.LoadDataModel]'
-
-#x    if widget_config is not None:
-#x      self.state.LoadProps( widget_config.GetStateProps() )
 
     data = self.state.GetDataModel()
     self.SetRepresentedFilename( file_path )
@@ -1041,8 +1046,8 @@ Must be called from the UI thread.
 
 #		-- Load Config
 #		--
-    if widget_config is not None:
-      self._LoadWidgetConfig( widget_config )
+    if session is not None:
+      self._LoadWidgetConfig( session )
 
 #		-- Or determine default initial widgets
 #		--
@@ -1075,12 +1080,12 @@ Must be called from the UI thread.
         widget_list.append( 'widget.assembly_view.Assembly2DView' )
 
 #			-- Channel mode
-      if len( data.GetDataSetNames( 'channel' ) ) > 0:
-        if data.core.nass > 1:
-          widget_list.append( 'widget.channel_view.Channel2DView' )
-        widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
-        if data.core.nax > 1:
-          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
+#x      if len( data.GetDataSetNames( 'channel' ) ) > 0:
+#x        if data.core.nass > 1:
+#x          widget_list.append( 'widget.channel_view.Channel2DView' )
+#x        widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
+#x        if data.core.nax > 1:
+#x          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
 
 #			-- Axial plot?
       if len( self.axialPlotTypes ) > 0:
@@ -1103,6 +1108,18 @@ Must be called from the UI thread.
 	    'widget.channel_axial_view.ChannelAxial2DView',
             ]
 
+      if config is None:
+        if len( widget_list ) > 6:
+          grid_sizer.SetCols( 4 )
+          grid_sizer.SetRows( 2 )
+        elif len( widget_list ) > 3:
+          grid_sizer.SetCols( 3 )
+          grid_sizer.SetRows( 2 )
+        elif len( widget_list ) > 1:
+          grid_sizer.SetCols( 2 )
+          grid_sizer.SetRows( 1 )
+      #end if config
+
 #			-- Create widgets
 #			--
       for w in widget_list:
@@ -1112,8 +1129,12 @@ Must be called from the UI thread.
 	    ( w, str( self.grid.GetSize() ) )
       #end for
 
-      self._Refit( False )  # True
-    #end if-else widget_config
+      fr_size = None if config is None else config.GetFrameSize()
+      if fr_size is not None and fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
+        self.SetSize( fr_size )
+      else:
+        self._Refit( False )  # True
+    #end if-else session
 
 #		-- Set bean ranges and values
 #		--
@@ -1436,7 +1457,7 @@ Must be called from the UI thread.
       #self.OpenFile( path )
 
       path, session = self._ResolveFile( path )
-      self.OpenFile( path, session )
+      self.OpenFile( path, session = session )
   #end _OnOpenFile
 
 
@@ -1694,7 +1715,7 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.OpenFile()			-
   #----------------------------------------------------------------------
-  def OpenFile( self, file_path, widget_config = None ):
+  def OpenFile( self, file_path, config = None, session = None ):
     """
 Must be called from the UI thread.
 """
@@ -1709,7 +1730,9 @@ Must be called from the UI thread.
     wxlibdr.startWorker(
 	self._OpenFileEnd,
 	self._OpenFileBegin,
-	wargs = [ dialog, file_path, widget_config ]
+	wargs = [ dialog, file_path ],
+	wkwargs = { 'config': config, 'session': session }
+	#wargs = [ dialog, file_path, widget_config ]
         )
   #end OpenFile
 
@@ -1740,15 +1763,16 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OpenFileBegin()			-
   #----------------------------------------------------------------------
-  def _OpenFileBegin( self, dialog, file_path, widget_config ):
+  def _OpenFileBegin( self, dialog, file_path, config = None, session = None ):
     """
 """
     dialog.Pulse()
     status = \
       {
+      'config': config,
       'dialog': dialog,
       'file_path': file_path,
-      'widget_config': widget_config
+      'session': session
       }
 
     try:
@@ -1793,7 +1817,8 @@ Must be called from the UI thread.
 	wx.CallAfter(
 	    self.LoadDataModel,
 	    status[ 'file_path' ],
-	    status.get( 'widget_config' )
+	    config = status.get( 'config' ),
+	    session = status.get( 'session' )
 	    )
     #end if
   #end _OpenFileEnd
