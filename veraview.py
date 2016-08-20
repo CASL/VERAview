@@ -287,6 +287,7 @@ unnecessary.
 
       opened = False
       session = WidgetConfig.ReadUserSession()
+      self.frame.SetConfig( session )
 
       if self.filepath is None:
         #session = None if self.skipSession else WidgetConfig.ReadUserSession()
@@ -301,7 +302,7 @@ unnecessary.
                 )
             if ans == wx.YES:
 	      opened = True
-	      self.frame.OpenFile( data_path, session = session )
+	      self.frame.OpenFile( data_path, session )
 
       elif os.path.exists( self.filepath ):
 	if self.filepath.lower().endswith( '.vview' ):
@@ -313,10 +314,10 @@ unnecessary.
 	        )
 	  else:
             opened = True
-	    self.frame.OpenFile( data_path, session = session )
+	    self.frame.OpenFile( data_path, session )
 	else:
 	  opened = True
-	  self.frame.OpenFile( self.filepath, config = session )
+	  self.frame.OpenFile( self.filepath )
 
       if not opened:
         self.frame._OnOpenFile( None )
@@ -470,6 +471,7 @@ class VeraViewFrame( wx.Frame ):
 
     self.app = app
     self.axialPlotTypes = set()
+    self.config = None
 #    self.dataSetDefault = ds_default
     self.eventLocks = State.CreateLocks()
     self.state = state
@@ -642,6 +644,17 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #      #end for
 #    #end if
 #  #end FireStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.GetConfig()			-
+  #----------------------------------------------------------------------
+  def GetConfig( self ):
+    """Accessor for the config property.
+@return			WidgetConfig object
+"""
+    return  self.config
+  #end GetConfig
 
 
   #----------------------------------------------------------------------
@@ -955,11 +968,10 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, config = None, session = None ):
+  def LoadDataModel( self, file_path, session = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
-@param  config		optional WidgetConfig instance for frame config
 @param  session		optional WidgetConfig instance for session restoration
 """
     print >> sys.stderr, '[VeraViewFrame.LoadDataModel]'
@@ -1108,7 +1120,7 @@ Must be called from the UI thread.
 	    'widget.channel_axial_view.ChannelAxial2DView',
             ]
 
-      if config is None:
+      if self.config is None:
         if len( widget_list ) > 6:
           grid_sizer.SetCols( 4 )
           grid_sizer.SetRows( 2 )
@@ -1129,8 +1141,10 @@ Must be called from the UI thread.
 	    ( w, str( self.grid.GetSize() ) )
       #end for
 
-      fr_size = None if config is None else config.GetFrameSize()
+      fr_size = None if self.config is None else self.config.GetFrameSize()
       if fr_size is not None and fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
+	fr_pos = self.config.GetFramePosition()
+	self.SetPosition( fr_pos )
         self.SetSize( fr_size )
       else:
         self._Refit( False )  # True
@@ -1193,8 +1207,10 @@ Note this defines a new State as well as widgets in the grid.
     if self.state.scaleMode in self.scaleModeItems:
       self.scaleModeItems[ self.state.scaleMode ].Check()
 
+    fr_pos = widget_config.GetFramePosition()
     fr_size = widget_config.GetFrameSize()
     if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
+      self.SetPosition( fr_pos )
       self.SetSize( fr_size )
   #end _LoadWidgetConfig
 
@@ -1443,6 +1459,9 @@ Must be called from the UI thread.
     if ev is not None:
       ev.Skip()
 
+    if self.state.GetDataModel() is not None:
+      self._UpdateConfig()
+
     # 'HDF5 files (*.h5)|*.h5',
     # 'HDF5 files (*.h5,*.x)|*.h5;*.x',
     # 'HDF5 files (*.h5,*.x)|*.h5;*.x|Other files (*.vview)|*.vview',
@@ -1457,7 +1476,7 @@ Must be called from the UI thread.
       #self.OpenFile( path )
 
       path, session = self._ResolveFile( path )
-      self.OpenFile( path, session = session )
+      self.OpenFile( path, session )
   #end _OnOpenFile
 
 
@@ -1715,7 +1734,7 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.OpenFile()			-
   #----------------------------------------------------------------------
-  def OpenFile( self, file_path, config = None, session = None ):
+  def OpenFile( self, file_path, session = None ):
     """
 Must be called from the UI thread.
 """
@@ -1730,46 +1749,21 @@ Must be called from the UI thread.
     wxlibdr.startWorker(
 	self._OpenFileEnd,
 	self._OpenFileBegin,
-	wargs = [ dialog, file_path ],
-	wkwargs = { 'config': config, 'session': session }
-	#wargs = [ dialog, file_path, widget_config ]
+	wargs = [ dialog, file_path, session ]
+	#wkwargs = { 'config': config, 'session': session }
         )
   #end OpenFile
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame.OpenFile_0()			-
-  #----------------------------------------------------------------------
-  def OpenFile_0( self, file_path, widget_config = None ):
-    """
-Must be called from the UI thread.
-"""
-    self.CloseAllWidgets()
-
-    dialog = wx.ProgressDialog(
-        'Open File',
-	'Reading file "%s"' % file_path
-	)
-    dialog.Show()
-
-    wxlibdr.startWorker(
-	self._OpenFileEnd,
-	self._OpenFileBegin,
-	wargs = [ dialog, file_path, widget_config ]
-        )
-  #end OpenFile_0
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OpenFileBegin()			-
   #----------------------------------------------------------------------
-  def _OpenFileBegin( self, dialog, file_path, config = None, session = None ):
+  def _OpenFileBegin( self, dialog, file_path, session = None ):
     """
 """
     dialog.Pulse()
     status = \
       {
-      'config': config,
       'dialog': dialog,
       'file_path': file_path,
       'session': session
@@ -1817,8 +1811,7 @@ Must be called from the UI thread.
 	wx.CallAfter(
 	    self.LoadDataModel,
 	    status[ 'file_path' ],
-	    config = status.get( 'config' ),
-	    session = status.get( 'session' )
+	    status.get( 'session' )
 	    )
     #end if
   #end _OpenFileEnd
@@ -1897,8 +1890,11 @@ Must be called from the UI thread.
     #xxxxx list derived datasets to be re-created
     config = WidgetConfig()
 
+    fr_pos = self.GetPosition()
     fr_size = self.GetSize()
-    config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
+    config.SetFramePosition( fr_pos[ 0 ], fr_pos[ 1 ] )
+    config.SetFrameSize( fr_size[ 0 ], fr_size[ 1 ] )
+    #config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
     config.SetState( self.state )
 
     widget_list = []
@@ -1962,6 +1958,17 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.SetConfig()			-
+  #----------------------------------------------------------------------
+  def SetConfig( self, value ):
+    """Accessor for the config property.
+@param  value		WidgetConfig object
+"""
+    self.config = value
+  #end SetConfig
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.ShowMessageDialog()		-
   #----------------------------------------------------------------------
   def ShowMessageDialog( self, message, title ):
@@ -1969,6 +1976,22 @@ Must be called on the UI event thread.
 """
     wx.MessageDialog( self, message, title ).ShowWindowModal()
   #end ShowMessageDialog
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateConfig()			-
+  #----------------------------------------------------------------------
+  def _UpdateConfig( self ):
+    """Updates with current frame properties.
+"""
+    fr_pos = self.GetPosition()
+    fr_size = self.GetSize()
+    if self.config is None:
+      self.config = WidgetConfig()
+
+    self.config.SetFramePosition( fr_pos[ 0 ], fr_pos[ 1 ] )
+    self.config.SetFrameSize( fr_size[ 0 ], fr_size[ 1 ] )
+  #end _UpdateConfig
 
 #end VeraViewFrame
 

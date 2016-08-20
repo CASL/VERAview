@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2016-08-20	leerw@ornl.gov				-
+#	  Added framePosition property.
 #		2016-07-08	leerw@ornl.gov				-
 #	  Added NumpyEncoder.
 #		2016-06-30	leerw@ornl.gov				-
@@ -62,16 +64,23 @@ class WidgetConfig( object ):
   #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.__init__()				-
   #----------------------------------------------------------------------
-  def __init__( self, file_path = None ):
+  def __init__( self,
+      file_path = None, frame_position = None, frame_size = None
+      ):
     """
-#@param  kwargs		optional initialization arguments
-#  file_path		path to file to read
-#  frame_size		size of 
 @param  file_path	optional path to file to read
+@param  frame_position	optional ( x, y ) to store
+@param  frame_size	optional ( wd, ht ) to store
 """
+    if frame_position is None:
+      frame_position = ( 0, 0 )
+    if frame_size is None:
+      frame_size = ( 0, 0 )
+
     self.fDict = \
       {
-      'frameSize': ( 0, 0 ),
+      'framePosition': frame_position,
+      'frameSize': frame_size,
       'state': {},
       'widgets': []
       }
@@ -105,6 +114,17 @@ class WidgetConfig( object ):
 """
     return  self.fDict.get( 'filePath' )
   #end GetFilePath
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetFramePosition()			-
+  #----------------------------------------------------------------------
+  def GetFramePosition( self ):
+    """
+@return			position tuple ( x, y ), default to ( 0, 0 )
+"""
+    return  self.fDict.get( 'framePosition', ( 0, 0 ) )
+  #end GetFramePosition
 
 
   #----------------------------------------------------------------------
@@ -178,6 +198,16 @@ class WidgetConfig( object ):
     else:
       self.fDict[ 'filePath' ] = file_path
   #end SetFilePath
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.SetFramePosition()			-
+  #----------------------------------------------------------------------
+  def SetFramePosition( self, x, y ):
+    """
+"""
+    self.fDict[ 'framePosition' ] = ( x, y )
+  #end SetFramePosition
 
 
   #----------------------------------------------------------------------
