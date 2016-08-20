@@ -5,7 +5,7 @@
 #	HISTORY:							-
 #		2016-08-20	leerw@ornl.gov				-
 #	  Changing initial widgets to pin and plots only.
-#	  Assigning last frame size on load.
+#	  Assigning last frame position and size on load.
 #		2016-08-19	leerw@ornl.gov				-
 #	  More messing with widget sizing in grids.
 #		2016-08-16	leerw@ornl.gov				-
