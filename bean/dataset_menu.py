@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-08-22	leerw@ornl.gov				-
+#	  Reworking for reuse in all and components.
 #		2016-08-15	leerw@ornl.gov				-
 #	  New State events.
 #		2016-07-21	leerw@ornl.gov				-
@@ -36,12 +38,14 @@ class DataSetMenu( wx.Menu ):
   #	METHOD:		DataSetMenu.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self,
-      binder, mode = '',
+      state, binder, mode = '',
       #mode = '', item_bind = None,
-      ds_callback = None, ds_types = None,
-      state = None
+      ds_callback = None, ds_types = None
       ):
     """Initializes with an empty menu.
+@param  state		State object, required
+@param  binder		object from window containingg this on which to call
+			Bind() for menu events
 @param  mode		mode value:
     ''			- single selection, flat menu (default)
     'multi'		- multiple selections, flat menu
@@ -56,10 +60,10 @@ class DataSetMenu( wx.Menu ):
 			with methods {Is,Toggle}DataSetVisible()
 @param  ds_types	defined allowed types, where None means all types
 			in the data model
-@param  state		if not None, SetState()
 """
     super( DataSetMenu, self ).__init__()
 
+    self.binder = binder
     self.dataSetCallback = ds_callback
     self.dataSetMenuVersion = -1
     self.dataSetTypes = []
@@ -67,13 +71,9 @@ class DataSetMenu( wx.Menu ):
     self.derivedMenu = None
     self.derivedMenuLabelMap = {}
     self.mode = mode
-    self.state = None
+    self.state = state
 
-    self.binder = binder
-    #binder.Bind( wx.EVT_MENU_OPEN, self._UpdateMenu, self )
-
-    if state is not None:
-      self.SetState( state )
+    state.AddListener( self )
   #end __init__
 
 
@@ -185,6 +185,24 @@ class DataSetMenu( wx.Menu ):
 #      #end if changes
     #if-else
   #end HandleStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu.Init()				-
+  #----------------------------------------------------------------------
+  def Init( self ):
+    """Convenience method to call HandleStateChange( STATE_CHANGE_init )
+"""
+    self.HandleStateChange( STATE_CHANGE_init )
+  #end Init
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu.IsPullright()			-
+  #----------------------------------------------------------------------
+  def IsPullright( self ):
+    return  self.mode.startswith( 'sub' ) and len( self.dataSetTypes ) > 1
+  #end IsPullright
 
 
   #----------------------------------------------------------------------
@@ -321,6 +339,7 @@ class DataSetMenu( wx.Menu ):
   #----------------------------------------------------------------------
   def SetState( self, state ):
     """
+@deprecated
 """
 #xx    self.state = state
 #xx    self.HandleStateChange( STATE_CHANGE_init )
@@ -411,9 +430,8 @@ class DataSetMenu( wx.Menu ):
 #		-- Create derived submenus
 #		--
     if derived_category_names_map:
-      single_flag = self.mode == '' or self.mode.find( 'single' ) >= 0
-      pullright_flag = \
-          self.mode.startswith( 'sub' ) and len( self.dataSetTypes ) > 1
+      single_flag = self.IsSingleSelection()
+      pullright_flag = self.IsPullright()
       item_kind = wx.ITEM_NORMAL if single_flag else wx.ITEM_CHECK
 
       for der_label, cat_names_map in \
@@ -442,7 +460,7 @@ class DataSetMenu( wx.Menu ):
 	    der_label_menu.AppendItem( cat_menu_item )
 	  #end for cat, names
 
-	else:
+	else:  # flat
 	  #der_label_menu._derivedLabel = der_label
           self.derivedMenuLabelMap[ der_label_menu ] = der_label
 	  names = []
@@ -491,8 +509,7 @@ class DataSetMenu( wx.Menu ):
 #			-- Process if we have something
 #			--
       if self.dataSetTypes:
-        pullright_flag = \
-	    self.mode.startswith( 'sub' ) and len( self.dataSetTypes ) > 1
+        pullright_flag = self.IsPullright()
 	selected_flag = self.mode.find( 'selected' ) >= 0
 #No radio if we don't have a selected dataset for each category
 #	kind = wx.ITEM_RADIO if single_flag else wx.ITEM_CHECK
@@ -519,7 +536,8 @@ class DataSetMenu( wx.Menu ):
 	      self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
 	    #end for name
 
-	    dtype_item = wx.MenuItem( self, wx.ID_ANY, dtype, subMenu = dtype_menu )
+	    dtype_item = \
+	        wx.MenuItem( self, wx.ID_ANY, dtype, subMenu = dtype_menu )
 	    self.InsertItem( ndx, dtype_item )
 	    ndx += 1
 	  #end for dtype
@@ -530,9 +548,9 @@ class DataSetMenu( wx.Menu ):
 	  selected_ds_names = []
 	  cur_selection = None
 	  for dtype in self.dataSetTypes:
+	    dataset_names += data_model.GetDataSetNames( dtype )
 #	    if cur_selection is None:
 #	      cur_selection = self.state.GetDataSetByType( dtype )
-	    dataset_names += data_model.GetDataSetNames( dtype )
 #	    if selected_flag and dtype.find( ':' ) < 0:
 #	      selected_ds_names.append( 'Selected ' + dtype + ' dataset' )
 	  #end for dtype
