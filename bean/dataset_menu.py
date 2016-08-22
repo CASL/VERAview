@@ -154,11 +154,19 @@ class DataSetMenu( wx.Menu ):
   def HandleStateChange( self, reason ):
     """
 """
-    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
-    if (reason & load_mask) > 0:
+    if (reason & STATE_CHANGE_init) > 0:
       self._LoadDataModel()
+      reason |= STATE_CHANGE_dataModel
 
-    elif (reason & STATE_CHANGE_curDataSet) > 0:
+    if (reason & STATE_CHANGE_dataModel) > 0:
+      self._UpdateMenu()
+
+#    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
+#    if (reason & load_mask) > 0:
+#      self._LoadDataModel()
+#
+#    elif (reason & STATE_CHANGE_curDataSet) > 0:
+    if (reason & STATE_CHANGE_curDataSet) > 0:
       data = self.state.GetDataModel()
       ds_name = self.state.GetCurDataSet()
       ds_type = data.GetDataSetType( ds_name ) if ds_name else None
@@ -229,6 +237,7 @@ class DataSetMenu( wx.Menu ):
 #		--
     data_model = State.FindDataModel( self.state )
     if data_model is not None:
+      data_model.AddListener( 'newDataSet', self._UpdateMenu )
       have_derived_flag = False
 
       types_in = \
@@ -494,7 +503,7 @@ class DataSetMenu( wx.Menu ):
   #----------------------------------------------------------------------
   #	METHOD:		DataSetMenu._UpdateMenu()			-
   #----------------------------------------------------------------------
-  def _UpdateMenu( self, ev ):
+  def _UpdateMenu( self, *args, **kwargs ):
     """
 """
     data_model = State.FindDataModel( self.state )

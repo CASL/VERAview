@@ -706,6 +706,12 @@ class DataModel( object ):
 'CORE' group as the 'core' property, and all the states as the 'states'
 property.
 
+Events:
+  newDataSet		callable( new_ds_name )
+			listener.OnNewDataSet( new_ds_name )
+  newFile		callable( new_file_name )
+			listener.OnNewFile( new_file_name )
+
 Properties:
   averager		reference to object for caculating derived averages
   core			Core
@@ -721,6 +727,7 @@ Properties:
   derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
   h5File		h5py.File
+  listeners		map of listeners by event type
   maxAxialValue		maximum axial value (cm) 
   ranges		dict of ranges ( min, max ) by dataset
   rangesByStatePt	list by statept index of dicts by dataset of ranges 
@@ -827,6 +834,7 @@ passed, Read() must be called.
 
       #self.dataSetNamesVersion += 1
       DataModel.dataSetNamesVersion_ += 1
+      self.FireEvent( 'newDataSet', ds_name )
     #end if ds_name is new
   #end AddDataSetName
 
@@ -860,12 +868,24 @@ passed, Read() must be called.
     self.derivedLabelsByType = None
     self.derivedStates = None
     self.h5File = None
+    self.listeners = { 'newDataSet': [], 'newFile': [] }
     self.ranges = None
     self.rangesByStatePt = None
     self.states = None
 
     DataModel.dataSetNamesVersion_ += 1
   #end Clear
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.AddListener()				-
+  #----------------------------------------------------------------------
+  def AddListener( self, event_name, listener ):
+    if event_name in self.listeners:
+      if listener not in self.listeners[ event_name ]:
+        self.listeners[ event_name ].append( listener )
+    #end if event_name
+  #end AddListener
 
 
   #----------------------------------------------------------------------
@@ -1659,6 +1679,26 @@ returned.  Calls FindMaxValueAddr().
    
     return  results
   #end FindPinMaxValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FireEvent()				-
+  #----------------------------------------------------------------------
+  def FireEvent( self, event_name, *params ):
+    """
+@param  event_name	either 'newDataSet' or 'newFile'
+@param  params		event params
+"""
+    if event_name in self.listeners:
+      for listener in self.listeners[ event_name ]:
+        method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+	if hasattr( listener, method_name ):
+	  getattr( listener, method_name )( *params )
+	elif hasattr( listener, '__call__' ):
+	  listener( *params )
+      #end for listener
+    #end if event_name
+  #end FireEvent
 
 
   #----------------------------------------------------------------------
@@ -2918,6 +2958,21 @@ at a time for better performance.
 
     return  result
   #end ReadDataSetValues2
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.RemoveListener()			-
+  #----------------------------------------------------------------------
+  def RemoveListener( self, event_name, listener ):
+    """
+@param  event_name	either 'newDataSet' or 'newFile'
+@param  listener	listener with OnXxx() method or callable
+"""
+    if event_name in self.listeners:
+      for listener in self.listeners[ event_name ]:
+        del self.listeners[ event_name ][ listener ]
+    #end if event_name
+  #end RemoveListener
 
 
   #----------------------------------------------------------------------
