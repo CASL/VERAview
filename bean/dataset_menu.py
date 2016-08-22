@@ -175,8 +175,11 @@ class DataSetMenu( wx.Menu ):
       if ds_type:
         item = self._FindMenuItem( ds_type, ds_name )
 	if item and item.GetItemLabelText() == ds_name:
-	  if self.IsSingleSelection():
+	  if self.IsSingleSelection() and not item.IsChecked():
 	    self._CheckSingleItem( self, item )
+            self.state.FireStateChange(
+	        self.state.Change( None, cur_dataset = ds_name )
+	        )
 #x	  else:
 #x	    item.Check()
 #        if item and item.GetKind() == wx.ITEM_RADIO and \
