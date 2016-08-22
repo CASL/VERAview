@@ -782,7 +782,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 XXX size according to how many datasets selected?
 """
     #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
-    self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
+    #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
+    self.ax = self.fig.add_axes([ 0.12, 0.12, 0.82, 0.7 ])
     self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 
@@ -1014,9 +1015,13 @@ method via super.SaveProps().
 
     for k in (
 	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'scaleMode', 'subAddr'
+	'dataSetSelections', 'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
+
+    if self.data is not None:
+      for k in ( 'curDataSet', ):
+	props_dict[ k ] = self.data.RevertIfDerivedDataSet( getattr( self, k ) )
   #end SaveProps
 
 

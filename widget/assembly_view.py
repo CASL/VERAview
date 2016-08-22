@@ -1157,8 +1157,12 @@ method via super.SaveProps().
 """
     super( Assembly2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyAddr', 'auxSubAddrs', 'pinDataSet', 'subAddr' ):
+    for k in ( 'assemblyAddr', 'auxSubAddrs', 'subAddr' ):
       props_dict[ k ] = getattr( self, k )
+
+    if self.data is not None:
+      for k in ( 'pinDataSet', ):
+        props_dict[ k ] = self.data.RevertIfDerivedDataSet( getattr( self, k ) )
   #end SaveProps
 
 

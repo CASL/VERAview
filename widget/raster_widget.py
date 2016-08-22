@@ -243,6 +243,8 @@ _CreateValueString()
     self.dragStartPosition = None
     self.isLoaded = False
 
+    self._imcount = 0
+
 #old way
 #    self.menuDef = \
 #      [
@@ -357,10 +359,10 @@ Paired to _BitmapThreadStart().
 #		--
     if cur_tuple is None:
       print >> sys.stderr, \
-          '[RasterWidget._BitmapThreadFinish] xxx cur_tuple is None xxx'
+          '[RasterWidget._BitmapThreadFinish] XXX cur_tuple is None XXX'
     if pil_im is None:
       print >> sys.stderr, \
-          '[RasterWidget._BitmapThreadFinish] xxx pil_im is None xxx'
+          '[RasterWidget._BitmapThreadFinish] XXX pil_im is None XXX'
 
 #		-- Retry image creation thread?
 #		--
@@ -441,7 +443,7 @@ Calls _CreateRasterImage().
 
       if pil_im is None:
         print >> sys.stderr, \
-            '[RasterWidget._BitmapThreadStart] xxx pil_im is None xxx'
+            '[RasterWidget._BitmapThreadStart] XXX pil_im is None XXX'
 
     return  ( next_tuple, pil_im, try_count )
   #end _BitmapThreadStart

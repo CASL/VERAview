@@ -137,7 +137,12 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    csv_text = '"Axial=%.3f"\n' % self.axialValue[ 0 ]
+    #csv_text = '"Axial=%.3f"\n' % self.axialValue[ 0 ]
+    csv_text = 'Assy %d %s, Axial %.3f\n' % (
+        self.assemblyAddr[ 0 ] + 1,
+	self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	self.axialValue[ 0 ]
+	)
     cur_selection_flag = mode != 'displayed'
 
 #		-- Must be valid state
@@ -146,7 +151,13 @@ Properties:
 
 #		 	-- Create header
 #		 	--
-      header = self.state.timeDataSet
+      #header = self.state.timeDataSet
+      if self.refAxisDataSet:
+	header = '"%s@%s"' % \
+	    ( self.refAxisDataSet, DataModel.ToAddrString( *self.subAddr ) )
+      else:
+        header = self.state.timeDataSet
+
       #for name, item in sorted( self.dataSetValues ):
       for k in sorted( self.dataSetValues.keys() ):
 	name = self.data.GetDataSetDisplayName( self._GetDataSetName( k ) )
@@ -580,7 +591,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     return \
       [
       'channel', 'detector',
-      'pin', 'pin:assembly', 'pin:axial', 'pin:core',
+      'pin', 'pin:assembly', 'pin:axial', 'pin:core', 'pin:radial',
       'scalar', 'fixed_detector'
       ]
   #end GetDataSetTypes
@@ -830,12 +841,13 @@ be overridden by subclasses.
           )
 
     else:
-      ds_types = self.GetDataSetTypes()
       menu_types = []
-      if 'channel' in ds_types:
-        menu_types.append( 'channel' )
-      if 'pin' in ds_types:
-        menu_types.append( 'pin' )
+#      ds_types = self.GetDataSetTypes()
+#      if 'channel' in ds_types:
+#        menu_types.append( 'channel' )
+#      if 'pin' in ds_types:
+#        menu_types.append( 'pin' )
+      menu_types = self.GetDataSetTypes()
 
 #			-- Create pullrights
 #			--
@@ -937,10 +949,17 @@ method via super.SaveProps().
 
     for k in (
 	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'refAxisDataSet',
+	'curDataSet', 'dataSetSelections',
 	'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
+
+    if self.data is not None:
+      for k in ( 'refAxisDataSet', ):
+	cur_name = getattr( self, k )
+	rev_name = self.data.RevertIfDerivedDataSet( cur_name )
+	if cur_name == rev_name:
+          props_dict[ k ] = cur_name
   #end SaveProps
 
 
@@ -1069,8 +1088,13 @@ already read.
 
       #self.refAxisValues = results[ self.state.timeDataSet ]
       if self.refAxisDataSet:
-	values_dict = results[ '*' + self.refAxisDataSet ]
-	self.refAxisValues = values_dict.itervalues().next()
+	#values_dict = results[ '*' + self.refAxisDataSet ]
+	#self.refAxisValues = values_dict.itervalues().next()
+	values_item = results[ '*' + self.refAxisDataSet ]
+	if isinstance( values_item, dict ):
+	  self.refAxisValues = values_item.itervalues().next()
+	else:
+	  self.refAxisValues = values_item
       else:
         self.refAxisValues = results[ self.state.timeDataSet ]
 

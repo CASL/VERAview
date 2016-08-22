@@ -1485,8 +1485,12 @@ method via super.SaveProps().
 """
     super( Core2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyAddr', 'subAddr', 'mode', 'pinDataSet' ):
+    for k in ( 'assemblyAddr', 'subAddr', 'mode' ):
       props_dict[ k ] = getattr( self, k )
+
+    if self.data is not None:
+      for k in ( 'pinDataSet', ):
+        props_dict[ k ] = self.data.RevertIfDerivedDataSet( getattr( self, k ) )
   #end SaveProps
 
 

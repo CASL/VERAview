@@ -1504,10 +1504,24 @@ method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
     super( Detector2DMultiView, self ).SaveProps( props_dict )
-    for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
-      props_dict[ k ] = list( getattr( self, k ) )
+
     for k in ( 'detectorAddr', 'mode' ):
       props_dict[ k ] = getattr( self, k )
+
+    #for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
+      #props_dict[ k ] = list( getattr( self, k ) )
+
+    if self.data is not None:
+      for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
+        cur_set = set( getattr( self, k ) )
+	for cur_name in cur_set:
+	  rev_name = self.data.RevertIfDerivedDataSet( cur_name )
+	  if rev_name != cur_name:
+	    cur_set.remove( cur_name )
+	    cur_set.add( rev_name )
+	#end for cur_name
+        props_dict[ k ] = list( cur_set )
+      #end for k
   #end SaveProps
 
 

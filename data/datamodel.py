@@ -3057,6 +3057,28 @@ ds_names	dict of dataset names by dataset type
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.RevertIfDerivedDataSet()		-
+  #----------------------------------------------------------------------
+  def RevertIfDerivedDataSet( self, ds_name ):
+    """If ds_name is a derived dataset, return the first dataset of the
+base type.
+@param  ds_name		candidate ds_name
+@return			ds_name if it is not derived, the first dataset from
+			the base category/type if it is derived
+"""
+    ds_type = self.GetDataSetType( ds_name ) if ds_name else None
+    if ds_type:
+      ndx = ds_type.find( ':' )
+      if ndx >= 0:
+        base_type = ds_type[ 0 : ndx ]
+	ds_name = self.GetFirstDataSet( base_type )
+    #end if
+
+    return  ds_name
+  #end RevertIfDerivedDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.StoreExtraDataSet()			-
   #----------------------------------------------------------------------
 #  def StoreExtraDataSet( self, ds_name, data, src_name = 'core', state_ndx = -1 ):
