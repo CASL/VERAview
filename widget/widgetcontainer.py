@@ -678,7 +678,8 @@ definition array for a pullright.
     vbox.Layout()
 
     self.state.AddListener( self )
-    self.widget.SetState( self.state )
+    self.widget.Init()
+    #self.widget.SetState( self.state )
   #end _InitUI
 
 

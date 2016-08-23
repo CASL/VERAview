@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-08-23	leerw@ornl.gov				-
 #	  Added CheckSingleMenuItem() and ClearMenu().
+#	  Setting state in __init__().
 #		2016-08-17	leerw@ornl.gov				-
 #	  Added _FindFirstDataSet().
 #		2016-08-15	leerw@ornl.gov				-
@@ -336,7 +337,9 @@ Widget Class Hierarchy
     #self.busyCursor = None
     self.container = container
     self.data = None
-    self.state = None
+    self.state = \
+        getattr( container, 'state' )  if hasattr( container, 'state' ) else \
+	None
 
     #self.derivedLabels = None
     self.menuDef = None
@@ -932,6 +935,17 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.Init()					-
+  #----------------------------------------------------------------------
+  def Init( self, new_state = None ):
+    if new_state is not None:
+      self.state = new_state
+
+    self.HandleStateChange( STATE_CHANGE_init )
+  #end Init
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
@@ -1241,9 +1255,10 @@ implementation is a noop.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.SetState()				-
   #----------------------------------------------------------------------
-  def SetState( self, state ):
-    self.state = state
-    self.HandleStateChange( STATE_CHANGE_init )
+  def SetState( self, state = None ):
+    self.Init( state )
+    #self.state = state
+    #self.HandleStateChange( STATE_CHANGE_init )
   #end SetState
 
 
