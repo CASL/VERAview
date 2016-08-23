@@ -752,6 +752,7 @@ be overridden by subclasses.
       select_item.Check()
 
     wx.CallAfter( self.UpdateState, replot = True )
+    wx.CallAfter( self._UpdateRefAxisMenu )
   #end LoadProps
 
 
@@ -811,9 +812,9 @@ be overridden by subclasses.
     item = menu.FindItemById( ev.GetId() )
     if item is not None:
       label = item.GetItemLabelText()
-
       new_value = '' if label == 'Time Dataset' else label
       if new_value != self.refAxisDataSet:
+	Widget.CheckSingleMenuItem( self.refAxisMenu, item )
         self.refAxisDataSet = new_value
 	self.UpdateState( replot = True )
     #end if
@@ -1143,10 +1144,9 @@ already read.
   #----------------------------------------------------------------------
   #	METHOD:		TimePlots._UpdateRefAxisMenu()			-
   #----------------------------------------------------------------------
-  def _UpdateRefAxisMenu( self ):
+  def _UpdateRefAxisMenu( self, *args, **kwargs ):
     """Must be called from the UI thread.
 """
-    pdb.set_trace()
     if self.data is not None:
       Widget.ClearMenu( self.refAxisMenu )
 
@@ -1175,7 +1175,7 @@ already read.
       for dtype, ds_names in sorted( names_by_type.iteritems() ):
         if ds_names:
 	  type_menu = wx.Menu()
-	  for ds_name in ds_names:
+	  for ds_name in sorted( ds_names ):
 	    item = wx.MenuItem(
 	        type_menu, wx.ID_ANY, ds_name,
 		kind = wx.ITEM_CHECK
@@ -1186,13 +1186,18 @@ already read.
 	      item.Check()
 	  #end for ds_name
 
-          type_item = wx.MenuItem( menu, wx.ID_ANY, dtype, subMenu = type_menu )
+          type_item = wx.MenuItem(
+	      self.refAxisMenu, wx.ID_ANY, dtype,
+	      subMenu = type_menu
+	      )
 	  self.refAxisMenu.AppendItem( type_item )
         #end if ds_names
       #end for dtype, ds_names
 
-      item = \
-          wx.MenuItem( menu, wx.ID_ANY, 'Time Dataset', kind = wx.ITEM_CHECK )
+      item = wx.MenuItem(
+          self.refAxisMenu, wx.ID_ANY, 'Time Dataset',
+	  kind = wx.ITEM_CHECK
+	  )
       self.container.Bind( wx.EVT_MENU, self._OnSelectRefAxisDataSet, item )
       self.refAxisMenu.AppendItem( item )
       if not self.refAxisDataSet:

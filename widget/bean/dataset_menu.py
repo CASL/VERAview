@@ -79,7 +79,8 @@ class DataSetMenu( wx.Menu ):
     self.showDerivedMenu = show_derived_menu
     self.state = state
 
-    state.AddListener( self )
+    if state is not None:
+      state.AddListener( self )
   #end __init__
 
 
@@ -212,7 +213,11 @@ class DataSetMenu( wx.Menu ):
   def Init( self, new_state = None ):
     """Convenience method to call HandleStateChange( STATE_CHANGE_init )
 """
-    self.state = new_state
+#	-- Should be unneeded
+    if new_state is not None:
+      self.state = new_state
+      new_state.AddListener( self )
+
     self.HandleStateChange( STATE_CHANGE_init )
   #end Init
 

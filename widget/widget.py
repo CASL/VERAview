@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-08-23	leerw@ornl.gov				-
+#	  Added CheckSingleMenuItem() and ClearMenu().
 #		2016-08-17	leerw@ornl.gov				-
 #	  Added _FindFirstDataSet().
 #		2016-08-15	leerw@ornl.gov				-
@@ -1302,6 +1304,34 @@ GetDisplaysMultiDataSets() returns True.
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.CheckSingleMenuItem()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CheckSingleMenuItem( menu, checked_item ):
+    """Calls recursively with DFS walk through menus and items.
+"""
+#    if checked_item is not None:
+#      checked_id = checked_item.GetId()
+#      checked_label = checked_item.GetItemLabelText()
+#    else:
+#      checked_id = -1
+#      checked_label = ''
+
+    for i in range( menu.GetMenuItemCount() ):
+      item = menu.FindItemByPosition( i )
+      sub_menu = item.GetSubMenu()
+      if sub_menu is not None:
+        Widget.CheckSingleMenuItem( sub_menu, checked_item )
+      elif item.GetKind() == wx.ITEM_CHECK:
+	if item.GetId() != checked_item.GetId():
+	  item.Check( False )
+	elif not item.IsChecked():
+	  item.Check( True )
+    #end for
+  #end CheckSingleMenuItem
 
 
   #----------------------------------------------------------------------
