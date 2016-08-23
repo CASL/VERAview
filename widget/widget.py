@@ -1305,6 +1305,24 @@ GetDisplaysMultiDataSets() returns True.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.ClearMenu()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ClearMenu( menu, excludes = [] ):
+    """Removes all items, relying on wx.Menu.DestroyItem() on removing
+submenus.
+"""
+    ndx = 0
+    while menu.GetMenuItemCount() > ndx:
+      item = menu.FindItemByPosition( ndx )
+      if not excludes or item.GetItemLabelText() not in excludes:
+        menu.DestroyItem( item )
+      else:
+        ndx += 1
+  #end ClearMenu
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetBitmap()				-
   #----------------------------------------------------------------------
   @staticmethod

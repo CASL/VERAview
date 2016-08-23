@@ -108,8 +108,7 @@ except Exception:
   raise ImportError( 'The wxPython module is required to run this program' )
 
 #from bean.dataset_menu_item import *
-from bean.dataset_menu import *
-from bean.dataset_mgr import *
+#from bean.dataset_mgr import *
 from bean.grid_sizer_dialog import *
 
 from data.config import Config
@@ -124,6 +123,7 @@ from widget.widget_config import *
 from widget.widgetcontainer import *
 
 from widget.bean.axial_slider import *
+from widget.bean.dataset_menu import *
 from widget.bean.exposure_slider import *
 
 
@@ -785,14 +785,18 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #    edit_menu.AppendItem( datasets_item )
 
 #			-- Select dataset
-    self.dataSetMenu = \
-        DataSetMenu( self.state, binder = self, mode = 'subsingle' )
 #    self.dataSetMenu = DataSetMenu(
 #        self, 'subsingle',
 #	ds_types = [ 'channel', 'detector', 'fixed_detector', 'pin', 'scalar' ]
 #	)
-    dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
-    self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
+#    dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
+#    self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
+    self.dataSetMenu = \
+        DataSetMenu( self.state, binder = self, mode = 'subsingle' )
+    dataset_item = wx.MenuItem(
+        edit_menu, wx.ID_ANY, 'Select Dataset',
+	subMenu = self.dataSetMenu
+	)
     edit_menu.AppendItem( dataset_item )
 
 #		 	-- Scale Mode
@@ -982,7 +986,8 @@ Must be called from the UI thread.
 
 #		-- Update dataset selection menu
 #		--
-    self.dataSetMenu.SetState( self.state )
+    #self.dataSetMenu.SetState( self.state )
+    self.dataSetMenu.Init()
 
 #		-- Re-create time dataset menu
 #		--
@@ -1543,12 +1548,12 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnSelectDataSet()		-
   #----------------------------------------------------------------------
-  def _OnSelectDataSet( self, ev ):
-    ev.Skip()
-    if self.dataSetMenu:
-      self.dataSetMenu._UpdateMenu( ev )
-      self.widgetToolBar.PopupMenu( self.dataSetMenu )
-  #end _OnSelectDataSet
+#  def _OnSelectDataSet( self, ev ):
+#    ev.Skip()
+#    if self.dataSetMenu:
+#      self.dataSetMenu._UpdateMenu( ev )
+#      self.widgetToolBar.PopupMenu( self.dataSetMenu )
+#  #end _OnSelectDataSet
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-08-23	leerw@ornl.gov				-
+#	  Refinements and bug fixes.
 #		2016-08-22	leerw@ornl.gov				-
 #	  Reworking for reuse in all and components.
 #		2016-08-15	leerw@ornl.gov				-
@@ -40,7 +42,8 @@ class DataSetMenu( wx.Menu ):
   def __init__( self,
       state, binder, mode = '',
       #mode = '', item_bind = None,
-      ds_listener = None, ds_types = None
+      ds_listener = None, ds_types = None,
+      show_derived_menu = True
       ):
     """Initializes with an empty menu.
 @param  state		State object, required
@@ -61,6 +64,7 @@ class DataSetMenu( wx.Menu ):
 			for single selections STATE_CHANGE_curDataSet is fired
 @param  ds_types	defined allowed types, where None means all types
 			in the data model
+@param  show_derived_menu  True to show a derived submenu if applicable
 """
     super( DataSetMenu, self ).__init__()
 
@@ -72,6 +76,7 @@ class DataSetMenu( wx.Menu ):
     self.derivedMenu = None
     self.derivedMenuLabelMap = {}
     self.mode = mode
+    self.showDerivedMenu = show_derived_menu
     self.state = state
 
     state.AddListener( self )
@@ -116,7 +121,7 @@ class DataSetMenu( wx.Menu ):
         menu.DestroyItem( item )
       else:
         ndx += 1
-  #end if _ClearMenu
+  #end _ClearMenu
 
 
   #----------------------------------------------------------------------
@@ -204,9 +209,10 @@ class DataSetMenu( wx.Menu ):
   #----------------------------------------------------------------------
   #	METHOD:		DataSetMenu.Init()				-
   #----------------------------------------------------------------------
-  def Init( self ):
+  def Init( self, new_state = None ):
     """Convenience method to call HandleStateChange( STATE_CHANGE_init )
 """
+    self.state = new_state
     self.HandleStateChange( STATE_CHANGE_init )
   #end Init
 
@@ -261,7 +267,7 @@ class DataSetMenu( wx.Menu ):
 #	    have_derived_flag = True
       #end for k
 
-      if have_derived_flag:
+      if self.showDerivedMenu and have_derived_flag:
 	self.derivedMenu = wx.Menu()
 	derived_item = wx.MenuItem(
 	    self, wx.ID_ANY, 'Derived',
@@ -270,49 +276,6 @@ class DataSetMenu( wx.Menu ):
 	self.AppendItem( derived_item )
     #end if data_model
   #end _LoadDataModel
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._LoadDataModel_wrong()		-
-  #----------------------------------------------------------------------
-  def _LoadDataModel_wrong( self ):
-    """
-"""
-#		-- Remove existing items
-#		--
-    while self.GetMenuItemCount() > 0:
-      self.DestroyItem( self.FindItemByPosition( 0 ) )
-    self.derivedMenu = None
-
-#		-- Process datamodel to determine if there are derive-ables
-#		--
-    data_model = State.FindDataModel( self.state )
-    if data_model is not None:
-      data_model.AddListener( 'newDataSet', self._OnNewDataSet )
-      have_derived_flag = False
-
-      types_in = \
-          self.dataSetTypesIn if self.dataSetTypesIn is not None else \
-	  data_model.GetDataSetNames().keys()
-	  #data_model.GetDataSetDefs().keys()
-      del self.dataSetTypes[ : ]
-      for k in sorted( types_in ):
-        if k != 'axial' and k.find( ':' ) < 0 and \
-	    data_model.HasDataSetType( k ):
-          self.dataSetTypes.append( k )
-	  if data_model.GetDerivedLabels( k ):
-	    have_derived_flag = True
-      #end for k
-
-      if have_derived_flag:
-	self.derivedMenu = wx.Menu()
-	derived_item = wx.MenuItem(
-	    self, wx.ID_ANY, 'Derived',
-	    subMenu = self.derivedMenu
-	    )
-	self.AppendItem( derived_item )
-    #end if data_model
-  #end _LoadDataModel_wrong
 
 
   #----------------------------------------------------------------------

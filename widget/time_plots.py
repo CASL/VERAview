@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-08-23	leerw@ornl.gov				-
+#	  Trying to use DataSetMenu.
 #		2016-08-20	leerw@ornl.gov				-
 #	  Properly naming the X-Axis menu item and methods.
 #		2016-08-19	leerw@ornl.gov				-
@@ -55,6 +57,7 @@ except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
 
 #from bean.dataset_chooser import *
+from bean.dataset_menu import *
 from bean.plot_dataset_props import *
 from event.state import *
 
@@ -119,6 +122,7 @@ Properties:
     #self.fixedDetectorDataSet = 'fixed_detector_response'
 
     self.refAxisDataSet = ''
+    self.refAxisMenu = wx.Menu()
     self.refAxisValues = np.empty( 0 )
     #self.refDataSet = 'state'
     #self.scalarDataSet = 'keff'
@@ -242,7 +246,8 @@ Properties:
 	},
 	{
 	'label': 'Select X-Axis Dataset...',
-	'handler': self._OnShowXAxisDataSetMenu
+	'submenu': self.refAxisMenu
+	#'handler': self._OnShowXAxisDataSetMenu
 	}
       ]
 #    more_def = \
@@ -707,6 +712,9 @@ XXX size according to how many datasets selected?
 	'time_dataset': self.state.timeDataSet
 	}
 
+      self.data.AddListener( 'newDataSet', self._UpdateRefAxisMenu )
+      wx.CallAfter( self._UpdateRefAxisMenu )
+
     else:
       update_args = {}
 
@@ -792,10 +800,32 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TimePlots._OnSelectRefAxisDataSet()		-
+  #----------------------------------------------------------------------
+  def _OnSelectRefAxisDataSet( self, ev ):
+    """Must be called from the UI thread.
+"""
+    ev.Skip()
+
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item is not None:
+      label = item.GetItemLabelText()
+
+      new_value = '' if label == 'Time Dataset' else label
+      if new_value != self.refAxisDataSet:
+        self.refAxisDataSet = new_value
+	self.UpdateState( replot = True )
+    #end if
+  #end _OnSelectRefAxisDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		TimePlots._OnSelectXAxisDataSet()		-
   #----------------------------------------------------------------------
   def _OnSelectXAxisDataSet( self, ev ):
     """Must be called from the UI thread.
+@deprecated
 """
     ev.Skip()
 
@@ -831,6 +861,7 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   def _OnShowXAxisDataSetMenu( self, ev ):
     """Must be called from the UI thread.
+@deprecated  now a pullright
 """
     ev.Skip()
 
@@ -1107,6 +1138,67 @@ already read.
       #end for k
     #end if valid state
   #end _UpdateDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TimePlots._UpdateRefAxisMenu()			-
+  #----------------------------------------------------------------------
+  def _UpdateRefAxisMenu( self ):
+    """Must be called from the UI thread.
+"""
+    pdb.set_trace()
+    if self.data is not None:
+      Widget.ClearMenu( self.refAxisMenu )
+
+      menu_types = []
+      menu_types = self.GetDataSetTypes()
+
+#			-- Map dataset names to base category/type
+#			--
+      names_by_type = {}
+      for dtype in menu_types:
+        dataset_names = self.data.GetDataSetNames( dtype )
+	if dataset_names:
+	  ndx = dtype.find( ':' )
+	  if ndx >= 0:
+	    dtype = dtype[ 0 : ndx ]
+
+	  if dtype in names_by_type:
+	    names_by_type[ dtype ] += dataset_names
+	  else:
+	    names_by_type[ dtype ] = list( dataset_names )
+	#end if dataset_names
+      #end for dtype
+
+#			-- Create pullrights
+#			--
+      for dtype, ds_names in sorted( names_by_type.iteritems() ):
+        if ds_names:
+	  type_menu = wx.Menu()
+	  for ds_name in ds_names:
+	    item = wx.MenuItem(
+	        type_menu, wx.ID_ANY, ds_name,
+		kind = wx.ITEM_CHECK
+		)
+	    self.container.Bind( wx.EVT_MENU, self._OnSelectRefAxisDataSet, item )
+	    type_menu.AppendItem( item )
+	    if ds_name == self.refAxisDataSet:
+	      item.Check()
+	  #end for ds_name
+
+          type_item = wx.MenuItem( menu, wx.ID_ANY, dtype, subMenu = type_menu )
+	  self.refAxisMenu.AppendItem( type_item )
+        #end if ds_names
+      #end for dtype, ds_names
+
+      item = \
+          wx.MenuItem( menu, wx.ID_ANY, 'Time Dataset', kind = wx.ITEM_CHECK )
+      self.container.Bind( wx.EVT_MENU, self._OnSelectRefAxisDataSet, item )
+      self.refAxisMenu.AppendItem( item )
+      if not self.refAxisDataSet:
+        item.Check()
+    #end if-else self.data
+  #end _UpdateRefAxisMenu
 
 
   #----------------------------------------------------------------------

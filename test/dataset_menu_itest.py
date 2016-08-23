@@ -15,9 +15,9 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required to run this program' )
 
-from bean.dataset_menu import *
 from data.datamodel import *
 from event.state import *
+from widget.bean.dataset_menu import *
 
 
 #------------------------------------------------------------------------

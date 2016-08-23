@@ -251,7 +251,10 @@ definition array for a pullright.
 	  menu.AppendSeparator()
 
 	elif 'submenu' in item_def:
-	  submenu = self._CreateMenuFromDef( None, item_def[ 'submenu' ] )
+	  if isinstance( item_def[ 'submenu' ], wx.Menu ):
+	    submenu = item_def[ 'submenu' ]
+	  else:
+	    submenu = self._CreateMenuFromDef( None, item_def[ 'submenu' ] )
 	  item = wx.MenuItem( menu, wx.ID_ANY, label, subMenu = submenu )
 	  menu.AppendItem( item )
 
