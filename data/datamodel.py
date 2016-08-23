@@ -860,18 +860,18 @@ passed, Read() must be called.
   #----------------------------------------------------------------------
   def Clear( self ):
     self.core = None
-    self.dataSetDefs = None
-    self.dataSetDefsByName = None
-    self.dataSetNames = None
+    self.dataSetDefs = {}
+    self.dataSetDefsByName = {}
+    self.dataSetNames = []
     #self.dataSetNamesVersion = 0
     self.derivedFile = None
-    self.derivedLabelsByType = None
+    self.derivedLabelsByType = {}
     self.derivedStates = None
     self.h5File = None
     self.listeners = { 'newDataSet': [], 'newFile': [] }
-    self.ranges = None
-    self.rangesByStatePt = None
-    self.states = None
+    self.ranges = {}
+    self.rangesByStatePt = []
+    self.states = []
 
     DataModel.dataSetNamesVersion_ += 1
   #end Clear
@@ -931,10 +931,11 @@ passed, Read() must be called.
 @return			0-based ( assy_ndx, col, row )
 """
     result = ( -1, -1 -1 )
-    places = np.argwhere( self.core.coreMap == assy_ndx + 1 )
-    if len( places ) > 0:
-      place = places[ -1 ]
-      result = ( assy_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
+    if self.core is not None:
+      places = np.argwhere( self.core.coreMap == assy_ndx + 1 )
+      if len( places ) > 0:
+        place = places[ -1 ]
+        result = ( assy_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
     return  result
   #end CreateAssemblyAddrFromIndex
 
@@ -960,7 +961,10 @@ Parameters:
     fdet_ndx = -1
     axial_cm = 0.0
 
-    if 'cm' in kwargs:
+    if self.core is None:
+      pass
+
+    elif 'cm' in kwargs:
       axial_cm = kwargs[ 'cm' ]
       #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
       core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
@@ -1017,7 +1021,7 @@ Parameters:
 @return			name of new dataset or None if params are invalid
 """
     derived_name = None
-    core = self.core
+    #core = self.core
 
     if len( self.states ) > 0:
       ddef = None
@@ -1042,7 +1046,6 @@ Parameters:
 	      data = derived_st.GetDataSet( ds_name )
 
 	    if data:
-	      #avg_data = avg_method( self.core, data )
 	      avg_data = avg_method( data.value )
 	      derived_st.CreateDataSet( derived_name, avg_data )
 	    #end if data
@@ -1162,10 +1165,11 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 @return			0-based ( det_ndx, col, row )
 """
     result = ( -1, -1 -1 )
-    places = np.argwhere( self.core.detectorMap == det_ndx + 1 )
-    if len( places ) > 0:
-      place = places[ -1 ]
-      result = ( det_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
+    if self.core is not None:
+      places = np.argwhere( self.core.detectorMap == det_ndx + 1 )
+      if len( places ) > 0:
+        place = places[ -1 ]
+        result = ( det_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
     return  result
   #end CreateDetectorAddrFromIndex
 
@@ -1772,6 +1776,8 @@ returned.  Calls FindMaxValueAddr().
   def GetDataSetNames( self, ds_type = None ):
     """Accessor for the 'dataSetNames' property.
 @param  ds_type		optional type name
+@param  cull_deriveds	if ds_type is specified and cull_deriveds is True,
+			only 
 @return			if ds_type is not None, list of datasets in that
 			ds_type, empty if not found
 			if ds_type is None, dict of dataset name lists by
@@ -1780,8 +1786,10 @@ returned.  Calls FindMaxValueAddr().
 			  'pin', 'scalar', etc. )
 """
     return \
-        self.dataSetNames if ds_type is None else \
-	self.dataSetNames.get( ds_type, [] )
+        dict( self.dataSetNames ) if ds_type is None else \
+	list( self.dataSetNames.get( ds_type, [] ) )
+#        self.dataSetNames if ds_type is None else \
+#	self.dataSetNames.get( ds_type, [] )
   #end GetDataSetNames
 
 
@@ -2217,44 +2225,47 @@ for NaN.  For now, we just assume 0.0 is "no data".
 			  'detector_index'
 			  'state_index'
 """
-    valid = True
+    valid = self.core is not None
 
-    if 'assembly_addr' in kwargs:
-      val = kwargs[ 'assembly_addr' ]
-      if hasattr( val, '__iter__' ):
-        valid &= val is not None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
-      else:
+    if valid:
+      if 'assembly_addr' in kwargs:
+        val = kwargs[ 'assembly_addr' ]
+        if hasattr( val, '__iter__' ):
+          valid &= \
+	      val is not None and val[ 0 ] >= 0 and val[ 0 ] < self.core.nass
+        else:
+          valid &= val >= 0 and val < self.core.nass
+
+      if 'assembly_index' in kwargs:
+        val = kwargs[ 'assembly_index' ]
         valid &= val >= 0 and val < self.core.nass
 
-    if 'assembly_index' in kwargs:
-      val = kwargs[ 'assembly_index' ]
-      valid &= val >= 0 and val < self.core.nass
+      if 'axial_level' in kwargs:
+        val = kwargs[ 'axial_level' ]
+        valid &= val >= 0 and val < self.core.nax
 
-    if 'axial_level' in kwargs:
-      val = kwargs[ 'axial_level' ]
-      valid &= val >= 0 and val < self.core.nax
+      if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] is not None:
+        col, row = kwargs[ 'sub_addr' ]
+        maxx = self.core.npinx
+        maxy = self.core.npiny
+        if kwargs.get( 'sub_addr_mode', 'pin' ) == 'channel':
+          maxx += 1
+	  maxy += 1
+        valid &= \
+            col >= 0 and col < maxx and \
+	    row >= 0 and row < maxy
 
-    if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] is not None:
-      col, row = kwargs[ 'sub_addr' ]
-      maxx = self.core.npinx
-      maxy = self.core.npiny
-      if kwargs.get( 'sub_addr_mode', 'pin' ) == 'channel':
-        maxx += 1
-	maxy += 1
-      valid &= \
-          col >= 0 and col < maxx and \
-	  row >= 0 and row < maxy
+      if 'detector_index' in kwargs:
+        val = kwargs[ 'detector_index' ]
+        valid &= val >= 0 and val < self.core.ndet
 
-    if 'detector_index' in kwargs:
-      val = kwargs[ 'detector_index' ]
-      valid &= val >= 0 and val < self.core.ndet
-
-    if 'state_index' in kwargs:
-      val = kwargs[ 'state_index' ]
-      valid &= val >= 0 and val < len( self.states )
-      if valid and 'dataset_name' in kwargs:
-        valid &= kwargs[ 'dataset_name' ] in self.states[ val ].group
-    #end if 'state_index'
+      if 'state_index' in kwargs:
+        val = kwargs[ 'state_index' ]
+        valid &= val >= 0 and val < len( self.states )
+        if valid and 'dataset_name' in kwargs:
+          valid &= kwargs[ 'dataset_name' ] in self.states[ val ].group
+      #end if 'state_index'
+    #end if core exists
 
     return  valid
   #end IsValid
@@ -2315,12 +2326,15 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #	METHOD:		DataModel.NormalizeAssemblyAddr()		-
   #----------------------------------------------------------------------
   def NormalizeAssemblyAddr( self, assy_ndx ):
-    result = \
-      (
-      max( 0, min( assy_ndx[ 0 ], self.core.nass - 1 ) ),
-      max( 0, min( assy_ndx[ 1 ], self.core.nassx - 1 ) ),
-      max( 0, min( assy_ndx[ 2 ], self.core.nassy - 1 ) )
-      )
+    if self.core is None:
+      result = ( -1, -1, -1 )
+    else:
+      result = \
+        (
+        max( 0, min( assy_ndx[ 0 ], self.core.nass - 1 ) ),
+        max( 0, min( assy_ndx[ 1 ], self.core.nassx - 1 ) ),
+        max( 0, min( assy_ndx[ 2 ], self.core.nassy - 1 ) )
+        )
     return  result
   #end NormalizeAssemblyAddr
 
@@ -2329,13 +2343,16 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #	METHOD:		DataModel.NormalizeAxialValue()			-
   #----------------------------------------------------------------------
   def NormalizeAxialValue( self, axial_value ):
-    result = \
-      (
-      axial_value[ 0 ],
-      max( 0, min( axial_value[ 1 ], self.core.nax -1 ) ),
-      max( 0, min( axial_value[ 2 ], self.core.ndetax -1 ) ),
-      max( 0, min( axial_value[ 3 ], self.core.nfdetax -1 ) )
-      )
+    if self.core is None:
+      result = ( -1.0, -1, -1, -1 )
+    else:
+      result = \
+        (
+        axial_value[ 0 ],
+        max( 0, min( axial_value[ 1 ], self.core.nax -1 ) ),
+        max( 0, min( axial_value[ 2 ], self.core.ndetax -1 ) ),
+        max( 0, min( axial_value[ 3 ], self.core.nfdetax -1 ) )
+        )
     return  result
   #end NormalizeAxialValue
 
@@ -2344,12 +2361,15 @@ sys.float_info.min or sys.float_info.max and min_value ne max_value.
   #	METHOD:		DataModel.NormalizeDetectorIndex()		-
   #----------------------------------------------------------------------
   def NormalizeDetectorIndex( self, det_ndx ):
-    result = \
-      (
-      max( 0, min( det_ndx[ 0 ], self.core.ndet - 1 ) ),
-      max( 0, min( det_ndx[ 1 ], self.core.nassx - 1 ) ),
-      max( 0, min( det_ndx[ 2 ], self.core.nassy - 1 ) )
-      )
+    if self.core is None:
+      result = ( -1, -1, -1 )
+    else:
+      result = \
+        (
+        max( 0, min( det_ndx[ 0 ], self.core.ndet - 1 ) ),
+        max( 0, min( det_ndx[ 1 ], self.core.nassx - 1 ) ),
+        max( 0, min( det_ndx[ 2 ], self.core.nassy - 1 ) )
+        )
     return  result
   #end NormalizeDetectorIndex
 
@@ -2371,17 +2391,20 @@ in each dimension.
 @param  addr		0-based ( col, row )
 @param  mode		'channel' or 'pin', defaulting to the latter
 """
-    maxx = self.core.npinx - 1
-    maxy = self.core.npiny - 1
-    if mode == 'channel':
-      maxx += 1
-      maxy += 1
+    if self.core is None:
+      result = ( -1, -1 )
+    else:
+      maxx = self.core.npinx - 1
+      maxy = self.core.npiny - 1
+      if mode == 'channel':
+        maxx += 1
+        maxy += 1
 
-    result = \
-      (
-      max( 0, min( addr[ 0 ], maxx ) ),
-      max( 0, min( addr[ 1 ], maxy ) )
-      )
+      result = \
+        (
+        max( 0, min( addr[ 0 ], maxx ) ),
+        max( 0, min( addr[ 1 ], maxy ) )
+        )
     return  result
   #end NormalizeSubAddr
 
@@ -2395,11 +2418,14 @@ being one greater in each dimension.
 @param  addr_list	list of 0-based ( col, row )
 @param  mode		'channel' or 'pin', defaulting to the latter
 """
-    maxx = self.core.npinx - 1
-    maxy = self.core.npiny - 1
-    if mode == 'channel':
-      maxx += 1
-      maxy += 1
+    if self.core is None:
+      maxx = maxy = -1
+    else:
+      maxx = self.core.npinx - 1
+      maxy = self.core.npiny - 1
+      if mode == 'channel':
+        maxx += 1
+        maxy += 1
 
     result = []
     for addr in addr_list:

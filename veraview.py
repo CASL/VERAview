@@ -785,13 +785,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #    edit_menu.AppendItem( datasets_item )
 
 #			-- Select dataset
-    #x self.selectDataSetMenuItem = DataSetMenuItem( edit_menu, 'subsingle' )
-    #x edit_menu.Bind( wx.EVT_MENU_OPEN, self.selectDataSetMenuItem._UpdateMenu, self.selectDataSetMenuItem )
-    #x edit_menu.AppendItem( self.selectDataSetMenuItem )
-    self.dataSetMenu = DataSetMenu(
-        self, 'subsingle',
-	ds_types = [ 'channel', 'detector', 'fixed_detector', 'pin', 'scalar' ]
-	)
+    self.dataSetMenu = \
+        DataSetMenu( self.state, binder = self, mode = 'subsingle' )
+#    self.dataSetMenu = DataSetMenu(
+#        self, 'subsingle',
+#	ds_types = [ 'channel', 'detector', 'fixed_detector', 'pin', 'scalar' ]
+#	)
     dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
     self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
     edit_menu.AppendItem( dataset_item )
