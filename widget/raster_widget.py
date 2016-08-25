@@ -266,9 +266,11 @@ _CreateValueString()
     self.emptyPilImage = PIL.Image.new( "RGBA", ( 16, 16 ) )
 
     self.overlay = None
-    self.pilFontPath = \
+    self.pilFont2Path = \
         os.path.join( Config.GetRootDir(), 'res/Arial Black.ttf' )
 #        os.path.join( Config.GetRootDir(), 'res/Times New Roman Bold.ttf' )
+    self.pilFontPath = \
+        os.path.join( Config.GetRootDir(), 'res/Verdana Bold.ttf' )
     self.valueFontPath = \
         os.path.join( Config.GetRootDir(), 'res/Arial Narrow.ttf' )
 
@@ -529,6 +531,7 @@ called from subclass _CreateDrawConfig() methods.
     legendPilImage
     legendSize
     pilFont
+    pilFontSmall
 """
 
 #		-- Must calculate scale?
@@ -557,6 +560,8 @@ called from subclass _CreateDrawConfig() methods.
         label_font.getsize( '99' ) if self.showLabels else ( 0, 0 )
 
     pil_font = PIL.ImageFont.truetype( self.pilFontPath, font_size )
+    pil_font_small = PIL.ImageFont.truetype( self.pilFontPath, font_size - 2 )
+    pil_font2 = PIL.ImageFont.truetype( self.pilFont2Path, font_size )
 
     config = \
       {
@@ -566,7 +571,9 @@ called from subclass _CreateDrawConfig() methods.
       'labelSize': label_size,
       'legendPilImage': legend_pil_im,
       'legendSize': legend_size,
-      'pilFont': pil_font
+      'pilFont': pil_font,
+      'pilFont2': pil_font2,
+      'pilFontSmall': pil_font_small
       }
     if 'size' in kwargs:
       config[ 'clientSize' ] = kwargs[ 'size' ]

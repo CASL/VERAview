@@ -2193,6 +2193,22 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.Is3DReady()				-
+  #----------------------------------------------------------------------
+  def Is3DReady( self ):
+    """Checks having length gt 1 in all three dimensions.
+"""
+    valid = \
+        self.core is not None and \
+	self.core.nax > 1 and \
+	(self.core.nassx * self.core.npinx) > 1 and \
+	(self.core.nassy * self.core.npiny) > 1
+
+    return  valid
+  #end Is3DReady
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.IsNoDataValue()			-
   #----------------------------------------------------------------------
   def IsNoDataValue( self, ds_name, value ):

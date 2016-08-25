@@ -482,6 +482,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       line_wd = config[ 'lineWidth' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
+      pil_font2 = config[ 'pilFont2' ]
+      pil_font_small = config[ 'pilFontSmall' ]
 
       core = self.data.GetCore()
       ds_range = self._GetDataRange()
@@ -635,11 +637,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Draw Title String
 #			--
+      title_font = pil_font  # pil_font_small, pil_font2
       det_y = max( det_y, legend_size[ 1 ] )
       #det_y += font_size - det_gap
       det_y += font_size >> 2
 
-      title_items = self._CreateTitleStrings2( pil_font, core_region[ 3 ] )
+      title_items = self._CreateTitleStrings2( title_font, core_region[ 3 ] )
       start = 0
       while start < len( title_items ):
 #				-- Find end of this line
@@ -656,7 +659,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  item = title_items[ i ]
 	  im_draw.text(
 	      ( line_x + item[ 1 ], det_y + line_y ),
-	      item[ 0 ], fill = item[ 3 ], font = pil_font
+	      item[ 0 ], fill = item[ 3 ], font = title_font
 	      )
 
         start = end

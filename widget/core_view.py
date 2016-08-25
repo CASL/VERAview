@@ -621,9 +621,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
       assy_wd = region_wd / self.cellRange[ -2 ]
 
-#      working_ht = max( ht, legend_pil_im.size[ 1 ] )
       working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      #x region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
       assy_ht = region_ht / self.cellRange[ -1 ]
 
       if assy_ht < assy_wd:
@@ -853,7 +853,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			-- Draw Title String
 #			--
       assy_y = max( assy_y, legend_size[ 1 ] )
-      assy_y += font_size >> 2
+      #x assy_y += font_size >> 2
+      assy_y += font_size >> 1
 
       title_str = self._CreateTitleString(
 	  title_templ,

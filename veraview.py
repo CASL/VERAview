@@ -140,31 +140,47 @@ TITLE = 'VERAView Version 1.0.57'
 TOOLBAR_ITEMS = \
   [
     {
-    'widget': 'Core 2D View', 'icon': 'Core2DView.1.32.png', 'type': 'pin'
-    },
-    {
-    'widget': 'Core Axial 2D View', 'icon': 'CoreAxial2DView.1.32.png',
+    'widget': 'Core 2D View',
+    'icon': 'Core2DView.1.32.png',
+    'iconDisabled': 'Core2DView.disabled.1.32.png',
     'type': 'pin'
     },
     {
-    'widget': 'Assembly 2D View', 'icon': 'Assembly2DView.1.32.png',
+    'widget': 'Core Axial 2D View',
+    'icon': 'CoreAxial2DView.1.32.png',
+    'iconDisabled': 'CoreAxial2DView.disabled.1.32.png',
+    'type': 'pin'
+    },
+    {
+    'widget': 'Assembly 2D View',
+    'icon': 'Assembly2DView.1.32.png',
+    'iconDisabled': 'Assembly2DView.disabled.1.32.png',
     'type': 'pin'
     },
     { 'widget': 'separator' },
     {
-    'widget': 'Channel Core 2D View', 'icon': 'Channel2DView.1.32.png',
+    'widget': 'Channel Core 2D View',
+    'icon': 'Channel2DView.1.32.png',
+    'iconDisabled': 'Channel2DView.disabled.1.32.png',
     'type': 'channel'
     },
     {
-    'widget': 'Channel Axial 2D View', 'icon': 'ChannelAxial2DView.1.32.png',
+    'widget': 'Channel Axial 2D View',
+    'icon': 'ChannelAxial2DView.1.32.png',
+    'iconDisabled': 'ChannelAxial2DView.disabled.1.32.png',
     'type': 'channel'
     },
     {
-    'widget': 'Channel Assembly 2D View', 'icon': 'ChannelAssembly2DView.1.32.png', 'type': 'channel'
+    'widget': 'Channel Assembly 2D View',
+    'icon': 'ChannelAssembly2DView.1.32.png',
+    'iconDisabled': 'ChannelAssembly2DView.disabled.1.32.png',
+    'type': 'channel'
     },
     { 'widget': 'separator' },
     {
-    'widget': 'Detector 2D Multi View', 'icon': 'Detector2DView.1.32.png',
+    'widget': 'Detector 2D Multi View',
+    'icon': 'Detector2DView.1.32.png',
+    'iconDisabled': 'Detector2DView.disabled.1.32.png',
     'type': 'detector'
     },
 #    {
@@ -173,21 +189,32 @@ TOOLBAR_ITEMS = \
 #    },
     { 'widget': 'separator' },
     {
-    'widget': 'Volume Slicer 3D View', 'icon': 'Slicer3DView.1.32.png',
-    'type': 'pin', 'func': lambda d: Environment3D.IsAvailable()
+    'widget': 'Volume Slicer 3D View',
+    'icon': 'Slicer3DView.1.32.png',
+    'iconDisabled': 'Slicer3DView.disabled.1.32.png',
+    'type': 'pin',
+    'func': lambda d: Environment3D.IsAvailable() and d.Is3DReady()
     },
     {
-    'widget': 'Volume 3D View', 'icon': 'Volume3DView.1.32.png',
-    'type': 'pin', 'func': lambda d: Environment3D.IsAvailable()
+    'widget': 'Volume 3D View',
+    'icon': 'Volume3DView.1.32.png',
+    'iconDisabled': 'Volume3DView.disabled.1.32.png',
+    'type': 'pin',
+    'func': lambda d: Environment3D.IsAvailable() and d.Is3DReady()
     },
     { 'widget': 'separator' },
     {
-    'widget': 'Axial Plots', 'icon': 'AllAxialPlot.32.png',
-    'type': ''
+    'widget': 'Axial Plots',
+    'icon': 'AllAxialPlot.32.png',
+    'iconDisabled': 'AllAxialPlot.disabled.32.png',
+    'type': '',
+    'func': lambda d: d.core is not None and d.core.nax > 1
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
     {
-    'widget': 'Time Plots', 'icon': 'TimePlot.32.png',
+    'widget': 'Time Plots',
+    'icon': 'TimePlot.32.png',
+    'iconDisabled': 'TimePlot.disabled.32.png',
     'type': ''
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     }
@@ -588,6 +615,38 @@ in GridSizer when adding grids.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._CreateToolBarItem()		-
+  #----------------------------------------------------------------------
+  def _CreateToolBarItem( self, tbar, tool_id, tool_def, enabled = False ):
+    """It seems necessary to re-create tool items to show a different icon.
+@param  tbar		owning toolbar
+@param  tool_id		tool id
+@param  tool_def	definition from TOOLBAR_ITEMS
+@return			ToolBarToolBase
+"""
+    widget_icon = tool_def.get( 'icon' if enabled else 'iconDisabled' )
+    widget_name = tool_def[ 'widget' ]
+    widget_im = wx.Image(
+        os.path.join( Config.GetResDir(), widget_icon ),
+	wx.BITMAP_TYPE_PNG
+	)
+
+    tip = widget_name
+    if not enabled:
+      tip += ' (disabled)'
+
+    tb_item = tbar.AddTool(
+        tool_id, widget_im.ConvertToBitmap(),
+        shortHelpString = tip
+	)
+    tb_item.Enable( enabled )
+    self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = tool_id )
+
+    return  tb_item
+  #end _CreateToolBarItem
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.CreateWidget()			-
   #----------------------------------------------------------------------
   def CreateWidget( self, widget_class, refit_flag = True ):
@@ -851,39 +910,49 @@ WIDGET_MAP and TOOLBAR_ITEMS
       wx.ToolBar( tbar_panel, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
         #wx.ToolBar( self, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
     self.widgetToolBar = widget_tbar
+    self._UpdateToolBar( widget_tbar )
 
-    ti_count = 1
-    for ti in TOOLBAR_ITEMS:
-      widget_icon = ti.get( 'icon' )
-      if widget_icon is None:
-        widget_tbar.AddSeparator()
-
-      else:
-        widget_name = ti[ 'widget' ]
-        widget_im = wx.Image(
-            os.path.join( Config.GetResDir(), widget_icon ),
-	    wx.BITMAP_TYPE_PNG
-	    )
-        widget_tbar.AddTool(
-            ti_count, widget_im.ConvertToBitmap(),
-	    shortHelpString = widget_name
-	    )
-        self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
-      #end if-else
-
-      ti_count += 1
-    #end for
-
-#    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
-#    #widget_tbar.AddSeparator()
-#    widget_tbar.AddStretchableSpace()
-#    widget_tbar.AddTool(
-#	ID_REFIT_WINDOW, im.ConvertToBitmap(),
-#	shortHelpString = 'Refit window'
-#        )
-#    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
-
-    widget_tbar.Realize()
+#    ti_count = 1
+#    for ti in TOOLBAR_ITEMS:
+#      widget_icon = ti.get( 'icon' )
+#      if widget_icon is None:
+#        widget_tbar.AddSeparator()
+#
+#      else:
+#        self._CreateToolBarItem( widget_tbar, ti_count, ti )
+##works if not needing to change the bitmap
+##x	widget_icon_disabled = ti.get( 'iconDisabled' )
+##x        widget_name = ti[ 'widget' ]
+##x        widget_im = wx.Image(
+##x            os.path.join( Config.GetResDir(), widget_icon ),
+##x	    wx.BITMAP_TYPE_PNG
+##x	    )
+##x        widget_im_disabled = wx.Image(
+##x            os.path.join( Config.GetResDir(), widget_icon_disabled ),
+##x	    wx.BITMAP_TYPE_PNG
+##x	    )
+##x        tb_item = widget_tbar.AddTool(
+##x            ti_count, widget_im.ConvertToBitmap(),
+##x	    shortHelpString = widget_name
+##x	    )
+##x        tb_item.SetDisabledBitmap( widget_im_disabled.ConvertToBitmap() )
+##x	tb_item.Enable( False )
+##x        self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+#      #end if-else
+#
+#      ti_count += 1
+#    #end for
+#
+##    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
+##    #widget_tbar.AddSeparator()
+##    widget_tbar.AddStretchableSpace()
+##    widget_tbar.AddTool(
+##	ID_REFIT_WINDOW, im.ConvertToBitmap(),
+##	shortHelpString = 'Refit window'
+##        )
+##    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
+#
+#    widget_tbar.Realize()
 
     logo_im = wx.Image(
         os.path.join( Config.GetResDir(), 'casl-logo.32.png' ),
@@ -1010,29 +1079,40 @@ Must be called from the UI thread.
 
 #		-- Update toolbar
 #		--
-    ti_count = 1
-    for ti in TOOLBAR_ITEMS:
-      item = self.widgetToolBar.FindById( ti_count )
-      if item is not None:
-        ds_names = data.GetDataSetNames()
-        ds_type = ti[ 'type' ]
-	tip = ti[ 'widget' ]
+# Merely enabling/disabling a tool by calling ToolBar.EnableTool() does
+# not work!!  The same bitmap is used.  So, we re-create the tool.
+    self._UpdateToolBar( self.widgetToolBar )
 
-        enabled = \
-	    ( ds_type is None or ds_type == '' ) or \
-            ( ds_type in ds_names and ds_names[ ds_type ] is not None and \
-	      len( ds_names[ ds_type ] ) > 0 )
-	if enabled and 'func' in ti:
-	  enabled = ti[ 'func' ]( data )
-
-        item.Enable( enabled )
-	if not enabled:
-	  tip += ' (disabled)'
-	item.SetShortHelp( tip )
-	#item.Update()
-
-      ti_count += 1
-    #end for
+#    ti_count = 1
+#    for ti in TOOLBAR_ITEMS:
+#      item = self.widgetToolBar.FindById( ti_count )
+#      if item is not None:
+#        ds_names = data.GetDataSetNames()
+#        ds_type = ti[ 'type' ]
+#
+#        enabled = \
+#	    ( ds_type is None or ds_type == '' ) or \
+#            ( ds_type in ds_names and ds_names[ ds_type ] is not None and \
+#	      len( ds_names[ ds_type ] ) > 0 )
+#	if enabled and 'func' in ti:
+#	  enabled = ti[ 'func' ]( data )
+#
+#	if enabled:
+#	  pos = self.widgetToolBar.GetToolPos( ti_count )
+#	  self.widgetToolBar.RemoveTool( ti_count )
+#	  self.widgetToolBar.InsertToolItem( pos, item )
+#
+##x        #noworky item.Enable( enabled )
+##x	self.widgetToolBar.EnableTool( ti_count, enabled )
+##x	tip = ti[ 'widget' ]
+##x	if not enabled:
+##x	  tip += ' (disabled)'
+##x	item.SetShortHelp( tip )
+##x	#item.Update()
+#
+#      ti_count += 1
+#    #end for
+#    self.widgetToolBar.Realize()
 
 #		-- Update title
 #		--
@@ -1104,7 +1184,7 @@ Must be called from the UI thread.
 #x          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
 
 #			-- Axial plot?
-      if len( self.axialPlotTypes ) > 0:
+      if len( self.axialPlotTypes ) > 0 and data.core.nax > 1:
         widget_list.append( 'widget.axial_plot.AxialPlot' )
 
 #			-- Time plot?
@@ -1998,6 +2078,68 @@ Must be called on the UI event thread.
     self.config.SetFramePosition( fr_pos[ 0 ], fr_pos[ 1 ] )
     self.config.SetFrameSize( fr_size[ 0 ], fr_size[ 1 ] )
   #end _UpdateConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateToolBar()			-
+  #----------------------------------------------------------------------
+  def _UpdateToolBar( self, tbar, enable_all = False ):
+    """
+"""
+    data = self.state.GetDataModel()
+    tbar.ClearTools()
+
+    if data is not None:
+      ds_names = data.GetDataSetNames()
+
+      ti_count = 1
+      for ti in TOOLBAR_ITEMS:
+        widget_icon = ti.get( 'icon' )
+        if widget_icon is None:
+          tbar.AddSeparator()
+
+        else:
+          ds_type = ti[ 'type' ]
+	  ds_names = data.GetDataSetNames( ds_type )
+
+          enabled = \
+	      enable_all or ds_type == '' or \
+	      (ds_names is not None and len( ds_names ) > 0)
+	  if enabled and 'func' in ti:
+	    enabled = ti[ 'func' ]( data )
+
+          widget_icon = ti.get( 'icon' if enabled else 'iconDisabled' )
+          widget_im = wx.Image(
+              os.path.join( Config.GetResDir(), widget_icon ),
+	      wx.BITMAP_TYPE_PNG
+	      )
+
+          tip = ti[ 'widget' ]
+          if not enabled:
+            tip += ' (disabled)'
+
+          tb_item = tbar.AddTool(
+              ti_count, widget_im.ConvertToBitmap(),
+	      shortHelpString = tip
+	      )
+	  tb_item.Enable( enabled )
+          self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+        #end if-else separator
+
+        ti_count += 1
+      #end for ti
+    #end if data
+
+#    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
+#    tbar.AddStretchableSpace()
+#    bar.AddTool(
+#	ID_REFIT_WINDOW, im.ConvertToBitmap(),
+#	shortHelpString = 'Refit window'
+#        )
+#    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
+
+    tbar.Realize()
+  #end _UpdateToolBar
 
 #end VeraViewFrame
 

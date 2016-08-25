@@ -570,8 +570,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #----------------------------------------------------------------------
   def SetDataSet( self, ds_name ):
     if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, pin_dataset = ds_name )
-      self.FireStateChange( pin_dataset = ds_name )
+      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
+      self.FireStateChange( cur_dataset = ds_name )
   #end SetDataSet
 
 
@@ -628,7 +628,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
         ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
         if ds_type and ds_type in self.GetDataSetTypes():
           data_changed = True
-          self.pinDataSet = kwargs[ 'pin_dataset' ]
+          self.pinDataSet = kwargs[ 'cur_dataset' ]
+	  self.container.GetDataSetMenu().Reset()
 
       if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
         data_changed = True
