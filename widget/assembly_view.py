@@ -1120,7 +1120,8 @@ be overridden by subclasses.
 	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      if not self.data.IsNoDataValue( self.pinDataSet, value ):
+      #if not self.data.IsNoDataValue( self.pinDataSet, value ):
+      if True:
 	if is_aux:
 	  addrs = list( self.auxSubAddrs )
 	  if pin_addr in addrs:
