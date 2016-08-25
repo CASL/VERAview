@@ -135,7 +135,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.57'
+TITLE = 'VERAView Version 1.0.58'
 
 TOOLBAR_ITEMS = \
   [
