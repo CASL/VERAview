@@ -353,17 +353,10 @@ dataset names and ( rc, values ) pairs.
 	'handler': functools.partial( self._OnSetScaleMode, 'all' )
 	},
         {
-	'label': 'Selected Dataset', 'kind': wx.ITEM_RADIO, 'checked': True,
+	'label': LABEL_selectedDataSet, 'kind': wx.ITEM_RADIO, 'checked': True,
 	'handler': functools.partial( self._OnSetScaleMode, 'selected' )
 	}
       ]
-#    select_scale_def = \
-#      [
-#        ( 'All Datasets',
-#	   functools.partial( self._OnSetScaleMode, 'all' ) ),
-#        ( 'Selected Dataset',
-#	   functools.partial( self._OnSetScaleMode, 'selected' ) )
-#      ]
 
     more_def = \
       [
@@ -713,7 +706,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     return \
         None  if name is None else \
-	self.curDataSet  if name == 'Selected dataset' else \
+	self.curDataSet  if name == LABEL_selectedDataSet else \
 	name
 
 #    return \
@@ -881,7 +874,7 @@ be overridden by subclasses.
 #		--
     labels = [
         'Select Bottom Axis Scale Mode',
-	'All Datasets' if self.scaleMode == 'all' else 'Selected Dataset'
+	'All Datasets' if self.scaleMode == 'all' else LABEL_selectedDataSet
 	]
     select_item = \
         self.container.FindMenuItem( self.container.GetWidgetMenu(), *labels )

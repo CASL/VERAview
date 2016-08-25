@@ -4,6 +4,8 @@
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
 #		2016-08-15	leerw@ornl.gov				-
+#	  Using DataSetMenu.
+#		2016-08-15	leerw@ornl.gov				-
 #	  New State and event names.
 #		2016-07-23	leerw@ornl.gov				-
 #	  Redefined menu definitions with dictionaries.
@@ -73,6 +75,7 @@ except Exception:
   raise ImportError( "The wxPython module is required" )
 
 from animators import *
+from bean.dataset_menu import *
 from bean.events_chooser import *
 from data.config import Config
 from event.state import *
@@ -171,7 +174,7 @@ widget.
     self.dataSetMenu = None
     self.dataSetMenuButton = None
     self.dataSetMenuVersion = -1
-    self.derivedDataSetMenu = None
+    #deprecated self.derivedDataSetMenu = None
     #self.exposureCheckBox = None
     self.eventLocks = State.CreateLocks()
     self.eventsChooserDialog = None
@@ -185,12 +188,6 @@ widget.
     self.widgetClassPath = widget_classpath
     self.widgetMenu = None
     self.widgetMenuButton = None
-
-#		-- Listen for DataModel events
-#		--
-    #data_model = State.FindDataModel( state )
-    #if data_model:
-      #data_model.GetDataSetChangeEvent().addListener( self._OnDataSetChange )
 
     self._InitUI( widget_classpath, **kwargs )
   #end __init__
@@ -361,10 +358,24 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetDataSetMenu()				-
+  #----------------------------------------------------------------------
+  def GetDataSetMenu( self ):
+    """
+"""
+    return  self.dataSetMenu
+  #end GetDataSetMenu
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetDerivedDataSetMenu()				-
   #----------------------------------------------------------------------
   def GetDerivedDataSetMenu( self ):
-    return  self.derivedDataSetMenu
+    """
+@deprecated
+"""
+    #return  self.derivedDataSetMenu
+    return  None
   #end GetDerivedDataSetMenu
 
 
@@ -544,35 +555,46 @@ definition array for a pullright.
 #		-- Dataset menu button
 #		--
     dataset_types = list( self.widget.GetDataSetTypes() )
-    ndx = 0
-    while ndx < len( dataset_types ):
-      if data_model.HasDataSetType( dataset_types[ ndx ] ):
-        ndx += 1
-      else:
-        del dataset_types[ ndx ]
+#dm    ndx = 0
+#dm    while ndx < len( dataset_types ):
+#dm      if data_model.HasDataSetType( dataset_types[ ndx ] ):
+#dm        ndx += 1
+#dm      else:
+#dm        del dataset_types[ ndx ]
 
     #if dataset_type is not None and data_model.HasDataSetCategory( dataset_type ):
     if len( dataset_types ) > 0:
-      self.dataSetMenu = wx.Menu()
+#dm      self.dataSetMenu = wx.Menu()
+#dm
+#dm#			-- Derived pullright
+#dm#			--
+#dm      #derived_labels = data_model.GetDerivedLabels( dataset_types[ 0 ] )
+#dm      #if derived_labels:
+#dm      have_derived_labels = False
+#dm      for ds_type in dataset_types:
+#dm        derived_labels = data_model.GetDerivedLabels( ds_type )
+#dm	if derived_labels:
+#dm	  have_derived_labels = True
+#dm	  break
+#dm      if have_derived_labels:
+#dm        self.derivedDataSetMenu = wx.Menu()
+#dm        derived_item = wx.MenuItem(
+#dm            self.dataSetMenu, wx.ID_ANY, 'Derived',
+#dm	    subMenu = self.derivedDataSetMenu
+#dm	    )
+#dm        self.dataSetMenu.AppendItem( derived_item )
+#dm      #end if
 
-#			-- Derived pullright
-#			--
-      #derived_labels = data_model.GetDerivedLabels( dataset_types[ 0 ] )
-      #if derived_labels:
-      have_derived_labels = False
-      for ds_type in dataset_types:
-        derived_labels = data_model.GetDerivedLabels( ds_type )
-	if derived_labels:
-	  have_derived_labels = True
-	  break
-      if have_derived_labels:
-        self.derivedDataSetMenu = wx.Menu()
-        derived_item = wx.MenuItem(
-            self.dataSetMenu, wx.ID_ANY, 'Derived',
-	    subMenu = self.derivedDataSetMenu
-	    )
-        self.dataSetMenu.AppendItem( derived_item )
-      #end if
+      display_mode = self.widget.GetDataSetDisplayMode()
+      ds_menu_mode = \
+          'subselected' if display_mode == 'selected' else \
+	  'submulti' if display_mode == 'multi' else \
+	  'subsingle'
+      self.dataSetMenu = DataSetMenu(
+	  self.state, binder = self, mode = ds_menu_mode,
+	  ds_listener = self.widget, ds_types = dataset_types,
+	  widget = self.widget
+          )
 
       menu_bmap = widget.Widget.GetBitmap( 'data_icon_16x16' )
       self.dataSetMenuButton = wx.BitmapButton( control_panel, -1, menu_bmap )
@@ -679,6 +701,7 @@ definition array for a pullright.
 
     self.state.AddListener( self )
     self.widget.Init()
+    self.dataSetMenu.Init()
     #self.widget.SetState( self.state )
   #end _InitUI
 
@@ -690,6 +713,18 @@ definition array for a pullright.
     #return  self.IsEventLocked
     return  self.eventLocks[ reason ]
   #end IsEventLocked
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetContainer.LoadProps()			-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Calls self.widget.LoadProps() and reinitializes dataSetMenu.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    self.widget.LoadProps( props_dict )
+    self.dataSetMenu.Init()
+  #end LoadProps
 
 
   #----------------------------------------------------------------------
@@ -720,23 +755,14 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnDataSetChange()				-
-  #----------------------------------------------------------------------
-#  def _OnDataSetChange( self, data_model, *args, **kwargs ):
-#    """
-#"""
-#    self._UpdateDerivedDataSetMenu( data_model )
-#  #end _OnDataSetChange
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_OnDataSetMenu()				-
   #----------------------------------------------------------------------
   def _OnDataSetMenu( self, ev ):
     """
 """
-    #self._UpdateDerivedDataSetMenu()
-    self._UpdateDataSetMenu()
+    ##self._UpdateDerivedDataSetMenu()
+    #self._UpdateDataSetMenu()
+    self.dataSetMenu.UpdateMenu()
     self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
   #end _OnDataSetMenu
 
@@ -779,6 +805,7 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   def _OnDataSetMenuItem( self, ev ):
     """
+@deprecated with use of DataSetMenu
 """
     ev.Skip()
 
@@ -807,6 +834,7 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   def _OnDerivedDataSetMenuItem( self, ev ):
     """
+@deprecated with use of DataSetMenu
 """
     ev.Skip()
 
@@ -1037,6 +1065,7 @@ Must be called from the UI event thread
   #----------------------------------------------------------------------
   def _UpdateDataSetMenu( self ):
     """Handles (re)creation of the dataset menu.
+@deprecated with use of DataSetMenu
 """
 #		-- Check need for update
 #		--
@@ -1074,7 +1103,7 @@ Must be called from the UI event thread
 #_	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
         #end for
 	if display_mode == 'selected':
-	  selected_ds_names = [ 'Selected dataset' ]
+	  selected_ds_names = [ LABEL_selectedDataSet ]
       #end if
 
 #				-- Populate dataset items
@@ -1134,6 +1163,7 @@ Must be called from the UI event thread
   #----------------------------------------------------------------------
   def _UpdateDerivedDataSetMenu( self, data_model = None ):
     """
+@deprecated with use of DataSetMenu
 """
     if data_model is None:
       data_model = State.FindDataModel( self.state )

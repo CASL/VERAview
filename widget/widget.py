@@ -112,7 +112,7 @@ Construction and Initialization
 -------------------------------
 
 Widget instances are created by the WidgetContainer (*container*
-field/property) and initialized via a call to SetState(), which calls
+field/property) and initialized via a call to Init(), which calls
 HandleStateChange( STATE_CHANGE_init ), which in turn calls _LoadDataModel().
 
 Widget UI components must be created in _InitUI() independent of the State
@@ -163,6 +163,10 @@ GetAnimationIndexes()
   Extensions must override if they can support animation across one or
   more indexes.
   Must be implemented by extensions to store a bitmap capture of the
+
+GetCurDataSet()
+  If GetDataSetDisplayMode() returns '' (not 'selected' or 'multi') this
+  method returns the name of the current dataset
 
 GetDataSetDisplayMode()
   Extensions that support "selected" datasets from a type and/or display
@@ -724,6 +728,29 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetCurDataSet()				-
+  #----------------------------------------------------------------------
+  def GetCurDataSet( self ):
+    """This implementation tries to infer the name from an attribute
+named 'curDataSet', 'channelDataSet', or 'pinDataSet', in that order,
+only if GetDataSetDisplayMode is ''.  Otherwise, None is returned.
+Subclasses should override as needed.
+@return		current dataset name if dataSetDisplayMode is ''
+"""
+    ds_name = None
+    if not self.GetDataSetDisplayMode():
+      for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
+        if hasattr( self, attr ):
+          ds_name = getattr( self, attr )
+	  break
+      #end for attr
+    #end if not
+
+    return  ds_name
+  #end GetCurDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetDataSetDisplayMode()			-
   #----------------------------------------------------------------------
   def GetDataSetDisplayMode( self ):
@@ -861,7 +888,7 @@ Must be called from the UI thread.
 """
     return \
         'Selected ' + ds_type + ' dataset'  if ds_type else \
-	'Selected dataset'
+	LABEL_selectedDataSet
     #return  'Selected ' + ds_type + ' dataset'
   #end GetSelectedDataSetName
 
@@ -929,7 +956,6 @@ Returning None means no tool buttons, which is the default implemented here.
 
       if len( update_args ) > 0:
         wx.CallAfter( self.UpdateState, **update_args )
-      #end if
     #end else not a data model load
   #end HandleStateChange
 

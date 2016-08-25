@@ -229,7 +229,7 @@ Properties:
 	'handler': functools.partial( self._OnSetScaleMode, 'all' )
 	},
         {
-	'label': 'Selected Dataset', 'kind': wx.ITEM_RADIO, 'checked': True,
+	'label': LABEL_selectedDataSet, 'kind': wx.ITEM_RADIO, 'checked': True,
 	'handler': functools.partial( self._OnSetScaleMode, 'selected' )
 	}
       ]
@@ -270,7 +270,8 @@ Properties:
     tip_str = ''
     ds_values = self._FindDataSetValues( ev.xdata )
     if ds_values is not None:
-      tip_str = '%s=%.3g' % ( self.state.timeDataSet, ev.xdata )
+      #tip_str = '%s=%.3g' % ( self.state.timeDataSet, ev.xdata )
+      tip_str = 'x=%.3g' % ev.xdata
       for k in sorted( ds_values.keys() ):
         data_set_item = ds_values[ k ]
 	for rc, value in sorted( data_set_item.iteritems() ):
@@ -575,7 +576,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     return \
         None  if name is None else \
-	self.curDataSet  if name == 'Selected dataset' else \
+	self.curDataSet  if name == LABEL_selectedDataSet else \
 	name
 
 #    return \
@@ -744,7 +745,7 @@ be overridden by subclasses.
 #		--
     labels = [
         'Select Left Axis Scale Mode',
-	'All Datasets' if self.scaleMode == 'all' else 'Selected Dataset'
+	'All Datasets' if self.scaleMode == 'all' else LABEL_selectedDataSet
 	]
     select_item = \
         self.container.FindMenuItem( self.container.GetWidgetMenu(), *labels )

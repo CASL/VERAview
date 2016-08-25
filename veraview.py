@@ -1192,7 +1192,7 @@ Note this defines a new State as well as widgets in the grid.
 #			-- 3D widgets won't auto load
 	if props[ 'classpath' ].find( '3D' ) < 0:
           con = self.CreateWidget( props[ 'classpath' ], False )
-	  con.widget.LoadProps( props )
+	  con.LoadProps( props )
 
 	  #xxx we need a cheaper way to check for the types
 	  if check_types:
@@ -1216,6 +1216,8 @@ Note this defines a new State as well as widgets in the grid.
     if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
       self.SetPosition( fr_pos )
       self.SetSize( fr_size )
+
+    self.dataSetMenu.Init()
   #end _LoadWidgetConfig
 
 

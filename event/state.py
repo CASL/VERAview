@@ -66,6 +66,9 @@ import pdb
 from data.datamodel import *
 
 
+LABEL_selectedDataSet = 'Selected Dataset'
+
+
 # New, reduced set of events
 STATE_CHANGE_noop = 0
 STATE_CHANGE_init = 0x1 << 0
@@ -107,7 +110,7 @@ LOCKABLE_STATES = \
   [
     ( STATE_CHANGE_axialValue, 'Axial Value' ),
     ( STATE_CHANGE_coordinates, 'Coordinates' ),
-    ( STATE_CHANGE_curDataSet, 'Selected Dataset' ),
+    ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
     ( STATE_CHANGE_stateIndex, 'State Point' )
   ]

@@ -1590,6 +1590,7 @@ method via super.SaveProps().
         resized = True
         self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
+	self.container.GetDataSetMenu().Reset()
 
     if 'sub_addr' in kwargs:
       sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )

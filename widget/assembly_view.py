@@ -1206,6 +1206,7 @@ method via super.SaveProps().
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
         self.pinDataSet = kwargs[ 'cur_dataset' ]
+	self.container.GetDataSetMenu().Reset()
 
     if 'sub_addr' in kwargs:
       sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )

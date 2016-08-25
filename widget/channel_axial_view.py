@@ -1197,6 +1197,7 @@ method via super.SaveProps().
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
         self.channelDataSet = kwargs[ 'cur_dataset' ]
+	self.container.GetDataSetMenu().Reset()
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
 #      if kwargs[ 'sub_addr' ][ chan_ndx ] != self.subAddr[ chan_ndx ]:
