@@ -1,6 +1,11 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2016-08-30	leerw@ornl.gov				-
+#	  In calc_average(), added np.nan_to_num() call to avoid having
+#	  NaN values.
+#	  Renamed what was "core" to "radial assembly" as per Andrew's
+#	  instructions, added "core" with shape ( 1, ).
 #		2016-02-15	leerw@ornl.gov				-
 #	  Re-fitting to use VERAView DataModel.
 #		2016-01-28	godfreyam@ornl.gov			-
@@ -57,6 +62,7 @@ be called before use.
         #errors = np.seterr( invalid = 'ignore' )
       try:
 	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
+	avg = np.nan_to_num( avg )
       finally:
 	if errors_args:
           np.seterr( **errors_save )
@@ -64,32 +70,6 @@ be called before use.
 
     return  avg
   #end calc_average
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		load()						-
-  #----------------------------------------------------------------------
-  def load( self, core, ref_pin_powers ):
-    """
-@param  core		datamodel.Core object with properties
-			  axialMesh, axialMeshCenters, coreMap, coreSym,
-			  nass, nassx, nassy, nax, npin, pinVolumes
-@param  ref_pin_powers	'pin_powers' data as an np.ndarray
-#@param  statept		datamodel.State reference object, probably from
-#			'STATE_0001', which is assumed to have 'pin_powers'
-"""
-    self.core = core
-    #self.statept = statept
-
-
-    self.pinWeights, \
-    self.assemblyWeights, \
-    self.axialWeights, \
-    self.coreWeights, \
-    self.radialWeights = \
-    self._calc_weights( core, ref_pin_powers )
-    #self._calc_weights( core, statept.GetDataSet( 'pin_powers' ).value )
-  #end load
 
 
   #----------------------------------------------------------------------
@@ -112,8 +92,16 @@ be called before use.
   #	METHOD:		calc_pin_core_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_core_avg( self, data ):
-    return  self.calc_average( data, self.coreWeights, ( 0, 1, 2 ) )
+    return  self.calc_average( data, self.coreWeights, ( 0, 1, 2, 3 ) )
   #end calc_pin_core_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_assembly_avg()			-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_assembly_avg( self, data ):
+    return  self.calc_average( data, self.radialAssemblyWeights, ( 0, 1, 2 ) )
+  #end calc_pin_radial_assembly_avg
 
 
   #----------------------------------------------------------------------
@@ -132,7 +120,8 @@ be called before use.
 @param  core		DataModel.Core object
 @param  ref_pin_powers	'pin_powers' data as an np.ndarray
 @return			( pin_weights, assembly_weights, axial_weights,
-			  core_weights, radial_weights )
+			  core_weights, radial_assembly_weights,
+			  radial_weights )
 """
 # Get the geometry information ----------------------------------------
 #map=f['CORE']['core_map']               # get core map
@@ -199,11 +188,13 @@ be called before use.
     else:
 #			-- Initialize weights to 1 for non-zero power
 #			--
-      npin = core.npin
+      #npin = core.npin
+      npinx = core.npinx
+      npiny = core.npiny
       for i in xrange( core.nass ):
 	np.place(
-            pin_weights[ pylo[ i ] : npin, pxlo[ i ] : npin, :, i ],
-            ref_pin_powers[ pylo[ i ] : npin, pxlo[ i ] : npin, :, i ] > 0.0,
+            pin_weights[ pylo[ i ] : npiny, pxlo[ i ] : npinx, :, i ],
+            ref_pin_powers[ pylo[ i ] : npiny, pxlo[ i ] : npinx, :, i ] > 0.0,
             1.0
 	    )
 #			-- Cut pin weights by half on line of symmetry
@@ -226,11 +217,39 @@ be called before use.
 
     assembly_weights = np.sum( pin_weights, axis = ( 0, 1 ) )
     axial_weights = np.sum( pin_weights, axis = ( 0, 1, 3 ) )
-    core_weights = np.sum( pin_weights, axis = ( 0, 1, 2 ) )
+    core_weights = np.sum( pin_weights, axis = ( 0, 1, 2, 3 ) )
+    radial_assembly_weights = np.sum( pin_weights, axis = ( 0, 1, 2 ) )
     radial_weights = np.sum( pin_weights, axis = 2 )
 
     return  \
-    pin_weights, assembly_weights, axial_weights, core_weights, radial_weights
+        pin_weights, assembly_weights, axial_weights, core_weights, \
+        radial_assembly_weights, radial_weights
   #end _calc_weights
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		load()						-
+  #----------------------------------------------------------------------
+  def load( self, core, ref_pin_powers ):
+    """
+@param  core		datamodel.Core object with properties
+			  axialMesh, axialMeshCenters, coreMap, coreSym,
+			  nass, nassx, nassy, nax, npin, pinVolumes
+@param  ref_pin_powers	'pin_powers' data as an np.ndarray
+#@param  statept		datamodel.State reference object, probably from
+#			'STATE_0001', which is assumed to have 'pin_powers'
+"""
+    self.core = core
+    #self.statept = statept
+
+
+    self.pinWeights, \
+    self.assemblyWeights, \
+    self.axialWeights, \
+    self.coreWeights, \
+    self.radialAssemblyWeights, \
+    self.radialWeights = \
+    self._calc_weights( core, ref_pin_powers )
+  #end load
 
 #end Averages

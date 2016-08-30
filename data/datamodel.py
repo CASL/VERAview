@@ -217,11 +217,11 @@ DATASET_DEFS = \
   'pin:core':
     {
     'avg_method': 'calc_pin_core_avg',
-    'copy_expr': '[ 0, 0, 0, : ]',
-    'copy_shape_expr': '( 1, 1, 1, core.nass )',
+    'copy_expr': '[ 0, 0, 0, 0 ]',
+    'copy_shape_expr': '( 1, 1, 1, 1 )',
     'ds_prefix': 'core',
     'label': 'core',
-    'shape_expr': '( core.nass, )',
+    'shape_expr': '( 1, )',
     'type': 'pin:core'
     },
 
@@ -234,6 +234,17 @@ DATASET_DEFS = \
     'label': 'radial',
     'shape_expr': '( core.npiny, core.npinx, core.nass )',
     'type': 'pin:radial'
+    },
+
+  'pin:radial_assembly':
+    {
+    'avg_method': 'calc_pin_radial_assembly_avg',
+    'copy_expr': '[ 0, 0, 0, : ]',
+    'copy_shape_expr': '( 1, 1, 1, core.nass )',
+    'ds_prefix': 'radial_assembly',
+    'label': 'radial assembly',
+    'shape_expr': '( core.nass, )',
+    'type': 'pin:radial_assembly'
     },
 
   'scalar':
@@ -357,6 +368,13 @@ Properties:
         self.pinVolumes.shape[ 2 ] != self.nax or \
         self.pinVolumes.shape[ 3 ] != self.nass:
       missing.append( 'PIN_VOLUMES shape is not consistent with NPIN, NAX, and NASS' )
+
+    if self.npin <= 0:
+      missing.append( 'NPIN le 0' )
+    if self.nass <= 0:
+      missing.append( 'NASS le 0' )
+    if self.nax <= 0:
+      missing.append( 'NAX le 0' )
 
     return  missing
   #end Check
