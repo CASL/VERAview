@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-08-30	leerw@ornl.gov				-
+#	  Renamed pin:core data type to pin:radial_assembly, and added
+#	  new pin:core.
 #		2016-08-20	leerw@ornl.gov				-
 #	  Fixed bug in FindMultiDataSetMaxValue() finding axial value for
 #	  a fixed_detector dataset and setting 'assembly_addr' in results.
