@@ -244,7 +244,7 @@ DATASET_DEFS = \
     'avg_method': 'calc_pin_radial_assembly_avg',
     'copy_expr': '[ 0, 0, 0, : ]',
     'copy_shape_expr': '( 1, 1, 1, core.nass )',
-    'ds_prefix': 'radial_assembly',
+    'ds_prefix': 'radial_asy',
     'label': 'radial assembly',
     'shape_expr': '( core.nass, )',
     'type': 'pin:radial_assembly'

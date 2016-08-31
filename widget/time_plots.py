@@ -1062,57 +1062,56 @@ already read.
         if ds_rec[ 'visible' ] and ds_name is not None and \
 	    ds_name not in spec_names:
 	  ds_type = self.data.GetDataSetType( ds_name )
-	  spec = { 'ds_name': ds_name }
-	  spec_names.add( ds_name )
+	  if ds_type:
+	    spec = { 'ds_name': ds_name }
+	    spec_names.add( ds_name )
 
-	  if ds_type is None:
-	    pass
+#						-- Channel
+	    if ds_type.startswith( 'channel' ):
+#							-- Lazy creation
+	      if sub_addr_list is None:
+                sub_addr_list = list( self.auxSubAddrs )
+                sub_addr_list.insert( 0, self.subAddr )
 
-#					-- Channel
-	  elif ds_type.startswith( 'channel' ):
-#						-- Lazy creation
-	    if sub_addr_list is None:
-              sub_addr_list = list( self.auxSubAddrs )
-              sub_addr_list.insert( 0, self.subAddr )
+	      spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      spec[ 'sub_addrs' ] = sub_addr_list
+	      specs.append( spec )
+              self.dataSetTypes.add( 'channel' )
 
-	    spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
-	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	    spec[ 'sub_addrs' ] = sub_addr_list
-	    specs.append( spec )
-            self.dataSetTypes.add( 'channel' )
+#						-- Detector
+	    elif ds_type.startswith( 'detector' ):
+	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      specs.append( spec )
+              self.dataSetTypes.add( 'detector' )
 
-#					-- Detector
-	  elif ds_type.startswith( 'detector' ):
-	    spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
-	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	    specs.append( spec )
-            self.dataSetTypes.add( 'detector' )
+#						-- Pin
+	    elif ds_type.startswith( 'pin' ):
+#							-- Lazy creation
+	      if sub_addr_list is None:
+                sub_addr_list = list( self.auxSubAddrs )
+                sub_addr_list.insert( 0, self.subAddr )
 
-#					-- Pin
-	  elif ds_type.startswith( 'pin' ):
-#						-- Lazy creation
-	    if sub_addr_list is None:
-              sub_addr_list = list( self.auxSubAddrs )
-              sub_addr_list.insert( 0, self.subAddr )
+	      spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      spec[ 'sub_addrs' ] = sub_addr_list
+	      specs.append( spec )
+              self.dataSetTypes.add( 'pin' )
 
-	    spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
-	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	    spec[ 'sub_addrs' ] = sub_addr_list
-	    specs.append( spec )
-            self.dataSetTypes.add( 'pin' )
+#						-- Fixed detector
+	    elif ds_type.startswith( 'fixed_detector' ):
+	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      specs.append( spec )
+              self.dataSetTypes.add( 'fixed_detector' )
 
-#					-- Fixed detector
-	  elif ds_type.startswith( 'fixed_detector' ):
-	    spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
-	    spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	    specs.append( spec )
-            self.dataSetTypes.add( 'fixed_detector' )
-
-#					-- Scalar
-	  else:
-	    specs.append( spec )
-            self.dataSetTypes.add( 'scalar' )
-	  #end if-else ds_type match
+#						-- Scalar
+	    else:
+	      specs.append( spec )
+              self.dataSetTypes.add( 'scalar' )
+	    #end if-else ds_type match
+	  #end if ds_type exists
         #end if visible
       #end for k
 

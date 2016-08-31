@@ -652,6 +652,13 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  axial_ndx = 2
 	  )
 
+      draw_value_flag = \
+          self.pinDataSet is not None and \
+          dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1 and \
+          value_font is not None
+          #(self.pinDataSet.startswith( 'asy_' ) or \
+          # self.pinDataSet.startswith( 'radial_asy' ))
+
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
@@ -731,6 +738,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
 		fill = None, outline = assy_pen
 	        )
+
+#           -- Draw value for cross-pin integrations
+	    if draw_value_flag:
+	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
+	      value_str, value_size = \
+	          self._CreateValueDisplay( value, 3, value_font, chan_wd )
+	      #if value_size[ 0 ] <= pin_wd:
+	      if True:
+		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
+		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
+                im_draw.text(
+		    ( value_x, value_y ), value_str,
+		    fill = Widget.GetContrastColor( *brush_color ),
+		    font = value_font
+                    )
+	    #end if draw_value_flag
 	  #end if assembly referenced
 
 	  assy_x += assy_advance

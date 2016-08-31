@@ -2,6 +2,9 @@
 #------------------------------------------------------------------------
 #	NAME:		volume_view.py					-
 #	HISTORY:							-
+#		2016-08-31	leerw@ornl.gov				-
+#	  Handle 'scale_mode' events.  Cannot get the colormap to update
+#	  the display in Volume.SetScalarData().  Need to resolve later.
 #		2016-08-17	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -106,6 +109,7 @@ class Volume3DView( Widget ):
       z_size = self.meshLevels[ -1 ]
 
       # z, x, y(bottom up)
+      #xxxxx +1 on pin ranges if a channel dataset
       matrix = np.ndarray(
 	#( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
 	( z_size,
@@ -130,6 +134,7 @@ class Volume3DView( Widget ):
 		  )
 	      #for y in range( core.npiny ):
 	      pin_y2 = 0
+              #xxxxx +1 on pin ranges if a channel dataset
 	      for y in range( core.npiny - 1, -1, -1 ):
 		data_y = min( y, dset_shape[ 0 ] - 1 )
 
@@ -327,6 +332,7 @@ class Volume3DView( Widget ):
         STATE_CHANGE_axialValue,
         STATE_CHANGE_coordinates,
         STATE_CHANGE_curDataSet,
+	STATE_CHANGE_scaleMode,
         STATE_CHANGE_stateIndex
         ])
     return  locks
@@ -431,7 +437,11 @@ class Volume3DView( Widget ):
   def _UpdateData( self ):
     matrix = self._Create3DMatrix()
     if matrix is not None:
-      drange = self.data.GetRange( self.pinDataSet )
+      #drange = self.data.GetRange( self.pinDataSet )
+      drange = self.data.GetRange(
+          self.pinDataSet,
+	  self.stateIndex if self.state.scaleMode == 'state' else -1
+	  )
 
       if self.viz is None:
         self._CreateViz( matrix, drange )
@@ -479,6 +489,9 @@ class Volume3DView( Widget ):
           data_changed = True
           self.pinDataSet = kwargs[ 'cur_dataset' ]
 	  self.container.GetDataSetMenu().Reset()
+
+      if 'scale_mode' in kwargs:
+        data_changed = True
 
       if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
         data_changed = True
@@ -549,6 +562,7 @@ class Volume( HasTraits ):
   def __init__( self, **traits ):
     super( Volume, self ).__init__( **traits )
 
+    #created by traits assignment, as is matrix
     #self.dataRange = [ 0.0, 10.0 ]
 
 #		-- Force creation of volume
@@ -651,12 +665,18 @@ class Volume( HasTraits ):
 
     d = self.dataSource
     d.scalar_data = matrix
-    d.update()
     d.data_changed = True
-    d.update_image_data = True
+    d.update()
+    #d.update_image_data = True
 
     vol = getattr( self, 'volume3d' )
-    vol.module_manager.scalar_lut_manager.data_range = data_range
+    ##vol.module_manager.scalar_lut_manager.data_range = data_range
+    ##vol.module_manager.update()
+    #vol._ctf.range = data_range
+    #vol.update_ctf = True
+    vol.lut_manager.data_range = data_range
+    pdb.set_trace()
+    vol.update_pipeline()
   #end SetScalarData
 
 

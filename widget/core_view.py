@@ -727,6 +727,13 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  axial_ndx = 2
 	  )
 
+      draw_value_flag = \
+          self.pinDataSet is not None and \
+          dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1 and \
+          value_font is not None
+          #(self.pinDataSet.startswith( 'asy_' ) or \
+          # self.pinDataSet.startswith( 'radial_asy' ))
+
 #			-- Limit axial level
 #			--
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
@@ -814,9 +821,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 		fill = None, outline = assy_pen
 	        )
 
-	    if self.pinDataSet is not None and \
-	        self.pinDataSet.find( 'asy_' ) == 0 and \
-	        value_font is not None:
+#           -- Draw value for cross-pin integrations
+	    if draw_value_flag:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      value_str, value_size = \
 	          self._CreateValueDisplay( value, 3, value_font, pin_wd )
@@ -829,7 +835,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		    fill = Widget.GetContrastColor( *brush_color ),
 		    font = value_font
                     )
-	    #end if drawing value
+	    #end if draw_value_flag
 	  #end if assembly referenced
 
 	  assy_x += assy_advance
@@ -1106,7 +1112,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Core2DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:radial' ]
+    return  [ 'pin', 'pin:assembly', 'pin:radial', 'pin:radial_assembly' ]
   #end GetDataSetTypes
 
 
