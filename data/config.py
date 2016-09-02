@@ -13,7 +13,7 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import os, subprocess
+import os, platform, subprocess
 from distutils.spawn import find_executable
 #import h5py, os, sys, traceback
 #import numpy as np
@@ -82,8 +82,22 @@ Static properties (use accessors):
 @return			True or False
 """
     if Config.haveGifsicle_ is None:
-      path = find_executable( 'gifsicle' )
-      Config.haveGifsicle_ = path is not None
+      #path = find_executable( 'gifsicle' )
+      #Config.haveGifsicle_ = path is not None
+      path = None
+      mach = platform.machine()
+      sys = platform.system().lower()
+      if sys == 'linux':
+        if mach.find( '64' ) >= 0:
+	  path = 'linux64'
+      elif sys == 'darwin':
+        if mach.find( '64' ) >= 0:
+	  path = 'macos'
+      elif sys == 'windows':
+        path = 'win64' if mach.find( '64' ) >= 0 else 'win32'
+
+      if path is not None:
+        Config.haveGifsicle_ = os.path.join( Config.rootDir_, 'bin', path )
     #end if
 
     return  Config.haveGifsicle_
