@@ -3,6 +3,11 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-09-03	leerw@ornl.gov				-
+#	  Added TOOLBAR_ITEMS functions to enable core widgets only if
+#	  core.nass gt 1, axial widgets if core.nax gt 1, and Time Plots
+#	  only if data.GetStatesCount() gt 1.
+#	  Only enable axial widgets if core.nax gt 1.
 #		2016-08-20	leerw@ornl.gov				-
 #	  Changing initial widgets to pin and plots only.
 #	  Assigning last frame position and size on load.
@@ -143,13 +148,15 @@ TOOLBAR_ITEMS = \
     'widget': 'Core 2D View',
     'icon': 'Core2DView.1.32.png',
     'iconDisabled': 'Core2DView.disabled.1.32.png',
-    'type': 'pin'
+    'type': 'pin',
+    'func': lambda d: d.core is not None and d.core.nass > 1
     },
     {
     'widget': 'Core Axial 2D View',
     'icon': 'CoreAxial2DView.1.32.png',
     'iconDisabled': 'CoreAxial2DView.disabled.1.32.png',
-    'type': 'pin'
+    'type': 'pin',
+    'func': lambda d: d.core is not None and d.core.nax > 1
     },
     {
     'widget': 'Assembly 2D View',
@@ -162,13 +169,15 @@ TOOLBAR_ITEMS = \
     'widget': 'Channel Core 2D View',
     'icon': 'Channel2DView.1.32.png',
     'iconDisabled': 'Channel2DView.disabled.1.32.png',
-    'type': 'channel'
+    'type': 'channel',
+    'func': lambda d: d.core is not None and d.core.nass > 1
     },
     {
     'widget': 'Channel Axial 2D View',
     'icon': 'ChannelAxial2DView.1.32.png',
     'iconDisabled': 'ChannelAxial2DView.disabled.1.32.png',
-    'type': 'channel'
+    'type': 'channel',
+    'func': lambda d: d.core is not None and d.core.nax > 1
     },
     {
     'widget': 'Channel Assembly 2D View',
@@ -215,8 +224,8 @@ TOOLBAR_ITEMS = \
     'widget': 'Time Plots',
     'icon': 'TimePlot.32.png',
     'iconDisabled': 'TimePlot.disabled.32.png',
-    'type': ''
-#    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
+    'type': '',
+    'func': lambda d: d.GetStatesCount() > 1
     }
   ]
 
