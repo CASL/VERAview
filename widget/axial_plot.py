@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-09-03	leerw@ornl.gov				-
+#	  Fixed references to detectorMeshCenters.  Doh!!
 #		2016-08-15	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -193,7 +195,7 @@ dataset names and ( rc, values ) pairs.
     if axial_mesh_type == 'detector':
       header = 'Detector'
       cur_axial_index = self.axialValue[ 2 ]
-      mesh_centers = core.detectorMeshCenters
+      mesh_centers = core.detectorMesh
     elif axial_mesh_type == 'fixed_detector':
       header = 'Fixed Detector'
       cur_axial_index = self.axialValue[ 3 ]
@@ -549,7 +551,7 @@ configuring the grid, plotting, and creating self.axline.
 	ds_type = self.data.GetDataSetType( ds_name )
 	axial_values = self.data.core.axialMeshCenters
 	if ds_type.startswith( 'detector' ):
-	  axial_values = self.data.core.detectorMeshCenters
+	  axial_values = self.data.core.detectorMesh
 	  marker_size = 12
 	  plot_type = '.'
 	elif ds_type.startswith( 'channel' ):
@@ -653,8 +655,8 @@ configuring the grid, plotting, and creating self.axline.
       ndx = -1
       #x call data.CreateAxialValue() here?
       if ds_name in self.data.GetDataSetNames( 'detector' ):
-        if self.data.core.detectorMeshCenters is not None:
-	  ndx = self.data.FindListIndex( self.data.core.detectorMeshCenters, axial_cm )
+        if self.data.core.detectorMesh is not None:
+	  ndx = self.data.FindListIndex( self.data.core.detectorMesh, axial_cm )
       elif ds_name in self.data.GetDataSetNames( 'fixed_detector' ):
         if self.data.core.fixedDetectorMeshCenters is not None:
 	  ndx = self.data.FindListIndex( self.data.core.fixedDetectorMeshCenters, axial_cm )
