@@ -201,7 +201,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, 0, :, : ]',
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
     'ds_prefix': 'asy',
-    'label': 'assembly',
+    'label': 'assembly',  # '3D asy'
     'shape_expr': '( core.nax, core.nass )',
     'type': 'pin:assembly'
     },
@@ -234,7 +234,7 @@ DATASET_DEFS = \
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
     'ds_prefix': 'radial',
-    'label': 'radial',
+    'label': 'radial',  # '2D pin'
     'shape_expr': '( core.npiny, core.npinx, core.nass )',
     'type': 'pin:radial'
     },
@@ -245,7 +245,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, 0, 0, : ]',
     'copy_shape_expr': '( 1, 1, 1, core.nass )',
     'ds_prefix': 'radial_asy',
-    'label': 'radial assembly',
+    'label': 'radial assembly',  # '2D assy'
     'shape_expr': '( core.nass, )',
     'type': 'pin:radial_assembly'
     },
