@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-09-03	leerw@ornl.gov				-
+#	  Checking for existence of time datasets in all state points.
 #		2016-08-30	leerw@ornl.gov				-
 #	  Renamed pin:core data type to pin:radial_assembly, and added
 #	  new pin:core.
@@ -2526,6 +2528,8 @@ being one greater in each dimension.
 #xxxxx return messages about datasets ignored due to bad shapes, beavrs.h5
     self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
         self._ResolveDataSets( self.core, st_group )
+#			-- Only use time datasets that appear in all statepts
+    self.dataSetNames[ 'time' ] = State.ResolveTimeDataSets( self.states )
     self.derivedLabelsByType = {}
 
     self.ranges = {}
@@ -3805,6 +3809,38 @@ NOT process derived datasets as does DataModel.GetStateDataSet().
     #return  ( ds_names_dict, states )
     return  states
   #end ReadAll
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		State.ResolveTimeDataSets()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ResolveTimeDataSets( states ):
+    """
+@param  states		list of State objects
+@return			list of time datasets, always including 'state'
+"""
+    time_ds_names = set( TIME_DS_NAMES )
+    remove_list = []
+
+    for st in states:
+      del remove_list[ : ]
+      for name in time_ds_names:
+        if not st.HasDataSet( name ):
+	  remove_list.append( name )
+      #end for
+
+      for name in remove_list:
+        time_ds_names.remove( name )
+
+      if len( time_ds_names ) == 0:
+        break
+    #end for st
+
+    time_ds_names.add( 'state' )
+
+    return  list( time_ds_names )
+  #end ResolveTimeDataSets
 
 
   #----------------------------------------------------------------------
