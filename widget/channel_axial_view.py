@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-09-14	leerw@ornl.gov				-
+#	  Redrawing on changed channel selection
 #		2016-08-17	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -1200,11 +1202,10 @@ method via super.SaveProps().
 	self.container.GetDataSetMenu().Reset()
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
-#      if kwargs[ 'sub_addr' ][ chan_ndx ] != self.subAddr[ chan_ndx ]:
-#        resized = True
-#	new_pin_index_flag = True
-#      else:
-#        changed = True
+      if kwargs[ 'sub_addr' ][ chan_ndx ] != self.subAddr[ chan_ndx ]:
+        resized = True
+      else:
+        changed = True
       self.subAddr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'channel' )
 
 #x    if new_chan_index_flag:

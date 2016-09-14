@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-09-14	leerw@ornl.gov				-
+#	  Using DataModel.pinFactors to determine no-value cells.
 #		2016-08-15	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -577,6 +579,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 #      value_font_smaller = config[ 'valueFontSmaller' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      pin_factors = self.data.GetPinFactors()
+      pin_factors_shape = pin_factors.shape
 
       #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset is not None else None
@@ -648,8 +652,13 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  else:
 	    value = 0.0
 
-	  #if value > 0.0:
-	  if not self.data.IsNoDataValue( self.pinDataSet, value ):
+	  if pin_row < pin_factors_shape[ 0 ] and pin_col < pin_factors_shape[ 1 ]:
+	    pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
+	  else:
+	    pin_factor = 0
+
+	  #if not self.data.IsNoDataValue( self.pinDataSet, value ):
+	  if pin_factor != 0:
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )

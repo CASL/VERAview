@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-09-14	leerw@ornl.gov				-
+#	  Setting DataModel.pinFactors from averager.
 #		2016-09-03	leerw@ornl.gov				-
 #	  Checking for existence of time datasets in all state points.
 #		2016-08-30	leerw@ornl.gov				-
@@ -752,6 +754,7 @@ Properties:
   h5File		h5py.File
   listeners		map of listeners by event type
   maxAxialValue		maximum axial value (cm) 
+  pinFactors		pin weight factors ( mpiny, npinx, nax, nass )
   ranges		dict of ranges ( min, max ) by dataset
   rangesByStatePt	list by statept index of dicts by dataset of ranges 
   rangesLock		threading.RLock for ranges dict
@@ -1946,6 +1949,14 @@ derived datasets.  Lazily created and cached.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetPinFactors()			-
+  #----------------------------------------------------------------------
+  def GetPinFactors( self ):
+    return  self.pinFactors
+  #end GetPinFactors
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetRange()				-
   #----------------------------------------------------------------------
   def GetRange( self, ds_name, state_ndx = -1 ):
@@ -2535,6 +2546,11 @@ being one greater in each dimension.
     self.ranges = {}
     self.rangesByStatePt = [ dict() for i in range( len( self.states ) ) ]
 
+#		-- Create derived file and states
+#		--
+    self.derivedFile, self.derivedStates = \
+        self._CreateDerivedH5File( self.states )
+
 #		-- Special check for pin_factors
 #		--
     pin_factors = None
@@ -2551,18 +2567,22 @@ being one greater in each dimension.
 	  break
     #end for
 
-    #Andrew, look here
-#    if pin_factors is not None:
-#      self.averager.pinWeights = pin_factors
-
-#		-- Create derived file and states
-#		--
-    self.derivedFile, self.derivedStates = \
-        self._CreateDerivedH5File( self.states )
-
 #		-- Set up the averager
 #		--
-    self.averager.load( self.core, self.GetStateDataSet( 0, 'pin_powers' ).value )
+    self.averager.load(
+        self.core,
+        self.GetStateDataSet( 0, 'pin_powers' ).value,
+	pin_factors
+	)
+
+#		-- Resolve pinFactors
+#		--
+    if pin_factors is not None:
+      self.pinFactors = pin_factors
+    elif self.averager.pinWeights is not None:
+      self.pinFactors = self.averager.pinWeights
+    else:
+      self.pinFactors = np.ones( pin_factors_shape, dtype = np.int )
   #end Read
 
 

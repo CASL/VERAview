@@ -653,11 +653,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  )
 
       draw_value_flag = \
-          self.pinDataSet is not None and \
+          self.channelDataSet is not None and \
           dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1 and \
           value_font is not None
-          #(self.pinDataSet.startswith( 'asy_' ) or \
-          # self.pinDataSet.startswith( 'radial_asy' ))
 
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
