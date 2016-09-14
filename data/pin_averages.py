@@ -3,6 +3,8 @@
 #	HISTORY:							-
 #		2016-09-14	leerw@ornl.gov				-
 #	  Passing pin_factors params to load() and _calc_weights().
+#	  Passing dataset as parameter to calc methods instead of
+#	  dataset.value.
 #		2016-08-30	leerw@ornl.gov				-
 #	  In calc_average(), added np.nan_to_num() call to avoid having
 #	  NaN values.
@@ -78,40 +80,42 @@ be called before use.
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_assembly_avg()				-
   #----------------------------------------------------------------------
-  def calc_pin_assembly_avg( self, data ):
-    return  self.calc_average( data, self.assemblyWeights, ( 0, 1 ) )
+  def calc_pin_assembly_avg( self, dset ):
+    return  self.calc_average( dset.value, self.assemblyWeights, ( 0, 1 ) )
   #end calc_pin_assembly_avg
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_axial_avg()				-
   #----------------------------------------------------------------------
-  def calc_pin_axial_avg( self, data ):
-    return  self.calc_average( data, self.axialWeights, ( 0, 1, 3 ) )
+  def calc_pin_axial_avg( self, dset ):
+    return  self.calc_average( dset.value, self.axialWeights, ( 0, 1, 3 ) )
   #end calc_pin_axial_avg
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_core_avg()				-
   #----------------------------------------------------------------------
-  def calc_pin_core_avg( self, data ):
-    return  self.calc_average( data, self.coreWeights, ( 0, 1, 2, 3 ) )
+  def calc_pin_core_avg( self, dset ):
+    return  self.calc_average( dset.value, self.coreWeights, ( 0, 1, 2, 3 ) )
   #end calc_pin_core_avg
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_radial_assembly_avg()			-
   #----------------------------------------------------------------------
-  def calc_pin_radial_assembly_avg( self, data ):
-    return  self.calc_average( data, self.radialAssemblyWeights, ( 0, 1, 2 ) )
+  def calc_pin_radial_assembly_avg( self, dset ):
+    return  \
+    self.calc_average( dset.value, self.radialAssemblyWeights, ( 0, 1, 2 ) )
   #end calc_pin_radial_assembly_avg
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_radial_avg()				-
   #----------------------------------------------------------------------
-  def calc_pin_radial_avg( self, data ):
-    return  self.calc_average( data, self.radialWeights, 2, invalid = 'ignore' )
+  def calc_pin_radial_avg( self, dset ):
+    return  \
+    self.calc_average( dset.value, self.radialWeights, 2, invalid = 'ignore' )
   #end calc_pin_radial_avg
 
 

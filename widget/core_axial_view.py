@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-09-14	leerw@ornl.gov				-
 #	  Redrawing on changed pin selection
+#	  Using DataModel.pinFactors to determine no-value cells.
 #		2016-08-16	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -444,6 +445,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_wd = config[ 'pinWidth' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      pin_factors = self.data.GetPinFactors()
+      pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -538,16 +541,24 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	    for pin_col in pin_range:
 	      cur_pin_col = min( pin_col, cur_npin - 1 )
+	      pin_factor = 0
 	      if self.mode == 'xz':
 	        value = dset_array[
+		    pin_cell, cur_pin_col, axial_level, assy_ndx
+		    ]
+	        pin_factor = pin_factors[
 		    pin_cell, cur_pin_col, axial_level, assy_ndx
 		    ]
 	      else:
 	        value = dset_array[
 		    cur_pin_col, pin_cell, axial_level, assy_ndx
 		    ]
+	        pin_factor = pin_factors[
+		    cur_pin_col, pin_cell, axial_level, assy_ndx
+		    ]
 
-	      if not self.data.IsNoDataValue( self.pinDataSet, value ):
+	      #if not self.data.IsNoDataValue( self.pinDataSet, value ):
+	      if pin_factor != 0:
 	        pen_color = Widget.GetColorTuple(
 	            value - ds_range[ 0 ], value_delta, 255
 	            )

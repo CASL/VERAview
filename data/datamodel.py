@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-09-14	leerw@ornl.gov				-
 #	  Setting DataModel.pinFactors from averager.
+#	  Starting to address channel weights and derived datasets.
 #		2016-09-03	leerw@ornl.gov				-
 #	  Checking for existence of time datasets in all state points.
 #		2016-08-30	leerw@ornl.gov				-
@@ -270,7 +271,8 @@ DATASET_DEFS = \
   }
 
 #DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
-DERIVED_CALCULATOR_CLASS = 'data.pin_averages.Averages'
+DERIVED_CHANNEL_CALCULATOR_CLASS = 'data.channel_averages.Averages'
+DERIVED_PIN_CALCULATOR_CLASS = 'data.pin_averages.Averages'
 
 
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
@@ -738,7 +740,7 @@ Events:
 			listener.OnNewFile( new_file_name )
 
 Properties:
-  averager		reference to object for caculating derived averages
+  averagers		dict by category of average calculators
   core			Core
   #dataSetChangeEvent	event.Event object
   dataSetDefs		dict of dataset definitions
@@ -797,22 +799,29 @@ passed, Read() must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
 """
-#		-- Instantiate averager
+    self.averagers = {}
+
+#		-- Instantiate averagers
 #		--
-    module_path, class_name = DERIVED_CALCULATOR_CLASS.rsplit( '.', 1 )
-    try:
-      module = __import__( module_path, fromlist = [ class_name ] )
-      cls = getattr( module, class_name )
-      self.averager = cls()
-    except AttributeError:
-      raise Exception(
-	  'DataModel error: Class "%s" not found in module "%s"' %
-	  ( class_name, module_path )
-	  )
-    except ImportError:
-      raise Exception(
-	  'DataModel error: Module "%s" could not be imported' % module_path
-	  )
+    for cat, class_path in (
+	( 'pin', DERIVED_PIN_CALCULATOR_CLASS ),
+	( 'channel', DERIVED_CHANNEL_CALCULATOR_CLASS )
+        ):
+      module_path, class_name = class_path.rsplit( '.', 1 )
+      try:
+        module = __import__( module_path, fromlist = [ class_name ] )
+        cls = getattr( module, class_name )
+        self.averagers[ cat ] = cls()
+      except AttributeError:
+        raise Exception(
+	    'DataModel error: Class "%s" not found in module "%s"' %
+	    ( class_name, module_path )
+	    )
+      except ImportError:
+        raise Exception(
+	    'DataModel error: Module "%s" could not be imported' % module_path
+	    )
+    #end for cat, class_name
 
 #		-- Create locks
 #		--
@@ -1056,12 +1065,14 @@ Parameters:
       if der_names:
         ddef = self.dataSetDefs.get( der_names[ 0 ] )
 
-      if ddef and 'avg_method' in ddef:
+      if ds_category in self.averagers and \
+          ddef and 'avg_method' in ddef and \
+	  hasattr( self.averagers[ ds_category ], ddef[ 'avg_method' ] ):
 	derived_name = der_names[ 1 ]
-        avg_method_name = ddef[ 'avg_method' ]
 
 	try:
-	  avg_method = getattr( self.averager, avg_method_name )
+	  avg_method = \
+	      getattr( self.averagers[ ds_category ], ddef[ 'avg_method' ] )
 
           for state_ndx in range( len( self.states ) ):
 	    st = self.GetState( state_ndx )
@@ -1072,7 +1083,7 @@ Parameters:
 	      data = derived_st.GetDataSet( ds_name )
 
 	    if data:
-	      avg_data = avg_method( data.value )
+	      avg_data = avg_method( data )  # was data.value
 	      derived_st.CreateDataSet( derived_name, avg_data )
 	    #end if data
 	  #end for each state
@@ -2567,22 +2578,43 @@ being one greater in each dimension.
 	  break
     #end for
 
-#		-- Set up the averager
+#		-- Set up the pin averager
 #		--
-    self.averager.load(
-        self.core,
-        self.GetStateDataSet( 0, 'pin_powers' ).value,
-	pin_factors
-	)
+    if 'pin' in self.averagers:
+      avg = self.averagers[ 'pin' ]
+      avg.load(
+          self.core,
+          self.GetStateDataSet( 0, 'pin_powers' ).value,
+	  pin_factors
+	  )
+      if pin_factors is None and avg.pinWeights is not None:
+        pin_factors = avg.pinWeights
+    #end if
 
-#		-- Resolve pinFactors
+    self.pinFactors = \
+        pin_factors if pin_factors is not None else \
+        np.ones( pin_factors_shape, dtype = np.int )
+
+#		-- Set up the channel averager
 #		--
-    if pin_factors is not None:
-      self.pinFactors = pin_factors
-    elif self.averager.pinWeights is not None:
-      self.pinFactors = self.averager.pinWeights
-    else:
-      self.pinFactors = np.ones( pin_factors_shape, dtype = np.int )
+    if 'channel' in self.averagers:
+      avg = self.averagers[ 'channel' ]
+      avg.load( self.core )
+    #end if
+
+#    self.averager.load(
+#        self.core,
+#        self.GetStateDataSet( 0, 'pin_powers' ).value,
+#	pin_factors
+#	)
+##		-- Resolve pinFactors
+##		--
+#    if pin_factors is not None:
+#      self.pinFactors = pin_factors
+#    elif self.averager.pinWeights is not None:
+#      self.pinFactors = self.averager.pinWeights
+#    else:
+#      self.pinFactors = np.ones( pin_factors_shape, dtype = np.int )
   #end Read
 
 
