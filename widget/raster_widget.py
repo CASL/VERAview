@@ -589,7 +589,15 @@ called from subclass _CreateDrawConfig() methods.
     """Retrieves the currently-displayed bitmap.
 @return			bitmap or None
 """
-    return  self.bitmapCtrl.GetBitmap() if self.bitmapCtrl is not None else None
+    bmap = None
+    cur_tuple = self._CreateStateTuple()
+    if cur_tuple in self.bitmaps:
+      bmap = self.bitmaps[ cur_tuple ]
+    elif self.bitmapCtrl is not None:
+      bmap = self.bitmapCtrl.GetBitmap()
+
+    return  bmap
+    #return  self.bitmapCtrl.GetBitmap() if self.bitmapCtrl is not None else None
   #end _CreateClipboardImage
 
 
