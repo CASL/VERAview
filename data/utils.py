@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2016-09-19	leerw@ornl.gov				-
+#	  Fixed FormatFloat{23}() to never call math.log() on zero.
 #		2015-12-22	leerw@ornl.gov				-
 #	  Added NormalizeValueLabels().
 #		2015-04-11	leerw@ornl.gov				-
@@ -48,7 +50,9 @@ class DataUtils( object ):
       neg_flag = False
 
     size = max( 1, size )
-    fexp = math.log( value ) / math.log( 10 )
+    fexp = \
+        0.0  if value == 0.0 else \
+        math.log( value ) / math.log( 10 )
     exp = int( fexp )
     if fexp < 0.0:
       exp -= 1
@@ -86,7 +90,9 @@ class DataUtils( object ):
       neg_flag = False
 
     size = max( 1, size )
-    fexp = math.log( value ) / math.log( 10 )
+    fexp = \
+        0.0  if value == 0.0 else \
+        math.log( value ) / math.log( 10 )
     exp = int( fexp )
     if fexp < 0.0:
       exp -= 1

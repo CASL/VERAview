@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-09-19	leerw@ornl.gov				-
+#	  Using state.weightsMode to determine use of pinFactors.
 #		2016-09-14	leerw@ornl.gov				-
 #	  Using DataModel.pinFactors to determine no-value cells.
 #		2016-08-15	leerw@ornl.gov				-
@@ -307,8 +309,10 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_wd = config[ 'pinWidth' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      pin_factors = self.data.GetPinFactors()
-      pin_factors_shape = pin_factors.shape
+      pin_factors = None
+      if self.state.weightsMode == 'on':
+        pin_factors = self.data.GetPinFactors()
+        pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -372,9 +376,13 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  #end if writing column label
 
 	  value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-	  pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if pin_factors is None:
+	    pin_factor = 1
+	  else:
+	    pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
 	  #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	  if pin_factor != 0:
+	  #if pin_factor != 0:
+	  if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -710,8 +718,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       value_font = config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      pin_factors = self.data.GetPinFactors()
-      pin_factors_shape = pin_factors.shape
+      pin_factors = None
+      if self.state.weightsMode == 'on':
+        pin_factors = self.data.GetPinFactors()
+        pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -803,12 +813,16 @@ If neither are specified, a default 'scale' value of 4 is used.
 		value = dset_array[
 		    cur_pin_row, cur_pin_col, axial_level, assy_ndx
 		    ]
-	        pin_factor = pin_factors[
-		    cur_pin_row, cur_pin_col, axial_level, assy_ndx
-		    ]
+	        if pin_factors is None:
+	          pin_factor = 1
+		else:
+	          pin_factor = pin_factors[
+		      cur_pin_row, cur_pin_col, axial_level, assy_ndx
+		      ]
 
 	        #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-		if pin_factor != 0:
+		#if pin_factor != 0:
+	        if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
 	              )
@@ -1614,6 +1628,9 @@ method via super.SaveProps().
       if sub_addr != self.subAddr:
         changed = True
         self.subAddr = sub_addr
+
+    if 'weights_mode' in kwargs:
+      kwargs[ 'resized' ] = True
 
     if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-09-19	leerw@ornl.gov				-
+#	  Added STATE_CHANGE_weightsMode.
 #		2016-08-15	leerw@ornl.gov				-
 #	  Reducing events to one selected dataset, one coordinate,
 #	  axial value, and one time.
@@ -79,6 +81,7 @@ STATE_CHANGE_dataModel = 0x1 << 4
 STATE_CHANGE_scaleMode = 0x1 << 5
 STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
+STATE_CHANGE_weightsMode = 0x1 << 8
 
 # These are in the order of being added
 ##  STATE_CHANGE_noop = 0
@@ -197,6 +200,8 @@ All indices are 0-based.
 +-------------+----------------+----------------+------------------------------+
 | timeDataSet | timeDataSet    | time_dataset   | dataset to use for "time"    |
 +-------------+----------------+----------------+------------------------------+
+| weightsMode | weightsMode    | weights_mode   | 'on' or 'off'                |
++-------------+----------------+----------------+------------------------------+
 """
 
 #		-- Class Attributes
@@ -243,6 +248,7 @@ All indices are 0-based.
     self.stateIndex = -1
     self.subAddr = ( -1, -1 )
     self.timeDataSet = 'state'
+    self.weightsMode = 'on'
 
     self.Change( State.CreateLocks(), **kwargs )
   #end __init__
@@ -255,11 +261,12 @@ All indices are 0-based.
     """This needs to be updated.  Perhaps dump the JSON sans dataModel.
 """
     coord = self.assemblyAddr + self.colRow + tuple( self.auxColRows )
-    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,state=%d,time=%s' % \
+    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,state=%d,time=%s,weights=%s' % \
         (
 	str( self.axialValue ), str( coord ),
 	self.curDataSet, self.scaleMode,
-	self.stateIndex, self.timeDataSet
+	self.stateIndex, self.timeDataSet,
+	self.weightsMode
         )
     return  result
   #end __str__
@@ -298,6 +305,7 @@ Keys passed and the corresponding state bit are:
   state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
   time_dataset		STATE_CHANGE_timeDataSet
+  weights_mode		STATE_CHANGE_weightsMode
 @return			change reason mask
 """
     reason = STATE_CHANGE_noop
@@ -341,6 +349,10 @@ Keys passed and the corresponding state bit are:
       if self.timeDataSet != kwargs[ 'time_dataset' ]:
         self.timeDataSet = kwargs[ 'time_dataset' ]
         reason |= STATE_CHANGE_timeDataSet
+
+    if 'weights_mode' in kwargs:
+      self.weightsMode = kwargs[ 'weights_mode' ]
+      reason |= STATE_CHANGE_weightsMode
 
 #		-- Wire assembly_index and detector_index together
 #		--
@@ -397,6 +409,9 @@ Keys passed and the corresponding state bit are:
 
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self.timeDataSet
+
+    if (reason & STATE_CHANGE_weightsMode) > 0:
+      update_args[ 'weights_mode' ] = self.weightsMode
 
     return  update_args
   #end CreateUpdateArgs
@@ -556,6 +571,17 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetWeightsMode()				-
+  #----------------------------------------------------------------------
+  def GetWeightsMode( self ):
+    """Accessor for the weightsMode property.
+@return			'all' or 'state'
+"""
+    return  self.weightsMode
+  #end GetWeightsMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Load()						-
   #----------------------------------------------------------------------
   def Load( self, data_model = None ):
@@ -570,6 +596,7 @@ Keys passed and the corresponding state bit are:
     del self.auxSubAddrs[ : ]
     self.dataModel = data_model
     self.scaleMode = 'all'
+    self.weightsMode = 'on'
 
     if data_model is not None:
       core = data_model.GetCore()
@@ -628,7 +655,7 @@ Keys passed and the corresponding state bit are:
     for k in (
         'assemblyAddr', 'auxSubAddrs', 'axialValue', 
         'curDataSet', 'scaleMode', 'stateIndex',
-	'subAddr', 'timeDataSet'
+	'subAddr', 'timeDataSet', 'weightsMode'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -677,7 +704,7 @@ Keys passed and the corresponding state bit are:
     for k in (
         'assemblyAddr', 'auxSubAddrs', 'axialValue', 
         'curDataSet', 'scaleMode', 'stateIndex',
-	'subAddr', 'timeDataSet'
+	'subAddr', 'timeDataSet', 'weightsMode'
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps

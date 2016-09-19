@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-09-19	leerw@ornl.gov				-
+#	  Using state.weightsMode to determine use of pinFactors.
 #		2016-09-14	leerw@ornl.gov				-
 #	  Using DataModel.pinFactors to determine no-value cells.
 #		2016-08-15	leerw@ornl.gov				-
@@ -579,8 +581,10 @@ If neither are specified, a default 'scale' value of 24 is used.
 #      value_font_smaller = config[ 'valueFontSmaller' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      pin_factors = self.data.GetPinFactors()
-      pin_factors_shape = pin_factors.shape
+      pin_factors = None
+      if self.state.weightsMode == 'on':
+        pin_factors = self.data.GetPinFactors()
+        pin_factors_shape = pin_factors.shape
 
       #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
       #ds_value = dset.value if dset is not None else None
@@ -652,18 +656,21 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  else:
 	    value = 0.0
 
-	  if pin_row < pin_factors_shape[ 0 ] and pin_col < pin_factors_shape[ 1 ]:
+	  if pin_factors is None:
+	    pin_factor = 1
+	  elif pin_row < pin_factors_shape[ 0 ] and \
+	      pin_col < pin_factors_shape[ 1 ]:
 	    pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
 	  else:
 	    pin_factor = 0
 
 	  #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	  if pin_factor != 0:
+	  #if pin_factor != 0:
+	  if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
 	    pen_color = Widget.GetDarkerColor( brush_color, 255 )
-	    #brush_color = ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
 
 	    #im_draw.ellipse
 	    im_draw.rectangle(
@@ -672,13 +679,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 
 	    if value_font is not None:
-#	      value_precision = 2 if value < 0.0 else 3
-#	      value_str = DataUtils.FormatFloat2( value, value_precision )
-#	      e_ndx = value_str.lower().find( 'e' )
-#	      if e_ndx > 1:
-#	        value_str = value_str[ : e_ndx ]
-#	      value_size = value_font.getsize( value_str )
-
 	      value_str, value_size = \
 	          self._CreateValueDisplay( value, 3, value_font, pin_wd )
 	      #if value_size[ 0 ] <= pin_wd:
@@ -1223,6 +1223,9 @@ method via super.SaveProps().
       if sub_addr != self.subAddr:
         changed = True
 	self.subAddr = sub_addr
+
+    if 'weights_mode' in kwargs:
+      kwargs[ 'resized' ] = True
 
     if changed:
       kwargs[ 'changed' ] = True

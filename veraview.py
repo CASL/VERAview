@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-09-20	leerw@ornl.gov				-
+#	  Added weights mode to the edit menu.
 #		2016-09-03	leerw@ornl.gov				-
 #	  Added TOOLBAR_ITEMS functions to enable core widgets only if
 #	  core.nass gt 1, axial widgets if core.nax gt 1, and Time Plots
@@ -228,6 +230,12 @@ TOOLBAR_ITEMS = \
     'func': lambda d: d.GetStatesCount() > 1
     }
   ]
+
+WEIGHTS_MODES = \
+  {
+  'Use Weights to Show/Hide Pins/Channels': 'on',
+  'Show All Pins/Channels': 'off'
+  }
 
 WIDGET_MAP = \
   {
@@ -519,6 +527,7 @@ class VeraViewFrame( wx.Frame ):
     self.grid = None
     self.scaleModeItems = {}
     self.timeDataSetMenu = None
+    self.weightsModeItems = {}
     self.widgetToolBar = None
 
     self._InitUI()
@@ -894,6 +903,26 @@ WIDGET_MAP and TOOLBAR_ITEMS
 	subMenu = self.timeDataSetMenu
 	)
     edit_menu.AppendItem( time_item )
+
+#		 	-- Weights Mode
+    weights_mode_menu = wx.Menu()
+    check_item = None
+    for label in sorted( WEIGHTS_MODES.keys() ):
+      item = wx.MenuItem( weights_mode_menu, wx.ID_ANY, label, kind = wx.ITEM_RADIO )
+      weights_mode = WEIGHTS_MODES.get( label )
+      if weights_mode == 'on':
+	check_item = item
+      self.Bind( wx.EVT_MENU, self._OnWeightsMode, item )
+      weights_mode_menu.AppendItem( item )
+      self.weightsModeItems[ weights_mode ] = item
+    #end for
+    if check_item:
+      check_item.Check()
+    weights_mode_item = wx.MenuItem(
+        edit_menu, wx.ID_ANY, 'Select Weights Mode',
+	subMenu = weights_mode_menu
+	)
+    edit_menu.AppendItem( weights_mode_item )
 
 #		-- View Menu
 #		--
@@ -1299,6 +1328,9 @@ Note this defines a new State as well as widgets in the grid.
 
     if self.state.scaleMode in self.scaleModeItems:
       self.scaleModeItems[ self.state.scaleMode ].Check()
+
+    if self.state.weightsMode in self.weightsModeItems:
+      self.weightsModeItems[ self.state.weightsMode ].Check()
 
     fr_pos = widget_config.GetFramePosition()
     fr_size = widget_config.GetFrameSize()
@@ -1790,6 +1822,22 @@ Must be called on the UI event thread.
 #      #viz_frame.bind( wx.EVT_CLOSE, self._OnCloseChildFrame )
 #      viz_frame.Show()
 #  #end _OnView3DImpl
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnWeightsMode()			-
+  #----------------------------------------------------------------------
+  def _OnWeightsMode( self, ev ):
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+
+    if item is not None:
+      mode = WEIGHTS_MODES.get( item.GetLabel(), 'on' )
+      reason = self.state.Change( self.eventLocks, weights_mode = mode )
+      self.state.FireStateChange( reason )
+    #end if
+  #end _OnWeightsMode
 
 
   #----------------------------------------------------------------------

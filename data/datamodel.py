@@ -2254,6 +2254,18 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsBadValue()				-
+  #----------------------------------------------------------------------
+  def IsBadValue( self, value ):
+    """Checks for nan and inf.
+@param  value		value to check
+@return			True if nan or inf, False otherwise
+"""
+    return  math.isnan( value ) or math.isinf( value )
+  #end IsBadValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.IsNoDataValue()			-
   #----------------------------------------------------------------------
   def IsNoDataValue( self, ds_name, value ):
@@ -2266,7 +2278,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 @return			True if "no data", False otherwise
 """
     #return  value <= 0.0 if ds_range[ 0 ] >= 0.0 else math.isnan( value )
-    return  value == 0.0 or math.isnan( value )
+    return  value == 0.0 or math.isnan( value ) or math.isinf( value )
   #end IsNoDataValue
 
 

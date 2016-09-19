@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-09-19	leerw@ornl.gov				-
+#	  Using state.weightsMode to determine use of pinFactors.
 #		2016-09-14	leerw@ornl.gov				-
 #	  Redrawing on changed pin selection
 #	  Using DataModel.pinFactors to determine no-value cells.
@@ -445,8 +447,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_wd = config[ 'pinWidth' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
-      pin_factors = self.data.GetPinFactors()
-      pin_factors_shape = pin_factors.shape
+      pin_factors = None
+      if self.state.weightsMode == 'on':
+        pin_factors = self.data.GetPinFactors()
+        pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -541,24 +545,30 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	    for pin_col in pin_range:
 	      cur_pin_col = min( pin_col, cur_npin - 1 )
-	      pin_factor = 0
 	      if self.mode == 'xz':
 	        value = dset_array[
 		    pin_cell, cur_pin_col, axial_level, assy_ndx
 		    ]
-	        pin_factor = pin_factors[
-		    pin_cell, cur_pin_col, axial_level, assy_ndx
-		    ]
+	        if pin_factors is None:
+	          pin_factor = 1
+		else:
+	          pin_factor = pin_factors[
+		      pin_cell, cur_pin_col, axial_level, assy_ndx
+		      ]
 	      else:
 	        value = dset_array[
 		    cur_pin_col, pin_cell, axial_level, assy_ndx
 		    ]
-	        pin_factor = pin_factors[
-		    cur_pin_col, pin_cell, axial_level, assy_ndx
-		    ]
+	        if pin_factors is None:
+	          pin_factor = 1
+		else:
+	          pin_factor = pin_factors[
+		      cur_pin_col, pin_cell, axial_level, assy_ndx
+		      ]
 
 	      #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	      if pin_factor != 0:
+	      #if pin_factor != 0:
+	      if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
 	        pen_color = Widget.GetColorTuple(
 	            value - ds_range[ 0 ], value_delta, 255
 	            )
@@ -1276,6 +1286,9 @@ method via super.SaveProps().
 #x      self.pinOffset = \
 #x          self.assemblyAddr[ assy_ndx ] * npin + self.subAddr[ pin_ndx ]
 #x    #end if new_pin_index_flag
+
+    if 'weights_mode' in kwargs:
+      kwargs[ 'resized' ] = True
 
     if (changed or resized) and self.config is not None:
       self._UpdateAvgValues( self.stateIndex )
