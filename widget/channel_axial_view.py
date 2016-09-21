@@ -1052,7 +1052,7 @@ be overridden by subclasses.
   #	METHOD:		ChannelAxial2DView._OnFindMax()			-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
-    """Calls _OnFindMaxPin().
+    """Calls _OnFindMaxChannel().
 """
     if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
       self._OnFindMaxChannel( self.channelDataSet, all_states_flag )

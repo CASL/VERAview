@@ -268,6 +268,10 @@ _OnFindMaxPin()
   Handles 'pin' dataset maximum processing.  Calls
   self.data.FindPinMaxValue() and FireStateChange().
 
+_OnFindMinMaxPin()
+  Handles 'pin' dataset minimum/maximum processing.  Calls
+  self.data.FindPinMinMaxValue() and FireStateChange().
+
 _UpdateVisibilityMenuItems()
   Widgets may define menu items for toggling state, in which case the label
   must be changed from "Show ..." to "Hide ... "and vice versa.  This method
@@ -1161,6 +1165,23 @@ or _OnFindMaxPin().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMax()				-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Placeholder event handling method for widgets that define a "Find
+"Maximum" or "Find Minimum" pullright for the widget menu.
+This implementation is a noop.
+Subclasses should override to call _OnFindMinMaxChannel(),
+_OnFindMinMaxDetector(), or _OnFindMinMaxPin().
+@param  mode		'min' or 'max', defaulting to the latter
+@param  all_states_flag	True for all states, False for current state
+@param  ev		menu event
+"""
+    pass
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMaxChannel()			-
   #----------------------------------------------------------------------
   def _OnFindMaxChannel( self, ds_name, all_states_flag ):
@@ -1253,6 +1274,32 @@ sub_addr changes.
     if update_args:
       self.FireStateChange( **update_args )
   #end _OnFindMaxPin
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMaxPin()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxPin( self, mode, ds_name, all_states_flag ):
+    """Handles 'pin' dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_addr, axial_value, state_index, and/or
+sub_addr changes.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  ds_name		name of dataset
+@param  all_states_flag	True for all states, False for current state
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      update_args = self.data.FindPinMinMaxValue(
+	  mode, ds_name,
+	  -1 if all_states_flag else self.stateIndex,
+	  self,
+          self.state.weightsMode == 'on'
+          )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMinMaxPin
 
 
   #----------------------------------------------------------------------

@@ -638,25 +638,31 @@ specified, a default scale value of 8 is used.
       [
         {
 	'label': 'All State Points',
-	'handler': functools.partial( self._OnFindMax, True )
+	'handler': functools.partial( self._OnFindMinMax, 'max', True )
 	},
         {
 	'label': 'Current State Point',
-	'handler': functools.partial( self._OnFindMax, False )
+	'handler': functools.partial( self._OnFindMinMax, 'max', False )
 	}
       ]
-#    find_max_def = \
-#      [
-#        ( 'All State Points',
-#	   functools.partial( self._OnFindMax, True ) ),
-#        ( 'Current State Point',
-#	   functools.partial( self._OnFindMax, False ) )
-#      ]
+
+    find_min_def = \
+      [
+        {
+	'label': 'All State Points',
+	'handler': functools.partial( self._OnFindMinMax, 'min', True )
+	},
+        {
+	'label': 'Current State Point',
+	'handler': functools.partial( self._OnFindMinMax, 'min', False )
+	}
+      ]
 
     raster_def = \
       [
 	{ 'label': '-' },
 	{ 'label': 'Find Maximum', 'submenu': find_max_def },
+	{ 'label': 'Find Minimum', 'submenu': find_min_def },
 	{ 'label': '-' },
 	{ 'label': 'Hide Labels', 'handler': self._OnToggleLabels },
 	{ 'label': 'Hide Legend', 'handler': self._OnToggleLegend },

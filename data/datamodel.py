@@ -1547,7 +1547,9 @@ descending.  Note bisect only does ascending.
 	      dset_value, factors == 0.0,
 	      -sys.float_info.max if max_flag else sys.float_info.max
 	      )
-        x = np.nanargmax( dset_value )
+        x = \
+	    np.nanargmax( dset_value ) if max_flag else \
+	    np.nanargmin( dset_value )
 	addr = np.unravel_index( x, dset.shape )
 	minmax_value = dset_value[ addr ]
 
@@ -1562,7 +1564,9 @@ descending.  Note bisect only does ascending.
 		dset_value, factors == 0.0,
 		-sys.float_info.max if max_flag else sys.float_info.min
 	        )
-	  x = np.nanargmax( dset_value )
+          x = \
+	      np.nanargmax( dset_value ) if max_flag else \
+	      np.nanargmin( dset_value )
 	  cur_addr = np.unravel_index( x, dset.shape )
 	  cur_minmax = dset_value[ cur_addr ]
 	  new_flag = \
@@ -1577,8 +1581,9 @@ descending.  Note bisect only does ascending.
 
 #		-- Convert from np.int64 to int
 #		--
-    temp_addr = [ int( i ) for i in addr ]
-    addr = tuple( temp_addr )
+    if addr:
+      temp_addr = [ int( i ) for i in addr ]
+      addr = tuple( temp_addr )
 
     return  addr, state_ndx, minmax_value
   #end FindMinMaxValueAddr
@@ -1822,7 +1827,6 @@ returned.  Calls FindMinMaxValueAddr().
 @return			changes dict with possible keys: 'assembly_addr',
 			'axial_value', 'sub_addr', 'state_index'
 """
-    max_flag = mode != 'min'
     results = {}
 
     addr, state_ndx, value = self.FindMinMaxValueAddr(

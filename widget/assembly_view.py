@@ -1158,6 +1158,17 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._OnFindMinMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Calls _OnFindMinMaxPin().
+"""
+    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+      self._OnFindMinMaxPin( mode, self.pinDataSet, all_states_flag )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView.SaveProps()			-
   #----------------------------------------------------------------------
   def SaveProps( self, props_dict ):

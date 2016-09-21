@@ -1387,6 +1387,17 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnFindMinMax()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Calls _OnFindMinMaxPin().
+"""
+    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+      self._OnFindMinMaxPin( mode, self.pinDataSet, all_states_flag )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._OnMouseMotionAssy()			-
   #----------------------------------------------------------------------
   def _OnMouseMotionAssy( self, ev ):
