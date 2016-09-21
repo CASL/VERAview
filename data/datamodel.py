@@ -1799,6 +1799,76 @@ returned.  Calls FindMaxValueAddr().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindPinMinMaxValue()			-
+  #----------------------------------------------------------------------
+  def FindPinMinMaxValue(
+      self,
+      mode, ds_name, state_ndx,
+      cur_obj = None, use_factors = False
+      ):
+    """Creates dict with pin addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'pin' dataset.
+If cur_state is provided, only differences with the current state are
+returned.  Calls FindMinMaxValueAddr().
+@param  mode		'min' or 'max', defaulting to the latter
+@param  ds_name		name of dataset
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@param  use_factors	True to apply pinFactors when determining the min/max
+			address
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'sub_addr', 'state_index'
+"""
+    max_flag = mode != 'min'
+    results = {}
+
+    addr, state_ndx, value = self.FindMinMaxValueAddr(
+        mode, ds_name, state_ndx,
+	self.pinFactors if use_factors else None
+	)
+
+    if addr is None:
+      pass
+
+    else:
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'assemblyAddr' ) and \
+          getattr( cur_obj, 'assemblyAddr' )[ 0 ] == addr[ 3 ]
+      if not skip:
+	assy_addr = self.CreateAssemblyAddrFromIndex( addr[ 3 ] )
+	if assy_addr[ 0 ] >= 0:
+          results[ 'assembly_addr' ] = assy_addr
+
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'axialValue' ) and \
+          getattr( cur_obj, 'axialValue' )[ 1 ] == addr[ 2 ]
+      if not skip:
+        axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
+        if axial_value[ 0 ] >= 0.0:
+          results[ 'axial_value' ] = axial_value
+
+      skip = False
+      if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+        sub_addr = getattr( cur_obj, 'subAddr' )
+	skip = sub_addr[ 1 ] == addr[ 0 ] and sub_addr[ 0 ] == addr[ 1 ]
+      if not skip:
+        results[ 'sub_addr' ] = ( addr[ 1 ], addr[ 0 ] )
+
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'stateIndex' ) and \
+          getattr( cur_obj, 'stateIndex' ) == state_ndx
+      if not skip:
+        results[ 'state_index' ] = state_ndx
+    #end else cur_obj not None
+   
+    return  results
+  #end FindPinMinMaxValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.FireEvent()				-
   #----------------------------------------------------------------------
   def FireEvent( self, event_name, *params ):
