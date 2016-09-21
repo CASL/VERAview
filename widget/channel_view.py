@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-09-20	leerw@ornl.gov				-
+#	  Fixed bug where brush_color might not have been defined when
+#	  writing values.
 #		2016-08-17	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -684,6 +687,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				--
 	assy_x = core_region[ 0 ]
 	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	  brush_color = None
 #					-- Column label
 #					--
 	  if assy_row == self.cellRange[ 1 ] and self.showLabels:
@@ -738,7 +742,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        )
 
 #           -- Draw value for cross-pin integrations
-	    if draw_value_flag:
+	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      value_str, value_size = \
 	          self._CreateValueDisplay( value, 3, value_font, chan_wd )

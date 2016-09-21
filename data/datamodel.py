@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-09-20	leerw@ornl.gov				-
+#	  Made 'ds_prefix' in DATASET_DEFS entries a comma-delimited
+#	  list.
 #		2016-09-14	leerw@ornl.gov				-
 #	  Setting DataModel.pinFactors from averager.
 #	  Starting to address channel weights and derived datasets.
@@ -205,7 +208,7 @@ DATASET_DEFS = \
     'avg_method': 'calc_pin_assembly_avg',
     'copy_expr': '[ 0, 0, :, : ]',
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
-    'ds_prefix': 'asy',
+    'ds_prefix': 'asy,assembly',
     'label': 'assembly',  # '3D asy'
     'shape_expr': '( core.nax, core.nass )',
     'type': 'pin:assembly'
@@ -249,7 +252,7 @@ DATASET_DEFS = \
     'avg_method': 'calc_pin_radial_assembly_avg',
     'copy_expr': '[ 0, 0, 0, : ]',
     'copy_shape_expr': '( 1, 1, 1, core.nass )',
-    'ds_prefix': 'radial_asy',
+    'ds_prefix': 'radial_asy,radial_assembly',
     'label': 'radial assembly',  # '2D assy'
     'shape_expr': '( core.nass, )',
     'type': 'pin:radial_assembly'
@@ -1165,12 +1168,19 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
     ds_type = ds_category + ':' + derived_label
     ddef = self.dataSetDefs.get( ds_type )
     if ddef:
-      der_prefix = ddef[ 'ds_prefix' ]
+      result_list = [ ds_type ]
+      for der_prefix in ddef[ 'ds_prefix' ].split( ',' ):
+        pref_name = der_prefix + '_' + ds_name
+        repl_name = pref_name.replace( ds_category + '_', '' )
+	result_list.append( pref_name )
+	result_list.append( repl_name )
 
-      pref_name = der_prefix + '_' + ds_name
-      repl_name = pref_name.replace( ds_category + '_', '' )
-
-      result = ( ds_type, pref_name, repl_name )
+      result = tuple( result_list )
+#      der_prefix = ddef[ 'ds_prefix' ]
+#      pref_name = der_prefix + '_' + ds_name
+#      repl_name = pref_name.replace( ds_category + '_', '' )
+#
+#      result = ( ds_type, pref_name, repl_name )
     #end if ddef
 
     return  result
@@ -2228,10 +2238,14 @@ the properties construct for this class soon.
       names = self.dataSetNames.get( der_names[ 0 ] )
 
     if names:
-      if der_names[ 1 ] in names:
-        match = der_names[ 1 ]
-      elif der_names[ 2 ] in names:
-        match = der_names[ 2 ]
+      for n in der_names[ 1 : ]:
+        if n in names:
+	  match = n
+	  break
+#      if der_names[ 1 ] in names:
+#        match = der_names[ 1 ]
+#      elif der_names[ 2 ] in names:
+#        match = der_names[ 2 ]
 
     return  match
   #end HasDerivedDataSet
@@ -3153,11 +3167,20 @@ ds_names	dict of dataset names by dataset type
 	    cat_name = 'time'
 	  else:
 	    for def_name, def_item in ds_defs.iteritems():
-	      if def_name != 'scalar' and \
-	          def_item[ 'shape' ] == scalar_shape and \
-		  cur_name.startswith( def_item[ 'ds_prefix' ] + '_' ):
-	        cat_name = def_name
-		break
+	      if def_name != 'scalar' and def_item[ 'shape' ] == scalar_shape:
+	        for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+		  if cur_name.startswith( ds_prefix + '_' ):
+		    cat_name = def_name
+		    break
+		if cat_name:
+		  break
+	      #end if def_name
+
+#	      if def_name != 'scalar' and \
+#	          def_item[ 'shape' ] == scalar_shape and \
+#		  cur_name.startswith( def_item[ 'ds_prefix' ] + '_' ):
+#	        cat_name = def_name
+#		break
 	    #end for
 	  #end if-else on cur_name
 
