@@ -1519,6 +1519,72 @@ descending.  Note bisect only does ascending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindMinMaxValueAddr()			-
+  #----------------------------------------------------------------------
+  def FindMinMaxValueAddr( self, mode, ds_name, state_ndx, factors = None ):
+    """Finds the first address of the max value
+@param  mode		'min' or 'max', defaulting to the latter
+@param  ds_name		name of dataset to search
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  factors		optional factors to apply to the data, where zero
+			values indicate places in the data to be ignored
+@return			( dataset addr indices or None, state_ndx,
+			  minmax_value or None )
+"""
+    max_flag = mode != 'min'
+    addr = None
+    minmax_value = None
+
+    if ds_name is None:
+      pass
+
+    elif state_ndx >= 0:
+      dset = self.GetStateDataSet( state_ndx, ds_name )
+      if dset:
+	dset_value = dset.value
+	if factors is not None:
+	  np.place(
+	      dset_value, factors == 0.0,
+	      -sys.float_info.max if max_flag else sys.float_info.max
+	      )
+        x = np.nanargmax( dset_value )
+	addr = np.unravel_index( x, dset.shape )
+	minmax_value = dset_value[ addr ]
+
+    else:
+      minmax_value = -sys.float_info.max if max_flag else sys.float_info.max
+      for st in range( len( self.states ) ):
+        dset = self.GetStateDataSet( st, ds_name )
+	if dset:
+	  dset_value = dset.value
+	  if factors is not None:
+	    np.place(
+		dset_value, factors == 0.0,
+		-sys.float_info.max if max_flag else sys.float_info.min
+	        )
+	  x = np.nanargmax( dset_value )
+	  cur_addr = np.unravel_index( x, dset.shape )
+	  cur_minmax = dset_value[ cur_addr ]
+	  new_flag = \
+	      cur_minmax > minmax_value if max_flag else \
+	      cur_minmax < minmax_value
+	  if new_flag:
+	    addr = cur_addr
+	    state_ndx = st
+	    minmax_value = cur_minmax
+      #end for
+    #end else all states
+
+#		-- Convert from np.int64 to int
+#		--
+    temp_addr = [ int( i ) for i in addr ]
+    addr = tuple( temp_addr )
+
+    return  addr, state_ndx, minmax_value
+  #end FindMinMaxValueAddr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.FindMultiDataSetMaxValue()		-
   #----------------------------------------------------------------------
   def FindMultiDataSetMaxValue( self, state_ndx, cur_obj, *ds_names ):
