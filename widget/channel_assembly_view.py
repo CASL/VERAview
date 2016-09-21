@@ -598,7 +598,11 @@ Must be called from the UI thread.
       value_font = config[ 'valueFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
-      #ds_value = dset.value if dset is not None else None
+      chan_factors = None
+      if self.state.weightsMode == 'on':
+        chan_factors = self.data.GetChannelFactors()
+        chan_factors_shape = chan_factors.shape
+
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
@@ -619,6 +623,8 @@ Must be called from the UI thread.
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
+
+      nodata_pen_color = ( 155, 155, 155, 255 )
 
 #			-- Loop on rows
 #			--
@@ -690,8 +696,16 @@ Must be called from the UI thread.
 	  else:
 	    value = 0.0
 
-	  #if value > 0.0:
-	  if not self.data.IsNoDataValue( self.channelDataSet, value ):
+	  if chan_factors is None:
+	    chan_factor = 1
+	  elif chan_row < chan_factors_shape[ 0 ] and \
+	      chan_col < chan_factors_shape[ 1 ]:
+	    chan_factor = chan_factors[ chan_row, chan_col, axial_level, assy_ndx ]
+	  else:
+	    chan_factor = 0
+
+	  #if not self.data.IsNoDataValue( self.channelDataSet, value ):
+	  if not ( self.data.IsBadValue( value ) or chan_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -723,7 +737,13 @@ Must be called from the UI thread.
 		    font = value_font
                     )
 	    #end if value_font defined
-	  #end if value > 0
+
+	  else:
+	    im_draw.rectangle(
+	        [ chan_x, chan_y, chan_x + chan_wd, chan_y + chan_wd ],
+	        fill = None, outline = nodata_pen_color
+	        )
+	  #end if value okay and not hidden by chan_factor
 
 	  chan_x += chan_wd + chan_gap
 	#end for chan_col
@@ -1208,6 +1228,17 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		ChannelAssembly2DView._OnFindMinMax()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Calls _OnFindMinMaxChannel().
+"""
+    if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
+      self._OnFindMinMaxChannel( mode, self.channelDataSet, all_states_flag )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		ChannelAssembly2DView._OnTogglePins()		-
   #----------------------------------------------------------------------
   def _OnTogglePins( self, ev ):
@@ -1311,6 +1342,9 @@ method via super.SaveProps().
       if sub_addr != self.subAddr:
         changed = True
 	self.subAddr = sub_addr
+
+    if 'weights_mode' in kwargs:
+      kwargs[ 'resized' ] = True
 
     if changed:
       kwargs[ 'changed' ] = True

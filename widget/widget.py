@@ -205,11 +205,11 @@ _LoadDataModel()
   HandleStateChange(), the *state* field has been populated.  The preferred
   means of obtaining the DataModel object is State.FindDataModel( self.state ).
 
-_OnFindMax()
+_OnFindMinMax()
   This is a placeholder event handling method for widgets that define a
   "Find Maximum" pullright menu for the widget menu.  The implementation
   here is a noop, but extensions can override to call one of the support
-  methods _OnFindMax{Channel,Detector,Pin}().
+  methods _OnFindMinMax{Channel,MultiDataSet,Pin}().
 
 SetDataSet()
   Called when a dataset is selected on the dataset menu.  Must be implemented
@@ -256,17 +256,13 @@ _OnContextMenu()
   where special handling is necessary (e.g., matplotlib), this method should be
   overridden for that processing.
 
-_OnFindMaxChannel()
+_OnFindMinMaxChannel()
   Handles 'channel' dataset maximum processing.  Calls
-  self.data.FindChannelMaxValue() and FireStateChange().
+  self.data.FindChannelMinMaxValue() and FireStateChange().
 
-_OnFindMaxDetector()
+_OnFindMinMaxDetector()
   Handles 'detector' dataset maximum processing.  Calls
   self.data.FindDetectorMaxValue() and FireStateChange().
-
-_OnFindMaxPin()
-  Handles 'pin' dataset maximum processing.  Calls
-  self.data.FindPinMaxValue() and FireStateChange().
 
 _OnFindMinMaxPin()
   Handles 'pin' dataset minimum/maximum processing.  Calls
@@ -1165,23 +1161,6 @@ or _OnFindMaxPin().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMinMax()				-
-  #----------------------------------------------------------------------
-  def _OnFindMinMax( self, mode, all_states_flag, ev ):
-    """Placeholder event handling method for widgets that define a "Find
-"Maximum" or "Find Minimum" pullright for the widget menu.
-This implementation is a noop.
-Subclasses should override to call _OnFindMinMaxChannel(),
-_OnFindMinMaxDetector(), or _OnFindMinMaxPin().
-@param  mode		'min' or 'max', defaulting to the latter
-@param  all_states_flag	True for all states, False for current state
-@param  ev		menu event
-"""
-    pass
-  #end _OnFindMinMax
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMaxChannel()			-
   #----------------------------------------------------------------------
   def _OnFindMaxChannel( self, ds_name, all_states_flag ):
@@ -1277,10 +1256,53 @@ sub_addr changes.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMax()				-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Placeholder event handling method for widgets that define a "Find
+"Maximum" or "Find Minimum" pullright for the widget menu.
+This implementation is a noop.
+Subclasses should override to call _OnFindMinMaxChannel(),
+_OnFindMinMaxDetector(), or _OnFindMinMaxPin().
+@param  mode		'min' or 'max', defaulting to the latter
+@param  all_states_flag	True for all states, False for current state
+@param  ev		menu event
+"""
+    pass
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMaxChannel()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxChannel( self, mode, ds_name, all_states_flag ):
+    """Handles 'channel' dataset min/max processing, resulting in a call to
+FireStateChange() with assembly_addr, axial_value, state_index, and/or
+sub_addr changes.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  ds_name		name of dataset
+@param  all_states_flag	True for all states, False for current state
+"""
+    update_args = {}
+
+    if self.data is not None and ds_name:
+      update_args = self.data.FindChannelMinMaxValue(
+	  mode, ds_name,
+	  -1 if all_states_flag else self.stateIndex,
+	  self,
+          self.state.weightsMode == 'on'
+          )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMinMaxChannel
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMaxPin()			-
   #----------------------------------------------------------------------
   def _OnFindMinMaxPin( self, mode, ds_name, all_states_flag ):
-    """Handles 'pin' dataset maximum processing, resulting in a call to
+    """Handles 'pin' dataset min/max processing, resulting in a call to
 FireStateChange() with assembly_addr, axial_value, state_index, and/or
 sub_addr changes.
 @param  mode		'min' or 'max', defaulting to the latter
@@ -1300,6 +1322,31 @@ sub_addr changes.
     if update_args:
       self.FireStateChange( **update_args )
   #end _OnFindMinMaxPin
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMaxMultiDataSets()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxMultiDataSets( self, mode, all_states_flag, *ds_names ):
+    """Handles multi-dataset dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_addr, axial_value, state_index,
+and/or sub_addr changes.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  all_states_flag	True for all states, False for current state
+@param  ds_names	dataset names to search
+"""
+    update_args = {}
+
+    if self.data is not None and ds_names:
+      update_args = self.data.FindMultiDataSetMinMaxValue(
+	  mode,
+	  -1 if all_states_flag else self.stateIndex,
+	  self, *ds_names
+	  )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMinMaxMultiDataSets
 
 
   #----------------------------------------------------------------------

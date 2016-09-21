@@ -697,7 +697,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 	        fill = None, outline = nodata_pen_color
 	        )
-	  #end else is nodata
+	  #end else good value not hidden by pin_factor
 
 	  pin_x += pin_wd + pin_gap
 	#end for pin_col

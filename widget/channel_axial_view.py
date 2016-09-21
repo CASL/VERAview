@@ -427,6 +427,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       pil_font = config[ 'pilFont' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
+      chan_factors = None
+      if self.state.weightsMode == 'on':
+        chan_factors = self.data.GetChannelFactors()
+        chan_factors_shape = chan_factors.shape
 
       if dset is None:
         dset_array = None
@@ -525,12 +529,25 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        value = dset_array[
 		    chan_cell, cur_chan_col, axial_level, assy_ndx
 		    ]
+	        if chan_factors is None:
+	          chan_factor = 1
+		else:
+	          chan_factor = chan_factors[
+		      chan_cell, cur_chan_col, axial_level, assy_ndx
+		      ]
 	      else:
 	        value = dset_array[
 		    cur_chan_col, chan_cell, axial_level, assy_ndx
 		    ]
+	        if chan_factors is None:
+	          chan_factor = 1
+		else:
+	          chan_factor = chan_factors[
+		      cur_chan_col, chan_cell, axial_level, assy_ndx
+		      ]
 
-	      if not self.data.IsNoDataValue( self.channelDataSet, value ):
+	      #if not self.data.IsNoDataValue( self.channelDataSet, value ):
+	      if not ( self.data.IsBadValue( value ) or chan_factor == 0 ):
 	        chan_color = Widget.GetColorTuple(
 	            value - ds_range[ 0 ], value_delta, 255
 	            )
@@ -541,7 +558,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		      chan_x + chan_wd + 1, axial_y + cur_dy + 1 ],
 		    fill = brush_color, outline = chan_color
 		    )
-	      #end if valid value
+	      #end if valid value not hidden by chan_factor
 	      chan_x += chan_wd
 	    #end for pin cols
 
@@ -1060,6 +1077,17 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		ChannelAxial2DView._OnFindMinMax()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Calls _OnFindMinMaxChannel().
+"""
+    if DataModel.IsValidObj( self.data ) and self.channelDataSet is not None:
+      self._OnFindMinMaxChannel( mode, self.channelDataSet, all_states_flag )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		ChannelAxial2DView._OnMode()			-
   #----------------------------------------------------------------------
   def _OnMode( self, ev ):
@@ -1207,6 +1235,9 @@ method via super.SaveProps().
       else:
         changed = True
       self.subAddr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'channel' )
+
+    if 'weights_mode' in kwargs:
+      kwargs[ 'resized' ] = True
 
 #x    if new_chan_index_flag:
 #x      self.channelOffset = \

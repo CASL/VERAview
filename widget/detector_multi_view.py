@@ -1477,13 +1477,26 @@ be overridden by subclasses.
   #	METHOD:		Detector2DMultiView._OnFindMax()		-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
-    """Calls _OnFindMaxDetector().
+    """Calls _OnFindMaxMultiDataSets().
 """
     if DataModel.IsValidObj( self.data ):
       ds_list = \
           list( self.detectorDataSets.union( self.fixedDetectorDataSets ) )
       self._OnFindMaxMultiDataSets( all_states_flag, *ds_list )
   #end _OnFindMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._OnFindMinMax()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+    """Calls _OnFindMinMaxMultiDataSets().
+"""
+    if DataModel.IsValidObj( self.data ):
+      ds_list = \
+          list( self.detectorDataSets.union( self.fixedDetectorDataSets ) )
+      self._OnFindMinMaxMultiDataSets( mode, all_states_flag, *ds_list )
+  #end _OnFindMinMax
 
 
   #----------------------------------------------------------------------

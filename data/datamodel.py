@@ -744,6 +744,8 @@ Events:
 
 Properties:
   averagers		dict by category of average calculators
+  channelFactors	channel weight factors
+  			( npiny + 1, npinx + 1, nax, nass )
   core			Core
   #dataSetChangeEvent	event.Event object
   dataSetDefs		dict of dataset definitions
@@ -759,7 +761,7 @@ Properties:
   h5File		h5py.File
   listeners		map of listeners by event type
   maxAxialValue		maximum axial value (cm) 
-  pinFactors		pin weight factors ( mpiny, npinx, nax, nass )
+  pinFactors		pin weight factors ( npiny, npinx, nax, nass )
   ranges		dict of ranges ( min, max ) by dataset
   rangesByStatePt	list by statept index of dicts by dataset of ranges 
   rangesLock		threading.RLock for ranges dict
@@ -770,7 +772,7 @@ Properties:
 #		-- Constants
 #		--
 
-  DEFAULT_range = ( sys.float_info.min, sys.float_info.max )
+  DEFAULT_range = ( -sys.float_info.max, sys.float_info.max )
 
 
 #		-- Class Attributes
@@ -1321,6 +1323,75 @@ returned.  Calls FindMaxValueAddr().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindChannelMinMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindChannelMinMaxValue(
+      self,
+      mode, ds_name, state_ndx,
+      cur_obj = None, use_factors = False
+      ):
+    """Creates dict with channel addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'channel' dataset.
+If cur_state is provided, only differences with the current state are
+returned.  Calls FindMinMaxValueAddr().
+@param  mode		'min' or 'max', defaulting to the latter
+@param  ds_name		name of dataset
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@param  use_factors	True to apply pinFactors when determining the min/max
+			address
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'sub_addr', 'state_index'
+"""
+    results = {}
+
+    addr, state_ndx, value = self.FindMinMaxValueAddr(
+        mode, ds_name, state_ndx,
+	self.channelFactors if use_factors else None
+	)
+
+    if addr is None:
+      pass
+
+    else:
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'assemblyAddr' ) and \
+          getattr( cur_obj, 'assemblyAddr' )[ 0 ] == addr[ 3 ]
+      if not skip:
+	assy_addr = self.CreateAssemblyAddrFromIndex( addr[ 3 ] )
+	if assy_addr[ 0 ] >= 0:
+          results[ 'assembly_addr' ] = assy_addr
+
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'axialValue' ) and \
+          getattr( cur_obj, 'axialValue' )[ 1 ] == addr[ 2 ]
+      if not skip:
+        axial_value = self.CreateAxialValue( core_ndx = addr[ 2 ] )
+        if axial_value[ 0 ] >= 0.0:
+          results[ 'axial_value' ] = axial_value
+
+      skip = False
+      if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+        sub_addr = getattr( cur_obj, 'subAddr' )
+	skip = sub_addr[ 1 ] == addr[ 0 ] and sub_addr[ 0 ] == addr[ 1 ]
+      if not skip:
+        results[ 'sub_addr' ] = ( addr[ 1 ], addr[ 0 ] )
+
+      skip = cur_obj is not None and \
+          hasattr( cur_obj, 'stateIndex' ) and \
+          getattr( cur_obj, 'stateIndex' ) == state_ndx
+      if not skip:
+        results[ 'state_index' ] = state_ndx
+    #end else cur_obj not None
+   
+    return  results
+  #end FindChannelMinMaxValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.FindDetectorMaxValue()		-
   #----------------------------------------------------------------------
   def FindDetectorMaxValue( self, ds_name, state_ndx, cur_obj = None ):
@@ -1562,7 +1633,7 @@ descending.  Note bisect only does ascending.
 	  if factors is not None:
 	    np.place(
 		dset_value, factors == 0.0,
-		-sys.float_info.max if max_flag else sys.float_info.min
+	        -sys.float_info.max if max_flag else sys.float_info.max
 	        )
           x = \
 	      np.nanargmax( dset_value ) if max_flag else \
@@ -1745,6 +1816,167 @@ specified datasets.  Calls FindMaxValueAddr().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.FindMultiDataSetMinMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindMultiDataSetMinMaxValue( self, mode, state_ndx, cur_obj, *ds_names ):
+    """Creates dict with dataset-type-appropriate addresses for the "first"
+(right- and bottom-most) occurence of the maximum value among all the
+specified datasets.  Calls FindMinMaxValueAddr().
+@param  mode		'min' or 'max', defaulting to the latter
+@param  state_ndx	0-based state point index, or -1 for all states
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@param  ds_names	dataset names to search
+@return			dict with possible keys: 'assembly_addr',
+			'axial_value', 'state_index', 'sub_addr'
+"""
+    max_flag = mode != 'min'
+    results = {}
+    max_ds_name, max_addr, max_state_ndx, max_value = None, None, None, None
+
+    if ds_names:
+      for ds_name in ds_names:
+        cur_addr, cur_state_ndx, cur_value = \
+	    self.FindMinMaxValueAddr( mode, ds_name, state_ndx )
+        if cur_addr is not None and cur_value is not None:
+	  new_flag = \
+	      True if max_value is None else \
+	      cur_value > max_value if max_flag else \
+	      cur_value < max_value
+	  if new_flag:
+	    max_ds_name, max_addr, max_state_ndx, max_value = \
+	        ds_name, cur_addr, cur_state_ndx, cur_value
+	#end if
+      #end for ds_name
+    #end if ds_names
+
+    if max_ds_name and max_addr:
+      ds_type = self.GetDataSetType( max_ds_name )
+
+      if ds_type == 'channel':
+	skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 3 ]
+	if not skip:
+          assy_addr = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
+          if assy_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = assy_addr
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 1 ] == max_addr[ 2 ]
+        if not skip:
+          axial_value = self.CreateAxialValue( core_ndx = max_addr[ 2 ] )
+	  if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = False
+	if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+          sub_addr = getattr( cur_obj, 'subAddr' )
+	  skip = \
+	      sub_addr[ 1 ] == max_addr[ 0 ] and \
+	      sub_addr[ 0 ] == max_addr[ 1 ]
+        if not skip:
+          results[ 'sub_addr' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      elif ds_type == 'detector':
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 2 ] == max_addr[ 0 ]
+        if not skip:
+	  axial_value = self.CreateAxialValue( detector_ndx = max_addr[ 0 ] )
+          if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 1 ]
+        if not skip:
+	  det_addr = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
+	  if det_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = det_addr
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      elif ds_type == 'fixed_detector':
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 3 ] == max_addr[ 0 ]
+        if not skip:
+	  axial_value = self.CreateAxialValue( fixed_detector_ndx = max_addr[ 0 ] )
+          if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 1 ]
+        if not skip:
+	  det_addr = self.CreateDetectorAddrFromIndex( max_addr[ 1 ] )
+	  if det_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = det_addr
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      elif ds_type == 'pin':
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'assemblyAddr' ) and \
+            getattr( cur_obj, 'assemblyAddr' )[ 0 ] == max_addr[ 3 ]
+        if not skip:
+	  assy_addr = self.CreateAssemblyAddrFromIndex( max_addr[ 3 ] )
+	  if assy_addr[ 0 ] >= 0:
+            results[ 'assembly_addr' ] = assy_addr
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'axialValue' ) and \
+            getattr( cur_obj, 'axialValue' )[ 1 ] == max_addr[ 2 ]
+        if not skip:
+          axial_value = self.CreateAxialValue( core_ndx = max_addr[ 2 ] )
+          if axial_value[ 0 ] >= 0.0:
+            results[ 'axial_value' ] = axial_value
+
+        skip = False
+	if cur_obj is not None and hasattr( cur_obj, 'subAddr' ):
+          sub_addr = getattr( cur_obj, 'subAddr' )
+	  skip = \
+	      sub_addr[ 1 ] == max_addr[ 0 ] and \
+	      sub_addr[ 0 ] == max_addr[ 1 ]
+        if not skip:
+          results[ 'sub_addr' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
+
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+
+      else:  # scalar
+        skip = cur_obj is not None and \
+	    hasattr( cur_obj, 'stateIndex' ) and \
+            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+        if not skip:
+          results[ 'state_index' ] = max_state_ndx
+    #end if
+
+    return  results
+  #end FindMultiDataSetMinMaxValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.FindPinMaxValue()			-
   #----------------------------------------------------------------------
   def FindPinMaxValue( self, ds_name, state_ndx, cur_obj = None ):
@@ -1890,6 +2122,14 @@ returned.  Calls FindMinMaxValueAddr().
       #end for listener
     #end if event_name
   #end FireEvent
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetChannelFactors()			-
+  #----------------------------------------------------------------------
+  def GetChannelFactors( self ):
+    return  self.channelFactors
+  #end GetChannelFactors
 
 
   #----------------------------------------------------------------------
@@ -2536,14 +2776,14 @@ for NaN.  For now, we just assume 0.0 is "no data".
   #	METHOD:		DataModel.IsValidRange()			-
   #----------------------------------------------------------------------
   def IsValidRange( self, min_value, max_value ):
-    """Companion to GetDataRange() to check for a valid range as no
-sys.float_info.min or sys.float_info.max and min_value ne max_value.
+    """Companion to GetDataRange() to check for a valid range as not
+[-sys.float_info.max or sys.float_info.max] and min_value ne max_value.
 @param  min_value	minimum value in range
 @param  max_value	maximum value in range
 @return			True if valid, False otherwise
 """
     return  \
-        min_value != sys.float_info.min and \
+        min_value != -sys.float_info.max and \
 	max_value != sys.float_info.max and \
 	min_value != max_value
   #end IsValidRange
@@ -2767,6 +3007,11 @@ being one greater in each dimension.
       avg = self.averagers[ 'channel' ]
       avg.load( self.core )
     #end if
+    self.channelFactors = np.ones(
+        ( self.core.npiny + 1, self.core.npinx + 1,
+	  self.core.nax, self.core.nass ),
+        dtype = np.int
+	)
 
 #    self.averager.load(
 #        self.core,
@@ -2867,7 +3112,7 @@ being one greater in each dimension.
 			an extra dataset
 @param  state_ndx	optional 0-based statept index in which to search
 """
-    range_min = sys.float_info.min
+    range_min = -sys.float_info.max
     range_max = sys.float_info.max
 
     if ds_name:
