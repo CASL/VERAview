@@ -598,7 +598,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  state_ndx = state_ndx,
 		  det_ndx = det_ndx, det_wd = det_wd,
 		  det_x = det_x, det_y = det_y,
-		  value_font = value_font
+		  value_font = value_font,
 		  value_font_size = value_font_size
 	          )
 

@@ -856,7 +856,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      value_str, value_size = self._CreateValueDisplay(
-	          value, 3, value_font, pin_wd, value_font_size
+	          value, 3, value_font, assy_wd, value_font_size
 		  )
 	      if value_str:
 		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
