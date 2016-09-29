@@ -606,6 +606,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
 	  assembly_ndx = 3, axial_ndx = 2
 	  )
+    #end if valid config
 
 #			-- Must be valid assy ndx
 #			--
@@ -743,7 +744,7 @@ If neither are specified, a default 'scale' value of 24 is used.
           )
 
       del im_draw
-    #end if config exists
+    #end if valid assy_ndx
 
     #return  im
     return  im if im is not None else self.emptyPilImage

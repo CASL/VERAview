@@ -804,8 +804,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		ChannelAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'channel' ]
-    #return  [ 'pin', 'pin:assembly', 'pin:axial' ]
+    return  [ 'channel', 'channel:assembly' ]
   #end GetDataSetTypes
 
 

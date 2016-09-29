@@ -328,6 +328,7 @@ If neither are specified, a default 'scale' value of 24 is used.
         dset_shape = dset.shape
         cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
         cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
+
       ds_range = self.data.GetRange(
           self.pinDataSet,
 	  state_ndx if self.state.scaleMode == 'state' else -1
@@ -816,16 +817,19 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      cur_pin_row = min( pin_row, cur_nypin - 1 )
 	      for pin_col in range( self.data.core.npinx ):
 	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
-		#value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-		value = dset_array[
-		    cur_pin_row, cur_pin_col, axial_level, assy_ndx
-		    ]
-	        if pin_factors is None:
-	          pin_factor = 1
-		else:
-	          pin_factor = pin_factors[
+		value = 0.0
+		pin_factor = 0
+		if cur_pin_row >= 0 and cur_pin_col >= 0:
+		  value = dset_array[
 		      cur_pin_row, cur_pin_col, axial_level, assy_ndx
 		      ]
+	          if pin_factors is None:
+	            pin_factor = 1
+		  else:
+	            pin_factor = pin_factors[
+		        cur_pin_row, cur_pin_col, axial_level, assy_ndx
+		        ]
+		#end if cur_pin_row and cur_pin_col
 
 	        #if not self.data.IsNoDataValue( self.pinDataSet, value ):
 		#if pin_factor != 0:

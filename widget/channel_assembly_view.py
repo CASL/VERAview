@@ -578,6 +578,7 @@ Must be called from the UI thread.
     print >> sys.stderr, \
         '[ChannelAssembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
     im = None
+    dset_array = None
 
     tuple_valid = DataModel.IsValidObj(
 	self.data,
@@ -622,6 +623,12 @@ Must be called from the UI thread.
 	  pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
 	  assembly_ndx = 3, axial_ndx = 2
 	  )
+    #end if valid config
+
+#			-- Must be valid assy ndx
+#			--
+    if dset_array is not None and assy_ndx < dset_shape[ 3 ]:
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
@@ -665,21 +672,18 @@ Must be called from the UI thread.
 	for chan_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
-	  #if chan_row == self.cellRange[ 1 ] and self.showLabels:
 	  if self.showLabels and chan_row == self.cellRange[ 1 ] and \
 	      chan_col < self.data.core.npinx:
 	    label = '%d' % (chan_col + 1)
 	    label_size = label_font.getsize( label )
 	    #Channel labeling
 	    label_x = chan_x + ((chan_wd - label_size[ 0 ]) >> 1)
-	    #Pin labeling
-	    #label_x = chan_x + chan_wd + ((chan_gap - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ),
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
 
-	    #Channel labeling
+	    #Pin labeling
 	    if chan_col == min( self.cellRange[ 2 ] - 1, self.data.core.npinx ) - 1:
 	      label = '%d' % (chan_col + 2)
 	      label_size = label_font.getsize( label )
@@ -806,7 +810,7 @@ Must be called from the UI thread.
           )
 
       del im_draw
-    #end if config exists
+    #end if valid assy_ndx
 
     #return  im
     return  im if im is not None else self.emptyPilImage
@@ -929,7 +933,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		ChannelAssembly2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'channel' ]
+    return  [ 'channel', 'channel:radial' ]
   #end GetDataSetTypes
 
 

@@ -1144,12 +1144,12 @@ Parameters:
 	    st = self.GetState( state_ndx )
 	    derived_st = self.GetDerivedState( state_ndx )
 
-	    data = st.GetDataSet( ds_name )
-	    if data is None:
-	      data = derived_st.GetDataSet( ds_name )
+	    dset = st.GetDataSet( ds_name )
+	    if dset is None:
+	      dset = derived_st.GetDataSet( ds_name )
 
-	    if data:
-	      avg_data = avg_method( data )  # was data.value
+	    if dset is not None:
+	      avg_data = avg_method( dset )  # was data.value
 	      derived_st.CreateDataSet( derived_name, avg_data )
 	    #end if data
 	  #end for each state

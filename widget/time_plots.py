@@ -596,7 +596,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def GetDataSetTypes( self ):
     return \
       [
-      'channel', 'detector', 'fixed_detector',
+      'channel',
+      'channel:assembly', 'channel:axial', 'channel:core', 'channel:radial',
+      'channel:radial_assembly',
+      'detector', 'fixed_detector',
       'pin', 'pin:assembly', 'pin:axial', 'pin:core', 'pin:radial',
       'pin:radial_assembly',
       'scalar'

@@ -240,9 +240,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
+	cur_nxpin = cur_nypin = 0
       else:
         dset_array = dset.value
         dset_shape = dset.shape
+        cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
+        cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
+
       ds_range = self.data.GetRange(
           self.channelDataSet,
 	  state_ndx if self.state.scaleMode == 'state' else -1
@@ -261,10 +265,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       im_draw = PIL.ImageDraw.Draw( im )
 
       chan_y = assy_region[ 1 ]
-      for chan_row in range( self.data.core.npin + 1 ):
+      #for chan_row in range( self.data.core.npin + 1 ):
+      for chan_row in range( cur_nypin + 1 ):
 #				-- Row label
 #				--
-	if self.showLabels and chan_row < self.data.core.npin:
+	#if self.showLabels and chan_row < self.data.core.npin:
+	if self.showLabels:
 	  label = '%d' % (chan_row + 1)
 	  label_size = label_font.getsize( label )
 	  #label_y = chan_y + ((chan_wd - label_size[ 1 ]) >> 1)
@@ -277,10 +283,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				-- Loop on col
 #				--
 	chan_x = assy_region[ 0 ]
-	for chan_col in range( self.data.core.npin + 1 ):
+	#for chan_col in range( self.data.core.npin + 1 ):
+	for chan_col in range( cur_nxpin + 1 ):
 #					-- Column label
 #					--
-	  if chan_row == 0 and self.showLabels and chan_col < self.data.core.npin:
+	  #if chan_row == 0 and self.showLabels and chan_col < self.data.core.npin:
+	  if chan_row == 0 and self.showLabels:
 	    label = '%d' % (chan_col + 1)
 	    label_size = label_font.getsize( label )
 	    #label_x = chan_x + ((chan_wd - label_size[ 0 ]) >> 1)
@@ -548,6 +556,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     coreRegion
     lineWidth
     mode = 'core'
+    valueFont
+    valueFontSize
 """
     ds_range = self.data.GetRange(
         self.channelDataSet,
@@ -601,6 +611,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    value_font_size = assy_wd >> 1
+    value_font = \
+        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
+	if value_font_size >= 6 else None
+
     config[ 'assemblyAdvance' ] = assy_advance
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'channelWidth' ] = chan_wd
@@ -608,6 +623,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'mode' ] = 'core'
+    config[ 'valueFont' ] = value_font
+    config[ 'valueFontSize' ] = value_font_size
 
     return  config
   #end _CreateCoreDrawConfig
@@ -652,9 +669,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
+	cur_nxpin = cur_nypin = 0
       else:
         dset_array = dset.value
         dset_shape = dset.shape
+        cur_nxpin = min( self.data.core.npinx + 1, dset_shape[ 1 ] )
+        cur_nypin = min( self.data.core.npiny + 1, dset_shape[ 0 ] )
+
       ds_range = self.data.GetRange(
           self.channelDataSet,
 	  state_ndx if self.state.scaleMode == 'state' else -1
@@ -671,6 +692,12 @@ If neither are specified, a default 'scale' value of 4 is used.
           dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1 and \
           value_font is not None
 
+#			-- Limit axial level
+#			--
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
+
+#			-- Create image
+#			--
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
@@ -715,20 +742,30 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #if assy_ndx >= 0:
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    chan_y = assy_y + 1
-	    cur_nypin = min( self.data.core.npin + 1, dset_shape[ 0 ] )
-	    cur_nxpin = min( self.data.core.npin + 1, dset_shape[ 1 ] )
+	    #cur_nypin = min( self.data.core.npin + 1, dset_shape[ 0 ] )
+	    #cur_nxpin = min( self.data.core.npin + 1, dset_shape[ 1 ] )
 
-	    #for chan_row in range( self.data.core.npin + 1 ):
-	    for chan_row in range( cur_nypin ):
+	    #for chan_row in range( cur_nypin ):
+	    for chan_row in range( self.data.core.npiny + 1 ):
 	      chan_x = assy_x + 1
-	      #for chan_col in range( self.data.core.npin + 1 ):
-	      for chan_col in range( cur_nxpin ):
-		value = dset_array[ chan_row, chan_col, axial_level, assy_ndx ]
-	        if chan_factors is None:
-	          chan_factor = 1
-		else:
-	          chan_factor = \
-		      chan_factors[ chan_row, chan_col, axial_level, assy_ndx ]
+
+	      cur_chan_row = min( chan_row, cur_nypin - 1 )
+	      #for chan_col in range( cur_nxpin ):
+	      for chan_col in range( self.data.core.npinx + 1 ):
+	        cur_chan_col = min( chan_col, cur_nxpin - 1 )
+		value = 0.0
+		chan_factor = 0
+		if cur_chan_row >= 0 and cur_chan_col >= 0:
+		  value = dset_array[
+		      cur_chan_row, cur_chan_col, axial_level, assy_ndx
+		      ]
+	          if chan_factors is None:
+	            chan_factor = 1
+		  else:
+	            chan_factor = chan_factors[
+		        cur_chan_row, cur_chan_col, axial_level, assy_ndx
+			]
+		#end if cur_chan_row and cur_chan_col
 
 	        #if not self.data.IsNoDataValue( self.channelDataSet, value ):
 	        if not ( self.data.IsBadValue( value ) or chan_factor == 0 ):
@@ -758,7 +795,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      value_str, value_size = self._CreateValueDisplay(
-	          value, 3, value_font, chan_wd, value_font_size
+	          value, 3, value_font, assy_wd, value_font_size
 		  )
 	      if value_str:
 		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
@@ -1012,7 +1049,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Channel2DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'channel' ]
+    return  \
+      [
+        'channel', 'channel:assembly', 'channel:radial',
+        'channel:radial_assembly'
+      ]
   #end GetDataSetTypes
 
 
