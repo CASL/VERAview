@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-09-29	leerw@ornl.gov				-
+#	  Adding derived channel DATASET_DEFS.
 #		2016-09-20	leerw@ornl.gov				-
 #	  Made 'ds_prefix' in DATASET_DEFS entries a comma-delimited
 #	  list.
@@ -163,6 +165,13 @@ import pdb
 from event.event import *
 
 
+AVERAGER_DEFS = \
+  {
+  'channel': 'data.channel_averages.Averages',
+  'pin': 'data.pin_averages.Averages'
+  }
+
+
 COL_LABELS = \
   (
     'R', 'P', 'N', 'M', 'L', 'K', 'J', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'
@@ -178,6 +187,61 @@ DATASET_DEFS = \
     'label': 'channel',
     'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nax, core.nass )',
     'type': 'channel'
+    },
+
+  'channel:assembly':
+    {
+    'avg_method': 'calc_channel_assembly_avg',
+    'copy_expr': '[ 0, 0, :, : ]',
+    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
+    'ds_prefix': 'asy,assembly',
+    'label': 'assembly',  # '3D asy'
+    'shape_expr': '( core.nax, core.nass )',
+    'type': 'channel:assembly'
+    },
+
+  'channel:axial':
+    {
+    'avg_method': 'calc_channel_axial_avg',
+    'copy_expr': '[ 0, 0, :, 0 ]',
+    'copy_shape_expr': '( 1, 1, core.nax, 1 )',
+    'ds_prefix': 'axial',
+    'label': 'axial',
+    'shape_expr': '( core.nax, )',
+    'type': 'channel:axial'
+    },
+
+  'channel:core':
+    {
+    'avg_method': 'calc_channel_core_avg',
+    'copy_expr': '[ 0, 0, 0, 0 ]',
+    'copy_shape_expr': '( 1, 1, 1, 1 )',
+    'ds_prefix': 'core',
+    'label': 'core',
+    'shape_expr': '( 1, )',
+    'type': 'channel:core'
+    },
+
+  'channel:radial':
+    {
+    'avg_method': 'calc_channel_radial_avg',
+    'copy_expr': '[ :, :, 0, : ]',
+    'copy_shape_expr': '( core.npiny + 1, core.npinx + 1, 1, core.nass )',
+    'ds_prefix': 'radial',
+    'label': 'radial',  # '2D pin'
+    'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nass )',
+    'type': 'channel:radial'
+    },
+
+  'channel:radial_assembly':
+    {
+    'avg_method': 'calc_channel_radial_assembly_avg',
+    'copy_expr': '[ 0, 0, 0, : ]',
+    'copy_shape_expr': '( 1, 1, 1, core.nass )',
+    'ds_prefix': 'radial_asy,radial_assembly',
+    'label': 'radial assembly',  # '2D assy'
+    'shape_expr': '( core.nass, )',
+    'type': 'channel:radial_assembly'
     },
 
   'detector':
@@ -272,10 +336,6 @@ DATASET_DEFS = \
 #    'type': 'vanadium'
 #    },
   }
-
-#DERIVED_CALCULATOR_CLASS = 'data.averages.Averager'
-DERIVED_CHANNEL_CALCULATOR_CLASS = 'data.channel_averages.Averages'
-DERIVED_PIN_CALCULATOR_CLASS = 'data.pin_averages.Averages'
 
 
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
@@ -808,10 +868,11 @@ passed, Read() must be called.
 
 #		-- Instantiate averagers
 #		--
-    for cat, class_path in (
-	( 'pin', DERIVED_PIN_CALCULATOR_CLASS ),
-	( 'channel', DERIVED_CHANNEL_CALCULATOR_CLASS )
-        ):
+#    for cat, class_path in (
+#	( 'pin', DERIVED_PIN_CALCULATOR_CLASS ),
+#	( 'channel', DERIVED_CHANNEL_CALCULATOR_CLASS )
+#        ):
+    for cat, class_path in AVERAGER_DEFS.iteritems():
       module_path, class_name = class_path.rsplit( '.', 1 )
       try:
         module = __import__( module_path, fromlist = [ class_name ] )
