@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-09-29	leerw@ornl.gov				-
+#	  Trying to prevent overrun of values displayed in cells.
 #		2016-08-17	leerw@ornl.gov				-
 #	  New State events.
 #		2016-08-10	leerw@ornl.gov				-
@@ -596,6 +598,7 @@ Must be called from the UI thread.
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
       value_font = config[ 'valueFont' ]
+      value_font_size = config[ 'valueFontSize' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       chan_factors = None
@@ -718,17 +721,10 @@ Must be called from the UI thread.
 	        )
 
 	    if value_font is not None:
-#	      value_precision = 2 if value < 0.0 else 3
-#	      value_str = DataUtils.FormatFloat2( value, value_precision )
-#	      e_ndx = value_str.lower().find( 'e' )
-#	      if e_ndx > 1:
-#	        value_str = value_str[ : e_ndx ]
-#	      value_size = value_font.getsize( value_str )
-
-	      value_str, value_size = \
-	          self._CreateValueDisplay( value, 3, value_font, chan_wd )
-	      #if value_size[ 0 ] <= chan_wd:
-	      if True:
+	      value_str, value_size = self._CreateValueDisplay(
+	          value, 3, value_font, chan_wd, value_font_size
+		  )
+	      if value_str:
 		value_x = chan_x + ((chan_wd - value_size[ 0 ]) >> 1)
 		value_y = chan_y + ((chan_wd - value_size[ 1 ]) >> 1) 
                 im_draw.text(

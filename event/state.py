@@ -606,6 +606,10 @@ Keys passed and the corresponding state bit are:
       col = extent[ 0 ] + (extent[ 4 ] >> 1)
       row = extent[ 1 ] + (extent[ 5 ] >> 1)
       ndx = core.coreMap[ row, col ] - 1
+      if ndx < 0:
+        if col > 0: col -= 1
+	if row > 0: row -= 1
+        ndx = core.coreMap[ row, col ] - 1
       self.assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
 
       ##self.axialValue = data_model.NormalizeAxialValue( undefined_ax )

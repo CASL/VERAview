@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-09-29	leerw@ornl.gov				-
+#	  Trying to prevent overrun of values displayed in cells.
 #		2016-09-20	leerw@ornl.gov				-
 #	  Fixed bug where brush_color might not have been defined when
 #	  writing values.
@@ -638,6 +640,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
+      value_font = config[ 'valueFont' ]
+      value_font_size = config[ 'valueFontSize' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       chan_factors = None
@@ -753,10 +757,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 #           -- Draw value for cross-pin integrations
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
-	      value_str, value_size = \
-	          self._CreateValueDisplay( value, 3, value_font, chan_wd )
-	      #if value_size[ 0 ] <= pin_wd:
-	      if True:
+	      value_str, value_size = self._CreateValueDisplay(
+	          value, 3, value_font, chan_wd, value_font_size
+		  )
+	      if value_str:
 		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
 		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
                 im_draw.text(

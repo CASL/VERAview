@@ -1307,12 +1307,17 @@ dimensions.
       bottom = self.core.nassy
       right = self.core.nassx
 
+      #xxxxx decrementing on even nassx and nassy
       if self.core.coreSym == 4:
 	left = self.core.nassx >> 1
 	top = self.core.nassy >> 1
+	if self.core.nassx % 2 == 0 and left > 0: left -= 1
+	if self.core.nassy % 2 == 0 and top > 0: top -= 1
       elif self.core.coreSym == 8:
 	left = self.core.nassx >> 2
 	top = self.core.nassy >> 2
+	if self.core.nassx % 2 == 0 and left > 0: left -= 1
+	if self.core.nassy % 2 == 0 and top > 0: top -= 1
       else:
 	left = 0
 	top = 0

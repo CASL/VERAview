@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-09-29	leerw@ornl.gov				-
+#	  Trying to prevent overrun of values displayed in cells.
 #		2016-09-19	leerw@ornl.gov				-
 #	  Using state.weightsMode to determine use of pinFactors.
 #		2016-09-14	leerw@ornl.gov				-
@@ -578,7 +580,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_gap = config[ 'pinGap' ]
       pin_wd = config[ 'pinWidth' ]
       value_font = config[ 'valueFont' ]
-#      value_font_smaller = config[ 'valueFontSmaller' ]
+      value_font_size = config[ 'valueFontSize' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
@@ -679,10 +681,10 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 
 	    if value_font is not None:
-	      value_str, value_size = \
-	          self._CreateValueDisplay( value, 3, value_font, pin_wd )
-	      #if value_size[ 0 ] <= pin_wd:
-	      if True:
+	      value_str, value_size = self._CreateValueDisplay(
+	          value, 3, value_font, pin_wd, value_font_size
+		  )
+	      if value_str:
 		value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
 		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1) 
                 im_draw.text(

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-09-29	leerw@ornl.gov				-
+#	  Modified _CreateValue{Display,String}() in an effort to
+#	  prevent overrun of values displayed in cells.
 #		2016-08-15	leerw@ornl.gov				-
 #	  New State events.
 #		2016-06-30	leerw@ornl.gov				-
@@ -940,20 +943,34 @@ _CreateRasterImage().
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateValueDisplay()		-
   #----------------------------------------------------------------------
-  def _CreateValueDisplay( self, value, precision, font, display_wd ):
+  def _CreateValueDisplay( self, value, precision, font, display_wd, font_size = 0 ):
     """Creates  string representation of the value that fits in the
 requested width for the specified font.
 @param  value		value to represent
 @param  precision	requested precision
 @param  font		rendering font
 @param  display_wd	pixel width available for display
+@param  font_size	optional size for dynamic resize
 @return			( string of optimal length, ( wd, ht ) )
 """
     value_str = self._CreateValueString( value, precision )
     value_size = font.getsize( value_str )
-    if value_size[ 0 ] > display_wd:
-      value_str = self._CreateValueString( value, precision - 1 )
+    if value_size[ 0 ] >= display_wd:
+      precision -= 1
+      value_str = self._CreateValueString( value, precision )
       value_size = font.getsize( value_str )
+
+#new stuff
+      if value_size[ 0 ] >= display_wd and font_size > 7:
+        font_size = int( font_size * 0.8 )
+        font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+        value_str = self._CreateValueString( value, precision )
+        value_size = font.getsize( value_str )
+
+      if value_size[ 0 ] >= display_wd:
+	value_str = ''
+	value_size = ( 0, 0 )
+#new stuff
 
     return  ( value_str, value_size )
   #end _CreateValueDisplay
@@ -973,7 +990,8 @@ be displayed in a cell.
       precision -= 1
     value_str = DataUtils.FormatFloat2( value, precision )
     e_ndx = value_str.lower().find( 'e' )
-    if e_ndx > 1:
+    #if e_ndx > 1:
+    if e_ndx > 0:
       value_str = value_str[ : e_ndx ]
 
     return  value_str

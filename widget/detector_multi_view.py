@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-09-29	leerw@ornl.gov				-
+#	  Trying to prevent overrun of values displayed in cells.
 #		2016-08-18	leerw@ornl.gov				-
 #	  Renamed detectorMeshCenters to correct detectorMesh.
 #		2016-08-17	leerw@ornl.gov				-
@@ -597,6 +599,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  det_ndx = det_ndx, det_wd = det_wd,
 		  det_x = det_x, det_y = det_y,
 		  value_font = value_font
+		  value_font_size = value_font_size
 	          )
 
 	    else:
@@ -847,7 +850,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       self,
       im_draw, core, axial_value, state_ndx,
       det_ndx, det_wd, det_x, det_y,
-      value_font
+      value_font, value_font_size = 0
       ):
 
     draw_items = []  # [ ( text, x, rely, color ) ]
@@ -895,15 +898,13 @@ If neither are specified, a default 'scale' value of 4 is used.
           dset.value.shape[ 1 ] > det_ndx and \
 	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
 	value_str, value_size = self._CreateValueDisplay(
-	    dset.value[ axial_value[ 2 ], det_ndx ], 3, value_font, det_wd
+	    dset.value[ axial_value[ 2 ], det_ndx ], 3,
+	    value_font, det_wd, value_font_size
 	    )
-	draw_items.append(
-	    ( value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color )
-	    )
-#	im_draw.text(
-#	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
-#	    value_str, fill = text_color, font = value_font
-#	    )
+	if value_str:
+	  draw_items.append((
+	      value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color
+	      ))
 	text_y += value_size[ 1 ] + 1
       #end if valid value
 
