@@ -2135,16 +2135,24 @@ returned.  Calls FindMinMaxValueAddr().
 @param  cur_obj		optional object with attributes/properties to
 			compare against for changes: assemblyAddr, axialValue,
 			subAddr, stateIndex
-@param  use_factors	True to apply pinFactors when determining the min/max
-			address
+@param  use_factors	True to apply pinFactors (or nodeFactors) when
+			determining the min/max address
 @return			changes dict with possible keys: 'assembly_addr',
 			'axial_value', 'sub_addr', 'state_index'
 """
     results = {}
 
+    factors = None
+    if use_factors:
+      ds_type = self.GetDataSetType( ds_name )
+      factors = \
+          self.nodeFactors if ds_type and ds_type.find( ':node' ) > 0 else \
+	  self.pinFactors
+
     addr, state_ndx, value = self.FindMinMaxValueAddr(
         mode, ds_name, state_ndx,
-	self.pinFactors if use_factors else None
+	factors
+	#self.pinFactors if use_factors else None
 	)
 
     if addr is None:
@@ -3087,9 +3095,15 @@ being one greater in each dimension.
       node_factors = avg.nodeWeights
     #end if
 
-    self.nodeFactors = \
-        node_factors if node_factors is not None else \
-	np.ones( ( 1, 4, self.core.nax, self.core.nass ), dtype = np.int )
+    if node_factors is None:
+      self.nodeFactors = \
+          np.ones( ( 1, 4, self.core.nax, self.core.nass ), dtype = np.int )
+    else:
+      self.nodeFactors = np.ndarray(
+          ( 1, 4, self.core.nax, self.core.nass ),
+	  dtype = np.float64
+	  )
+      self.nodeFactors[ 0, :, :, : ] = node_factors
 
     self.pinFactors = \
         pin_factors if pin_factors is not None else \
