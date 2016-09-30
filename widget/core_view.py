@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-09-30	leerw@ornl.gov				-
+#	  Adding support for nodal derived types.
 #		2016-09-29	leerw@ornl.gov				-
 #	  Trying to prevent overrun of values displayed in cells.
 #		2016-09-20	leerw@ornl.gov				-

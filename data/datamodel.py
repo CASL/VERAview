@@ -300,6 +300,18 @@ DATASET_DEFS = \
     'type': 'pin:core'
     },
 
+  'pin:nodal':
+    {
+    'avg_method': 'calc_pin_nodal_avg',
+    'copy_expr': '[ 0, :, :, : ]',
+    'copy_shape_expr': '( 1, 4, core.nax, core.nass )',
+    'ds_prefix': 'nodal',
+    'label': 'nodal',
+    'shape_expr': '( 1, )',
+    'shape_expr': '( 4, core.nax, core.nass )',
+    'type': 'pin:nodal'
+    },
+
   'pin:radial':
     {
     'avg_method': 'calc_pin_radial_avg',

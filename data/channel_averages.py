@@ -49,7 +49,8 @@ be called before use.
         errors_save = np.seterr( **errors_args )
         #errors = np.seterr( invalid = 'ignore' )
       try:
-        avg_weights = np.ones( avg_axis, dtype = int )
+	factor_weights = None
+        #avg_weights = np.ones( avg_axis, dtype = int )
 
 	if 'factor' in dset.attrs:
           factor_obj = dset.attrs[ 'factor' ]
@@ -58,11 +59,24 @@ be called before use.
 	      str( factor_obj )
 
 	  factor_weights = self.core.group.get( factor_name )
-	  if factor_weights is not None and len( factor_weights.shape ) == 4:
-            avg_weights = np.sum( factor_weights, axis = avg_axis )
+	  if factor_weights is not None and len( factor_weights.shape ) != 4:
+	    factor_weights = None
+	  #if factor_weights is not None and len( factor_weights.shape ) == 4:
+          #  avg_weights = np.sum( factor_weights, axis = avg_axis )
 	#end if 'factor'
 
-	avg = np.sum( dset * avg_weights, axis = avg_axis ) / avg_weights
+	if factor_weights is None:
+          factor_weights = np.ones(
+	      ( core.npiny + 1, core.npinx + 1, core.nax, core.nass ),
+	      dtype = int
+	      )
+	else:
+	  pass
+	  #same stuff as pins _calc_weights() sans ref_pin_powers correction
+	#end if-else factor_weights
+
+        avg_weights = np.sum( factor_weights, axis = avg_axis )
+	avg = np.sum( dset * factor_weights, axis = avg_axis ) / avg_weights
 	avg = np.nan_to_num( avg )
       finally:
 	if errors_args:

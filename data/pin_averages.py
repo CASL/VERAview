@@ -59,6 +59,7 @@ be called before use.
 @param  data		np.ndarray with dataset values to average
 @param  avg_weights	weights to apply as a denominator to the data sum
 @param  avg_axis	axes defining shape for resulting average
+@return			np.ndarray
 """
     avg = None
     if data is not None:
@@ -99,6 +100,15 @@ be called before use.
   def calc_pin_core_avg( self, dset ):
     return  self.calc_average( dset.value, self.coreWeights, ( 0, 1, 2, 3 ) )
   #end calc_pin_core_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_nodal_avg()				-
+  #----------------------------------------------------------------------
+  def calc_pin_nodal_avg( self, dset ):
+    pass
+    #return  self.calc_average( dset.value, self.coreWeights, ( 0, 1, 2, 3 ) )
+  #end calc_pin_nodal_avg
 
 
   #----------------------------------------------------------------------
@@ -215,12 +225,12 @@ be called before use.
         for i in xrange( axlo, core.nassx ):
 	  assy_ndx = core.coreMap[ mass, i ] - 1
 	  if assy_ndx >= 0:
-	    pin_weights[ mpin, :, :, i ] *= 0.5
+	    pin_weights[ mpin, :, :, assy_ndx ] *= 0.5
 
         for j in xrange( axlo, core.nassy ):
           assy_ndx = core.coreMap[ j, mass ] - 1
 	  if assy_ndx >= 0:
-	    pin_weights[ :, mpin, :, j ] *= 0.5
+	    pin_weights[ :, mpin, :, assy_ndx ] *= 0.5
       #end if-else coreSym
 
 #			-- Multiply weights by axial mesh size
@@ -310,21 +320,25 @@ be called before use.
 
 #		-- Full core, weight is 1 for non-zero power
 #		--
-    if core.coreSym <= 1:
-      np.place( pin_weights, ref_pin_powers > 0.0, 1.0 )
+    np.place( pin_weights, ref_pin_powers > 0.0, 1.0 )
 
-    else:
+    if core.nassx % 2 == 0 or core.nassy % 2 == 0 or \
+        npinx % 2 == 0 or npiny % 2 == 0:
+      pass
+
+    elif core.coreSym == 4:
 #			-- Initialize weights to 1 for non-zero power
 #			--
       #npin = core.npin
       npinx = core.npinx
       npiny = core.npiny
-      for i in xrange( core.nass ):
-	np.place(
-            pin_weights[ pylo[ i ] : npiny, pxlo[ i ] : npinx, :, i ],
-            ref_pin_powers[ pylo[ i ] : npiny, pxlo[ i ] : npinx, :, i ] > 0.0,
-            1.0
-	    )
+#      for i in xrange( core.nass ):
+#        np.place(
+#              pin_weights[ pylo[ i ] : npiny, pxlo[ i ] : npinx, :, i ],
+#              ref_pin_powers[ pylo[ i ] : npiny, pxlo[ i ] : npinx, :, i ] > 0.0,
+#              1.0
+#	      )
+
 #			-- Cut pin weights by half on line of symmetry
 #			--
       for i in xrange( axlo, core.nassx ):
@@ -336,6 +350,7 @@ be called before use.
         assy_ndx = core.coreMap[ j, mass ] - 1
 	if assy_ndx >= 0:
 	  pin_weights[ :, mpin, :, j ] *= 0.5
+    ##x elif core.coreSym == 8:
     #end if-else
 
 #		-- Multiply weights by axial mesh size
