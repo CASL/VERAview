@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-09-30	leerw@ornl.gov				-
+#	  Added DataModel.nodeFactors.
 #		2016-09-29	leerw@ornl.gov				-
 #	  Adding derived channel DATASET_DEFS.
 #		2016-09-20	leerw@ornl.gov				-
@@ -300,16 +302,16 @@ DATASET_DEFS = \
     'type': 'pin:core'
     },
 
-  'pin:nodal':
+  'pin:node':
     {
-    'avg_method': 'calc_pin_nodal_avg',
+    'avg_method': 'calc_pin_node_avg',
     'copy_expr': '[ 0, :, :, : ]',
     'copy_shape_expr': '( 1, 4, core.nax, core.nass )',
-    'ds_prefix': 'nodal',
-    'label': 'nodal',
+    'ds_prefix': 'node',
+    'label': 'node',
     'shape_expr': '( 1, )',
     'shape_expr': '( 4, core.nax, core.nass )',
-    'type': 'pin:nodal'
+    'type': 'pin:node'
     },
 
   'pin:radial':
@@ -833,6 +835,7 @@ Properties:
   h5File		h5py.File
   listeners		map of listeners by event type
   maxAxialValue		maximum axial value (cm) 
+  nodeFactors		node weight factors ( 1, 4, nax, nass )
   pinFactors		pin weight factors ( npiny, npinx, nax, nass )
   ranges		dict of ranges ( min, max ) by dataset
   rangesByStatePt	list by statept index of dicts by dataset of ranges 
@@ -2428,6 +2431,14 @@ derived datasets.  Lazily created and cached.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetNodeFactors()			-
+  #----------------------------------------------------------------------
+  def GetNodeFactors( self ):
+    return  self.nodeFactors
+  #end GetNodeFactors
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetPinFactors()			-
   #----------------------------------------------------------------------
   def GetPinFactors( self ):
@@ -3046,9 +3057,9 @@ being one greater in each dimension.
     self.derivedFile, self.derivedStates = \
         self._CreateDerivedH5File( self.states )
 
-#		-- Special check for pin_factors
+#		-- Special check for pin_factors and node_factors
 #		--
-    pin_factors = None
+    node_factors = pin_factors = None
     pin_factors_shape = \
         ( self.core.npiny, self.core.npinx, self.core.nax, self.core.nass )
     for name, group in (
@@ -3073,7 +3084,12 @@ being one greater in each dimension.
 	  )
       if pin_factors is None and avg.pinWeights is not None:
         pin_factors = avg.pinWeights
+      node_factors = avg.nodeWeights
     #end if
+
+    self.nodeFactors = \
+        node_factors if node_factors is not None else \
+	np.ones( ( 1, 4, self.core.nax, self.core.nass ), dtype = np.int )
 
     self.pinFactors = \
         pin_factors if pin_factors is not None else \
@@ -3090,20 +3106,6 @@ being one greater in each dimension.
 	  self.core.nax, self.core.nass ),
         dtype = np.int
 	)
-
-#    self.averager.load(
-#        self.core,
-#        self.GetStateDataSet( 0, 'pin_powers' ).value,
-#	pin_factors
-#	)
-##		-- Resolve pinFactors
-##		--
-#    if pin_factors is not None:
-#      self.pinFactors = pin_factors
-#    elif self.averager.pinWeights is not None:
-#      self.pinFactors = self.averager.pinWeights
-#    else:
-#      self.pinFactors = np.ones( pin_factors_shape, dtype = np.int )
   #end Read
 
 

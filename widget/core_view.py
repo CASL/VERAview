@@ -604,6 +604,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 @param  kwargs
     scale	pixels per pin
     size	( wd, ht ) against which to compute the scale
+    nodal	True if nodal mode
 @return			config dict with keys:
     clientSize
     fontSize
@@ -618,6 +619,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     coreRegion
     lineWidth
     mode = 'core'
+    nodal
     pinWidth
     valueFont
     valueFontSize
@@ -632,6 +634,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     label_size = config[ 'labelSize' ]
     legend_pil_im = config[ 'legendPilImage' ]
     legend_size = config[ 'legendSize' ]
+
+    nodal = 'nodal' in kwargs
 
 #		-- Must calculate scale?
 #		--
@@ -650,15 +654,24 @@ If neither are specified, a default 'scale' value of 4 is used.
       if assy_ht < assy_wd:
         assy_wd = assy_ht
 
-      pin_wd = max( 1, (assy_wd - 2) / self.data.core.npin )
-      assy_wd = pin_wd * self.data.core.npin + 1
+      if nodal:
+        pin_wd = max( 1, (assy_wd - 2) / 2 )
+        assy_wd = pin_wd * 2
+      else:
+        pin_wd = max( 1, (assy_wd - 2) / self.data.core.npin )
+        assy_wd = pin_wd * self.data.core.npin + 1
       assy_advance = assy_wd
       core_wd = self.cellRange[ -2 ] * assy_advance
       core_ht = self.cellRange[ -1 ] * assy_advance
 
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
-      print >> sys.stderr, '[Core2DView._CreateCoreDrawConfig] pin_wd=%d' % pin_wd
+      #if nodal:
+        #pin_wd *= (max( self.data.core.npinx, self.data.core.npiny ) >> 2)
+
+      print >> sys.stderr, \
+          '[Core2DView._CreateCoreDrawConfig] nodal=%d, pin_wd=%d' % \
+	  ( nodal, pin_wd )
       assy_wd = pin_wd * self.data.core.npin + 1
       assy_advance = assy_wd
 
@@ -688,6 +701,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, region_wd, region_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'mode' ] = 'core'
+    config[ 'nodal' ] = nodal
     config[ 'pinWidth' ] = pin_wd
     config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
@@ -721,10 +735,14 @@ If neither are specified, a default 'scale' value of 4 is used.
       font_size = config[ 'fontSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
+      nodal = config[ 'nodal' ]
       pil_font = config[ 'pilFont' ]
       pin_wd = config[ 'pinWidth' ]
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
+
+      #if nodal:
+        #pdb.set_trace()
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
@@ -739,8 +757,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-        cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
-        cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
+        cur_nxpin = 2 if nodal else \
+	    min( self.data.core.npinx, dset_shape[ 1 ] )
+        cur_nypin = 2 if nodal else \
+	    min( self.data.core.npiny, dset_shape[ 0 ] )
 
       ds_range = self.data.GetRange(
           self.pinDataSet,
@@ -813,24 +833,36 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    #cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
 	    #cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
 
-	    for pin_row in range( self.data.core.npiny ):
+	    #for pin_row in range( self.data.core.npiny ):
+	    pin_row_limit = 2 if nodal else self.data.core.npiny
+	    pin_col_limit = 2 if nodal else self.data.core.npinx
+	    nodal_ndx = 0
+
+	    for pin_row in range( pin_row_limit ):
 	      pin_x = assy_x + 1
 
 	      cur_pin_row = min( pin_row, cur_nypin - 1 )
-	      for pin_col in range( self.data.core.npinx ):
+	      #for pin_col in range( self.data.core.npinx ):
+	      for pin_col in range( pin_col_limit ):
 	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
 		value = 0.0
 		pin_factor = 0
 		if cur_pin_row >= 0 and cur_pin_col >= 0:
-		  value = dset_array[
-		      cur_pin_row, cur_pin_col, axial_level, assy_ndx
-		      ]
-	          if pin_factors is None:
-	            pin_factor = 1
+		  if nodal:
+		    value = dset_array[ 0, nodal_ndx, axial_level, assy_ndx ]
+		    pin_factor = 1
+		    nodal_ndx += 1
 		  else:
-	            pin_factor = pin_factors[
+		    value = dset_array[
 		        cur_pin_row, cur_pin_col, axial_level, assy_ndx
 		        ]
+	            if pin_factors is None:
+	              pin_factor = 1
+		    else:
+	              pin_factor = pin_factors[
+		          cur_pin_row, cur_pin_col, axial_level, assy_ndx
+		          ]
+		  #end if-else
 		#end if cur_pin_row and cur_pin_col
 
 	        #if not self.data.IsNoDataValue( self.pinDataSet, value ):
@@ -938,6 +970,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys needed by _CreateRasterImage().
 """
+    dset = self.data.GetStateDataSet( 0, self.pinDataSet )
+    if dset is not None and dset.shape[ 0 ] == 1 and dset.shape[ 1 ] == 4:
+      kwargs[ 'nodal' ] = True
     return \
         self._CreateAssyDrawConfig( **kwargs ) if self.mode == 'assy' else \
 	self._CreateCoreDrawConfig( **kwargs )
@@ -1149,7 +1184,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Core2DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:radial', 'pin:radial_assembly' ]
+    return  [ 'pin', 'pin:assembly', 'pin:node', 'pin:radial', 'pin:radial_assembly' ]
   #end GetDataSetTypes
 
 
@@ -1375,6 +1410,7 @@ be overridden by subclasses.
   def _OnDragFinished( self, left, top, right, bottom ):
     """Do post drag things after drag processing.
 """
+    #xxxx nodal check
     if right - left == 1 and bottom - top == 1:
       self.assemblyAddr = self.dragStartCell
       self.FireStateChange( assembly_addr = self.assemblyAddr )
