@@ -747,8 +747,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
       if self.state.weightsMode == 'on':
-        pin_factors = self.data.GetPinFactors()
-        pin_factors_shape = pin_factors.shape
+	if nodal:
+          pin_factors = self.data.GetNodeFactors()
+          pin_factors_shape = pin_factors.shape
+	else:
+          pin_factors = self.data.GetPinFactors()
+          pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -850,7 +854,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 		if cur_pin_row >= 0 and cur_pin_col >= 0:
 		  if nodal:
 		    value = dset_array[ 0, nodal_ndx, axial_level, assy_ndx ]
-		    pin_factor = 1
+		    if pin_factors is None:
+		      pin_factor = 1
+		    else:
+	              pin_factor = pin_factors[
+		          0, nodal_ndx, axial_level, assy_ndx
+		          ]
 		    nodal_ndx += 1
 		  else:
 		    value = dset_array[
