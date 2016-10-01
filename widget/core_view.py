@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-10-01	leerw@ornl.gov				-
+#	  Better handling with nodalMode attribute.
 #		2016-09-30	leerw@ornl.gov				-
 #	  Adding support for nodal derived types.
 #		2016-09-29	leerw@ornl.gov				-
@@ -162,6 +164,7 @@ Properties:
     self.avgValues = {}
 
     self.mode = ''  # 'assy', 'core'
+    self.nodalMode = False
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.subAddr = ( -1, -1 )
 
@@ -222,7 +225,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     lineWidth
     mode = 'assy'
     pinGap
-    pinWidth
+    pinWidth		used for pin or node width, depending on self.nodalMode
 """
     ds_range = self.data.GetRange(
         self.pinDataSet,
@@ -242,11 +245,18 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       # label : core : font-sp : legend
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      pin_adv_wd = region_wd / self.data.core.npin
+
+      if self.nodalMode:
+        pin_adv_wd = region_wd >> 1
+      else:
+        pin_adv_wd = region_wd / self.data.core.npin
 
       working_ht = max( ht, legend_size[ 1 ] )
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-      pin_adv_ht = region_ht / self.data.core.npin
+      if self.nodalMode:
+        pin_adv_ht = region_ht >> 1
+      else:
+        pin_adv_ht = region_ht / self.data.core.npin
 
       if pin_adv_ht < pin_adv_wd:
         pin_adv_wd = pin_adv_ht
@@ -254,14 +264,20 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_gap = pin_adv_wd >> 3
       pin_wd = max( 1, pin_adv_wd - pin_gap )
 
-      assy_wd = assy_ht = self.data.core.npin * (pin_wd + pin_gap)
+      if self.nodalMode:
+        assy_wd = assy_ht = (pin_wd + pin_gap) << 1
+      else:
+        assy_wd = assy_ht = self.data.core.npin * (pin_wd + pin_gap)
 
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 24
-      print >> sys.stderr, '[Core2DView._CreateDrawConfig] pin_wd=%d' % pin_wd
-
       pin_gap = pin_wd >> 3
-      assy_wd = assy_ht = self.data.core.npin * (pin_wd + pin_gap)
+
+      if self.nodalMode:
+        pin_wd <<= 4
+        assy_wd = assy_ht = (pin_wd + pin_gap) << 1
+      else:
+        assy_wd = assy_ht = self.data.core.npin * (pin_wd + pin_gap)
 
       # label : core : font-sp : legend
       wd = label_size[ 0 ] + assy_wd + (font_size << 1) + legend_size[ 0 ]
@@ -318,8 +334,12 @@ If neither are specified, a default 'scale' value of 24 is used.
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
       if self.state.weightsMode == 'on':
-        pin_factors = self.data.GetPinFactors()
-        pin_factors_shape = pin_factors.shape
+	if self.nodalMode:
+          pin_factors = self.data.GetNodeFactors()
+          pin_factors_shape = pin_factors.shape
+	else:
+          pin_factors = self.data.GetPinFactors()
+          pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -328,8 +348,10 @@ If neither are specified, a default 'scale' value of 24 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-        cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
-        cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
+        cur_nxpin = 2 if self.nodalMode else \
+	    min( self.data.core.npinx, dset_shape[ 1 ] )
+        cur_nypin = 2 if self.nodalMode else \
+	    min( self.data.core.npiny, dset_shape[ 0 ] )
 
       ds_range = self.data.GetRange(
           self.pinDataSet,
@@ -352,6 +374,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
 
+      node_ndx = 0
       pin_y = assy_region[ 1 ]
 #      for pin_row in range( self.data.core.npin ):
       for pin_row in range( cur_nypin ):
@@ -383,13 +406,20 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-	  value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-	  if pin_factors is None:
-	    pin_factor = 1
+	  if self.nodalMode:
+	    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
+	    if pin_factors is None:
+	      pin_factor = 1
+	    else:
+	      pin_factor = pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
+	    node_ndx += 1
 	  else:
-	    pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
-	  #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	  #if pin_factor != 0:
+	    value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
+	    if pin_factors is None:
+	      pin_factor = 1
+	    else:
+	      pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
+
 	  if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -397,10 +427,16 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    pen_color = Widget.GetDarkerColor( brush_color, 255 )
 	    #brush_color = ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
 
-	    im_draw.ellipse(
-	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
-	        fill = brush_color, outline = pen_color
-	        )
+	    if self.nodalMode:
+	      im_draw.rectangle(
+	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	          fill = brush_color, outline = pen_color
+	          )
+	    else:
+	      im_draw.ellipse(
+	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	          fill = brush_color, outline = pen_color
+	          )
 	  #end if value > 0
 
 	  pin_x += pin_wd + pin_gap
@@ -604,7 +640,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 @param  kwargs
     scale	pixels per pin
     size	( wd, ht ) against which to compute the scale
-    nodal	True if nodal mode
 @return			config dict with keys:
     clientSize
     fontSize
@@ -619,8 +654,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     coreRegion
     lineWidth
     mode = 'core'
-    nodal
-    pinWidth
+    pinWidth		used for pin or node width, depending on self.nodalMode
     valueFont
     valueFontSize
 """
@@ -634,8 +668,6 @@ If neither are specified, a default 'scale' value of 4 is used.
     label_size = config[ 'labelSize' ]
     legend_pil_im = config[ 'legendPilImage' ]
     legend_size = config[ 'legendSize' ]
-
-    nodal = 'nodal' in kwargs
 
 #		-- Must calculate scale?
 #		--
@@ -654,8 +686,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       if assy_ht < assy_wd:
         assy_wd = assy_ht
 
-      if nodal:
-        pin_wd = max( 1, (assy_wd - 2) / 2 )
+      if self.nodalMode:
+        pin_wd = max( 1, (assy_wd - 2) >> 1 )
         assy_wd = pin_wd * 2
       else:
         pin_wd = max( 1, (assy_wd - 2) / self.data.core.npin )
@@ -666,13 +698,16 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
-      #if nodal:
-        #pin_wd *= (max( self.data.core.npinx, self.data.core.npiny ) >> 2)
+      if self.nodalMode:
+        pin_wd <<= 4
 
       print >> sys.stderr, \
-          '[Core2DView._CreateCoreDrawConfig] nodal=%d, pin_wd=%d' % \
-	  ( nodal, pin_wd )
-      assy_wd = pin_wd * self.data.core.npin + 1
+          '[Core2DView._CreateCoreDrawConfig] nodalMode=%d, pin_wd=%d' % \
+	  ( self.nodalMode, pin_wd )
+      if self.nodalMode:
+        assy_wd = pin_wd << 1
+      else:
+        assy_wd = pin_wd * self.data.core.npin + 1
       assy_advance = assy_wd
 
       font_size = self._CalcFontSize( 768 )
@@ -701,7 +736,6 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, region_wd, region_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'mode' ] = 'core'
-    config[ 'nodal' ] = nodal
     config[ 'pinWidth' ] = pin_wd
     config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
@@ -735,19 +769,15 @@ If neither are specified, a default 'scale' value of 4 is used.
       font_size = config[ 'fontSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
-      nodal = config[ 'nodal' ]
       pil_font = config[ 'pilFont' ]
       pin_wd = config[ 'pinWidth' ]
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
 
-      #if nodal:
-        #pdb.set_trace()
-
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
       if self.state.weightsMode == 'on':
-	if nodal:
+	if self.nodalMode:
           pin_factors = self.data.GetNodeFactors()
           pin_factors_shape = pin_factors.shape
 	else:
@@ -761,9 +791,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-        cur_nxpin = 2 if nodal else \
+        cur_nxpin = 2 if self.nodalMode else \
 	    min( self.data.core.npinx, dset_shape[ 1 ] )
-        cur_nypin = 2 if nodal else \
+        cur_nypin = 2 if self.nodalMode else \
 	    min( self.data.core.npiny, dset_shape[ 0 ] )
 
       ds_range = self.data.GetRange(
@@ -838,9 +868,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    #cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
 
 	    #for pin_row in range( self.data.core.npiny ):
-	    pin_row_limit = 2 if nodal else self.data.core.npiny
-	    pin_col_limit = 2 if nodal else self.data.core.npinx
-	    nodal_ndx = 0
+	    pin_row_limit = 2 if self.nodalMode else self.data.core.npiny
+	    pin_col_limit = 2 if self.nodalMode else self.data.core.npinx
+	    node_ndx = 0
 
 	    for pin_row in range( pin_row_limit ):
 	      pin_x = assy_x + 1
@@ -852,15 +882,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 		value = 0.0
 		pin_factor = 0
 		if cur_pin_row >= 0 and cur_pin_col >= 0:
-		  if nodal:
-		    value = dset_array[ 0, nodal_ndx, axial_level, assy_ndx ]
+		  if self.nodalMode:
+		    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
 		    if pin_factors is None:
 		      pin_factor = 1
 		    else:
-	              pin_factor = pin_factors[
-		          0, nodal_ndx, axial_level, assy_ndx
-		          ]
-		    nodal_ndx += 1
+	              pin_factor = \
+		          pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
+		    node_ndx += 1
 		  else:
 		    value = dset_array[
 		        cur_pin_row, cur_pin_col, axial_level, assy_ndx
@@ -979,9 +1008,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys needed by _CreateRasterImage().
 """
-    dset = self.data.GetStateDataSet( 0, self.pinDataSet )
-    if dset is not None and dset.shape[ 0 ] == 1 and dset.shape[ 1 ] == 4:
-      kwargs[ 'nodal' ] = True
+#    dset = self.data.GetStateDataSet( 0, self.pinDataSet )
+#    if dset is not None and dset.shape[ 0 ] == 1 and dset.shape[ 1 ] == 4:
+#      kwargs[ 'nodal' ] = True
     return \
         self._CreateAssyDrawConfig( **kwargs ) if self.mode == 'assy' else \
 	self._CreateCoreDrawConfig( **kwargs )
@@ -1103,10 +1132,18 @@ The config and data attributes are good to go.
 	assy_ndx = self.data.core.coreMap[ cell_y, cell_x ] - 1
 
 	pin_wd = self.config[ 'pinWidth' ]
-	pin_col = int( (off_x % assy_advance) / pin_wd )
-	if pin_col >= self.data.core.npinx: pin_col = -1
-	pin_row = int( (off_y % assy_advance) / pin_wd )
-	if pin_row >= self.data.core.npiny: pin_row = -1
+	if self.nodalMode:
+	  node_col = int( (off_x % assy_advance) / pin_wd )
+	  node_row = int( (off_y % assy_advance) / pin_wd )
+	  node_addr = 2 if node_row > 0 else 0
+	  if node_col > 0:
+	    node_addr += 1
+	  pin_col, pin_row = self.data.GetSubAddrFromNode( node_addr )
+	else:
+	  pin_col = int( (off_x % assy_advance) / pin_wd )
+	  if pin_col >= self.data.core.npinx: pin_col = -1
+	  pin_row = int( (off_y % assy_advance) / pin_wd )
+	  if pin_row >= self.data.core.npiny: pin_row = -1
 
 	result = ( assy_ndx, cell_x, cell_y, pin_col, pin_row )
       #end if event within display
@@ -1149,14 +1186,23 @@ The config and data attributes are good to go.
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
-        cell_x = min(
-	    int( (ev_x - assy_region[ 0 ]) / pin_size ),
-	    self.data.core.npin - 1
-	    )
-        cell_y = min(
-	    int( (ev_y - assy_region[ 1 ]) / pin_size ),
-	    self.data.core.npin - 1
-	    )
+	
+	if self.nodalMode:
+	  node_col = min( int( (ev_x - assy_region[ 0 ]) / pin_size ), 1 )
+	  node_row = min( int( (ev_y - assy_region[ 1 ]) / pin_size ), 1 )
+	  node_addr = 2 if node_row > 0 else 0
+	  if node_col > 0:
+	    node_addr += 1
+	  cell_x, cell_y = self.data.GetSubAddrFromNode( node_addr )
+	else:
+          cell_x = min(
+	      int( (ev_x - assy_region[ 0 ]) / pin_size ),
+	      self.data.core.npin - 1
+	      )
+          cell_y = min(
+	      int( (ev_y - assy_region[ 1 ]) / pin_size ),
+	      self.data.core.npin - 1
+	      )
 
 	result = ( cell_x, cell_y )
       #end if event within display
@@ -1419,7 +1465,6 @@ be overridden by subclasses.
   def _OnDragFinished( self, left, top, right, bottom ):
     """Do post drag things after drag processing.
 """
-    #xxxx nodal check
     if right - left == 1 and bottom - top == 1:
       self.assemblyAddr = self.dragStartCell
       self.FireStateChange( assembly_addr = self.assemblyAddr )
@@ -1688,6 +1733,7 @@ method via super.SaveProps().
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
+	self.nodalMode = ds_type.find( ':node' ) > 0
         self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
 	self.container.GetDataSetMenu().Reset()

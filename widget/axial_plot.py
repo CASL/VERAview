@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-10-01	leerw@ornl.gov				-
+#	  Supporting :node datasets.
 #		2016-09-03	leerw@ornl.gov				-
 #	  Fixed references to detectorMeshCenters.  Doh!!
 #		2016-08-15	leerw@ornl.gov				-

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-01	leerw@ornl.gov				-
+#	  Added DataModel.GetNodeAddr() and GetSubAddrFromNode().
 #		2016-09-30	leerw@ornl.gov				-
 #	  Added DataModel.nodeFactors.
 #		2016-09-29	leerw@ornl.gov				-
@@ -2439,6 +2441,31 @@ derived datasets.  Lazily created and cached.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetNodeAddr()				-
+  #----------------------------------------------------------------------
+  def GetNodeAddr( self, sub_addr, mode = 'pin' ):
+    """Get the node addr corresponding to sub_addr.
+@param  sub_addr	0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+@return			node addr in range [0,3], or -1 if sub_addr is invalid
+"""
+    node_addr = -1
+    if self.core is not None:
+      cx = self.core.npinx >> 1
+      cy = self.core.npiny >> 1 
+      if mode == 'channel':
+        cx += 1
+	cy += 1
+
+      node_addr = 2 if max( 0, sub_addr[ 1 ] ) >= cy else 0
+      if max( 0, sub_addr[ 0 ] ) >= cx:
+        node_addr += 1
+
+    return  node_addr
+  #end GetNodeAddr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetNodeFactors()			-
   #----------------------------------------------------------------------
   def GetNodeFactors( self ):
@@ -2648,6 +2675,32 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetSubAddrFromNode()			-
+  #----------------------------------------------------------------------
+  def GetSubAddrFromNode( self, node_addr, mode = 'pin' ):
+    """Get the node addr corresponding to sub_addr.
+@param  node_addr	0, 1, 2, or 3
+@param  mode		'channel' or 'pin', defaulting to the latter
+@return			0-based sub_addr ( col, row )
+"""
+    if self.core is None or node_addr < 0 or node_addr >= 4:
+      sub_addr = ( -1, -1 )
+    else:
+      cx = self.core.npinx >> 1
+      cy = self.core.npiny >> 1
+      if mode == 'channel':
+        cx += 1
+	cy += 1
+
+      col = 0 if node_addr in ( 0, 2 ) else cx
+      row = 0 if node_addr in ( 0, 1 ) else cy
+      sub_addr = ( col, row )
+
+    return  sub_addr
+  #end GetSubAddrFromNode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetTimeValue()			-
   #----------------------------------------------------------------------
   def GetTimeValue( self, state_ndx, ds_name ):
@@ -2807,6 +2860,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
       if 'axial_level' in kwargs:
         val = kwargs[ 'axial_level' ]
         valid &= val >= 0 and val < self.core.nax
+
+#      if 'node_addr' in kwargs:
+#        val = kwargs[ 'node_addr' ]
+#	valid &= val >= 0 and val < 4
 
       if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] is not None:
         col, row = kwargs[ 'sub_addr' ]
@@ -3161,6 +3218,17 @@ being one greater in each dimension.
       if ds_type == 'detector' or ds_type == 'fixed_detector':
         det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
 	result = dset.value[ :, det_ndx ]
+
+      elif ds_type.find( ':node' ) > 0 and 'copy_shape' in ds_def:
+	result = {}
+        ds_shape = ds_def[ 'copy_shape' ]
+        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+	node_addr_set = set()
+        for sub_addr in sub_addrs:
+	  node_addr = self.GetNodeAddr( sub_addr )
+	  if node_addr not in node_addr_set:
+	    node_addr_set.add( node_addr )
+	    result[ sub_addr ] = dset.value[ 0, node_addr, :, assy_ndx ]
 
       else:
 #        colrows = \

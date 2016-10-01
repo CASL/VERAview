@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-01	leerw@ornl.gov				-
+#	  Adding support for nodal derived types.
 #		2016-09-19	leerw@ornl.gov				-
 #	  Using state.weightsMode to determine use of pinFactors.
 #		2016-09-14	leerw@ornl.gov				-
@@ -86,6 +88,7 @@ Properties:
     self.avgValues = {}
 
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
+    self.nodalMode = False
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.subAddr = ( -1, -1 )
 
@@ -268,6 +271,156 @@ Properties:
     """Creates a draw configuration based on imposed 'size' (wd, ht ) or
 'scale' (pixels per pin) from which a size is determined.
 If neither are specified, a default 'scale' value of 4 is used.
+Calls either _CreateDrawConfigNodal() or _CreateDrawConfigNonNodal().
+@param  kwargs
+    scale	pixels per cm
+    size	( wd, ht ) against which to compute the scale
+@return			config dict with keys
+"""
+    return \
+        self._CreateDrawConfigNodal( **kwargs ) if self.nodalMode else \
+        self._CreateDrawConfigNonNodal( **kwargs )
+  #end _CreateDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateDrawConfigNodal()	-
+  #----------------------------------------------------------------------
+  def _CreateDrawConfigNodal( self, **kwargs ):
+    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
+'scale' (pixels per pin) from which a size is determined.
+If neither are specified, a default 'scale' value of 4 is used.
+@param  kwargs
+    scale	pixels per cm
+    size	( wd, ht ) against which to compute the scale
+@return			config dict with keys:
+    clientSize
+    fontSize
+    labelFont
+    labelSize
+    legendPilImage
+    legendSize
+    pilFont
+    +
+    assemblyWidth
+    axialLevelsDy	list of pixel offsets in y dimension
+    axialPixPerCm	used?
+    coreRegion
+    lineWidth
+    nodeWidth
+"""
+    ds_range = self.data.GetRange(
+        self.pinDataSet,
+	self.stateIndex if self.state.scaleMode == 'state' else -1
+	)
+    config = self._CreateBaseDrawConfig( ds_range, **kwargs )
+
+    font_size = config[ 'fontSize' ]
+    label_size = config[ 'labelSize' ]
+    legend_pil_im = config[ 'legendPilImage' ]
+    legend_size = config[ 'legendSize' ]
+
+    axial_mesh = self.data.core.axialMesh
+    axial_range_cm = \
+        axial_mesh[ self.cellRange[ 3 ] ] - axial_mesh[ self.cellRange[ 1 ] ]
+    npin = \
+        self.data.core.npinx  if self.mode == 'xz' else \
+	self.data.core.npiny
+
+    # pin equivalents in the axial range
+    cm_per_pin = self.data.core.GetAssemblyPitch() / npin
+    axial_pin_equivs = axial_range_cm / cm_per_pin
+    core_aspect_ratio = \
+        self.data.core.GetAssemblyPitch() * self.cellRange[ -2 ] / \
+	axial_range_cm
+
+#		-- Must calculate scale?
+#		--
+    if 'clientSize' in config:
+      wd, ht = config[ 'clientSize' ]
+
+#			-- Determine drawable region in image
+#			--
+      # l2r, label : core : font-sp : legend
+      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
+      # t2b, core : title
+      working_ht = max( ht, legend_size[ 1 ] )
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+
+      region_aspect_ratio = float( region_wd ) / float( region_ht )
+
+#				-- Limited by height
+      if region_aspect_ratio > core_aspect_ratio:
+	node_count = self.cellRange[ -2 ] << 1
+	node_wd = max( 1, int( math.floor( region_ht / node_count ) ) )
+	pin_wd = max( 1, int( math.floor( region_ht / axial_pin_equivs ) ) )
+
+#				-- Limited by width
+      else:
+        assy_wd = region_wd / self.cellRange[ -2 ]
+	node_wd = max( 1, (assy_wd - 2) >> 1 )
+        pin_wd = max( 1, (assy_wd - 2) / npin )
+
+      assy_wd = (node_wd << 1) + 1
+      axial_pix_per_cm = pin_wd / cm_per_pin
+
+      print >> sys.stderr, \
+          '[CoreAxial2DView._CreateDrawConfigNodal]' + \
+	  '  assy_wd=%d, node_wd=%d, axial_pix_per_cm=%f' % \
+	  ( assy_wd, node_wd, axial_pix_per_cm )
+
+#			-- Calc sizes
+#			--
+      core_wd = self.cellRange[ -2 ] * assy_wd
+      core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
+
+#		-- Or, scale set explicitly
+#		--
+    else:
+      pin_wd = kwargs.get( 'scale', 4 )
+      node_wd = pin_wd << 2
+      axial_pix_per_cm = pin_wd / cm_per_pin
+
+      assy_wd = (node_wd << 1) + 1
+      core_wd = self.cellRange[ -2 ] * assy_wd
+      core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
+
+      font_size = self._CalcFontSize( 768 )
+
+      # l2r, label : core : font-sp : legend
+      wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
+      ht = max( core_ht, legend_size[ 1 ] )
+      ht += (font_size << 1) + font_size
+
+      config[ 'clientSize' ] = ( wd, ht )
+    #end if-else
+
+    axials_dy = []
+    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+      ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
+      dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
+      axials_dy.insert( 0, dy )
+    #end for
+
+    config[ 'assemblyWidth' ] = assy_wd
+    config[ 'axialLevelsDy' ] = axials_dy
+    config[ 'axialPixPerCm' ] = axial_pix_per_cm
+    config[ 'coreRegion' ] = \
+        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
+    config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
+    config[ 'nodeWidth' ] = node_wd
+
+    return  config
+  #end _CreateDrawConfigNodal
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateDrawConfigNonNodal()	-
+  #----------------------------------------------------------------------
+  def _CreateDrawConfigNonNodal( self, **kwargs ):
+    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
+'scale' (pixels per pin) from which a size is determined.
+If neither are specified, a default 'scale' value of 4 is used.
 @param  kwargs
     scale	pixels per cm
     size	( wd, ht ) against which to compute the scale
@@ -399,29 +552,232 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'pinWidth' ] = pin_wd
 
     return  config
-  #end _CreateDrawConfig
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateMenuDef()		-
-  #----------------------------------------------------------------------
-#  def _CreateMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( CoreAxial2DView, self )._CreateMenuDef( data_model )
-#    other_def = \
-#      [
-#        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
-#	( '-', None )
-#      ]
-#    return  other_def + menu_def
-#  #end _CreateMenuDef
+  #end _CreateDrawConfigNonNodal
 
 
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in, config = None ):
+  def _CreateRasterImage( self, tuple_in, config_in = None ):
+    """Called in background task to create the PIL image for the state.
+Calls either _CreateRasterImageNodal() or _CreateRasterImageNonNodal().
+@param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
+@param  config_in	optional config to use instead of self.config
+"""
+    return \
+        self._CreateRasterImageNodal( tuple_in, config_in ) \
+	if self.nodalMode else \
+        self._CreateRasterImageNonNodal( tuple_in, config_in )
+  #end _CreateRasterImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateRasterImageNodal()	-
+  #----------------------------------------------------------------------
+  def _CreateRasterImageNodal( self, tuple_in, config = None ):
+    """Called in background task to create the PIL image for the state.
+@param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
+@param  config		optional config to use instead of self.config
+"""
+    start_time = timeit.default_timer()
+    state_ndx = tuple_in[ 0 ]
+    node_addr = self.data.GetNodeAddr( self.subAddr )
+    print >> sys.stderr, \
+        '[CoreAxial2DView._CreateRasterImageNodal] tuple_in=%s' % \
+	str( tuple_in )
+    im = None
+
+    if config is None:
+      config = self.config
+    if config is not None:
+      assy_wd = config[ 'assemblyWidth' ]
+      axial_levels_dy = config[ 'axialLevelsDy' ]
+      im_wd, im_ht = config[ 'clientSize' ]
+      core_region = config[ 'coreRegion' ]
+      font_size = config[ 'fontSize' ]
+      label_font = config[ 'labelFont' ]
+      legend_pil_im = config[ 'legendPilImage' ]
+      node_wd = config[ 'nodeWidth' ]
+      pil_font = config[ 'pilFont' ]
+
+      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      node_factors = None
+      if self.state.weightsMode == 'on':
+        node_factors = self.data.GetNodeFactors()
+        node_factors_shape = node_factors.shape
+
+      if dset is None:
+        dset_array = None
+	dset_shape = ( 0, 0, 0, 0 )
+      else:
+        dset_array = dset.value
+        dset_shape = dset.shape
+      ds_range = self.data.GetRange(
+          self.pinDataSet,
+	  state_ndx if self.state.scaleMode == 'state' else -1
+	  )
+      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      if self.mode == 'xz':
+        node_cells = ( 0, 2 ) if node_addr in ( 0, 2 ) else ( 1, 3 )
+	addresses = 'Assy Row %s, Nodes %d,%d' % ( 
+	    self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ],
+	    node_cells[ 0 ] + 1, node_cells[ 1 ] + 1
+	    )
+        title_templ, title_size = self._CreateTitleTemplate2(
+	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	    additional = addresses
+	    )
+      else: # 'yz'
+        node_cells = ( 0, 1 ) if node_addr in ( 0, 1 ) else ( 2, 3 )
+	addresses = 'Assy Col %s, Nodes %d,%d' % (
+	    self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ],
+	    node_cells[ 0 ] + 1, node_cells[ 1 ] + 1
+	    )
+        title_templ, title_size = self._CreateTitleTemplate2(
+	    pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	    additional = addresses
+	    )
+
+#			-- Create image
+#			--
+      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
+      #im_pix = im.load()
+      im_draw = PIL.ImageDraw.Draw( im )
+
+      assy_pen = ( 155, 155, 155, 255 )
+
+#			-- Loop on axial levels
+#			--
+      last_axial_label_y = 0;
+      axial_y = core_region[ 1 ]
+#      for axial_level in \
+#          range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+#        cur_dy = axial_levels_dy[ axial_level - self.cellRange[ 1 ] ]
+      for ax in range( len( axial_levels_dy ) - 1, -1, -1 ):
+        cur_dy = axial_levels_dy[ ax ]
+	axial_level = ax + self.cellRange[ 1 ]
+
+#				-- Row label
+#				--
+	if self.showLabels:
+	  label = '%02d' % (axial_level + 1)
+	  label_size = pil_font.getsize( label )
+	  label_y = axial_y + ((cur_dy - label_size[ 1 ]) >> 1)
+	  if last_axial_label_y  + label_size[ 1 ] < axial_y + cur_dy:
+	    im_draw.text(
+	        ( 1, label_y ),
+	        label, fill = ( 0, 0, 0, 255 ), font = label_font
+	        )
+	    last_axial_label_y = label_y
+
+#				-- Loop on col
+#				--
+	assy_x = core_region[ 0 ]
+	for assy_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+#					-- Column label
+#					--
+	  if ax == len( axial_levels_dy ) - 1 and self.showLabels:
+	    label_ndx = 0 if self.mode == 'xz' else 1
+	    label = self.data.core.coreLabels[ label_ndx ][ assy_col ]
+	    label_size = pil_font.getsize( label )
+	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
+	    im_draw.text(
+	        ( label_x, 1 ),
+	        label, fill = ( 0, 0, 0, 255 ), font = label_font
+	        )
+	  #end if
+
+	  if self.mode == 'xz':
+	    assy_ndx = self.data.core.coreMap[ tuple_in[ 1 ], assy_col ] - 1
+	  else:
+	    assy_ndx = self.data.core.coreMap[ assy_col, tuple_in[ 1 ] ] - 1
+
+	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
+	    node_x = assy_x + 1
+
+	    for node_ndx in node_cells:
+	      value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
+	      if node_factors is None:
+	        node_factor = 1
+	      else:
+	        node_factor = node_factors[ 0, node_ndx, axial_level, assy_ndx ]
+
+	      if not ( self.data.IsBadValue( value ) or node_factor == 0 ):
+	        pen_color = Widget.GetColorTuple(
+	            value - ds_range[ 0 ], value_delta, 255
+	            )
+	        brush_color = \
+		    ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+	        im_draw.rectangle(
+		    [ node_x, axial_y,
+		      node_x + node_wd + 1, axial_y + cur_dy + 1 ],
+		    fill = brush_color, outline = pen_color
+		    )
+	      #end if valid value
+	      node_x += node_wd
+	    #end for node cells
+
+	    im_draw.rectangle(
+		[ assy_x, axial_y, assy_x + assy_wd, axial_y + cur_dy ],
+		fill = None, outline = assy_pen
+	        )
+	  #end if assembly referenced
+
+	  assy_x += assy_wd
+	#end for assy_col
+
+	axial_y += cur_dy
+      #end for assy_row
+
+#			-- Draw Legend Image
+#			--
+      if legend_pil_im is not None:
+        im.paste(
+	    legend_pil_im,
+	    ( core_region[ 0 ] + core_region[ 2 ] + 2 + font_size,
+	      core_region[ 1 ] )
+	    )
+	legend_size = legend_pil_im.size
+      else:
+	legend_size = ( 0, 0 )
+
+#			-- Draw Title String
+#			--
+      axial_y = max( axial_y, legend_size[ 1 ] )
+      axial_y += font_size >> 2
+
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+          )
+      title_size = pil_font.getsize( title_str )
+      title_x = max(
+	  font_size,
+	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
+#(core_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
+	  )
+      im_draw.text(
+          ( title_x, axial_y ),
+	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
+          )
+
+      del im_draw
+    #end if config exists
+    elapsed_time = timeit.default_timer() - start_time
+    print >> sys.stderr, \
+        '\n[CoreAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
+	( elapsed_time, im is None )
+
+    #return  im
+    return  im if im is not None else self.emptyPilImage
+  #end _CreateRasterImageNodal
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateRasterImageNonNodal()	-
+  #----------------------------------------------------------------------
+  def _CreateRasterImageNonNodal( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
 @param  config		optional config to use instead of self.config
@@ -429,7 +785,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     print >> sys.stderr, \
-        '[CoreAxial2DView._CreateRasterImage] tuple_in=%s' % \
+        '[CoreAxial2DView._CreateRasterImageNonNodal] tuple_in=%s' % \
 	str( tuple_in )
     im = None
 
@@ -629,13 +985,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if config exists
     elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, \
-        '\n[CoreAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
-	( elapsed_time, im is None )
 
     #return  im
     return  im if im is not None else self.emptyPilImage
-  #end _CreateRasterImage
+  #end _CreateRasterImageNonNodal
 
 
   #----------------------------------------------------------------------
@@ -643,7 +996,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
     """
-@return  ( state_index, pin_offset )
+@return  ( state_index, assy_col_or_row, pin_col_or_row )
 """
     if self.mode == 'xz':
       t = ( self.stateIndex, self.assemblyAddr[ 2 ], self.subAddr[ 1 ] )
@@ -712,7 +1065,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = self.config[ 'assemblyWidth' ]
       axials_dy = self.config[ 'axialLevelsDy' ]
       core_region = self.config[ 'coreRegion' ]
-      pin_wd = self.config[ 'pinWidth' ]
+      #pin_wd = self.config[ 'pinWidth' ]
 
       off_x = ev_x - core_region[ 0 ]
       off_y = ev_y - core_region[ 1 ]
@@ -726,7 +1079,11 @@ If neither are specified, a default 'scale' value of 4 is used.
         assy_col = max( self.cellRange[ 0 ], assy_col )
 	assy_col_or_row = assy_col
 
-	pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
+	#pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
+	pin_offset = off_x % assy_wd
+	pin_col_or_row = \
+	    self._FindPinNodal( pin_offset ) if self.nodalMode else \
+	    self._FindPinNonNodal( pin_offset )
 	if pin_col_or_row >= self.data.core.npinx: pin_col_or_row = -1
 
       else:
@@ -738,7 +1095,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	assy_row = max( self.cellRange[ 0 ], assy_row )
 	assy_col_or_row = assy_row
 
-	pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
+	#pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
+	pin_offset = off_x % assy_wd
+	pin_col_or_row = \
+	    self._FindPinNodal( pin_offset ) if self.nodalMode else \
+	    self._FindPinNonNodal( pin_offset )
 	if pin_col_or_row >= self.data.core.npiny: pin_col_or_row = -1
       #end if-else
 
@@ -817,6 +1178,51 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._FindPinNodal()			-
+  #----------------------------------------------------------------------
+  def _FindPinNodal( self, pin_offset ):
+    """
+@return  0-based pin_col_or_row
+"""
+    pin_col_or_row = -1
+    node_wd = self.config[ 'nodeWidth' ]
+
+    node_addr = self.data.GetNodeAddr( self.subAddr )
+
+    node_col_or_row = pin_offset / node_wd
+    if self.mode == 'xz':
+      if node_col_or_row > (self.data.core.npinx >> 1):
+	node_addr = 3 if node_addr >= 2 else 1
+      else:
+	node_addr = 2 if node_addr >= 2 else 0
+      sub_addr = self.data.GetSubAddrFromNode( node_addr )
+      pin_col_or_row = sub_addr[ 0 ]
+
+    else:
+      if node_col_or_row > (self.data.core.npiny >> 1):
+	node_addr = 3 if node_addr in ( 1, 3 ) else 2
+      else:
+	node_addr = 1 if node_addr in ( 1, 3 ) else 0
+      sub_addr = self.data.GetSubAddrFromNode( node_addr )
+      pin_col_or_row = sub_addr[ 1 ]
+
+    return  pin_col_or_row
+  #end _FindPinNodal
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._FindPinNonNodal()		-
+  #----------------------------------------------------------------------
+  def _FindPinNonNodal( self, pin_offset ):
+    """
+@return  0-based pin_col_or_row
+"""
+    pin_wd = self.config[ 'pinWidth' ]
+    return  pin_offset / pin_wd
+  #end _FindPinNonNodal
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.GetAnimationIndexes()		-
   #----------------------------------------------------------------------
   def GetAnimationIndexes( self ):
@@ -832,7 +1238,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly' ]
+    return  [ 'pin', 'pin:assembly', 'pin:node' ]
   #end GetDataSetTypes
 
 
@@ -1282,6 +1688,7 @@ method via super.SaveProps().
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
+	self.nodalMode = ds_type.find( ':node' ) > 0
         self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
 	self.container.GetDataSetMenu().Reset()
