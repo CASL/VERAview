@@ -66,6 +66,32 @@ be called before use.
 @param  avg_axis	axes defining shape for resulting average
 @return			np.ndarray
 """
+    #errors_args = { 'divide': 'ignore', 'invalid': 'ignore' }
+    avg = None
+    if data is not None:
+      errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
+      try:
+	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
+        avg[ avg == np.inf ] = 0.0
+	avg = np.nan_to_num( avg )
+      finally:
+	np.seterr( **errors_save )
+    #end if
+
+    return  avg
+  #end calc_average
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_average_old()				-
+  #----------------------------------------------------------------------
+  def calc_average_old( self, data, avg_weights, avg_axis, **errors_args ):
+    """
+@param  data		np.ndarray with dataset values to average
+@param  avg_weights	weights to apply as a denominator to the data sum
+@param  avg_axis	axes defining shape for resulting average
+@return			np.ndarray
+"""
     avg = None
     if data is not None:
       if errors_args:
@@ -80,7 +106,7 @@ be called before use.
     #end if
 
     return  avg
-  #end calc_average
+  #end calc_average_old
 
 
   #----------------------------------------------------------------------
@@ -129,7 +155,6 @@ be called before use.
 @param  data		np.ndarray with shape ( core.nax, core.nass )
 @return			np.ndarray([ w, x, y, z ])
 """
-    result = np.zeros( ( 1, 4, core.nax, core.nass ), dtype = np.float64 )
     values = \
         [ np.sum( data * assy_node_weights[ i, :, : ] ) for i in range( 4 ) ]
     return  np.array( values, dtype = np.float64 )
@@ -149,7 +174,7 @@ be called before use.
 """
 #		-- Node factors
 #		--
-    node_factors = np.zeros( ( 4, core.nax, core.nass ), dtype = np.float64 )
+    node_factors = np.ones( ( 4, core.nax, core.nass ), dtype = np.float64 )
     for l in xrange( core.nass ):
       for k in xrange( core.nax ):
         node_factors[ :, k, l ] = self._calc_node_sum(
@@ -231,7 +256,7 @@ be called before use.
 	dtype = np.float64
 	)
 
-    errors_save = np.seterr( invalid = 'ignore' )
+    errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
     try:
       for l in xrange( self.core.nass ):
         for k in xrange( self.core.nax ):
@@ -241,6 +266,8 @@ be called before use.
 	      )
 
       avg /= self.nodeWeights
+      avg[ avg == np.inf ] = 0.0
+      avg = np.nan_to_num( avg )
     finally:
       np.seterr( **errors_save )
 
@@ -262,7 +289,7 @@ be called before use.
   #----------------------------------------------------------------------
   def calc_pin_radial_avg( self, dset ):
     return  \
-    self.calc_average( dset.value, self.radialWeights, 2, invalid = 'ignore' )
+    self.calc_average( dset.value, self.radialWeights, 2 )
   #end calc_pin_radial_avg
 
 

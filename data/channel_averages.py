@@ -45,9 +45,7 @@ be called before use.
 """
     avg = None
     if dset is not None:
-      if errors_args:
-        errors_save = np.seterr( **errors_args )
-        #errors = np.seterr( invalid = 'ignore' )
+      errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
       try:
 	factor_weights = None
         #avg_weights = np.ones( avg_axis, dtype = int )
@@ -79,8 +77,7 @@ be called before use.
 	avg = np.sum( dset * factor_weights, axis = avg_axis ) / avg_weights
 	avg = np.nan_to_num( avg )
       finally:
-	if errors_args:
-          np.seterr( **errors_save )
+	np.seterr( **errors_save )
     #end if
 
     return  avg
