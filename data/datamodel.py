@@ -3213,35 +3213,52 @@ being one greater in each dimension.
       ds_shape = ds_def[ 'shape' ]
       ds_type = ds_def[ 'type' ]
 
+      if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
+        sub_addrs = [ sub_addrs ]
+
 #			-- 'detector', 'fixed_detector'
 #			--
       if ds_type == 'detector' or ds_type == 'fixed_detector':
         det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
 	result = dset.value[ :, det_ndx ]
 
-      elif ds_type.find( ':node' ) > 0 and 'copy_shape' in ds_def:
-	result = {}
-        ds_shape = ds_def[ 'copy_shape' ]
-        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
-	node_addr_set = set()
-        for sub_addr in sub_addrs:
-	  node_addr = self.GetNodeAddr( sub_addr )
-	  if node_addr not in node_addr_set:
-	    node_addr_set.add( node_addr )
-	    result[ sub_addr ] = dset.value[ 0, node_addr, :, assy_ndx ]
+      elif sub_addrs is None:
+        pass
 
+#			-- ':node'
+#			--
+      elif ds_type.find( ':node' ) > 0:
+	#if sub_addrs is not None and 'copy_shape' in ds_def:
+	if 'copy_shape' in ds_def:
+	  result = {}
+          ds_shape = ds_def[ 'copy_shape' ]
+          assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+	  node_addr_set = set()
+	  if sub_addrs is None:
+	    node_addr_set.add( ( 0, -1 ) )
+	  else:
+            for sub_addr in sub_addrs:
+	      node_ndx = self.GetNodeAddr( sub_addr )
+              node_addr = ( node_ndx, -1 )
+              if node_addr not in node_addr_set:
+	        node_addr_set.add( node_addr )
+	  #end if-else sub_addrs
+
+	  for node_addr in sorted( node_addr_set ):
+	    result[ node_addr ] = dset.value[ 0, node_addr[ 0 ], :, assy_ndx ]
+	#end if copy_shape
+
+#			-- Everything else
+#			--
       else:
-#        colrows = \
-#            channel_colrows  if ds_type.startswith( 'channel' ) else \
-#	    pin_colrows
-        if sub_addrs is not None:
-          ds_shape = \
+        ds_shape = \
               ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	      ds_def[ 'shape' ]
 
-          assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
-          if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+        if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+	  if sub_addrs is not None:
 	    result = {}
             sub_addr_set = set()
             for sub_addr in sub_addrs:
@@ -3254,10 +3271,10 @@ being one greater in each dimension.
 	        result[ sub_addr ] = \
 	            dset.value[ sub_addr[ 1 ], sub_addr[ 0 ], :, assy_ndx ]
             #end for sub_addr
-          else:
-	    result = dset.value[ 0, 0, :, assy_ndx ]
-          #end if-else ds_shape
-        #end if sub_addrs
+	  #end if sub_addrs
+        else:
+	  result = dset.value[ 0, 0, :, assy_ndx ]
+        #end if-else ds_shape
       #end if-else ds_type
     #end if dset is not None
 
@@ -3351,6 +3368,9 @@ being one greater in each dimension.
     result = None
     ds_def = self.GetDataSetDefByDsName( ds_name )
 
+    if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
+      sub_addrs = [ sub_addrs ]
+
 #		-- 'state' is special
 #		--
     if ds_name == 'state':
@@ -3409,15 +3429,39 @@ being one greater in each dimension.
 	  values.append( 0.0 )
       result = np.array( values, dtype = np.float64 )
 
+#		-- ':node'
+#		--
+    elif ds_type.find( ':node' ) > 0:
+      if sub_addrs is not None and 'copy_shape' in ds_def:
+        result = {}
+        ds_shape = ds_def[ 'copy_shape' ]
+        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+	node_addr_set = set()
+        for sub_addr in sub_addrs:
+	  node_addr = self.GetNodeAddr( sub_addr )
+	  if node_addr not in node_addr_set:
+	    node_addr_set.add( node_addr )
+	    result[ node_addr ] = []
+        node_addrs_sorted = sorted( node_addr_set )
+
+        for i in range( len( self.states ) ):
+	  dset = self.GetStateDataSet( i, ds_name )
+	  if dset is None:
+	    for node_addr in node_addrs_sorted:
+	      result[ node_addr ].append( 0.0 )
+	  else:
+	    for node_addr in node_addrs_sorted:
+	      value = dset[ 0, node_addr, axial_level, assy_ndx ]
+	      result[ sub_addr ].append( value )
+        #end for i
+
+	for k in result:
+	  result[ k ] = np.array( result[ k ], dtype = np.float64 )
+      #end if sub_addrs and copy_shape
+
 #		-- Others
 #		--
     else:
-#      colrows = \
-#          channel_colrows  if ds_def[ 'type' ].startswith( 'channel' ) else \
-#	  pin_colrows
-      if not hasattr( sub_addrs, '__iter__' ):
-        sub_addrs = [ sub_addrs ]
-
       ds_shape = \
           ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
 	  ds_def[ 'shape' ]
@@ -3426,7 +3470,7 @@ being one greater in each dimension.
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
-      if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1:
+      if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1 and sub_addrs is not None:
 	result = {}
         sub_addr_set = set()
         for sub_addr in sub_addrs:
@@ -3450,7 +3494,7 @@ being one greater in each dimension.
 	      value = dset.\
 	          value[ sub_addr[ 1 ], sub_addr[ 0 ], axial_level, assy_ndx ]
 	      result[ sub_addr ].append( value )
-        #end for st
+        #end for i
 
 	for k in result:
 	  result[ k ] = np.array( result[ k ], dtype = np.float64 )
@@ -3525,10 +3569,15 @@ at a time for better performance.
 	lookup_ds_name = ds_name[ 1 : ] if ds_name[ 0 ] == '*' else ds_name
 	ds_def = ds_defs.get( ds_name )
         dset = self.GetStateDataSet( state_ndx, lookup_ds_name )
+	ds_type = ds_def[ 'type' ]
+
+        sub_addrs = spec.get( 'sub_addrs' )
+        if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
+          sub_addrs = [ sub_addrs ]
 
 #			-- Scalar
 #			--
-	if ds_def[ 'type' ] == 'scalar':
+	if ds_type == 'scalar':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
 	  value = 0.0  if dset is None else  dset.value.item()
@@ -3536,7 +3585,7 @@ at a time for better performance.
 
 #			-- Detector
 #			--
-	elif ds_def[ 'type' ] == 'detector':
+	elif ds_type == 'detector':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
 
@@ -3556,7 +3605,7 @@ at a time for better performance.
 
 #			-- Fixed detector
 #			--
-	elif ds_def[ 'type' ] == 'fixed_detector':
+	elif ds_type == 'fixed_detector':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
 
@@ -3574,14 +3623,53 @@ at a time for better performance.
 	    value = dset.value[ axial_ndx, det_ndx ]
 	  result[ ds_name ].append( value )
 
+#			-- :node
+#			--
+        elif ds_type.find( ':node' ) > 0:
+          #if sub_addrs is not None and 'copy_shape' in ds_def:
+          if 'copy_shape' in ds_def:
+	    if ds_name in result:
+	      ds_result = result[ ds_name ]
+	    else:
+	      ds_result = {}
+	      result[ ds_name ] = ds_result
+
+	    ds_shape = ds_def[ 'copy_shape' ]
+            if dset is not None:
+	      assembly_index = spec.get(
+	          'assembly_index',
+		  spec.get( 'assembly_addr', 0 )
+		  )
+              assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+
+	      axial_cm = spec.get( 'axial_cm', 0.0 )
+              ax_value = self.CreateAxialValue( cm = axial_cm )
+              axial_ndx = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
+
+	    node_addr_set = set()
+	    if sub_addrs is None:
+	      node_addr_set.add( ( 0, -1 ) )
+	    else:
+              for sub_addr in sub_addrs:
+	        node_ndx = self.GetNodeAddr( sub_addr )
+		node_addr = ( node_ndx, -1 )
+	        if node_addr not in node_addr_set:
+	          node_addr_set.add( node_addr )
+	    #end if-else sub_addrs
+
+	    for node_addr in sorted( node_addr_set ):
+	      if node_addr not in ds_result:
+	        ds_result[ node_addr ] = []
+              value = 0.0
+              if dset is not None:
+	        value = dset.value[ 0, node_addr[ 0 ], axial_ndx, assy_ndx ]
+              ds_result[ node_addr ].append( value )
+	  #end if copy_shape
+
 #			-- Others are pin-based
 #			--
 	else:
-#          colrows = \
-#              spec.get( 'channel_colrows' ) \
-#	      if ds_def[ 'type' ].startswith( 'channel' ) else \
-#              spec.get( 'pin_colrows' )
-	  sub_addrs = spec.get( 'sub_addrs' )
+	  #sub_addrs = spec.get( 'sub_addrs' )
 
 #				-- Must have sub_addrs
           if sub_addrs is not None:
@@ -3996,8 +4084,10 @@ base type.
 @param  row		0-based row index
 @return			"( col + 1, row + 1 )"
 """
-    #return  str( ( col + 1, row + 1 ) )
-    return  '(%d,%d)' % ( col + 1, row + 1 )
+    #return  '(%d,%d)' % ( col + 1, row + 1 )
+    return  \
+        '(%d,%d)' % ( col + 1, row + 1 )  if row >= 0 else \
+        '(%d)' % (col + 1)
   #end ToAddrString
 
 

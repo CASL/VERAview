@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-10-02	leerw@ornl.gov				-
+#	  Fixed bug where toolbar item event handlers were not removed
+#	  in VeraViewFrame._UpdateToolBar(), resulting in double widgets
+#	  after opening a new file.
 #		2016-09-20	leerw@ornl.gov				-
 #	  Added weights mode to the edit menu.
 #		2016-09-03	leerw@ornl.gov				-
@@ -142,7 +146,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.63'
+TITLE = 'VERAView Version 1.0.64'
 
 TOOLBAR_ITEMS = \
   [
@@ -2144,6 +2148,12 @@ Must be called on the UI event thread.
     """
 """
     data = self.state.GetDataModel()
+
+    for i in xrange( len( TOOLBAR_ITEMS ) ):
+      item = tbar.FindById( i + 1 )
+      if item is not None:
+        self.Unbind( wx.EVT_TOOL, item )
+        #self.Unbind( wx.EVT_TOOL, self._OnWidgetTool, id = i + 1 )
     tbar.ClearTools()
 
     if data is not None:
@@ -2180,7 +2190,8 @@ Must be called on the UI event thread.
 	      shortHelpString = tip
 	      )
 	  tb_item.Enable( enabled )
-          self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+          self.Bind( wx.EVT_TOOL, self._OnWidgetTool, tb_item )
+          #self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
         #end if-else separator
 
         ti_count += 1

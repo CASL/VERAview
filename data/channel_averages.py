@@ -65,7 +65,8 @@ be called before use.
 
 	if factor_weights is None:
           factor_weights = np.ones(
-	      ( core.npiny + 1, core.npinx + 1, core.nax, core.nass ),
+	      ( self.core.npiny + 1, self.core.npinx + 1,
+	        self.core.nax, self.core.nass ),
 	      dtype = int
 	      )
 	else:
@@ -74,7 +75,9 @@ be called before use.
 	#end if-else factor_weights
 
         avg_weights = np.sum( factor_weights, axis = avg_axis )
-	avg = np.sum( dset * factor_weights, axis = avg_axis ) / avg_weights
+	#dset.value is deprecated
+	ds_array = np.array( dset )
+	avg = np.sum( ds_array * factor_weights, axis = avg_axis ) / avg_weights
 	avg = np.nan_to_num( avg )
       finally:
 	np.seterr( **errors_save )

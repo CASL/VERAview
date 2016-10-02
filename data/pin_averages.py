@@ -59,18 +59,19 @@ be called before use.
   #----------------------------------------------------------------------
   #	METHOD:		calc_average()					-
   #----------------------------------------------------------------------
-  def calc_average( self, data, avg_weights, avg_axis, **errors_args ):
+  def calc_average( self, dset, avg_weights, avg_axis ):
     """
-@param  data		np.ndarray with dataset values to average
+@param  dset		h5py.Dataset object
 @param  avg_weights	weights to apply as a denominator to the data sum
 @param  avg_axis	axes defining shape for resulting average
 @return			np.ndarray
 """
     #errors_args = { 'divide': 'ignore', 'invalid': 'ignore' }
     avg = None
-    if data is not None:
+    if dset is not None:
       errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
       try:
+	data = np.array( dset )
 	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
         avg[ avg == np.inf ] = 0.0
 	avg = np.nan_to_num( avg )
@@ -174,7 +175,7 @@ be called before use.
 """
 #		-- Node factors
 #		--
-    node_factors = np.ones( ( 4, core.nax, core.nass ), dtype = np.float64 )
+    node_factors = np.zeros( ( 4, core.nax, core.nass ), dtype = np.float64 )
     for l in xrange( core.nass ):
       for k in xrange( core.nax ):
         node_factors[ :, k, l ] = self._calc_node_sum(
@@ -227,7 +228,8 @@ be called before use.
   #	METHOD:		calc_pin_assembly_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_assembly_avg( self, dset ):
-    return  self.calc_average( dset.value, self.assemblyWeights, ( 0, 1 ) )
+    return  self.calc_average( dset, self.assemblyWeights, ( 0, 1 ) )
+    #return  self.calc_average( dset.value, self.assemblyWeights, ( 0, 1 ) )
   #end calc_pin_assembly_avg
 
 
@@ -235,7 +237,8 @@ be called before use.
   #	METHOD:		calc_pin_axial_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_axial_avg( self, dset ):
-    return  self.calc_average( dset.value, self.axialWeights, ( 0, 1, 3 ) )
+    return  self.calc_average( dset, self.axialWeights, ( 0, 1, 3 ) )
+    #return  self.calc_average( dset.value, self.axialWeights, ( 0, 1, 3 ) )
   #end calc_pin_axial_avg
 
 
@@ -243,7 +246,8 @@ be called before use.
   #	METHOD:		calc_pin_core_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_core_avg( self, dset ):
-    return  self.calc_average( dset.value, self.coreWeights, ( 0, 1, 2, 3 ) )
+    return  self.calc_average( dset, self.coreWeights, ( 0, 1, 2, 3 ) )
+    #return  self.calc_average( dset.value, self.coreWeights, ( 0, 1, 2, 3 ) )
   #end calc_pin_core_avg
 
 
@@ -279,8 +283,8 @@ be called before use.
   #	METHOD:		calc_pin_radial_assembly_avg()			-
   #----------------------------------------------------------------------
   def calc_pin_radial_assembly_avg( self, dset ):
-    return  \
-    self.calc_average( dset.value, self.radialAssemblyWeights, ( 0, 1, 2 ) )
+    return  self.calc_average( dset, self.radialAssemblyWeights, ( 0, 1, 2 ) )
+    #self.calc_average( dset.value, self.radialAssemblyWeights, ( 0, 1, 2 ) )
   #end calc_pin_radial_assembly_avg
 
 
@@ -288,8 +292,8 @@ be called before use.
   #	METHOD:		calc_pin_radial_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_radial_avg( self, dset ):
-    return  \
-    self.calc_average( dset.value, self.radialWeights, 2 )
+    return  self.calc_average( dset, self.radialWeights, 2 )
+    #self.calc_average( dset.value, self.radialWeights, 2 )
   #end calc_pin_radial_avg
 
 
