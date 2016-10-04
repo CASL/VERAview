@@ -36,7 +36,7 @@ be called before use.
   #----------------------------------------------------------------------
   #	METHOD:		calc_average()					-
   #----------------------------------------------------------------------
-  def calc_average( self, dset, avg_axis, **errors_args ):
+  def calc_average( self, dset, avg_axis ):
     """
 @param  dset		h5py.Dataset object
 @param  avg_axis	axis for averaging
@@ -78,6 +78,8 @@ be called before use.
 	#dset.value is deprecated
 	ds_array = np.array( dset )
 	avg = np.sum( ds_array * factor_weights, axis = avg_axis ) / avg_weights
+	if len( avg.shape ) > 0:
+          avg[ avg == np.inf ] = 0.0
 	avg = np.nan_to_num( avg )
       finally:
 	np.seterr( **errors_save )
@@ -124,7 +126,7 @@ be called before use.
   #	METHOD:		calc_channel_radial_avg()			-
   #----------------------------------------------------------------------
   def calc_channel_radial_avg( self, dset ):
-    return  self.calc_average( dset, 2, invalid = 'ignore' )
+    return  self.calc_average( dset, 2 )
   #end calc_channel_radial_avg
 
 

@@ -1,6 +1,9 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2016-10-04	leerw@ornl.gov				-
+#	  Adding radialNodeWeights and and calc_pin_radial_node_avg()
+#	  to pin_averages.py.
 #		2016-10-01	godfreyat@ornl.gov			-
 #	  Fixed _calc_node_weights() and calc_pin_node_avg().
 #		2016-09-30	leerw@ornl.gov				-
@@ -53,6 +56,7 @@ be called before use.
       self.nodeWeights = \
       self.pinWeights = \
       self.radialAssemblyWeights = \
+      self.radialNodeWeights = \
       self.radialWeights = \
       None
   #end __init__
@@ -75,7 +79,8 @@ be called before use.
       try:
 	data = np.array( dset )
 	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
-        avg[ avg == np.inf ] = 0.0
+	if len( avg.shape ) > 0:
+          avg[ avg == np.inf ] = 0.0
 	avg = np.nan_to_num( avg )
       finally:
 	np.seterr( **errors_save )
@@ -173,7 +178,8 @@ be called before use.
 @param  assy_node_weights  np.ndarray with shape ( 4, core.npiny, core.npinx )
 @param  pin_weights	pin weights np.ndarray
 @return			node weights as np.ndarray with shape
-			( 4, core.nax, core.ass )
+			( 4, core.nax, core.ass ) and radial node weights with
+			shape ( 1, core.nax, core.nass )
 """
 #		-- Node factors
 #		--
@@ -202,7 +208,9 @@ be called before use.
           node_factors[0,:,l]=0
           node_factors[2,:,l]=0
         
-    return  np.nan_to_num( node_factors )
+    node_factors = np.nan_to_num( node_factors )
+    radial_node_factors = np.sum( node_factors, axis = 1 )
+    return  node_factors, radial_node_factors
   #end _calc_node_weights
 
 
@@ -344,7 +352,8 @@ be called before use.
 @param  pin_factors	optional factors to use for pinWeights
 @return			( pin_weights, assembly_weights, axial_weights,
 			  core_weights, radial_assembly_weights,
-			  radial_weights, assy_node_weights, node_weights )
+			  radial_weights, assy_node_weights,
+			  node_weights, radial_node_weights )
 """
 # Get the geometry information ----------------------------------------
 #map=f['CORE']['core_map']               # get core map
@@ -454,12 +463,13 @@ be called before use.
 #			-- Calculate node weights
 #			--
     assy_node_weights = self._calc_node_assembly_weights( core )
-    node_weights = \
+    node_weights, radial_node_weights = \
         self._calc_node_weights( core, assy_node_weights, pin_weights )
 
     return  \
         pin_weights, assembly_weights, axial_weights, core_weights, \
-        radial_assembly_weights, radial_weights, assy_node_weights, node_weights
+        radial_assembly_weights, radial_weights, assy_node_weights, \
+	node_weights, radial_node_weights
   #end _calc_weights
 
 
@@ -484,7 +494,8 @@ be called before use.
     self.radialAssemblyWeights, \
     self.radialWeights, \
     self.assemblyNodeWeights, \
-    self.nodeWeights = \
+    self.nodeWeights, \
+    self.radialNodeWeights = \
     self._calc_weights( core, ref_pin_powers, pin_factors )
   #end load
 

@@ -1362,6 +1362,7 @@ returned.  Calls FindMaxValueAddr().
 			subAddr, stateIndex
 @return			changes dict with possible keys: 'assembly_addr',
 			'axial_value', 'sub_addr', 'state_index'
+@deprecated  use FindChannelMinMaxValue()
 """
     results = {}
 
@@ -1634,6 +1635,7 @@ descending.  Note bisect only does ascending.
 @param  state_ndx	0-based state point index, or -1 for all states
 @return			( dataset addr indices or None, state_ndx,
 			  max_value or None )
+@deprecated  Use FindMinMaxValueAddr()
 """
     addr = None
     max_value = None
@@ -1689,9 +1691,50 @@ descending.  Note bisect only does ascending.
     addr = None
     minmax_value = None
 
-    if ds_name is None:
+#		-- Resolve factors to dataset if necessary
+#		--
+    if ds_name and factors is not None:
+      ds_shape = None
+      ds_type = self.GetDataSetType( ds_name )
+      if ds_type:
+        ds_def = self.GetDataSetDef( ds_type )
+	if ds_def:
+          ds_shape = \
+              ds_def[ 'copy_shape' ] if 'copy_shape' in ds_def else \
+              ds_def[ 'shape' ]
+
+      if ds_shape is None:
+        ds_name = None
+
+      elif factors.shape != ds_shape:
+        if 'copy_expr' not in ds_def:
+	  factors = None
+        else:
+	  sum_axis = []
+	  for i in xrange( len( ds_shape ) ):
+	    if ds_shape[ i ] != factors.shape[ i ] and ds_shape[ i ] == 1:
+	      sum_axis.append( i )
+	  #end for i
+
+          sum_factors = np.sum( factors, axis = tuple( sum_axis ) )
+	  new_factors = np.ndarray( ds_shape, dtype = np.float64 )
+	  exec_str = 'new_factors' + ds_def[ 'copy_expr' ] + ' = sum_factors'
+	  exec(
+	      exec_str, {},
+	      { 'new_factors': new_factors, 'sum_factors': sum_factors }
+	      )
+	  factors = new_factors
+        #end if-else copy_expr defined
+      #end if-else factors.shape != ds_shape:
+    #end if ds_name and factors
+
+#		-- Must have data
+#		--
+    if not ds_name:
       pass
 
+#		-- Single state point
+#		--
     elif state_ndx >= 0:
       dset = self.GetStateDataSet( state_ndx, ds_name )
       if dset:
@@ -1707,6 +1750,8 @@ descending.  Note bisect only does ascending.
 	addr = np.unravel_index( x, dset.shape )
 	minmax_value = dset_value[ addr ]
 
+#		-- Multiple state points
+#		--
     else:
       minmax_value = -sys.float_info.max if max_flag else sys.float_info.max
       for st in range( len( self.states ) ):
@@ -1757,6 +1802,7 @@ specified datasets.  Calls FindMaxValueAddr().
 @param  ds_names	dataset names to search
 @return			dict with possible keys: 'assembly_addr',
 			'axial_value', 'state_index', 'sub_addr'
+@deprecated  Use FindMultiDataSetMinMaxValue()
 """
     results = {}
     max_ds_name, max_addr, max_state_ndx, max_value = None, None, None, None
@@ -2150,6 +2196,7 @@ returned.  Calls FindMinMaxValueAddr().
       factors = \
           self.nodeFactors if ds_type and ds_type.find( ':node' ) > 0 else \
 	  self.pinFactors
+    #end if use_factors
 
     addr, state_ndx, value = self.FindMinMaxValueAddr(
         mode, ds_name, state_ndx,
@@ -2213,6 +2260,25 @@ returned.  Calls FindMinMaxValueAddr().
       #end for listener
     #end if event_name
   #end FireEvent
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetAverager()				-
+  #----------------------------------------------------------------------
+  def GetAverager( self, ds_type = None ):
+    """
+@param  ds_type		optional type/category name ( 'channel', 'pin' )
+@return			dict of averager objects if ds_category is None,
+			otherwise the named averager if found, otherwise None
+@return			if ds_type is not None, averager object for that
+			ds_type or None if not found
+			if ds_type is None, dict of averager objects by
+			ds_type
+"""
+    return \
+	self.averagers.get( ds_type ) if ds_type else \
+        self.averagers
+  #end GetAverager
 
 
   #----------------------------------------------------------------------
@@ -2294,8 +2360,6 @@ returned.  Calls FindMinMaxValueAddr().
   def GetDataSetNames( self, ds_type = None ):
     """Accessor for the 'dataSetNames' property.
 @param  ds_type		optional type name
-@param  cull_deriveds	if ds_type is specified and cull_deriveds is True,
-			only 
 @return			if ds_type is not None, list of datasets in that
 			ds_type, empty if not found
 			if ds_type is None, dict of dataset name lists by
@@ -2304,10 +2368,10 @@ returned.  Calls FindMinMaxValueAddr().
 			  'pin', 'scalar', etc. )
 """
     return \
-        dict( self.dataSetNames ) if ds_type is None else \
-	list( self.dataSetNames.get( ds_type, [] ) )
-#        self.dataSetNames if ds_type is None else \
-#	self.dataSetNames.get( ds_type, [] )
+        list( self.dataSetNames.get( ds_type, [] ) ) if ds_type else \
+        dict( self.dataSetNames )
+#        dict( self.dataSetNames ) if ds_type is None else \
+#	list( self.dataSetNames.get( ds_type, [] ) )
   #end GetDataSetNames
 
 
