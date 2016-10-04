@@ -1,6 +1,8 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2016-10-01	godfreyat@ornl.gov			-
+#	  Fixed _calc_node_weights() and calc_pin_node_avg().
 #		2016-09-30	leerw@ornl.gov				-
 #	  Revised _calc_weights() as per Andrew's guidance.
 #	  Added assemblyNodeWeights, nodeWeights, and _calc_node_weights().
@@ -182,7 +184,24 @@ be called before use.
 	    core, assy_node_weights,
 	    pin_weights[ :, :, k, l ]
 	    )
+  
+    if core.coreSym==4 and core.nassx%2==1 and core.npinx%2==1:     # if quarter symmetry and odd assem
+      mass = core.nassx / 2
+      for i in xrange(mass,core.nassx):
+        l=self.core.coreMap[mass,i]-1
+        if l>=0:
+          node_factors[2,:,l]+=node_factors[0,:,l]
+          node_factors[3,:,l]+=node_factors[1,:,l]
+          node_factors[0,:,l]=0
+          node_factors[1,:,l]=0
 
+        l=self.core.coreMap[i,mass]-1
+        if l>=0:
+          node_factors[1,:,l]+=node_factors[0,:,l]
+          node_factors[3,:,l]+=node_factors[2,:,l]
+          node_factors[0,:,l]=0
+          node_factors[2,:,l]=0
+        
     return  np.nan_to_num( node_factors )
   #end _calc_node_weights
 
@@ -266,8 +285,26 @@ be called before use.
         for k in xrange( self.core.nax ):
 	  avg[ 0, :, k, l ] = self._calc_node_sum(
 	      self.core, self.assemblyNodeWeights,
-	      dset[ :, :, k, l ]
+	      dset[ :, :, k, l ] * self.pinWeights[ :, :, k, l]
 	      )
+
+      # if quarter symmetry and odd assem
+      if self.core.coreSym==4 and self.core.nassx%2==1 and self.core.npinx%2==1:
+        mass = self.core.nassx / 2
+        for i in xrange(mass,self.core.nassx):
+          l=self.core.coreMap[mass,i]-1
+          if l>=0:
+            avg[ 0, 2,:,l]+=avg[ 0, 0,:,l]
+            avg[ 0, 3,:,l]+=avg[ 0, 1,:,l]
+            avg[ 0, 0,:,l]=0
+            avg[ 0, 1,:,l]=0
+
+          l=self.core.coreMap[i,mass]-1
+          if l>=0:
+            avg[ 0, 1,:,l]+=avg[ 0, 0,:,l]
+            avg[ 0, 3,:,l]+=avg[ 0, 2,:,l]
+            avg[ 0, 0,:,l]=0
+            avg[ 0, 2,:,l]=0
 
       avg /= self.nodeWeights
       avg[ avg == np.inf ] = 0.0
