@@ -296,24 +296,7 @@ be called before use.
 	      dset[ :, :, k, l ] * self.pinWeights[ :, :, k, l]
 	      )
 
-      # if quarter symmetry and odd assem
-      if self.core.coreSym==4 and self.core.nassx%2==1 and self.core.npinx%2==1:
-        mass = self.core.nassx / 2
-        for i in xrange(mass,self.core.nassx):
-          l=self.core.coreMap[mass,i]-1
-          if l>=0:
-            avg[ 0, 2,:,l]+=avg[ 0, 0,:,l]
-            avg[ 0, 3,:,l]+=avg[ 0, 1,:,l]
-            avg[ 0, 0,:,l]=0
-            avg[ 0, 1,:,l]=0
-
-          l=self.core.coreMap[i,mass]-1
-          if l>=0:
-            avg[ 0, 1,:,l]+=avg[ 0, 0,:,l]
-            avg[ 0, 3,:,l]+=avg[ 0, 2,:,l]
-            avg[ 0, 0,:,l]=0
-            avg[ 0, 2,:,l]=0
-
+      avg = self._fix_node_factors( avg )
       avg /= self.nodeWeights
       avg[ avg == np.inf ] = 0.0
       avg = np.nan_to_num( avg )
@@ -340,6 +323,37 @@ be called before use.
     return  self.calc_average( dset, self.radialWeights, 2 )
     #self.calc_average( dset.value, self.radialWeights, 2 )
   #end calc_pin_radial_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_node_avg()			-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_node_avg( self, dset ):
+    avg = np.zeros(
+        ( 1, 1, self.core.nax, self.core.nass ),
+	dtype = np.float64
+	)
+
+    errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
+    try:
+      for l in xrange( self.core.nass ):
+        for k in xrange( self.core.nax ):
+	  node_sum = self._calc_node_sum(
+	      self.core, self.assemblyNodeWeights,
+	      dset[ :, :, k, l ] * self.pinWeights[ :, :, k, l]
+	      )
+          for n in xrange( 4 ):
+	    avg[ 0, 0, k, l ] += node_sum[ n ]
+
+      avg = self._fix_node_factors( avg )
+      avg /= self.nodeWeights
+      avg[ avg == np.inf ] = 0.0
+      avg = np.nan_to_num( avg )
+    finally:
+      np.seterr( **errors_save )
+
+    return  avg
+  #end calc_pin_radial_node_avg
 
 
   #----------------------------------------------------------------------
@@ -471,6 +485,36 @@ be called before use.
         radial_assembly_weights, radial_weights, assy_node_weights, \
 	node_weights, radial_node_weights
   #end _calc_weights
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_fix_node_factors()				-
+  #----------------------------------------------------------------------
+  def _fix_node_factors( self, avg ):
+    """Applies Andrew's quarter symmetry, odd assemblies node averaging fix.
+@param  avg		input factors, np.ndarray
+@return			same factors, updated
+"""
+    # if quarter symmetry and odd assem
+    if self.core.coreSym==4 and self.core.nassx%2==1 and self.core.npinx%2==1:
+      mass = self.core.nassx / 2
+      for i in xrange(mass,self.core.nassx):
+        l=self.core.coreMap[mass,i]-1
+        if l>=0:
+          avg[ 0, 2,:,l]+=avg[ 0, 0,:,l]
+          avg[ 0, 3,:,l]+=avg[ 0, 1,:,l]
+          avg[ 0, 0,:,l]=0
+          avg[ 0, 1,:,l]=0
+
+        l=self.core.coreMap[i,mass]-1
+        if l>=0:
+          avg[ 0, 1,:,l]+=avg[ 0, 0,:,l]
+          avg[ 0, 3,:,l]+=avg[ 0, 2,:,l]
+          avg[ 0, 0,:,l]=0
+          avg[ 0, 2,:,l]=0
+
+    return  avg
+  #end _fix_node_factors
 
 
   #----------------------------------------------------------------------

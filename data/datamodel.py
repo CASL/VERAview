@@ -311,7 +311,6 @@ DATASET_DEFS = \
     'copy_shape_expr': '( 1, 4, core.nax, core.nass )',
     'ds_prefix': 'node',
     'label': 'node',
-    'shape_expr': '( 1, )',
     'shape_expr': '( 4, core.nax, core.nass )',
     'type': 'pin:node'
     },
@@ -337,6 +336,17 @@ DATASET_DEFS = \
     'shape_expr': '( core.nass, )',
     'type': 'pin:radial_assembly'
     },
+
+#  'pin:radial_node':
+#    {
+#    'avg_method': 'calc_pin_radial_node_avg',
+#    'copy_expr': '[ 0, 0, :, : ]',
+#    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
+#    'ds_prefix': 'node',
+#    'label': 'node',
+#    'shape_expr': '( core.nax, core.nass )',
+#    'type': 'pin:node'
+#    },
 
   'scalar':
     {
