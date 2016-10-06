@@ -98,6 +98,7 @@ Static properties (use accessors):
 
       if path is not None:
         Config.haveGifsicle_ = os.path.join( Config.rootDir_, 'bin', path )
+	os.environ[ 'PATH' ] += os.pathsep + Config.haveGifsicle_
     #end if
 
     return  Config.haveGifsicle_

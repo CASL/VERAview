@@ -1239,7 +1239,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Core2DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:node', 'pin:radial', 'pin:radial_assembly' ]
+    return  [
+        'pin', 'pin:assembly', 'pin:node',
+	'pin:radial', 'pin:radial_assembly', 'pin:radial_node'
+	]
   #end GetDataSetTypes
 
 

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-06	leerw@ornl.gov				-
+#	  Modified _ResolveDataSets() to allow shape clashes and try to
+#	  resolve them by the prefix names.
 #		2016-10-01	leerw@ornl.gov				-
 #	  Added DataModel.GetNodeAddr() and GetSubAddrFromNode().
 #		2016-09-30	leerw@ornl.gov				-
@@ -337,16 +340,16 @@ DATASET_DEFS = \
     'type': 'pin:radial_assembly'
     },
 
-#  'pin:radial_node':
-#    {
-#    'avg_method': 'calc_pin_radial_node_avg',
-#    'copy_expr': '[ 0, 0, :, : ]',
-#    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
-#    'ds_prefix': 'node',
-#    'label': 'node',
-#    'shape_expr': '( core.nax, core.nass )',
-#    'type': 'pin:node'
-#    },
+  'pin:radial_node':
+    {
+    'avg_method': 'calc_pin_radial_node_avg',
+    'copy_expr': '[ 0, :, 0, : ]',
+    'copy_shape_expr': '( 1, 4, 1, core.nass )',
+    'ds_prefix': 'radial_node',
+    'label': 'radial node',
+    'shape_expr': '( 4, core.nass )',
+    'type': 'pin:radial_node'
+    },
 
   'scalar':
     {
@@ -1266,11 +1269,6 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 	result_list.append( repl_name )
 
       result = tuple( result_list )
-#      der_prefix = ddef[ 'ds_prefix' ]
-#      pref_name = der_prefix + '_' + ds_name
-#      repl_name = pref_name.replace( ds_category + '_', '' )
-#
-#      result = ( ds_type, pref_name, repl_name )
     #end if ddef
 
     return  result
@@ -3884,13 +3882,7 @@ ds_names	dict of dataset names by dataset type
 		if cat_name:
 		  break
 	      #end if def_name
-
-#	      if def_name != 'scalar' and \
-#	          def_item[ 'shape' ] == scalar_shape and \
-#		  cur_name.startswith( def_item[ 'ds_prefix' ] + '_' ):
-#	        cat_name = def_name
-#		break
-	    #end for
+	    #end for def_name, def_item
 	  #end if-else on cur_name
 
 	  if cat_name is None:
@@ -3910,18 +3902,6 @@ ds_names	dict of dataset names by dataset type
 	    ds_names[ 'axial' ].append( cur_name )
 	    ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
 
-#				-- Resolve detector_map if necessary
-#now in Core.ReadImpl()
-#          if core.detectorMap is None:
-#	    core.detectorMap = core.coreMap
-
-#				-- Resolve detector_mesh if necessary
-#now in Core.ReadImpl()
-#          if core.detectorMesh is None:
-#            core.detectorMesh = core.axialMeshCenters
-#            core.ndetax = core.nax
-#            core.ndet = core.nass
-
 #			-- Fixed detector is special case
 #			--
 	elif cur_name == 'fixed_detector_response' and \
@@ -3934,24 +3914,60 @@ ds_names	dict of dataset names by dataset type
 #			-- Not a scalar
 #			--
 	else:
+	  cat_item_maybe = None
+	  cat_item = None
 	  for def_name, def_item in ds_defs.iteritems():
-	    if cur_shape == def_item[ 'shape' ]:
-#						-- Special fixed_detector check
-	      if def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is not None:
+	    if cur_shape == def_item[ 'shape' ] and \
+	      (def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is None):
+	      if 'ds_prefix' not in def_item:
+	        cat_item = def_item
+	      else:
+	        if cat_item_maybe is None:
+	          cat_item_maybe = def_item
+	        for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+	          if cur_name.startswith( ds_prefix + '_' ):
+		    cat_item = def_item
+		    break
+	      #end if-else 'ds_prefix' defined
 
-	        ds_names[ def_name ].append( cur_name )
-	        ds_defs_by_name[ cur_name ] = def_item
+	      if cat_item:
+	        break
+	    #end if shape match
+	  #end for def_name, def_item
 
-		cur_shape_expr = def_item[ 'shape_expr' ]
-	        #if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
-		if cur_shape_expr.find( 'core.nax' ) >= 0 or \
-		    cur_shape_expr.find( 'core.ndetax' ) >= 0 or \
-		    cur_shape_expr.find( 'core.nfdetax' ) >= 0:
-	          ds_names[ 'axial' ].append( cur_name )
-	      #end if def_name...
-	      break
-	  #end for
+	  if cat_item is None and cat_item_maybe is not None:
+	    cat_item = cat_item_maybe
+	  if cat_item is not None:
+	    ds_names[ cat_item[ 'type' ] ].append( cur_name )
+	    ds_defs_by_name[ cur_name ] = cat_item
+
+	    cur_shape_expr = cat_item[ 'shape_expr' ]
+	    if cur_shape_expr.find( 'core.nax' ) >= 0 or \
+	        cur_shape_expr.find( 'core.ndetax' ) >= 0 or \
+		cur_shape_expr.find( 'core.nfdetax' ) >= 0:
+	      ds_names[ 'axial' ].append( cur_name )
+	  #if cat_item
+
+###original else-block
+#	  for def_name, def_item in ds_defs.iteritems():
+#	    if cur_shape == def_item[ 'shape' ]:
+##						-- Special fixed_detector check
+#	      if def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is not None:
+#
+#	        ds_names[ def_name ].append( cur_name )
+#	        ds_defs_by_name[ cur_name ] = def_item
+#
+#		cur_shape_expr = def_item[ 'shape_expr' ]
+#	        #if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
+#		if cur_shape_expr.find( 'core.nax' ) >= 0 or \
+#		    cur_shape_expr.find( 'core.ndetax' ) >= 0 or \
+#		    cur_shape_expr.find( 'core.nfdetax' ) >= 0:
+#	          ds_names[ 'axial' ].append( cur_name )
+#	      #end if def_name...
+#	      break
+#	  #end for
         #end if-else on shape
+      #end if not a copy
     #end for st_group keys
 
 #		-- Sort names
