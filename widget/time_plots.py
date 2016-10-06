@@ -601,8 +601,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       'channel:assembly', 'channel:axial', 'channel:core', 'channel:radial',
       'channel:radial_assembly',
       'detector', 'fixed_detector',
-      'pin', 'pin:assembly', 'pin:axial', 'pin:core', 'pin:radial',
-      'pin:radial_assembly',
+      'pin', 'pin:assembly', 'pin:axial', 'pin:core', 'pin:node',
+      'pin:radial', 'pin:radial_node', 'pin:radial_assembly',
       'scalar'
       ]
   #end GetDataSetTypes

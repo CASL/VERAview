@@ -731,7 +731,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       [
       'channel', 'channel:assembly', 'channel:axial',
       'detector', 'fixed_detector',
-      'pin', 'pin:assembly', 'pin:axial'
+      'pin', 'pin:assembly', 'pin:axial', 'pin:node'
       ]
   #end GetDataSetTypes
 

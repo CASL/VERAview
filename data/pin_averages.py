@@ -343,7 +343,6 @@ be called before use.
 	    avg[ 0, :, 0, l ] += node_sum[ n ]
 
       avg = self._fix_node_factors( avg )
-
       for n in xrange( 4 ):
         avg[ 0, n, 0, : ] /= self.radialNodeWeights[ n, : ]
 
