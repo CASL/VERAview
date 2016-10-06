@@ -1736,7 +1736,7 @@ method via super.SaveProps().
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-	self.nodalMode = ds_type.find( ':node' ) > 0
+	self.nodalMode = self.data.IsNodalType( ds_type )
         self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
 	self.container.GetDataSetMenu().Reset()

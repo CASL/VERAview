@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-06	leerw@ornl.gov				-
+#	  Updated to call DataModel.IsNodalType() and thus support
+#	  pin:radial_node datasets.
 #		2016-10-01	leerw@ornl.gov				-
 #	  Adding support for nodal derived types.
 #		2016-09-19	leerw@ornl.gov				-
@@ -1405,7 +1408,7 @@ method via super.SaveProps().
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
-	self.nodalMode = ds_type.find( ':node' ) > 0
+	self.nodalMode = self.data.IsNodalType( ds_type )
         self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
 	self.container.GetDataSetMenu().Reset()

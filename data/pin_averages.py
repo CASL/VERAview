@@ -329,10 +329,7 @@ be called before use.
   #	METHOD:		calc_pin_radial_node_avg()			-
   #----------------------------------------------------------------------
   def calc_pin_radial_node_avg( self, dset ):
-    avg = np.zeros(
-        ( 1, 1, self.core.nax, self.core.nass ),
-	dtype = np.float64
-	)
+    avg = np.zeros( ( 1, 4, 1, self.core.nass ), dtype = np.float64 )
 
     errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
     try:
@@ -343,10 +340,13 @@ be called before use.
 	      dset[ :, :, k, l ] * self.pinWeights[ :, :, k, l]
 	      )
           for n in xrange( 4 ):
-	    avg[ 0, 0, k, l ] += node_sum[ n ]
+	    avg[ 0, :, 0, l ] += node_sum[ n ]
 
       avg = self._fix_node_factors( avg )
-      avg /= self.nodeWeights
+
+      for n in xrange( 4 ):
+        avg[ 0, n, 0, : ] /= self.radialNodeWeights[ n, : ]
+
       avg[ avg == np.inf ] = 0.0
       avg = np.nan_to_num( avg )
     finally:

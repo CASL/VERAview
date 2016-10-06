@@ -2202,8 +2202,7 @@ returned.  Calls FindMinMaxValueAddr().
     if use_factors:
       ds_type = self.GetDataSetType( ds_name )
       factors = \
-          self.nodeFactors if ds_type and ds_type.find( ':node' ) > 0 else \
-	  self.pinFactors
+          self.nodeFactors if self.IsNodalType( ds_type ) else self.pinFactors
     #end if use_factors
 
     addr, state_ndx, value = self.FindMinMaxValueAddr(
@@ -2758,14 +2757,21 @@ the properties construct for this class soon.
     if self.core is None or node_addr < 0 or node_addr >= 4:
       sub_addr = ( -1, -1 )
     else:
-      cx = self.core.npinx >> 1
-      cy = self.core.npiny >> 1
+#      cx = self.core.npinx >> 1
+#      cy = self.core.npiny >> 1
+#      if mode == 'channel':
+#        cx += 1
+#	cy += 1
+#      col = 0 if node_addr in ( 0, 2 ) else cx
+#      row = 0 if node_addr in ( 0, 1 ) else cy
+      npinx = self.core.npinx
+      npiny = self.core.npiny
       if mode == 'channel':
-        cx += 1
-	cy += 1
+        npinx += 1
+        npiny += 1
+      col = 0 if node_addr in ( 0, 2 ) else npinx - 1
+      row = 0 if node_addr in ( 0, 1 ) else npiny - 1
 
-      col = 0 if node_addr in ( 0, 2 ) else cx
-      row = 0 if node_addr in ( 0, 1 ) else cy
       sub_addr = ( col, row )
 
     return  sub_addr
@@ -2896,6 +2902,20 @@ for NaN.  For now, we just assume 0.0 is "no data".
     #return  value <= 0.0 if ds_range[ 0 ] >= 0.0 else math.isnan( value )
     return  value == 0.0 or math.isnan( value ) or math.isinf( value )
   #end IsNoDataValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsNodalType()				-
+  #----------------------------------------------------------------------
+  def IsNodalType( self, ds_type ):
+    """Determines if the category/type represents a nodal dataset.
+@param  ds_type		dataset category/type
+@return			True if nodal, False otherwise
+"""
+    return  \
+        ds_type and \
+        (ds_type.find( ':node' ) > 0 or ds_type.find( ':radial_node' ) > 0)
+  #end IsNodalType
 
 
   #----------------------------------------------------------------------
@@ -3299,7 +3319,7 @@ being one greater in each dimension.
 
 #			-- ':node'
 #			--
-      elif ds_type.find( ':node' ) > 0:
+      elif self.IsNodalType( ds_type ):
 	#if sub_addrs is not None and 'copy_shape' in ds_def:
 	if 'copy_shape' in ds_def:
 	  result = {}
@@ -3436,6 +3456,7 @@ being one greater in each dimension.
 			dict by sub_addr of np.ndarray for datasets that vary
 			by sub_addr,
 			np.ndarray for other datasets
+@deprecated  use ReadDataSetValues2()
 """
     result = None
     ds_def = self.GetDataSetDefByDsName( ds_name )
@@ -3503,7 +3524,7 @@ being one greater in each dimension.
 
 #		-- ':node'
 #		--
-    elif ds_type.find( ':node' ) > 0:
+    elif self.IsNodalType( ds_type ):
       if sub_addrs is not None and 'copy_shape' in ds_def:
         result = {}
         ds_shape = ds_def[ 'copy_shape' ]
@@ -3697,7 +3718,7 @@ at a time for better performance.
 
 #			-- :node
 #			--
-        elif ds_type.find( ':node' ) > 0:
+	elif self.IsNodalType( ds_type ):
           #if sub_addrs is not None and 'copy_shape' in ds_def:
           if 'copy_shape' in ds_def:
 	    if ds_name in result:

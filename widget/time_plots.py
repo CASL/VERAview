@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#	  Updated for node dataset types.
 #		2016-08-23	leerw@ornl.gov				-
 #	  Trying to use DataSetMenu.
 #		2016-08-20	leerw@ornl.gov				-
