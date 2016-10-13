@@ -220,6 +220,12 @@ If neither are specified, a default 'scale' value of 4 is used.
     if config is None:
       config = self.config
     if config is not None and tuple_valid:
+      if 'assemblyRegion' not in config:
+	if 'clientSize' in config:
+          config = self._CreateAssyDrawConfig( size = config[ 'clientSize' ] )
+	else:
+          config = self._CreateAssyDrawConfig( scale = config[ 'scale' ] )
+
 #			-- Draw channel "cells"
 #			--
       assy_region = config[ 'assemblyRegion' ]
@@ -648,6 +654,12 @@ If neither are specified, a default 'scale' value of 4 is used.
     if config is None:
       config = self.config
     if config is not None:
+      if 'coreRegion' not in config:
+	if 'clientSize' in config:
+          config = self._CreateCoreDrawConfig( size = config[ 'clientSize' ] )
+	else:
+          config = self._CreateCoreDrawConfig( scale = config[ 'scale' ] )
+
       assy_advance = config[ 'assemblyAdvance' ]
       assy_wd = config[ 'assemblyWidth' ]
       chan_wd = config[ 'channelWidth' ]
@@ -794,7 +806,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #           -- Draw value for cross-pin integrations
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
-	      value_str, value_size = self._CreateValueDisplay(
+	      value_str, value_size, tfont = self._CreateValueDisplay(
 	          value, 3, value_font, assy_wd, value_font_size
 		  )
 	      if value_str:
@@ -803,7 +815,7 @@ If neither are specified, a default 'scale' value of 4 is used.
                 im_draw.text(
 		    ( value_x, value_y ), value_str,
 		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = value_font
+		    font = tfont
                     )
 	    #end if draw_value_flag
 	  #end if assembly referenced

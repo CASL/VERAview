@@ -951,17 +951,24 @@ requested width for the specified font.
 @param  font		rendering font
 @param  display_wd	pixel width available for display
 @param  font_size	optional size for dynamic resize
-@return			( string of optimal length, ( wd, ht ) )
+@return			( string of optimal length, ( wd, ht ), font )
 """
     value_str = self._CreateValueString( value, precision )
     value_size = font.getsize( value_str )
-    if value_size[ 0 ] >= display_wd:
+    eval_str = value_str if len( value_str ) >= precision else '9' * precision
+    eval_size = font.getsize( eval_str )
+
+    #if value_size[ 0 ] >= display_wd:
+    if eval_size[ 0 ] >= display_wd:
       precision -= 1
       value_str = self._CreateValueString( value, precision )
       value_size = font.getsize( value_str )
+      eval_str = value_str if len( value_str ) >= precision else '9' * precision
+      eval_size = font.getsize( eval_str )
 
 #new stuff
-      if value_size[ 0 ] >= display_wd and font_size > 7:
+      #if value_size[ 0 ] >= display_wd and font_size > 7:
+      if eval_size[ 0 ] >= display_wd and font_size > 7:
         font_size = int( font_size * 0.8 )
         font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
         value_str = self._CreateValueString( value, precision )
@@ -972,7 +979,7 @@ requested width for the specified font.
 	value_size = ( 0, 0 )
 #new stuff
 
-    return  ( value_str, value_size )
+    return  ( value_str, value_size, font )
   #end _CreateValueDisplay
 
 

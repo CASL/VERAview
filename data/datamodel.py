@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-13	leerw@ornl.gov				-
+#	  Fixed "ds_prefix" values for channel derived types in
+#	  DATASET_DEFS to avoid conflicts with pin derived types.
 #		2016-10-06	leerw@ornl.gov				-
 #	  Modified _ResolveDataSets() to allow shape clashes and try to
 #	  resolve them by the prefix names.
@@ -196,60 +199,60 @@ DATASET_DEFS = \
     'type': 'channel'
     },
 
-  'channel:assembly':
-    {
-    'avg_method': 'calc_channel_assembly_avg',
-    'copy_expr': '[ 0, 0, :, : ]',
-    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
-    'ds_prefix': 'asy,assembly',
-    'label': 'assembly',  # '3D asy'
-    'shape_expr': '( core.nax, core.nass )',
-    'type': 'channel:assembly'
-    },
+#  'channel:assembly':
+#    {
+#    'avg_method': 'calc_channel_assembly_avg',
+#    'copy_expr': '[ 0, 0, :, : ]',
+#    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
+#    'ds_prefix': 'ch_asy,ch_assembly',
+#    'label': 'assembly',  # '3D asy'
+#    'shape_expr': '( core.nax, core.nass )',
+#    'type': 'channel:assembly'
+#    },
 
-  'channel:axial':
-    {
-    'avg_method': 'calc_channel_axial_avg',
-    'copy_expr': '[ 0, 0, :, 0 ]',
-    'copy_shape_expr': '( 1, 1, core.nax, 1 )',
-    'ds_prefix': 'axial',
-    'label': 'axial',
-    'shape_expr': '( core.nax, )',
-    'type': 'channel:axial'
-    },
+#  'channel:axial':
+#    {
+#    'avg_method': 'calc_channel_axial_avg',
+#    'copy_expr': '[ 0, 0, :, 0 ]',
+#    'copy_shape_expr': '( 1, 1, core.nax, 1 )',
+#    'ds_prefix': 'ch_axial',
+#    'label': 'axial',
+#    'shape_expr': '( core.nax, )',
+#    'type': 'channel:axial'
+#    },
 
-  'channel:core':
-    {
-    'avg_method': 'calc_channel_core_avg',
-    'copy_expr': '[ 0, 0, 0, 0 ]',
-    'copy_shape_expr': '( 1, 1, 1, 1 )',
-    'ds_prefix': 'core',
-    'label': 'core',
-    'shape_expr': '( 1, )',
-    'type': 'channel:core'
-    },
+#  'channel:core':
+#    {
+#    'avg_method': 'calc_channel_core_avg',
+#    'copy_expr': '[ 0, 0, 0, 0 ]',
+#    'copy_shape_expr': '( 1, 1, 1, 1 )',
+#    'ds_prefix': 'ch_core',
+#    'label': 'core',
+#    'shape_expr': '( 1, )',
+#    'type': 'channel:core'
+#    },
 
   'channel:radial':
     {
     'avg_method': 'calc_channel_radial_avg',
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny + 1, core.npinx + 1, 1, core.nass )',
-    'ds_prefix': 'radial',
+    'ds_prefix': 'radial,ch_radial',
     'label': 'radial',  # '2D pin'
     'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nass )',
     'type': 'channel:radial'
     },
 
-  'channel:radial_assembly':
-    {
-    'avg_method': 'calc_channel_radial_assembly_avg',
-    'copy_expr': '[ 0, 0, 0, : ]',
-    'copy_shape_expr': '( 1, 1, 1, core.nass )',
-    'ds_prefix': 'radial_asy,radial_assembly',
-    'label': 'radial assembly',  # '2D assy'
-    'shape_expr': '( core.nass, )',
-    'type': 'channel:radial_assembly'
-    },
+#  'channel:radial_assembly':
+#    {
+#    'avg_method': 'calc_channel_radial_assembly_avg',
+#    'copy_expr': '[ 0, 0, 0, : ]',
+#    'copy_shape_expr': '( 1, 1, 1, core.nass )',
+#    'ds_prefix': 'ch_radial_asy,ch_radial_assembly',
+#    'label': 'radial assembly',  # '2D assy'
+#    'shape_expr': '( core.nass, )',
+#    'type': 'channel:radial_assembly'
+#    },
 
   'detector':
     {

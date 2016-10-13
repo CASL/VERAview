@@ -226,6 +226,8 @@ If neither are specified, a default 'scale' value of 24 is used.
     mode = 'assy'
     pinGap
     pinWidth		used for pin or node width, depending on self.nodalMode
+    valueFont
+    valueFontSize
 """
     ds_range = self.data.GetRange(
         self.pinDataSet,
@@ -287,12 +289,19 @@ If neither are specified, a default 'scale' value of 24 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    value_font_size = assy_wd >> 1
+    value_font = \
+        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
+	if value_font_size >= 6 else None
+
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
     config[ 'lineWidth' ] = max( 1, pin_gap )
     config[ 'mode' ] = 'assy'
     config[ 'pinGap' ] = pin_gap
     config[ 'pinWidth' ] = pin_wd
+    config[ 'valueFont' ] = value_font
+    config[ 'valueFontSize' ] = value_font_size
 
     return  config
   #end _CreateAssyDrawConfig
@@ -322,6 +331,12 @@ If neither are specified, a default 'scale' value of 24 is used.
     if config is None:
       config = self.config
     if config is not None and tuple_valid:
+      if 'assemblyRegion' not in config:
+	if 'clientSize' in config:
+          config = self._CreateAssyDrawConfig( size = config[ 'clientSize' ] )
+	else:
+          config = self._CreateAssyDrawConfig( scale = config[ 'scale' ] )
+
       assy_region = config[ 'assemblyRegion' ]
       im_wd, im_ht = config[ 'clientSize' ]
       font_size = config[ 'fontSize' ]
@@ -330,6 +345,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       pil_font = config[ 'pilFont' ]
       pin_gap = config[ 'pinGap' ]
       pin_wd = config[ 'pinWidth' ]
+      value_font = config[ 'valueFont' ]
+      value_font_size = config[ 'valueFontSize' ]
 
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
@@ -432,6 +449,17 @@ If neither are specified, a default 'scale' value of 24 is used.
 	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 	          fill = brush_color, outline = pen_color
 	          )
+	      value_str, value_size, tfont = self._CreateValueDisplay(
+	          value, 3, value_font, pin_wd, value_font_size >> 1
+	          )
+	      if value_str:
+	        value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
+		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
+                im_draw.text(
+		    ( value_x, value_y ), value_str,
+		    fill = Widget.GetContrastColor( *brush_color ),
+		    font = tfont
+                    )
 	    else:
 	      im_draw.ellipse(
 	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
@@ -762,6 +790,12 @@ If neither are specified, a default 'scale' value of 4 is used.
     if config is None:
       config = self.config
     if config is not None:
+      if 'coreRegion' not in config:
+	if 'clientSize' in config:
+          config = self._CreateCoreDrawConfig( size = config[ 'clientSize' ] )
+	else:
+          config = self._CreateCoreDrawConfig( scale = config[ 'scale' ] )
+
       assy_advance = config[ 'assemblyAdvance' ]
       assy_wd = config[ 'assemblyWidth' ]
       im_wd, im_ht = config[ 'clientSize' ]
@@ -808,11 +842,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  )
 
       draw_value_flag = \
+          value_font is not None and \
           self.pinDataSet is not None and \
-          dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1 and \
-          value_font is not None
-          #(self.pinDataSet.startswith( 'asy_' ) or \
-          # self.pinDataSet.startswith( 'radial_asy' ))
+	  dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1
 
 #			-- Limit axial level
 #			--
@@ -825,6 +857,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       im_draw = PIL.ImageDraw.Draw( im )
 
       assy_pen = ( 155, 155, 155, 255 )
+      node_pen = ( 100, 100, 100, 255 )
 
 #			-- Loop on assembly rows
 #			--
@@ -916,7 +949,26 @@ If neither are specified, a default 'scale' value of 4 is used.
 		      [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 		      fill = brush_color, outline = pen_color
 		      )
+
+		  if self.nodalMode:
+	            im_draw.rectangle(
+		        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+		        fill = None, outline = node_pen
+		        )
+	            value_str, value_size, tfont = self._CreateValueDisplay(
+	                value, 3, value_font, pin_wd, value_font_size >> 1
+		        )
+	            if value_str:
+		      value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
+		      value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
+                      im_draw.text(
+		          ( value_x, value_y ), value_str,
+		          fill = Widget.GetContrastColor( *brush_color ),
+		          font = tfont
+                          )
+		  #end if nodalMode
 		#end if value gt 0
+
 	        pin_x += pin_wd
 	      #end for pin cols
 
@@ -931,7 +983,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #           -- Draw value for cross-pin integrations
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
-	      value_str, value_size = self._CreateValueDisplay(
+	      value_str, value_size, tfont = self._CreateValueDisplay(
 	          value, 3, value_font, assy_wd, value_font_size
 		  )
 	      if value_str:
@@ -940,7 +992,7 @@ If neither are specified, a default 'scale' value of 4 is used.
                 im_draw.text(
 		    ( value_x, value_y ), value_str,
 		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = value_font
+		    font = tfont
                     )
 	    #end if draw_value_flag
 	  #end if assembly referenced
@@ -1162,7 +1214,8 @@ The config and data attributes are good to go.
     result = None
     if self.mode == 'assy':
       pin = self.FindPin( ev_x, ev_y )
-      result = ( -1, pin[ 0 ], pin[ 1 ] )
+      if pin is not None:
+        result = ( -1, pin[ 0 ], pin[ 1 ] )
     else:
       result = self.FindAssembly( ev_x, ev_y )
 
@@ -1174,7 +1227,7 @@ The config and data attributes are good to go.
   #	METHOD:		Core2DView.FindPin()				-
   #----------------------------------------------------------------------
   def FindPin( self, ev_x, ev_y ):
-    """Finds the pin index.
+    """Finds the pin index.  Must be in 'assy' mode.
 @param  ev_x		event x coordinate (relative to this)
 @param  ev_y		event y coordinate (relative to this)
 @return			None if no match, otherwise tuple of
@@ -1182,7 +1235,8 @@ The config and data attributes are good to go.
 """
     result = None
 
-    if self.config is not None and self.data is not None:
+    if self.config is not None and self.data is not None and \
+        'assemblyRegion' in self.config:
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
@@ -1319,6 +1373,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
 	    self.subAddr[ 0 ] < self.data.core.npin and \
 	    self.subAddr[ 1 ] < self.data.core.npin:
+#	    'assemblyRegion' in self.config:
           assy_region = self.config[ 'assemblyRegion' ]
 	  pin_gap = self.config[ 'pinGap' ]
 	  pin_wd = self.config[ 'pinWidth' ]
@@ -1470,8 +1525,8 @@ be overridden by subclasses.
 """
     if right - left == 1 and bottom - top == 1:
       self.assemblyAddr = self.dragStartCell
-      self.FireStateChange( assembly_addr = self.assemblyAddr )
       self._SetMode( 'assy' )
+      self.FireStateChange( assembly_addr = self.assemblyAddr )
     else:
       self._SetMode( 'core' )
   #end _OnDragFinished

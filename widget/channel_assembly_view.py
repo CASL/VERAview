@@ -725,7 +725,7 @@ Must be called from the UI thread.
 	        )
 
 	    if value_font is not None:
-	      value_str, value_size = self._CreateValueDisplay(
+	      value_str, value_size, tfont = self._CreateValueDisplay(
 	          value, 3, value_font, chan_wd, value_font_size
 		  )
 	      if value_str:
@@ -734,7 +734,7 @@ Must be called from the UI thread.
                 im_draw.text(
 		    ( value_x, value_y ), value_str,
 		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = value_font
+		    font = tfont
                     )
 	    #end if value_font defined
 

@@ -853,7 +853,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       value_font, value_font_size = 0
       ):
 
-    draw_items = []  # [ ( text, x, rely, color ) ]
+    draw_items = []  # [ ( text, x, rely, color, font ) ]
+    tfont = value_font
 
 #		-- Build detector values
 #		--
@@ -869,11 +870,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       if dset is not None and \
           dset.value.shape[ 1 ] > det_ndx and \
 	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
-	value_str, value_size = self._CreateValueDisplay(
+	value_str, value_size, tfont = self._CreateValueDisplay(
 	    dset.value[ axial_value[ 1 ], det_ndx ], 3, value_font, det_wd
 	    )
 	draw_items.append(
-	    ( value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color )
+	    ( value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color, tfont )
 	    )
 #	im_draw.text(
 #	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
@@ -897,13 +898,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       if dset is not None and \
           dset.value.shape[ 1 ] > det_ndx and \
 	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
-	value_str, value_size = self._CreateValueDisplay(
+	value_str, value_size, tfont = self._CreateValueDisplay(
 	    dset.value[ axial_value[ 2 ], det_ndx ], 3,
 	    value_font, det_wd, value_font_size
 	    )
 	if value_str:
 	  draw_items.append((
-	      value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color
+	      value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color, tfont
 	      ))
 	text_y += value_size[ 1 ] + 1
       #end if valid value
@@ -918,7 +919,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     for item in draw_items:
       im_draw.text(
           ( item[ 1 ], top + item[ 2 ] ),
-	  item[ 0 ], fill = item[ 3 ], font = value_font
+	  item[ 0 ], fill = item[ 3 ], font = item[ 4 ]
 	  )
     #end for item
   #end _DrawNumbers
@@ -947,7 +948,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
 	#cur_value = '%.5g' % dset.value[ axial_value[ 1 ], det_ndx ]
 	#wd, ht = value_font.getsize( cur_value )
-	value_str, value_size = self._CreateValueDisplay(
+	value_str, value_size, tfont = self._CreateValueDisplay(
 	    dset.value[ axial_value[ 1 ], det_ndx ], 3, value_font, det_wd
 	    )
 
@@ -974,7 +975,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
 	#cur_value = '%.5g' % dset.value[ axial_value[ 2 ], det_ndx ]
 	#wd, ht = value_font.getsize( cur_value )
-	value_str, value_size = self._CreateValueDisplay(
+	value_str, value_size, tfont = self._CreateValueDisplay(
 	    dset.value[ axial_value[ 2 ], det_ndx ], 3, value_font, det_wd
 	    )
 	im_draw.text(
