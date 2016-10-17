@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
 #		2016-10-14	leerw@ornl.gov				-
 #	  Using new _DrawValues() method.
 #		2016-09-29	leerw@ornl.gov				-
@@ -894,7 +896,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Assembly2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:radial' ]
+    return  [ 'pin', ':radial' ]
   #end GetDataSetTypes
 
 

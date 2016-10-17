@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
 #		2016-08-24	leerw@ornl.gov				-
 #		2016-08-23	leerw@ornl.gov				-
 #	  Refinements and bug fixes.
@@ -53,7 +55,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
       ):
     """Initializes with an empty menu.
 @param  state		State object, required
-@param  binder		object from window containingg this on which to call
+@param  binder		object from window containing this on which to call
 			Bind() for menu events
 @param  mode		mode value: ('selected' implies 'multi')
     ''			- single selection, flat menu (default)
@@ -82,8 +84,11 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     self.binder = binder
     self.dataSetListener = ds_listener
     self.dataSetMenuVersion = -1
+
+#		-- Types are resolved in _LoadDataModel()
     self.dataSetTypes = []
     self.dataSetTypesIn = ds_types
+
     self.derivedMenu = None
     self.derivedMenuLabelMap = {}
     self.mode = mode
@@ -101,7 +106,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
   #	METHOD:		DataSetMenu._CheckSingleItem()			-
   #----------------------------------------------------------------------
   def _CheckSingleItem( self, menu, checked_item ):
-    """DFS walk through menus and items.
+    """DFS walk through menus and items, recursively.
 @param  menu		menu to check, where None means self
 @param  checked_item	item to check or None to clear all checks
 """
@@ -316,10 +321,6 @@ otherwise returns self.state.curDataSet
 	  self.dataSetTypes.append( k )
 	  if k.find( ':' ) >= 0:
 	    have_derived_flag = True
-#          if k.find( ':' ) < 0 and \
-#	      data_model.HasDataSetType( k ) and \
-#	      data_model.GetDerivedLabels( k ):
-#	    have_derived_flag = True
       #end for k
 
       if self.showDerivedMenu and have_derived_flag:
@@ -381,6 +382,51 @@ otherwise returns self.state.curDataSet
     try:
       menu = ev.GetEventObject()
       item = menu.FindItemById( ev.GetId() )
+      data_model = State.FindDataModel( self.state )
+
+      if item is not None and data_model is not None:
+        der_ds_name = None
+	ds_name = item.GetItemLabelText().replace( ' *', '' )
+	der_label_menu = item.GetMenu()
+
+	ds_category = data_model.GetDataSetType( ds_name )
+	der_label = self.derivedMenuLabelMap.get( der_label_menu )
+	if ds_category and der_label:
+	  der_ds_name = data_model.\
+	      ResolveDerivedDataSet( ds_category, der_label, ds_name )
+
+	if der_ds_name:
+	  #if item.GetKind() == wx.ITEM_CHECK:
+	  if not self.IsSingleSelection():
+            if self.dataSetListener and \
+	        hasattr( self.dataSetListener, 'ToggleDataSetVisible' ):
+	      self.dataSetListener.ToggleDataSetVisible( der_ds_name )
+	  elif self.widget is not None:
+	    self.widget.SetDataSet( der_ds_name )
+	  else:
+	    reason = self.state.Change( None, cur_dataset = der_ds_name )
+	    self.state.FireStateChange( reason )
+          #end if-else item.GetKind()
+	#end if der_ds_name
+      #end if item is not None
+
+    except Exception, ex:
+      wx.MessageBox(
+          str( ex ), 'Calculate Derived Dataset',
+          wx.OK_DEFAULT, self.GetWindow()
+          )
+  #end _OnDerivedDataSetMenuItem
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu._OnDerivedDataSetMenuItem_old()	-
+  #----------------------------------------------------------------------
+  def _OnDerivedDataSetMenuItem_old( self, ev ):
+    ev.Skip()
+
+    try:
+      menu = ev.GetEventObject()
+      item = menu.FindItemById( ev.GetId() )
       if item is not None:
         der_ds_name = None
 	ds_name = item.GetItemLabelText().replace( ' *', '' )
@@ -421,13 +467,14 @@ otherwise returns self.state.curDataSet
           str( ex ), 'Calculate Derived Dataset',
           wx.OK_DEFAULT, self.GetWindow()
           )
-  #end _OnDerivedDataSetMenuItem
+  #end _OnDerivedDataSetMenuItem_old
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataSetMenu._OnNewDataSet()			-
   #----------------------------------------------------------------------
   def _OnNewDataSet( self, *args, **kwargs ):
+    #setattr( self, '__stopme', True )
     wx.CallAfter( self.UpdateMenu )
   #end _OnNewDataSet
 
@@ -443,68 +490,75 @@ otherwise returns self.state.curDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.SetState()				-
-  #----------------------------------------------------------------------
-  def SetState( self, state ):
-    """
-@deprecated
-"""
-#xx    self.state = state
-#xx    self.HandleStateChange( STATE_CHANGE_init )
-#		-- Only process if state differs
-#		--
-    if state is not None:
-      if state != self.state:
-        state.AddListener( self )
-	if self.state is not None:
-          self.state.RemoveListener( this )
-        self.state = state
-      #end if state != self.state
-
-      self.HandleStateChange( STATE_CHANGE_init )
-    #end if new state
-
-## #			-- Remove existing items
-## #			--
-##       while self.GetMenuItemCount() > 0:
-##         self.DestroyItem( self.FindItemByPosition( 0 ) )
-##       self.derivedMenu = None
-## 
-## #			-- Process datamodel
-## #			--
-##       data_model = state.GetDataModel()
-##       if data_model is not None:
-##         have_derived_flag = False
-## 
-## 	types_in = \
-## 	    self.dataSetTypesIn if self.dataSetTypesIn is not None else \
-## 	    data_model.GetDataSetNames().keys()
-## 	    #data_model.GetDataSetDefs().keys()
-##         del self.dataSetTypes[ : ]
-## 	for k in sorted( types_in ):
-## 	  if k != 'axial' and k.find( ':' ) < 0 and \
-## 	      data_model.HasDataSetType( k ):
-## 	    self.dataSetTypes.append( k )
-## 	    if data_model.GetDerivedLabels( k ):
-## 	      have_derived_flag = True
-## 	#end for k
-## 
-## 	if have_derived_flag:
-## 	  self.derivedMenu = wx.Menu()
-## 	  derived_item = wx.MenuItem(
-## 	      self, wx.ID_ANY, 'Derived',
-## 	      subMenu = self.derivedMenu
-## 	      )
-## 	  self.AppendItem( derived_item )
-##       #end if data_model
-  #end SetState
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataSetMenu._UpdateDerivedMenu()		-
   #----------------------------------------------------------------------
   def _UpdateDerivedMenu( self, data_model ):
     """
+@param  data_model	assumed not None
+"""
+#		-- Clear existing items
+#		--
+    self._ClearMenu( self.derivedMenu )
+    self.derivedMenuLabelMap.clear()
+
+#		-- Build map by derived label of maps by category/type
+#		-- of derivable datasets
+    derived_names_map = {}
+    for ds_type in self.dataSetTypes:
+      if data_model.IsDerivedType( ds_type ):
+        der_label = data_model.GetDataSetTypeDisplayName( ds_type )
+	ds_names = derived_names_map.get( der_label )
+	if ds_names is None:
+	  ds_names = []
+	  derived_names_map[ der_label ] = ds_names
+
+	for base_type in data_model.GetDerivableTypes( der_label ):
+	  base_ds_names = data_model.GetDataSetNames( base_type )
+	  ds_names += base_ds_names
+      #end if ds_type is derived
+    #end for ds_type
+
+#		-- Create derived submenus
+#		--
+    if derived_names_map:
+      single_flag = self.IsSingleSelection()
+      pullright_flag = self.IsPullright()
+      #item_kind = wx.ITEM_NORMAL if single_flag else wx.ITEM_CHECK
+      item_kind = wx.ITEM_NORMAL
+
+      for der_label, ds_names in sorted( derived_names_map.iteritems() ):
+	if len( ds_names ) > 0:
+          der_label_menu = wx.Menu()
+	  self.derivedMenuLabelMap[ der_label_menu ] = der_label
+	  for ds_name in sorted( ds_names ):
+	    ds_type = data_model.GetDataSetType( ds_name )
+	    item_label = ds_name
+	    if data_model.HasDerivedDataSet( ds_type, der_label, ds_name ):
+	      item_label += ' *'
+	    item = wx.MenuItem(
+		der_label_menu, wx.ID_ANY, item_label,
+		kind = item_kind
+	        )
+	    self.binder.\
+	        Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
+	    der_label_menu.AppendItem( item )
+
+          der_label_item = wx.MenuItem(
+	      self.derivedMenu, wx.ID_ANY, der_label,
+	      subMenu = der_label_menu
+	      )
+	  self.derivedMenu.AppendItem( der_label_item )
+        #if there are derivables
+      #end for der_label, ds_names
+    #end if derived_names_map
+  #end _UpdateDerivedMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu._UpdateDerivedMenu_old()		-
+  #----------------------------------------------------------------------
+  def _UpdateDerivedMenu_old( self, data_model ):
+    """Old, nest by primary type approach.
 @param  data_model	assumed not None
 """
 #		-- Clear existing items
@@ -534,28 +588,6 @@ otherwise returns self.state.curDataSet
         cat_names += category_ds_names
       #end if ds_type is derived
     #end for ds_type
-
-#    for ds_type in self.dataSetTypes:
-#      der_labels = \
-#	  None if ds_type.find( ':' ) >= 0 else \
-#          data_model.GetDerivedLabels( ds_type )
-#      if der_labels:
-#        category_ds_names = data_model.GetDataSetNames( ds_type )
-#
-#	for der_label in der_labels:
-#	  cat_names_map = derived_category_names_map.get( der_label )
-#	  if cat_names_map is None:
-#	    cat_names_map = {}
-#	    derived_category_names_map[ der_label ] = cat_names_map
-#
-#	  cat_names = cat_names_map.get( ds_type )
-#	  if cat_names is None:
-#	    cat_names = []
-#	    cat_names_map[ ds_type ] = cat_names
-#	  cat_names += category_ds_names
-#	#end for der_label
-#      #end if der_labels
-#    #end for ds_type
 
 #		-- Create derived submenus
 #		--
@@ -620,7 +652,7 @@ otherwise returns self.state.curDataSet
 	self.derivedMenu.AppendItem( der_label_item )
       #end for der_label, cat_names_map
     #end if derived_category_names_map
-  #end _UpdateDerivedMenu
+  #end _UpdateDerivedMenu_old
 
 
   #----------------------------------------------------------------------
@@ -629,6 +661,10 @@ otherwise returns self.state.curDataSet
   def UpdateMenu( self ):
     """
 """
+    if hasattr( self, '__stopme' ):
+      pdb.set_trace()
+      delattr( self, '__stopme' )
+
     data_model = State.FindDataModel( self.state )
     if data_model is not None and \
         self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
@@ -649,14 +685,15 @@ otherwise returns self.state.curDataSet
 
 #				-- Pullrights
 	if pullright_flag:
-#					-- Collect names by base category
+#					-- Collate names by base category
 	  names_by_type = {}
 	  for dtype in self.dataSetTypes:
 	    dataset_names = data_model.GetDataSetNames( dtype )
 	    if dataset_names:
-	      colon_ndx = dtype.find( ':' )
-	      if colon_ndx >= 0:
-	        dtype = dtype[ 0 : colon_ndx ]
+	      dtype = data_model.GetDataSetTypeDisplayName( dtype )
+	      #colon_ndx = dtype.find( ':' )
+	      #if colon_ndx >= 0:
+	      #  dtype = dtype[ 0 : colon_ndx ]
 
 	      if dtype in names_by_type:
 	        names_by_type[ dtype ] += dataset_names

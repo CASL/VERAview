@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
 #		2016-09-14	leerw@ornl.gov				-
 #	  Redrawing on changed channel selection
 #		2016-08-17	leerw@ornl.gov				-
@@ -804,7 +806,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		ChannelAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'channel', 'channel:assembly' ]
+    return  [ 'channel', ':assembly' ]
   #end GetDataSetTypes
 
 

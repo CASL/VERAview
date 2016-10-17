@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
 #		2016-10-14	leerw@ornl.gov				-
 #	  Using new _DrawValues() method.
 #		2016-10-01	leerw@ornl.gov				-
@@ -1328,8 +1330,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     return  [
-        'pin', 'pin:assembly', 'pin:node',
-	'pin:radial', 'pin:radial_assembly', 'pin:radial_node'
+        'pin', ':assembly', ':node',
+	':radial', ':radial_assembly', ':radial_node'
 	]
   #end GetDataSetTypes
 

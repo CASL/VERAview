@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
 #		2016-10-01	leerw@ornl.gov				-
 #	  Supporting :node datasets.
 #		2016-09-03	leerw@ornl.gov				-
@@ -729,9 +731,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def GetDataSetTypes( self ):
     return \
       [
-      'channel', 'channel:assembly', 'channel:axial',
-      'detector', 'fixed_detector',
-      'pin', 'pin:assembly', 'pin:axial', 'pin:node'
+      'channel', 'detector', 'fixed_detector', 'pin',
+      ':assembly', ':axial', ':node'
       ]
   #end GetDataSetTypes
 
@@ -1076,6 +1077,70 @@ Must be called from the event thread.
 	  if ds_name in self.dataSetValues:
 	    ds_values = self.dataSetValues[ ds_name ]
 
+#					-- Detector, fixed detector
+	  if ds_type == 'detector' or ds_type == 'fixed_detector':
+	    ds_values = self.data.ReadDataSetAxialValues(
+	        ds_name,
+		detector_index = self.assemblyAddr[ 0 ],
+		state_index = self.stateIndex
+		)
+            self.dataSetTypes.add( ds_type )
+
+#					-- Not scalar
+	  elif ds_type != 'scalar':
+#						-- Lazy creation
+	    if sub_addr_list is None:
+              sub_addr_list = list( self.auxSubAddrs )
+              sub_addr_list.insert( 0, self.subAddr )
+
+	    ds_values = self.data.ReadDataSetAxialValues(
+	        ds_name,
+		assembly_index = self.assemblyAddr[ 0 ],
+		sub_addrs = sub_addr_list,
+		state_index = self.stateIndex
+		)
+            self.dataSetTypes.add( ds_type )
+	  #end if ds_type match
+
+	  if ds_values is not None:
+	    self.dataSetValues[ k ] = ds_values
+        #end if visible
+      #end for each dataset
+    #end if valid state
+  #end _UpdateDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDataSetValues_old()			-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetValues_old( self ):
+    """Rebuild dataset arrays to plot.
+"""
+    self.dataSetTypes.clear()
+    self.dataSetValues.clear()
+
+#		-- Must have data
+#		--
+    #if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
+    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+      axial_ds_names = self.data.GetDataSetNames( 'axial' )
+
+      sub_addr_list = None
+
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+
+#				-- Must be visible and an "axial" dataset
+#				--
+        if ds_rec[ 'visible' ] and ds_name is not None and \
+	    ds_name in axial_ds_names:
+	  ds_values = None
+	  ds_type = self.data.GetDataSetType( ds_name )
+
+	  if ds_name in self.dataSetValues:
+	    ds_values = self.dataSetValues[ ds_name ]
+
 #					-- Channel
 	  elif ds_type.startswith( 'channel' ):
 #						-- Lazy creation
@@ -1130,7 +1195,7 @@ Must be called from the event thread.
         #end if visible
       #end for each dataset
     #end if valid state
-  #end _UpdateDataSetValues
+  #end _UpdateDataSetValues_old
 
 
   #----------------------------------------------------------------------

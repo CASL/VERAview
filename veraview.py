@@ -1097,7 +1097,6 @@ Must be called from the UI thread.
 
 #		-- Update dataset selection menu
 #		--
-    #self.dataSetMenu.SetState( self.state )
     self.dataSetMenu.Init()
 
 #		-- Re-create time dataset menu

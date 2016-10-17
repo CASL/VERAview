@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
 #		2016-10-06	leerw@ornl.gov				-
 #	  Updated to call DataModel.IsNodalType() and thus support
 #	  pin:radial_node datasets.
@@ -958,7 +960,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		CoreAxial2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', 'pin:assembly', 'pin:node' ]
+    return  [ 'pin', ':assembly', ':node' ]
   #end GetDataSetTypes
 
 

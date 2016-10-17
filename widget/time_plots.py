@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  New approach where all dataset types are "primary".
+#		2016-10-06	leerw@ornl.gov				-
 #	  Updated for node dataset types.
 #		2016-08-23	leerw@ornl.gov				-
 #	  Trying to use DataSetMenu.
@@ -597,13 +600,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def GetDataSetTypes( self ):
     return \
       [
-      'channel',
-      'channel:assembly', 'channel:axial', 'channel:core', 'channel:radial',
-      'channel:radial_assembly',
-      'detector', 'fixed_detector',
-      'pin', 'pin:assembly', 'pin:axial', 'pin:core', 'pin:node',
-      'pin:radial', 'pin:radial_node', 'pin:radial_assembly',
-      'scalar'
+      'channel', 'detector', 'fixed_detector', 'pin', 'scalar',
+      ':assembly', ':axial', ':chan_radial', ':core', ':node',
+      ':radial', ':radial_assembly', ':radial_node'
       ]
   #end GetDataSetTypes
 
@@ -1070,6 +1069,108 @@ already read.
 	    spec = { 'ds_name': ds_name }
 	    spec_names.add( ds_name )
 
+#						-- Detector, fixed detector
+	    if ds_type == 'detector' or ds_type == 'fixed_detector':
+	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      specs.append( spec )
+              self.dataSetTypes.add( ds_type )
+
+#						-- Scalar
+	    elif ds_type == 'scalar':
+	      specs.append( spec )
+              self.dataSetTypes.add( 'scalar' )
+
+#						-- Everything else
+	    else:
+#							-- Lazy creation
+	      if sub_addr_list is None:
+                sub_addr_list = list( self.auxSubAddrs )
+                sub_addr_list.insert( 0, self.subAddr )
+
+	      spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      spec[ 'sub_addrs' ] = sub_addr_list
+	      specs.append( spec )
+              self.dataSetTypes.add( ds_type )
+	    #end if-else ds_type match
+	  #end if ds_type exists
+        #end if visible
+      #end for k
+
+#			-- Read and extract
+#			--
+      results = self.data.ReadDataSetValues2( *specs )
+
+      #self.refAxisValues = results[ self.state.timeDataSet ]
+      if self.refAxisDataSet:
+	#values_dict = results[ '*' + self.refAxisDataSet ]
+	#self.refAxisValues = values_dict.itervalues().next()
+	values_item = results[ '*' + self.refAxisDataSet ]
+	if isinstance( values_item, dict ):
+	  self.refAxisValues = values_item.itervalues().next()
+	else:
+	  self.refAxisValues = values_item
+      else:
+        self.refAxisValues = results[ self.state.timeDataSet ]
+
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+        if ds_rec[ 'visible' ] and ds_name is not None and \
+	    ds_name in results:
+	  self.dataSetValues[ k ] = results[ ds_name ]
+      #end for k
+    #end if valid state
+  #end _UpdateDataSetValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_UpdateDataSetValues_old()			-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetValues_old( self ):
+    """Rebuild dataset arrays to plot.
+Performance enhancement
+=======================
+Once auxSubAddrs include the assembly and axial indexes,
+compare each new dataset with what's in self.dataSetValues and only load
+new ones in new_ds_values, copying from self.dataSetValues for ones
+already read.
+"""
+    self.dataSetTypes.clear()
+    self.dataSetValues.clear()
+
+#		-- Must have data
+#		--
+    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
+      sub_addr_list = None
+
+#			-- Construct read specs
+#			--
+      specs = []
+      spec_names = set()
+      if self.refAxisDataSet:
+        specs.append({
+	    'assembly_index': self.assemblyAddr[ 0 ],
+	    'axial_cm': self.axialValue[ 0 ],
+	    'ds_name': '*' + self.refAxisDataSet,
+	    'sub_addrs': [ self.subAddr ]
+	    })
+      else:
+        specs.append( { 'ds_name': self.state.timeDataSet} )
+
+      for k in self.dataSetSelections:
+        ds_rec = self.dataSetSelections[ k ]
+	ds_name = self._GetDataSetName( k )
+
+#				-- Must be visible
+        if ds_rec[ 'visible' ] and ds_name is not None and \
+	    ds_name not in spec_names:
+	  ds_type = self.data.GetDataSetType( ds_name )
+	  if ds_type:
+	    spec = { 'ds_name': ds_name }
+	    spec_names.add( ds_name )
+
 #						-- Channel
 	    if ds_type.startswith( 'channel' ):
 #							-- Lazy creation
@@ -1090,6 +1191,13 @@ already read.
 	      specs.append( spec )
               self.dataSetTypes.add( 'detector' )
 
+#						-- Fixed detector
+	    elif ds_type.startswith( 'fixed_detector' ):
+	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
+	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      specs.append( spec )
+              self.dataSetTypes.add( 'fixed_detector' )
+
 #						-- Pin
 	    elif ds_type.startswith( 'pin' ):
 #							-- Lazy creation
@@ -1102,13 +1210,6 @@ already read.
 	      spec[ 'sub_addrs' ] = sub_addr_list
 	      specs.append( spec )
               self.dataSetTypes.add( 'pin' )
-
-#						-- Fixed detector
-	    elif ds_type.startswith( 'fixed_detector' ):
-	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
-	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	      specs.append( spec )
-              self.dataSetTypes.add( 'fixed_detector' )
 
 #						-- Scalar
 	    else:
@@ -1143,7 +1244,7 @@ already read.
 	  self.dataSetValues[ k ] = results[ ds_name ]
       #end for k
     #end if valid state
-  #end _UpdateDataSetValues
+  #end _UpdateDataSetValues_old
 
 
   #----------------------------------------------------------------------
@@ -1164,9 +1265,10 @@ already read.
       for dtype in menu_types:
         dataset_names = self.data.GetDataSetNames( dtype )
 	if dataset_names:
-	  ndx = dtype.find( ':' )
-	  if ndx >= 0:
-	    dtype = dtype[ 0 : ndx ]
+	  dtype = self.data.GetDataSetTypeDisplayName( dtype )
+	  #ndx = dtype.find( ':' )
+	  #if ndx >= 0:
+	  #  dtype = dtype[ 0 : ndx ]
 
 	  if dtype in names_by_type:
 	    names_by_type[ dtype ] += dataset_names

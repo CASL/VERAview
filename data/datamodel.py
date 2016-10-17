@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  Migrating to new approach where all dataset types, including
+#	  derived types, are "primary", meaning they are presented along
+#	  with non-derived datasets in menus and such.
 #		2016-10-13	leerw@ornl.gov				-
 #	  Fixed "ds_prefix" values for channel derived types in
 #	  DATASET_DEFS to avoid conflicts with pin derived types.
@@ -175,6 +179,12 @@ import pdb
 from event.event import *
 
 
+#------------------------------------------------------------------------
+#	CONST:		AVERAGER_DEFS					-
+# Dictionary of averager implementations keyed by dataset type.  In theory
+# there should be an entry here for every 'avg_method' key in a DATASET_DEFS
+# entry below, but we might hard-code 'pin' as a default.
+#------------------------------------------------------------------------
 AVERAGER_DEFS = \
   {
   'channel': 'data.channel_averages.Averages',
@@ -182,6 +192,10 @@ AVERAGER_DEFS = \
   }
 
 
+#------------------------------------------------------------------------
+#	CONST:		COL_LABELS					-
+# In-order labels for core columns.
+#------------------------------------------------------------------------
 COL_LABELS = \
   (
     'R', 'P', 'N', 'M', 'L', 'K', 'J', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'
@@ -190,6 +204,30 @@ COL_LABELS = \
 #{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}
 
 
+#------------------------------------------------------------------------
+#	CONST:		DATASET_DEFS					-
+# Dictionary of dataset category/type definitions by type name.
+# The naming scheme for derived types is now just a ':' prefix for derived
+# types.  Whether or not a type can be derived from a dataset is determined
+# by the keys in the 'avg_method' value.
+#
+# All types have keys:
+#	label		- name used in displays
+#	shape_expr	- shape expression used to match datasets against to
+#			  determine if they are of the type, where 'core'
+#			  references the Core instance
+#	type		- echo of the type name key
+#
+# Derived types have keys:
+#	avg_method	- dictionary keyed by category/type of averager
+#			  methods, where '*' is default
+#	copy_expr	- lhs expression for numpy array assignment
+#			  (should be all ':' and '0' entries)
+#	copy_shape_expr	- tuple defining 4D shape of copy, with '1' in
+#			  flattened dimensions
+#	ds_prefix	- tuple of prefix names to use in matching datasets
+#			  read from the VERAOutput file
+#------------------------------------------------------------------------
 DATASET_DEFS = \
   {
   'channel':
@@ -198,61 +236,6 @@ DATASET_DEFS = \
     'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nax, core.nass )',
     'type': 'channel'
     },
-
-#  'channel:assembly':
-#    {
-#    'avg_method': 'calc_channel_assembly_avg',
-#    'copy_expr': '[ 0, 0, :, : ]',
-#    'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
-#    'ds_prefix': 'ch_asy,ch_assembly',
-#    'label': 'assembly',  # '3D asy'
-#    'shape_expr': '( core.nax, core.nass )',
-#    'type': 'channel:assembly'
-#    },
-
-#  'channel:axial':
-#    {
-#    'avg_method': 'calc_channel_axial_avg',
-#    'copy_expr': '[ 0, 0, :, 0 ]',
-#    'copy_shape_expr': '( 1, 1, core.nax, 1 )',
-#    'ds_prefix': 'ch_axial',
-#    'label': 'axial',
-#    'shape_expr': '( core.nax, )',
-#    'type': 'channel:axial'
-#    },
-
-#  'channel:core':
-#    {
-#    'avg_method': 'calc_channel_core_avg',
-#    'copy_expr': '[ 0, 0, 0, 0 ]',
-#    'copy_shape_expr': '( 1, 1, 1, 1 )',
-#    'ds_prefix': 'ch_core',
-#    'label': 'core',
-#    'shape_expr': '( 1, )',
-#    'type': 'channel:core'
-#    },
-
-  'channel:radial':
-    {
-    'avg_method': 'calc_channel_radial_avg',
-    'copy_expr': '[ :, :, 0, : ]',
-    'copy_shape_expr': '( core.npiny + 1, core.npinx + 1, 1, core.nass )',
-    'ds_prefix': 'radial,ch_radial',
-    'label': 'radial',  # '2D pin'
-    'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nass )',
-    'type': 'channel:radial'
-    },
-
-#  'channel:radial_assembly':
-#    {
-#    'avg_method': 'calc_channel_radial_assembly_avg',
-#    'copy_expr': '[ 0, 0, 0, : ]',
-#    'copy_shape_expr': '( 1, 1, 1, core.nass )',
-#    'ds_prefix': 'ch_radial_asy,ch_radial_assembly',
-#    'label': 'radial assembly',  # '2D assy'
-#    'shape_expr': '( core.nass, )',
-#    'type': 'channel:radial_assembly'
-#    },
 
   'detector':
     {
@@ -270,88 +253,123 @@ DATASET_DEFS = \
 
   'pin':
     {
-    'category': 'pin',
     'label': 'pin',
     'shape_expr': '( core.npiny, core.npinx, core.nax, core.nass )',
     'type': 'pin'
     },
 
-  'pin:assembly':
+  ':assembly':
     {
 #    'avg_method': 'avg.calc_pin_assembly_avg( core, data )',
-    'avg_method': 'calc_pin_assembly_avg',
+    'avg_method':
+      {
+      'channel': 'calc_channel_assembly_avg',
+      'pin': 'calc_pin_assembly_avg'
+      },
     'copy_expr': '[ 0, 0, :, : ]',
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
-    'ds_prefix': 'asy,assembly',
+    'ds_prefix': ( 'asy', 'assembly' ),
     'label': 'assembly',  # '3D asy'
     'shape_expr': '( core.nax, core.nass )',
-    'type': 'pin:assembly'
+    'type': ':assembly'
     },
 
-  'pin:axial':
+  ':axial':
     {
-    'avg_method': 'calc_pin_axial_avg',
+    'avg_method':
+      {
+      'channel': 'calc_channel_axial_avg',
+      'pin': 'calc_pin_axial_avg'
+      },
     'copy_expr': '[ 0, 0, :, 0 ]',
     'copy_shape_expr': '( 1, 1, core.nax, 1 )',
-    'ds_prefix': 'axial',
+    'ds_prefix': ( 'axial', ),
     'label': 'axial',
     'shape_expr': '( core.nax, )',
-    'type': 'pin:axial'
+    'type': ':axial'
     },
 
-  'pin:core':
+  ':chan_radial':
     {
-    'avg_method': 'calc_pin_core_avg',
+    #'avg_method': 'calc_channel_radial_avg',
+    'avg_method': { 'channel': 'calc_channel_radial_avg' },
+    'copy_expr': '[ :, :, 0, : ]',
+    'copy_shape_expr': '( core.npiny + 1, core.npinx + 1, 1, core.nass )',
+    'ds_prefix': ( 'radial', 'ch_radial' ),
+    'label': 'chan_radial',  # '2D pin'
+    'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nass )',
+    'type': ':chan_radial'
+    },
+
+  ':core':
+    {
+    'avg_method':
+      {
+      'channel': 'calc_channel_core_avg',
+      'pin': 'calc_pin_core_avg'
+      },
     'copy_expr': '[ 0, 0, 0, 0 ]',
     'copy_shape_expr': '( 1, 1, 1, 1 )',
-    'ds_prefix': 'core',
+    'ds_prefix': ( 'core', ),
     'label': 'core',
     'shape_expr': '( 1, )',
-    'type': 'pin:core'
+    'type': ':core'
     },
 
-  'pin:node':
+  ':node':
     {
-    'avg_method': 'calc_pin_node_avg',
+    'avg_method':
+      {
+      'pin': 'calc_pin_node_avg'
+      },
     'copy_expr': '[ 0, :, :, : ]',
     'copy_shape_expr': '( 1, 4, core.nax, core.nass )',
-    'ds_prefix': 'node',
+    'ds_prefix': ( 'node', ),
     'label': 'node',
     'shape_expr': '( 4, core.nax, core.nass )',
-    'type': 'pin:node'
+    'type': ':node'
     },
 
-  'pin:radial':
+  ':radial':
     {
-    'avg_method': 'calc_pin_radial_avg',
+    'avg_method':
+      {
+      'pin': 'calc_pin_radial_avg'
+      },
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
-    'ds_prefix': 'radial',
+    'ds_prefix': ( 'radial', ),
     'label': 'radial',  # '2D pin'
     'shape_expr': '( core.npiny, core.npinx, core.nass )',
-    'type': 'pin:radial'
+    'type': ':radial'
     },
 
-  'pin:radial_assembly':
+  ':radial_assembly':
     {
-    'avg_method': 'calc_pin_radial_assembly_avg',
+    'avg_method':
+      {
+      'pin': 'calc_pin_radial_assembly_avg'
+      },
     'copy_expr': '[ 0, 0, 0, : ]',
     'copy_shape_expr': '( 1, 1, 1, core.nass )',
-    'ds_prefix': 'radial_asy,radial_assembly',
+    'ds_prefix': ( 'radial_asy', 'radial_assembly' ),
     'label': 'radial assembly',  # '2D assy'
     'shape_expr': '( core.nass, )',
-    'type': 'pin:radial_assembly'
+    'type': ':radial_assembly'
     },
 
-  'pin:radial_node':
+  ':radial_node':
     {
-    'avg_method': 'calc_pin_radial_node_avg',
+    'avg_method':
+      {
+      'pin': 'calc_pin_radial_node_avg'
+      },
     'copy_expr': '[ 0, :, 0, : ]',
     'copy_shape_expr': '( 1, 4, 1, core.nass )',
-    'ds_prefix': 'radial_node',
+    'ds_prefix': ( 'radial_node', ),
     'label': 'radial node',
     'shape_expr': '( 4, core.nass )',
-    'type': 'pin:radial_node'
+    'type': ':radial_node'
     },
 
   'scalar':
@@ -370,6 +388,11 @@ DATASET_DEFS = \
   }
 
 
+#------------------------------------------------------------------------
+#	CONST:		TIME_DS_NAMES					-
+# Set of dataset names we recognize as "time" datasets.  We always add
+# 'state', the statepoint index, as a time alternative.
+#------------------------------------------------------------------------
 TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
 
 
@@ -847,6 +870,7 @@ Properties:
 			  ( 'channel', 'derived', 'detector',
 			    'fixed_detector', 'pin', 'scalar' )
   dataSetNamesVersion	counter to indicate changes
+  derivableTypesByLabel	map of base types by derived type label,
   derivedFile		h5py.File for derived data
   derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
@@ -859,6 +883,7 @@ Properties:
   rangesByStatePt	list by statept index of dicts by dataset of ranges 
   rangesLock		threading.RLock for ranges dict
   states		list of State instances
+  			lazily populated
 """
 
 
@@ -998,6 +1023,7 @@ passed, Read() must be called.
     self.dataSetDefsByName = {}
     self.dataSetNames = []
     #self.dataSetNamesVersion = 0
+    self.derivableTypesByLabel = {}
     self.derivedFile = None
     self.derivedLabelsByType = {}
     self.derivedStates = None
@@ -1015,6 +1041,10 @@ passed, Read() must be called.
   #	METHOD:		DataModel.AddListener()				-
   #----------------------------------------------------------------------
   def AddListener( self, event_name, listener ):
+    """
+@param  event_name	either 'newDataSet' or 'newFile'
+@param  listener	listener with OnXxx() method or callable
+"""
     if event_name in self.listeners:
       if listener not in self.listeners[ event_name ]:
         self.listeners[ event_name ].append( listener )
@@ -1158,21 +1188,34 @@ Parameters:
     #core = self.core
 
     if len( self.states ) > 0:
+#			-- First, find dataset definition
+#			--
       ddef = None
       der_names = \
           self._CreateDerivedNames( ds_category, derived_label, ds_name )
       if der_names:
         ddef = self.dataSetDefs.get( der_names[ 0 ] )
 
-      if ds_category in self.averagers and \
-          ddef and 'avg_method' in ddef and \
-	  hasattr( self.averagers[ ds_category ], ddef[ 'avg_method' ] ):
+#			-- Second, get averager and find method name
+#			--
+#      if ds_category in self.averagers and \
+#          ddef and 'avg_method' in ddef and \
+#	  hasattr( self.averagers[ ds_category ], ddef[ 'avg_method' ] ):
+      avg_method_name = None
+      averager = self.averagers.get( ds_category )
+      if ddef and averager and \
+          'avg_method' in ddef and ds_category in ddef[ 'avg_method' ]:
+        avg_method_name = ddef[ 'avg_method' ][ ds_category ]
+
+#			-- Third, get average method reference
+#			--
+      if avg_method_name and hasattr( averager, avg_method_name ):
 	derived_name = der_names[ 1 ]
 
 	try:
-	  avg_method = \
-	      getattr( self.averagers[ ds_category ], ddef[ 'avg_method' ] )
+	  avg_method = getattr( averager, avg_method_name )
 
+#xxxxx will need to make this a separate thread with per-state progress feedback
           for state_ndx in range( len( self.states ) ):
 	    st = self.GetState( state_ndx )
 	    derived_st = self.GetDerivedState( state_ndx )
@@ -1250,6 +1293,42 @@ are initialized.
   #	METHOD:		DataModel._CreateDerivedNames()			-
   #----------------------------------------------------------------------
   def _CreateDerivedNames( self, ds_category, derived_label, ds_name ):
+    """Creates the dataset type name (e.g., :radial) and then pairs of
+prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names
+for each prefix defined for derived_label.
+@param  ds_category	dataset category, e.g., 'channel', 'pin'
+@param  derived_label	derived label, e.g., 'assembly', 'axial', 'core,
+			'radial'
+@param  ds_name		dataset name that is in ds_category, e.g.,
+			'pin_powers', 'pin_fueltemps'
+@return			( ds_type, prefix_name, replaced_name )
+			or None if invalid params,
+			e.g. ( 'pin:axial', 'axial_pin_powers', 'axial_powers' )
+"""
+    result = None
+    #ds_type = ds_category + ':' + derived_label
+    ds_type = ':' + derived_label
+    ddef = self.dataSetDefs.get( ds_type )
+    if ddef:
+      result_list = [ ds_type ]
+      #for der_prefix in ddef[ 'ds_prefix' ].split( ',' ):
+      for der_prefix in ddef[ 'ds_prefix' ]:
+        pref_name = der_prefix + '_' + ds_name
+        repl_name = pref_name.replace( ds_category + '_', '' )
+	result_list.append( pref_name )
+	result_list.append( repl_name )
+
+      result = tuple( result_list )
+    #end if ddef
+
+    return  result
+  #end _CreateDerivedNames
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._CreateDerivedNames_old()		-
+  #----------------------------------------------------------------------
+  def _CreateDerivedNames_old( self, ds_category, derived_label, ds_name ):
     """Creates the dataset type name (e.g., pin:radial) and
 prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 @param  ds_category	dataset category, e.g., 'channel', 'pin'
@@ -1258,7 +1337,8 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
 @param  ds_name		dataset name that is in ds_category, e.g.,
 			'pin_powers', 'pin_fueltemps'
 @return			( ds_type, prefix_name, replaced_name )
-			or None if invalid params
+			or None if invalid params,
+			e.g. ( 'pin:axial', 'axial_pin_powers', 'axial_powers' )
 """
     result = None
     ds_type = ds_category + ':' + derived_label
@@ -1275,7 +1355,7 @@ prefixed (e.g., radial_pin_powers) and replaced (radial_powers) derived names.
     #end if ddef
 
     return  result
-  #end _CreateDerivedNames
+  #end _CreateDerivedNames_old
 
 
   #----------------------------------------------------------------------
@@ -2358,6 +2438,7 @@ returned.  Calls FindMinMaxValueAddr().
 """
     return \
 	ds_name  if not ds_name else \
+        ds_name[ 5 : ]  if ds_name.startswith( 'copy:' ) else \
         ds_name[ 8 : ]  if ds_name.startswith( 'derived:' ) else \
 	ds_name
 #        ds_name[ 6 : ]  if ds_name.startswith( 'extra:' ) else
@@ -2372,8 +2453,8 @@ returned.  Calls FindMinMaxValueAddr().
 @param  ds_type		optional type name
 @return			if ds_type is not None, list of datasets in that
 			ds_type, empty if not found
-			if ds_type is None, dict of dataset name lists by
-			ds_type
+			if ds_type is None, copy of dict of dataset name lists
+			by ds_type
 			( 'axial', 'channel', 'detector', 'fixed_detector',
 			  'pin', 'scalar', etc. )
 """
@@ -2410,6 +2491,26 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetTypeDisplayName()		-
+  #----------------------------------------------------------------------
+  def GetDataSetTypeDisplayName( self, ds_type ):
+    """Strips any derived prefix.  Best to encapsulate this here.  Note this
+must match how _CreateDerivedNames() builds the derived type name.
+@param  ds_type		category/type
+@return			type name sans any derived marking
+"""
+#    if ds_type and ds_type.find( ':' ) == 0:
+#      ds_type = ds_type[ 1 : ]
+#		-- Safer version
+    if ds_type:
+      ndx = ds_type.find( ':' )
+      if ndx >= 0:
+        ds_type = ds_type[ ndx + 1 : ]
+    return  ds_type
+  #end GetDataSetTypeDisplayName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDefaultScalarDataSet()		-
   #----------------------------------------------------------------------
   def GetDefaultScalarDataSet( self ):
@@ -2438,9 +2539,58 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDerivableTypes()			-
+  #----------------------------------------------------------------------
+  def GetDerivableTypes( self, der_label ):
+    """For the specified derived label, returns all the types from which
+the derived dataset can be created.  Lazily created and cached.
+@param  der_label	derived label
+@return			sorted list of base/source types, possibly empty
+"""
+    ds_types = self.derivableTypesByLabel.get( der_label )
+    if ds_types is None:
+      ds_types = []
+      ddef = self.GetDataSetDef( ':' + der_label )
+      if ddef and 'avg_method' in ddef:
+        for k in ddef[ 'avg_method' ].keys():
+	  ds_types.append( k )
+        ds_types.sort()
+      #if avg_method defined
+
+    return  ds_types
+  #end GetDerivableTypes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDerivedLabels()			-
   #----------------------------------------------------------------------
   def GetDerivedLabels( self, ds_category ):
+    """For the specified category, returns all the labels for possible
+derived datasets.  Lazily created and cached.
+@param  ds_category	category/type, key in DATASET_DEFS
+@return			sorted list of derived type labels, possibly empty
+"""
+    labels = self.derivedLabelsByType.get( ds_category )
+    if labels is None:
+      labels = []
+      for def_name, ddef in self.dataSetDefs.iteritems():
+        if def_name.startswith( ':' ) and 'avg_method' in ddef and \
+	    ds_category in ddef[ 'avg_method' ]:
+	  labels.append( def_name[ 1 : ] )
+      #end for
+
+      labels.sort()
+      self.derivedLabelsByType[ ds_category ] = labels
+    #end if
+
+    return  labels
+  #end GetDerivedLabels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDerivedLabels_old()		-
+  #----------------------------------------------------------------------
+  def GetDerivedLabels_old( self, ds_category ):
     """For the specified category, returns all the labels for possible
 derived datasets.  Lazily created and cached.
 """
@@ -2459,7 +2609,7 @@ derived datasets.  Lazily created and cached.
     #end if
 
     return  labels
-  #end GetDerivedLabels
+  #end GetDerivedLabels_old
 
 
   #----------------------------------------------------------------------
@@ -2675,7 +2825,8 @@ the properties construct for this class soon.
   #	METHOD:		DataModel.GetStateDataSet()			-
   #----------------------------------------------------------------------
   def GetStateDataSet( self, state_ndx, ds_name ):
-    """Retrieves a normal or derived dataset.
+    """Retrieves a normal or derived dataset, copying a derived dataset into
+a 4D array if necessary.
 @param  state_ndx	0-based state point index
 @param  ds_name		dataset name, normal or derived
 @return			h5py.Dataset object if found or None
@@ -2698,6 +2849,8 @@ the properties construct for this class soon.
 	if dset is None and derived_st is not None:
 	  dset = derived_st.GetDataSet( ds_name )
 
+#				-- Must copy a derived (not 4D) dataset
+#				--
         if dset is not None and len( dset.shape ) < 4 and dset.shape != ( 1, ):
           copy_name = 'copy:' + ds_name
 	  #copy_dset = st.GetDataSet( copy_name )
@@ -2716,8 +2869,10 @@ the properties construct for this class soon.
 	      globals_env = {}
 	      locals_env = { 'copy_data': copy_data, 'dset': dset }
 	      exec( exec_str, globals_env, locals_env )
-	      dset = derived_st.CreateDataSet( copy_name, locals_env[ 'copy_data' ] )
-        #end if must use copy
+	      dset = derived_st.CreateDataSet(
+	          copy_name, locals_env[ 'copy_data' ]
+		  )
+        #end if must copy
       finally:
         self.dataSetDefsLock.release()
     #end if st and derived_st
@@ -2835,7 +2990,7 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   def HasDerivedDataSet( self, ds_category, derived_label, ds_name ):
     """Checks to see if the dataset exists.
-@param  ds_category	dataset category, e.g., 'channel', 'pin'
+@param  ds_category	(unneeded) dataset category, e.g., 'channel', 'pin'
 @param  derived_label	derived label, e.g., 'assembly', 'axial', 'core,
 			'radial'
 @param  ds_name		dataset name that is in ds_category, e.g.,
@@ -2846,17 +3001,12 @@ the properties construct for this class soon.
     names = None
     der_names = self._CreateDerivedNames( ds_category, derived_label, ds_name )
     if der_names:
-      names = self.dataSetNames.get( der_names[ 0 ] )
-
-    if names:
-      for n in der_names[ 1 : ]:
-        if n in names:
-	  match = n
-	  break
-#      if der_names[ 1 ] in names:
-#        match = der_names[ 1 ]
-#      elif der_names[ 2 ] in names:
-#        match = der_names[ 2 ]
+      names = self.GetDataSetNames( der_names[ 0 ] )
+      if names:
+        for n in der_names[ 1 : ]:
+          if n in names:
+	    match = n
+	    break
 
     return  match
   #end HasDerivedDataSet
@@ -2891,6 +3041,18 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsDerivedType()			-
+  #----------------------------------------------------------------------
+  def IsDerivedType( self, ds_type ):
+    """
+@param  ds_type		category/type
+@return			True if derived, false otherwise
+"""
+    return  ds_type and ds_type.find( ':' ) >= 0
+  #end IsDerivedType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.IsNoDataValue()			-
   #----------------------------------------------------------------------
   def IsNoDataValue( self, ds_name, value ):
@@ -2917,7 +3079,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 """
     return  \
         ds_type and \
-        (ds_type.find( ':node' ) > 0 or ds_type.find( ':radial_node' ) > 0)
+        (ds_type.find( ':node' ) >= 0 or ds_type.find( ':radial_node' ) >= 0)
   #end IsNodalType
 
 
@@ -3207,6 +3369,7 @@ being one greater in each dimension.
         self._ResolveDataSets( self.core, st_group )
 #			-- Only use time datasets that appear in all statepts
     self.dataSetNames[ 'time' ] = State.ResolveTimeDataSets( self.states )
+    self.derivableTypesByLabel = {}
     self.derivedLabelsByType = {}
 
     self.ranges = {}
@@ -3899,7 +4062,8 @@ ds_names	dict of dataset names by dataset type
 	  else:
 	    for def_name, def_item in ds_defs.iteritems():
 	      if def_name != 'scalar' and def_item[ 'shape' ] == scalar_shape:
-	        for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+	        #for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+	        for ds_prefix in def_item[ 'ds_prefix' ]:
 		  if cur_name.startswith( ds_prefix + '_' ):
 		    cat_name = def_name
 		    break
@@ -3948,7 +4112,8 @@ ds_names	dict of dataset names by dataset type
 	      else:
 	        if cat_item_maybe is None:
 	          cat_item_maybe = def_item
-	        for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+	        #for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+	        for ds_prefix in def_item[ 'ds_prefix' ]:
 	          if cur_name.startswith( ds_prefix + '_' ):
 		    cat_item = def_item
 		    break
@@ -3971,25 +4136,6 @@ ds_names	dict of dataset names by dataset type
 		cur_shape_expr.find( 'core.nfdetax' ) >= 0:
 	      ds_names[ 'axial' ].append( cur_name )
 	  #if cat_item
-
-###original else-block
-#	  for def_name, def_item in ds_defs.iteritems():
-#	    if cur_shape == def_item[ 'shape' ]:
-##						-- Special fixed_detector check
-#	      if def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is not None:
-#
-#	        ds_names[ def_name ].append( cur_name )
-#	        ds_defs_by_name[ cur_name ] = def_item
-#
-#		cur_shape_expr = def_item[ 'shape_expr' ]
-#	        #if def_item[ 'shape_expr' ].find( 'core.nax' ) >= 0:
-#		if cur_shape_expr.find( 'core.nax' ) >= 0 or \
-#		    cur_shape_expr.find( 'core.ndetax' ) >= 0 or \
-#		    cur_shape_expr.find( 'core.nfdetax' ) >= 0:
-#	          ds_names[ 'axial' ].append( cur_name )
-#	      #end if def_name...
-#	      break
-#	  #end for
         #end if-else on shape
       #end if not a copy
     #end for st_group keys
@@ -4019,7 +4165,10 @@ ds_names	dict of dataset names by dataset type
   #----------------------------------------------------------------------
   def RevertIfDerivedDataSet( self, ds_name ):
     """If ds_name is a derived dataset, return the first dataset of the
-base type.
+base type.  Calls GetFirstDataSet().
+Note: We are now hard-coding this to look for ':chan_xxx' for
+a derived type, in which case we pass 'channel' to GetFirstDataSet().  For all
+other derived types we pass 'pin'.
 @param  ds_name		candidate ds_name
 @return			ds_name if it is not derived, the first dataset from
 			the base category/type if it is derived
@@ -4028,7 +4177,8 @@ base type.
     if ds_type:
       ndx = ds_type.find( ':' )
       if ndx >= 0:
-        base_type = ds_type[ 0 : ndx ]
+        #base_type = ds_type[ 0 : ndx ]
+        base_type = 'channel' if ds_type.find( ':chan_' ) == 0 else 'pin'
 	ds_name = self.GetFirstDataSet( base_type )
     #end if
 
@@ -4527,86 +4677,6 @@ NOT process derived datasets as does DataModel.GetStateDataSet().
 
     return  missing
   #end CheckAll
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		State.FindDataSets()				-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def FindDataSets( state_group, core ):
-    """
-@return			dict of dataset name lists with keys
-			  'axial', 'channel', 'detector', 'other', 'pin',
-			  'scalar', 'time'
-@deprecated  This is now handled in DataModel._ResolveDataSets()
-"""
-    axial_ds_names = []
-    channel_ds_names = []
-    detector_ds_names = []
-    other_ds_names = []
-    pin_ds_names = []
-    scalar_ds_names = []
-    time_ds_names = [ 'state' ]
-
-    channel_shape = ( core.npin + 1, core.npin + 1, core.nax, core.nass )
-    detector_shape = ( core.ndetax, core.ndet )
-    pin_shape = ( core.npin, core.npin, core.nax, core.nass )
-#    if 'pin_powers' in state_group:
-#      powers_shape = state_group[ 'pin_powers' ].shape
-    scalar_shape = ( 1, )
-#    if 'exposure' in state_group:
-#      exposure_shape = state_group[ 'exposure' ].shape
-
-#		-- Check each dataset
-#		--
-    for k in state_group:
-#      if k not in ( 'exposure' ) and \
-#          not isinstance( state_group[ k ], h5py.Group ):
-      if not isinstance( state_group[ k ], h5py.Group ):
-        k_shape = state_group[ k ].shape
-
-        if len( k_shape ) == 0 or k_shape == scalar_shape:
-	  if k in TIME_DS_NAMES:
-	    time_ds_names.append( k )
-	  else:
-	    scalar_ds_names.append( k )
-        elif k_shape == pin_shape:
-	  pin_ds_names.append( k )
-        elif k_shape == channel_shape:
-	  channel_ds_names.append( k )
-        elif k_shape == detector_shape:
-	  detector_ds_names.append( k )
-	###derived manager
-	elif len( k_shape ) == 4:
-	  other_ds_names.append( k )
-
-#			-- Special axial check
-#			--
-        if (len( k_shape ) == 4 and k_shape[ 2 ] == core.nax) or \
-	    (len( k_shape ) == 2 and k_shape[ 0 ] == core.ndetax):
-          axial_ds_names.append( k )
-    #end for state_group keys
-
-    axial_ds_names.sort()
-    channel_ds_names.sort()
-    detector_ds_names.sort()
-    pin_ds_names.sort()
-    scalar_ds_names.sort()
-    time_ds_names.sort()
-
-    result = \
-      {
-      'axial': axial_ds_names,
-      'channel': channel_ds_names,
-      'derived': [],
-      'detector': detector_ds_names,
-      'other': other_ds_names,
-      'pin': pin_ds_names,
-      'scalar': scalar_ds_names,
-      'time': time_ds_names
-      }
-    return  result
-  #end FindDataSets
 
 
   #----------------------------------------------------------------------
