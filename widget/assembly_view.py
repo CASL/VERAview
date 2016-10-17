@@ -1137,15 +1137,15 @@ be overridden by subclasses.
 	  )
 
     if valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
-      value = 0.0
-      if pin_addr[ 1 ] < dset_shape[ 0 ] and pin_addr[ 0 ] < dset_shape[ 1 ]:
-        value = dset[
-            pin_addr[ 1 ], pin_addr[ 0 ],
-	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
-	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
-	    ]
+#      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+#      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
+#      value = 0.0
+#      if pin_addr[ 1 ] < dset_shape[ 0 ] and pin_addr[ 0 ] < dset_shape[ 1 ]:
+#        value = dset[
+#            pin_addr[ 1 ], pin_addr[ 0 ],
+#	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
+#	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
+#	    ]
 
       #if not self.data.IsNoDataValue( self.pinDataSet, value ):
       if True:
@@ -1159,7 +1159,7 @@ be overridden by subclasses.
 
 	else:
           self.FireStateChange( sub_addr = pin_addr, aux_sub_addrs = [] )
-      #end if not nodata value
+      #end if True # not nodata value
     #end if valid
   #end _OnClick
 

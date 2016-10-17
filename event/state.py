@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-10-17	leerw@ornl.gov				-
 #	  Added nodeAddr as a STATE_CHANGE_coordinates attribute.
+#	  Added auxNodeAddrs.
 #		2016-09-19	leerw@ornl.gov				-
 #	  Added STATE_CHANGE_weightsMode.
 #		2016-08-15	leerw@ornl.gov				-
@@ -185,6 +186,8 @@ All indices are 0-based.
 |             |                |                | 0-based assembly/detector    |
 |             |                |                | indexes                      |
 +-------------+----------------+----------------+------------------------------+
+|             | auxNodeAddrs   | aux_node_addrs | list of 0-based indexes      |
++-------------+----------------+----------------+------------------------------+
 |             | auxSubAddrs    | aux_sub_addrs  | list of ( col, row )         |
 |             |                |                | 0-based channel/pin indexes  |
 +-------------+----------------+----------------+------------------------------+
@@ -244,6 +247,7 @@ All indices are 0-based.
   #----------------------------------------------------------------------
   def __init__( self, *args, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
+    self.auxNodeAddrs = []
     self.auxSubAddrs = []
     self.axialValue = DataModel.CreateEmptyAxialValue()
     self.curDataSet = 'pin_powers'
@@ -323,6 +327,10 @@ Keys passed and the corresponding state bit are:
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
       reason |= STATE_CHANGE_coordinates
 
+    if 'aux_node_addrs' in kwargs and locks[ STATE_CHANGE_coordinates ]:
+      self.auxNodeAddrs = kwargs[ 'aux_node_addrs' ]
+      reason |= STATE_CHANGE_coordinates
+
     if 'aux_sub_addrs' in kwargs and locks[ STATE_CHANGE_coordinates ]:
       self.auxSubAddrs = kwargs[ 'aux_sub_addrs' ]
       reason |= STATE_CHANGE_coordinates
@@ -382,6 +390,7 @@ Keys passed and the corresponding state bit are:
 
     if (reason & STATE_CHANGE_coordinates) > 0:
       update_args[ 'assembly_addr' ] = self.assemblyAddr
+      update_args[ 'aux_node_addrs' ] = self.auxNodeAddrs
       update_args[ 'aux_sub_addrs' ] = self.auxSubAddrs
       update_args[ 'node_addr' ] = self.nodeAddr
       update_args[ 'sub_addr' ] = self.subAddr
@@ -435,6 +444,17 @@ Keys passed and the corresponding state bit are:
 """
     return  self.assemblyAddr
   #end GetAssemblyAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetAuxNodeAddrs()				-
+  #----------------------------------------------------------------------
+  def GetAuxNodeAddrs( self ):
+    """Accessor for the auxNodeAddrs property.
+@return			list of 0-based indexes, possibly empty
+"""
+    return  self.auxNodeAddrs
+  #end GetAuxNodeAddrs
 
 
   #----------------------------------------------------------------------
@@ -595,6 +615,7 @@ Keys passed and the corresponding state bit are:
     undefined2 = ( -1, -1 )
     undefined3 = ( -1, -1, -1 )
 
+    del self.auxNodeAddrs[ : ]
     del self.auxSubAddrs[ : ]
     self.dataModel = data_model
     self.nodeAddr = 0
@@ -660,7 +681,7 @@ Keys passed and the corresponding state bit are:
 @param  props_dict	dict containing property values
 """
     for k in (
-        'assemblyAddr', 'auxSubAddrs', 'axialValue', 
+        'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
         'curDataSet', 'nodeAddr', 'scaleMode', 'stateIndex',
 	'subAddr', 'timeDataSet', 'weightsMode'
         ):
@@ -709,7 +730,7 @@ Keys passed and the corresponding state bit are:
 @param  props_dict	dict to which to write property values
 """
     for k in (
-        'assemblyAddr', 'auxSubAddrs', 'axialValue', 
+        'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
         'curDataSet', 'nodeAddr', 'scaleMode', 'stateIndex',
 	'subAddr', 'timeDataSet', 'weightsMode'
         ):

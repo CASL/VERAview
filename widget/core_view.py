@@ -5,7 +5,7 @@
 #	HISTORY:							-
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
-#	  Added nodeAddr as an attribute/property.
+#	  Added auxNodeAddrs and nodeAddr attributes.
 #		2016-10-14	leerw@ornl.gov				-
 #	  Using new _DrawValues() method.
 #		2016-10-01	leerw@ornl.gov				-
@@ -165,6 +165,7 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
+    self.auxNodeAddrs = []
     self.avgDataSet = None
     self.avgValues = {}
 
@@ -1439,10 +1440,28 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     result = bmap
 
     if self.config is not None:
-      line_wd = -1
-      #half_line_wd = 0
+      line_wd = self.config[ 'lineWidth' ]
+      half_line_wd = line_wd >> 1
+
+      select_pen = wx.ThePenList.FindOrCreatePen(
+          wx.Colour( 255, 0, 0, 255 ),
+	  line_wd, wx.PENSTYLE_SOLID
+	  )
+
       rect = None
-      node_rect = None
+      draw_list = []  # ( rect, pen )
+
+      if self.nodalMode:
+        node_addr_list = list( self.auxNodeAddrs )
+        node_addr_list.insert( 0, self.nodeAddr )
+        primary_pen = wx.ThePenList.FindOrCreatePen(
+	    wx.Colour( 255, 255, 255, 255 ),
+	    max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    )
+        secondary_pen = wx.ThePenList.FindOrCreatePen(
+	    wx.Colour( 255, 255, 0, 255 ),
+	    max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    )
 
 #			-- Core mode
 #			--
@@ -1455,7 +1474,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
           assy_adv = self.config[ 'assemblyAdvance' ]
 	  assy_wd = self.config[ 'assemblyWidth' ]
 	  core_region = self.config[ 'coreRegion' ]
-	  line_wd = self.config[ 'lineWidth' ]
 
 	  rect = \
 	    [
@@ -1463,79 +1481,93 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      rel_row * assy_adv + core_region[ 1 ],
 	      assy_wd, assy_wd
 	    ]
+	  draw_list.append( ( rect, select_pen ) )
 
-	  if self.nodalMode and self.nodeAddr >= 0:
-	    half_line_wd = line_wd >> 1
+#					-- Core nodal
+	  if self.nodalMode:
 	    node_wd = self.config[ 'pinWidth' ]
-	    rel_x = node_wd if self.nodeAddr in ( 1, 3 ) else half_line_wd
-	    rel_y = node_wd if self.nodeAddr in ( 2, 3 ) else half_line_wd
-	    node_rect = [
-	        rect[ 0 ] + rel_x, rect[ 1 ] + rel_y,
-		node_wd - half_line_wd, node_wd - half_line_wd
-		]
+            for i in range( len( node_addr_list ) ):
+	      node_addr = node_addr_list[ i ]
+	      if node_addr >= 0:
+	        rel_x = node_wd if node_addr in ( 1, 3 ) else half_line_wd
+	        rel_y = node_wd if node_addr in ( 2, 3 ) else half_line_wd
+	        node_rect = [
+	            rect[ 0 ] + rel_x, rect[ 1 ] + rel_y,
+		    node_wd - half_line_wd, node_wd - half_line_wd
+		    ]
+		pen = primary_pen if i == 0 else secondary_pen
+	        draw_list.append( ( node_rect, pen ) )
+	      #end if valid node addr
+	    #end for i
+	  #end if nodalMode
         #end if cell in drawing range
 
-#			-- Assy mode
+#			-- Assy nodal mode
+#			--
+      elif self.nodalMode:
+        assy_region = self.config[ 'assemblyRegion' ]
+        pin_gap = self.config[ 'pinGap' ]
+	pin_wd = self.config[ 'pinWidth' ]
+	pin_adv = pin_wd + pin_gap
+
+	for i in range( len( node_addr_list ) ):
+	  node_addr = node_addr_list[ i ]
+	  if node_addr >= 0:
+	    rel_x = pin_adv if node_addr in ( 1, 3 ) else 0
+	    rel_y = pin_adv if node_addr in ( 2, 3 ) else 0
+	    node_rect = [
+		assy_region[ 0 ] + rel_x,
+		assy_region[ 1 ] + rel_y,
+		pin_adv, pin_adv
+		]
+	    pen = primary_pen if i == 0 else secondary_pen
+	    draw_list.append( ( node_rect, pen ) )
+	  #end if valid node addr
+	#end for i
+
+#			-- Assy not nodal mode
 #			--
       else:  # 'assy'
 	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
 	    self.subAddr[ 0 ] < self.data.core.npin and \
 	    self.subAddr[ 1 ] < self.data.core.npin:
-#	    'assemblyRegion' in self.config:
           assy_region = self.config[ 'assemblyRegion' ]
 	  pin_gap = self.config[ 'pinGap' ]
 	  pin_wd = self.config[ 'pinWidth' ]
 	  pin_adv = pin_wd + pin_gap
-	  line_wd = self.config[ 'lineWidth' ]
-
 	  rect = \
 	    [
 	      self.subAddr[ 0 ] * pin_adv + assy_region[ 0 ],
 	      self.subAddr[ 1 ] * pin_adv + assy_region[ 1 ],
 	      pin_adv, pin_adv
 	    ]
+	  pen = wx.ThePenList.FindOrCreatePen(
+	      wx.Colour( 255, 0, 0, 255 ),
+	      line_wd, wx.PENSTYLE_SOLID
+	      )
+	  draw_list.append( ( rect, select_pen ) )
         #end if cell in drawing range
       #end if-else on mode
 
 #			-- Draw?
 #			--
-      if rect is not None:
+      #if rect is not None:
+      if draw_list:
 	new_bmap = self._CopyBitmap( bmap )
 
         dc = wx.MemoryDC( new_bmap )
 	gc = wx.GraphicsContext.Create( dc )
-	gc.SetPen(
-	    wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
-		)
-	    )
-	path = gc.CreatePath()
-	path.AddRectangle( *rect )
-	gc.StrokePath( path )
-# This doesn't work on MSWIN
-#	dc.SetBrush( wx.TRANSPARENT_BRUSH )
-#        dc.SetPen(
-#	    wx.ThePenList.FindOrCreatePen(
-#	        wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
-#		)
-#	    )
-#        dc.DrawRectangle( *rect )
 
-        if node_rect:
+	for draw_item in draw_list:
+	  gc.SetPen( draw_item[ 1 ] )
 	  path = gc.CreatePath()
-	  path.AddRectangle( *node_rect )
-	  gc.SetPen(
-	      wx.ThePenList.FindOrCreatePen(
-		  wx.Colour( 255, 255, 255, 255 ),
-		  max( line_wd >> 1, 1 ),
-		  wx.PENSTYLE_SOLID
-	          )
-	      )
+	  path.AddRectangle( *draw_item[ 0 ] )
 	  gc.StrokePath( path )
+	#end for draw_item
 
 	dc.SelectObject( wx.NullBitmap )
 	result = new_bmap
-      #end if rect
+      #end if draw_list
     #end if self.config is not None:
 
     return  result
@@ -1602,7 +1634,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'assemblyAddr', 'subAddr', 'mode', 'pinDataSet' ):
+    for k in (
+        'assemblyAddr', 'auxNodeAddrs', 'nodeAddr',
+	'pinDataSet', 'subAddr', 'mode'
+	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1628,6 +1663,48 @@ be overridden by subclasses.
 
       if self.nodalMode:
         node_addr = cell_info[ 5 ]
+        is_aux = self.IsAuxiliaryEvent( ev )
+	if is_aux:
+	  addrs = list( self.auxNodeAddrs )
+	  if node_addr in addrs:
+	    addrs.remove( node_addr )
+	  else:
+	    addrs.append( node_addr )
+	  if addrs != self.auxNodeAddrs:
+	    state_args[ 'aux_node_adrs' ] = addrs
+	elif node_addr != self.nodeAddr:
+	  state_args[ 'node_addr' ] = node_addr
+	  state_args[ 'aux_node_adrs' ] = []
+
+      elif ev.GetClickCount() > 1:
+        pin_addr = cell_info[ 3 : 5 ]
+        if pin_addr != self.subAddr:
+	  state_args[ 'sub_addr' ] = pin_addr
+
+      if len( state_args ) > 0:
+        self.FireStateChange( **state_args )
+    #end if cell found
+  #end _OnClick
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnClick_old()			-
+  #----------------------------------------------------------------------
+  def _OnClick_old( self, ev ):
+    """
+"""
+    x = ev.GetX()
+    y = ev.GetY()
+
+    cell_info = self.FindAssembly( x, y )
+    if cell_info is not None and cell_info[ 0 ] >= 0:
+      state_args = {}
+      assy_addr = cell_info[ 0 : 3 ]
+      if assy_addr != self.assemblyAddr:
+	state_args[ 'assembly_addr' ] = assy_addr
+
+      if self.nodalMode:
+        node_addr = cell_info[ 5 ]
 	if node_addr != self.nodeAddr:
 	  state_args[ 'node_addr' ] = node_addr
 
@@ -1639,7 +1716,7 @@ be overridden by subclasses.
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
     #end if cell found
-  #end _OnClick
+  #end _OnClick_old
 
 
   #----------------------------------------------------------------------
@@ -1686,6 +1763,64 @@ be overridden by subclasses.
     """
 """
     tip_str = ''
+
+    dset = None
+    pin_info = self.FindPin( *ev.GetPosition() )
+    if pin_info is not None:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+
+    if dset is not None:
+      axial_level = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 )
+      assy_ndx = self.assemblyAddr[ 0 ]
+      pin_factors = None
+
+      if self.nodalMode:
+        if self.state.weightsMode == 'on':
+	  pin_factors = self.data.GetNodeFactors()
+        node_addr = pin_info[ 3 ]
+	if node_addr < dset.shape[ 1 ] and assy_ndx < dset.shape[ 3 ]:
+	  pin_factor = 1
+	  if pin_factors is not None:
+	    pin_factor = pin_factors[ 0, node_addr, axial_level, assy_ndx ]
+          pin_value = dset[ 0, node_addr, axial_level, assy_ndx ]
+	  if not ( self.data.IsBadValue( pin_value ) or pin_factor == 0 ):
+            tip_str = 'Node: %d\n%s: %g' % \
+		( node_addr + 1, self.pinDataSet, pin_value )
+	#end if node_addr and assy_ndx valid
+
+      else:
+        if self.state.weightsMode == 'on':
+	  pin_factors = self.data.GetPinFactors()
+        pin_addr = pin_info[ 0 : 2 ]
+        if pin_addr[ 1 ] < dset.shape[ 0 ] and \
+	    pin_addr[ 0 ] < dset.shape[ 1 ] and \
+	    assy_ndx < dset.shape[ 3 ]:
+	  pin_factor = 1
+	  if pin_factors is not None:
+	    pin_factor = pin_factors[
+	        pin_addr[ 1 ], pin_addr[ 0 ],
+		axial_level, assy_ndx
+		]
+          pin_value = \
+	      dset[ pin_addr[ 1 ], pin_addr[ 0 ], axial_level, assy_ndx ]
+	  if not ( self.data.IsBadValue( pin_value ) or pin_factor == 0 ):
+	    pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
+            tip_str = 'Pin: %s\n%s: %g' % \
+	        ( str( pin_rc ), self.pinDataSet, pin_value )
+      #end if-else nodalMode
+    #end if dset
+
+    self.bitmapCtrl.SetToolTipString( tip_str )
+  #end _OnMouseMotionAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnMouseMotionAssy_old()		-
+  #----------------------------------------------------------------------
+  def _OnMouseMotionAssy_old( self, ev ):
+    """
+"""
+    tip_str = ''
     #pin_addr = self.FindPin( *ev.GetPosition() )
     #if pin_addr is not None:
     pin_info = self.FindPin( *ev.GetPosition() )
@@ -1721,13 +1856,58 @@ be overridden by subclasses.
     #end if pin found
 
     self.bitmapCtrl.SetToolTipString( tip_str )
-  #end _OnMouseMotionAssy
+  #end _OnMouseMotionAssy_old
 
 
   #----------------------------------------------------------------------
   #	METHOD:		Core2DView._OnMouseUpAssy()			-
   #----------------------------------------------------------------------
   def _OnMouseUpAssy( self, ev ):
+    """
+"""
+    pin_info = self.FindPin( *ev.GetPosition() )
+    if pin_info is None:
+      pass
+
+    elif self.nodalMode:
+      node_addr = pin_info[ 3 ]
+      valid = self.data.IsValid( node_addr = node_addr )
+      if valid:
+        is_aux = self.IsAuxiliaryEvent( ev )
+	if is_aux:
+	  addrs = list( self.auxNodeAddrs )
+	  if node_addr in addrs:
+	    addrs.remove( node_addr )
+	  else:
+	    addrs.append( node_addr )
+	  self.FireStateChange( aux_node_addrs = addrs )
+	else:
+          self.FireStateChange( node_addr = node_addr, aux_node_addrs = [] )
+      #end if valid
+
+    else:
+      pin_addr = pin_info[ 0 : 2 ]
+      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      if dset is not None:
+        if pin_addr[ 1 ] < dset.shape[ 0 ] and \
+	    pin_addr[ 0 ] < dset.shape[ 1 ] and \
+	    self.assemblyAddr[ 0 ] < dset.shape[ 3 ]:
+          pin_value = dset[
+	      pin_addr[ 1 ], pin_addr[ 0 ],
+	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      self.assemblyAddr[ 0 ]
+	      ]
+          if not self.data.IsNoDataValue( self.pinDataSet, pin_value ):
+	    self.FireStateChange( sub_addr = pin_addr )
+      #end if dset
+    #end if-else
+  #end _OnMouseUpAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnMouseUpAssy_old()			-
+  #----------------------------------------------------------------------
+  def _OnMouseUpAssy_old( self, ev ):
     """
 """
     #pin_addr = self.FindPin( *ev.GetPosition() )
@@ -1761,7 +1941,7 @@ be overridden by subclasses.
       if not self.data.IsNoDataValue( ds_name, pin_value ):
 	self.FireStateChange( sub_addr = pin_addr )
     #end if pin_addr changed
-  #end _OnMouseUpAssy
+  #end _OnMouseUpAssy_old
 
 
   #----------------------------------------------------------------------
@@ -1818,7 +1998,7 @@ method via super.SaveProps().
 """
     super( Core2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyAddr', 'subAddr', 'mode' ):
+    for k in ( 'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'mode' ):
       props_dict[ k ] = getattr( self, k )
 
     if self.data is not None:
@@ -1917,6 +2097,13 @@ method via super.SaveProps().
         self.avgDataSet = None
       self.avgValues.clear()
 
+    if 'aux_node_addrs' in kwargs:
+      aux_node_addrs = \
+          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+      if aux_node_addrs != self.auxNodeAddrs:
+        changed = True
+	self.auxNodeAddrs = aux_node_addrs
+
     if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
@@ -1937,10 +2124,10 @@ method via super.SaveProps().
       if sub_addr != self.subAddr:
         changed = True
         self.subAddr = sub_addr
-        if self.nodalMode:
-          node_addr = self.data.GetNodeAddr( sub_addr )
-	  if node_addr != self.nodeAddr:
-	    self.nodeAddr = node_addr
+#        if self.nodalMode:
+#          node_addr = self.data.GetNodeAddr( sub_addr )
+#	  if node_addr != self.nodeAddr:
+#	    self.nodeAddr = node_addr
     #end if 'sub_addr'
 
     if 'weights_mode' in kwargs:

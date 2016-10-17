@@ -2690,6 +2690,25 @@ derived datasets.  Lazily created and cached.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetNodeAddrs()			-
+  #----------------------------------------------------------------------
+  def GetNodeAddrs( self, sub_addrs, mode = 'pin' ):
+    """Get the node addr corresponding to sub_addr.
+@param  sub_addrs	list of 0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+@return			list of unique node addrs in range [0,3]
+"""
+    result = []
+    for sub_addr in sub_addrs:
+      ndx = self.GetNodeAddr( sub_addr, mode )
+      if ndx >= 0 and ndx not in result:
+        result.append( ndx )
+
+    return  result
+  #end GetNodeAddrs
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetNodeFactors()			-
   #----------------------------------------------------------------------
   def GetNodeFactors( self ):
@@ -3266,6 +3285,21 @@ for NaN.  For now, we just assume 0.0 is "no data".
 """
     return  max( 0, min( 3, ndx ) )
   #end NormalizeNodeAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.NormalizeNodeAddrs()			-
+  #----------------------------------------------------------------------
+  def NormalizeNodeAddrs( self, addr_list ):
+    """Normalizes each index in the list.
+@param  addr_list	list of 0-based indexes
+"""
+    result = []
+    for addr in addr_list:
+      result.append( max( 0, min( 3, addr ) ) )
+
+    return  list( set( result ) )
+  #end NormalizeNodeAddrs
 
 
   #----------------------------------------------------------------------
