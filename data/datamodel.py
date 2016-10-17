@@ -3092,6 +3092,7 @@ for NaN.  For now, we just assume 0.0 is "no data".
 			  'assembly_addr'
 			  'assembly_index'
 			  'axial_level'
+			  'node_addr'
 			  'sub_addr'
 			  'sub_addr_mode'
 			    (either 'channel', or 'pin', defaulting to 'pin')
@@ -3121,6 +3122,10 @@ for NaN.  For now, we just assume 0.0 is "no data".
 #      if 'node_addr' in kwargs:
 #        val = kwargs[ 'node_addr' ]
 #	valid &= val >= 0 and val < 4
+
+      if 'node_addr' in kwargs and kwargs[ 'node_addr' ] is not None:
+        val = kwargs[ 'node_addr' ]
+	valid = val >= 0 and val < 4
 
       if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] is not None:
         col, row = kwargs[ 'sub_addr' ]
@@ -3250,6 +3255,17 @@ for NaN.  For now, we just assume 0.0 is "no data".
         )
     return  result
   #end NormalizeDetectorIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.NormalizeNodeAddr()			-
+  #----------------------------------------------------------------------
+  def NormalizeNodeAddr( self, ndx ):
+    """Here for completeness.
+@param  ndx		0-based index
+"""
+    return  max( 0, min( 3, ndx ) )
+  #end NormalizeNodeAddr
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-10-17	leerw@ornl.gov				-
+#	  Added nodeAddr as a STATE_CHANGE_coordinates attribute.
 #		2016-09-19	leerw@ornl.gov				-
 #	  Added STATE_CHANGE_weightsMode.
 #		2016-08-15	leerw@ornl.gov				-
@@ -186,6 +188,9 @@ All indices are 0-based.
 |             | auxSubAddrs    | aux_sub_addrs  | list of ( col, row )         |
 |             |                |                | 0-based channel/pin indexes  |
 +-------------+----------------+----------------+------------------------------+
+|             | nodeAddr       | node_addr      | 0-based node index in range  |
+|             |                |                | [0,3] or [0,4)               |
++-------------+----------------+----------------+------------------------------+
 |             | subAddr        | sub_addr       | ( col, row )                 |
 |             |                |                | 0-based channel/pin indexes  |
 +-------------+----------------+----------------+------------------------------+
@@ -244,6 +249,7 @@ All indices are 0-based.
     self.curDataSet = 'pin_powers'
     self.dataModel = None
     self.listeners = []
+    self.nodeAddr = -1
     self.scaleMode = 'all'
     self.stateIndex = -1
     self.subAddr = ( -1, -1 )
@@ -301,6 +307,7 @@ Keys passed and the corresponding state bit are:
   axial_value		STATE_CHANGE_axialValue
   cur_dataset		STATE_CHANGE_curDataSet
   data_model		STATE_CHANGE_dataModel
+  node_addr		STATE_CHANGE_coordinates
   scale_mode		STATE_CHANGE_scaleMode
   state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
@@ -332,6 +339,10 @@ Keys passed and the corresponding state bit are:
       self.dataModel = kwargs[ 'data_model' ]
       reason |= STATE_CHANGE_dataModel
 
+    if 'node_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
+      self.nodeAddr = kwargs[ 'node_addr' ]
+      reason |= STATE_CHANGE_coordinates
+
     if 'scale_mode' in kwargs and locks[ STATE_CHANGE_scaleMode ]:
       self.scaleMode = kwargs[ 'scale_mode' ]
       reason |= STATE_CHANGE_scaleMode
@@ -354,27 +365,6 @@ Keys passed and the corresponding state bit are:
       self.weightsMode = kwargs[ 'weights_mode' ]
       reason |= STATE_CHANGE_weightsMode
 
-#		-- Wire assembly_index and detector_index together
-#		--
-#    if (reason & STATE_CHANGE_assemblyIndex) > 0:
-#      if (reason & STATE_CHANGE_detectorIndex) == 0 and \
-#          self.dataModel.core.detectorMap is not None:
-#	col = self.assemblyIndex[ 1 ]
-#	row = self.assemblyIndex[ 2 ]
-#	det_ndx = self.dataModel.core.detectorMap[ row, col ] - 1
-#	reason |= STATE_CHANGE_detectorIndex
-#	self.detectorIndex = ( det_ndx, col, row )
-#
-#    elif (reason & STATE_CHANGE_detectorIndex) > 0:
-#      if (reason & STATE_CHANGE_assemblyIndex) == 0:
-#          #self.dataModel.core.coreMap is not None:
-#	col = self.detectorIndex[ 1 ]
-#	row = self.detectorIndex[ 2 ]
-#	assy_ndx = self.dataModel.core.coreMap[ row, col ] - 1
-#	reason |= STATE_CHANGE_assemblyIndex
-#	self.assemblyIndex = ( assy_ndx, col, row )
-#    #end if
-
     return  reason
   #end Change
 
@@ -393,6 +383,7 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_coordinates) > 0:
       update_args[ 'assembly_addr' ] = self.assemblyAddr
       update_args[ 'aux_sub_addrs' ] = self.auxSubAddrs
+      update_args[ 'node_addr' ] = self.nodeAddr
       update_args[ 'sub_addr' ] = self.subAddr
 
     if (reason & STATE_CHANGE_curDataSet) > 0:
@@ -527,6 +518,17 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetNodeAddr()					-
+  #----------------------------------------------------------------------
+  def GetNodeAddr( self ):
+    """Accessor for the nodeAddr property.
+@return			0-based node index in range [0,3] or [0,4)
+"""
+    return  self.nodeAddr
+  #end GetNodeAddr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetScaleMode()					-
   #----------------------------------------------------------------------
   def GetScaleMode( self ):
@@ -595,6 +597,7 @@ Keys passed and the corresponding state bit are:
 
     del self.auxSubAddrs[ : ]
     self.dataModel = data_model
+    self.nodeAddr = 0
     self.scaleMode = 'all'
     self.weightsMode = 'on'
 
@@ -658,7 +661,7 @@ Keys passed and the corresponding state bit are:
 """
     for k in (
         'assemblyAddr', 'auxSubAddrs', 'axialValue', 
-        'curDataSet', 'scaleMode', 'stateIndex',
+        'curDataSet', 'nodeAddr', 'scaleMode', 'stateIndex',
 	'subAddr', 'timeDataSet', 'weightsMode'
         ):
       if k in props_dict:
@@ -707,7 +710,7 @@ Keys passed and the corresponding state bit are:
 """
     for k in (
         'assemblyAddr', 'auxSubAddrs', 'axialValue', 
-        'curDataSet', 'scaleMode', 'stateIndex',
+        'curDataSet', 'nodeAddr', 'scaleMode', 'stateIndex',
 	'subAddr', 'timeDataSet', 'weightsMode'
         ):
       props_dict[ k ] = getattr( self, k )
