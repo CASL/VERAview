@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-10-14	leerw@ornl.gov				-
+#	  Added _DrawValues() method.
 #		2016-09-29	leerw@ornl.gov				-
 #	  Modified _CreateValue{Display,String}() in an effort to
 #	  prevent overrun of values displayed in cells.
@@ -1003,6 +1005,60 @@ be displayed in a cell.
 
     return  value_str
   #end _CreateValueString
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._DrawValues()			-
+  #----------------------------------------------------------------------
+  def _DrawValues( self, draw_list, im_draw, font_size = 0 ):
+    """Draws value text.
+@param  draw_list	list of ( str, color, x, y, wd, ht )
+@param  im_draw		PIL.ImageDraw.Draw reference
+@param  font_size	font size hint
+"""
+    if draw_list and im_draw is not None:
+#			-- Find widest string
+#			--
+      smallest_wd = sys.maxint
+      widest_str = ""
+      widest_len = 0
+      for item in draw_list:
+	if item[ -2 ] < smallest_wd:
+	  smallest_wd = item[ -2 ]
+	cur_len = len( item[ 0 ] )
+        if cur_len > widest_len:
+	  widest_str = item[ 0 ]
+	  widest_len = cur_len
+      #end for item
+
+      if font_size == 0:
+        font_size = smallest_wd >> 1
+
+#			-- Reduce font size if necessary
+#			--
+    font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+    value_size = font.getsize( widest_str )
+    while value_size[ 0 ] >= smallest_wd:
+      font_size = int( font_size * 0.8 )
+      if font_size < 6:
+	value_size = ( 0, 0 )
+      else:
+        font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+	value_size = font.getsize( widest_str )
+    #end if draw_list
+
+    if value_size[ 0 ] > 0:
+      for item in draw_list:
+	value_size = font.getsize( item[ 0 ] )
+        value_x = item[ 2 ] + ((item[ 4 ] - value_size[ 0 ]) >> 1)
+	value_y = item[ 3 ] + ((item[ 5 ] - value_size[ 1 ]) >> 1)
+	im_draw.text(
+	    ( value_x, value_y ), item[ 0 ],
+	    fill = item[ 1 ], font = font
+	    )
+      #end for item
+    #end if value_size
+  #end _DrawValues
 
 
   #----------------------------------------------------------------------

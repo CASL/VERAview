@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-10-14	leerw@ornl.gov				-
+#	  Using new _DrawValues() method.
 #		2016-09-29	leerw@ornl.gov				-
 #	  Trying to prevent overrun of values displayed in cells.
 #		2016-08-17	leerw@ornl.gov				-
@@ -633,6 +635,7 @@ Must be called from the UI thread.
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
+      value_draw_list = []
 
       nodata_pen_color = ( 155, 155, 155, 255 )
 
@@ -725,17 +728,22 @@ Must be called from the UI thread.
 	        )
 
 	    if value_font is not None:
-	      value_str, value_size, tfont = self._CreateValueDisplay(
-	          value, 3, value_font, chan_wd, value_font_size
-		  )
-	      if value_str:
-		value_x = chan_x + ((chan_wd - value_size[ 0 ]) >> 1)
-		value_y = chan_y + ((chan_wd - value_size[ 1 ]) >> 1) 
-                im_draw.text(
-		    ( value_x, value_y ), value_str,
-		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = tfont
-                    )
+	      value_draw_list.append((
+	          self._CreateValueString( value, 3 ),
+                  Widget.GetContrastColor( *brush_color ),
+                  chan_x, chan_y, chan_wd, chan_wd
+                  ))
+#	      value_str, value_size, tfont = self._CreateValueDisplay(
+#	          value, 3, value_font, chan_wd, value_font_size
+#		  )
+#	      if value_str:
+#		value_x = chan_x + ((chan_wd - value_size[ 0 ]) >> 1)
+#		value_y = chan_y + ((chan_wd - value_size[ 1 ]) >> 1) 
+#                im_draw.text(
+#		    ( value_x, value_y ), value_str,
+#		    fill = Widget.GetContrastColor( *brush_color ),
+#		    font = tfont
+#                    )
 	    #end if value_font defined
 
 	  else:
@@ -773,6 +781,11 @@ Must be called from the UI thread.
 	  pin_y += chan_wd + chan_gap
         #end for pin_row
       #end if self.showPins
+
+#			-- Draw Values
+#			--
+      if value_draw_list:
+        self._DrawValues( value_draw_list, im_draw )
 
 #			-- Draw Legend Image
 #			--

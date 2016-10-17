@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-10-14	leerw@ornl.gov				-
+#	  Using new _DrawValues() method.
 #		2016-09-29	leerw@ornl.gov				-
 #	  Trying to prevent overrun of values displayed in cells.
 #		2016-09-20	leerw@ornl.gov				-
@@ -264,8 +266,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  assembly_ndx = 3, axial_ndx = 2
 	  )
 
+#			-- Limit axial level
+#			--
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
 
+#			-- Create image
+#			--
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
@@ -701,8 +707,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       draw_value_flag = \
           self.channelDataSet is not None and \
-          dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1 and \
-          value_font is not None
+          dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1
+          #value_font is not None
+      #node_value_draw_list = []
+      assy_value_draw_list = []
 
 #			-- Limit axial level
 #			--
@@ -806,17 +814,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 #           -- Draw value for cross-pin integrations
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
-	      value_str, value_size, tfont = self._CreateValueDisplay(
-	          value, 3, value_font, assy_wd, value_font_size
-		  )
-	      if value_str:
-		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
-		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
-                im_draw.text(
-		    ( value_x, value_y ), value_str,
-		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = tfont
-                    )
+	      assy_value_draw_list.append((
+	          self._CreateValueString( value, 3 ),
+                  Widget.GetContrastColor( *brush_color ),
+		  assy_x, assy_y, assy_wd, assy_wd
+	          ))
+#	      value_str, value_size, tfont = self._CreateValueDisplay(
+#	          value, 3, value_font, assy_wd, value_font_size
+#		  )
+#	      if value_str:
+#		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
+#		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
+#                im_draw.text(
+#		    ( value_x, value_y ), value_str,
+#		    fill = Widget.GetContrastColor( *brush_color ),
+#		    font = tfont
+#                    )
 	    #end if draw_value_flag
 	  #end if assembly referenced
 
@@ -825,6 +838,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
         assy_y += assy_advance
       #end for assy_row
+
+#			-- Draw Values
+#			--
+      if assy_value_draw_list:
+        self._DrawValues( assy_value_draw_list, im_draw )
 
 #			-- Draw Legend Image
 #			--

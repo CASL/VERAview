@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-10-14	leerw@ornl.gov				-
+#	  Using new _DrawValues() method.
 #		2016-10-01	leerw@ornl.gov				-
 #	  Better handling with nodalMode attribute.
 #		2016-09-30	leerw@ornl.gov				-
@@ -381,6 +383,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  assembly_ndx = 3, axial_ndx = 2
 	  )
 
+      node_value_draw_list = []
+
 #			-- Limit axial level
 #			--
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
@@ -449,17 +453,22 @@ If neither are specified, a default 'scale' value of 24 is used.
 	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 	          fill = brush_color, outline = pen_color
 	          )
-	      value_str, value_size, tfont = self._CreateValueDisplay(
-	          value, 3, value_font, pin_wd, value_font_size >> 1
-	          )
-	      if value_str:
-	        value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
-		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
-                im_draw.text(
-		    ( value_x, value_y ), value_str,
-		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = tfont
-                    )
+	      node_value_draw_list.append((
+	          self._CreateValueString( value, 3 ),
+                  Widget.GetContrastColor( *brush_color ),
+                  pin_x, pin_y, pin_wd, pin_wd
+                  ))
+#	      value_str, value_size, tfont = self._CreateValueDisplay(
+#	          value, 3, value_font, pin_wd, value_font_size >> 1
+#	          )
+#	      if value_str:
+#	        value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
+#		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
+#                im_draw.text(
+#		    ( value_x, value_y ), value_str,
+#		    fill = Widget.GetContrastColor( *brush_color ),
+#		    font = tfont
+#                    )
 	    else:
 	      im_draw.ellipse(
 	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
@@ -472,6 +481,11 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	pin_y += pin_wd + pin_gap
       #end for pin_row
+
+#			-- Draw Values
+#			--
+      if node_value_draw_list:
+        self._DrawValues( node_value_draw_list, im_draw )
 
 #			-- Draw Legend Image
 #			--
@@ -842,9 +856,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  )
 
       draw_value_flag = \
-          value_font is not None and \
           self.pinDataSet is not None and \
 	  dset_shape[ 0 ] == 1 and dset_shape[ 1 ] == 1
+          #value_font is not None
+      node_value_draw_list = []
+      assy_value_draw_list = []
 
 #			-- Limit axial level
 #			--
@@ -955,17 +971,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 		        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 		        fill = None, outline = node_pen
 		        )
-	            value_str, value_size, tfont = self._CreateValueDisplay(
-	                value, 3, value_font, pin_wd, value_font_size >> 1
-		        )
-	            if value_str:
-		      value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
-		      value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
-                      im_draw.text(
-		          ( value_x, value_y ), value_str,
-		          fill = Widget.GetContrastColor( *brush_color ),
-		          font = tfont
-                          )
+		    node_value_draw_list.append((
+			self._CreateValueString( value, 3 ),
+                        Widget.GetContrastColor( *brush_color ),
+			pin_x, pin_y, pin_wd, pin_wd
+		        ))
+#	            value_str, value_size, tfont = self._CreateValueDisplay(
+#	                value, 3, value_font, pin_wd, value_font_size >> 1
+#		        )
+#	            if value_str:
+#		      value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
+#		      value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
+#                      im_draw.text(
+#		          ( value_x, value_y ), value_str,
+#		          fill = Widget.GetContrastColor( *brush_color ),
+#		          font = tfont
+#                          )
 		  #end if nodalMode
 		#end if value gt 0
 
@@ -983,17 +1004,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 #           -- Draw value for cross-pin integrations
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
-	      value_str, value_size, tfont = self._CreateValueDisplay(
-	          value, 3, value_font, assy_wd, value_font_size
-		  )
-	      if value_str:
-		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
-		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
-                im_draw.text(
-		    ( value_x, value_y ), value_str,
-		    fill = Widget.GetContrastColor( *brush_color ),
-		    font = tfont
-                    )
+	      assy_value_draw_list.append((
+	          self._CreateValueString( value, 3 ),
+                  Widget.GetContrastColor( *brush_color ),
+		  assy_x, assy_y, assy_wd, assy_wd
+	          ))
+#	      value_str, value_size, tfont = self._CreateValueDisplay(
+#	          value, 3, value_font, assy_wd, value_font_size
+#		  )
+#	      if value_str:
+#		value_x = assy_x + ((assy_wd - value_size[ 0 ]) >> 1)
+#		value_y = assy_y + ((assy_wd - value_size[ 1 ]) >> 1)
+#                im_draw.text(
+#		    ( value_x, value_y ), value_str,
+#		    fill = Widget.GetContrastColor( *brush_color ),
+#		    font = tfont
+#                    )
 	    #end if draw_value_flag
 	  #end if assembly referenced
 
@@ -1002,6 +1028,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 
         assy_y += assy_advance
       #end for assy_row
+
+#			-- Draw Values
+#			--
+      if node_value_draw_list:
+        self._DrawValues( node_value_draw_list, im_draw )
+
+      if assy_value_draw_list:
+        self._DrawValues( assy_value_draw_list, im_draw )
 
 #			-- Draw Legend Image
 #			--
