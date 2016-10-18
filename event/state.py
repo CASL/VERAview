@@ -307,6 +307,7 @@ by locks.
 
 Keys passed and the corresponding state bit are:
   assembly_addr		STATE_CHANGE_coordinates
+  aux_node_addrs	STATE_CHANGE_coordinates
   aux_sub_addrs		STATE_CHANGE_coordinates
   axial_value		STATE_CHANGE_axialValue
   cur_dataset		STATE_CHANGE_curDataSet

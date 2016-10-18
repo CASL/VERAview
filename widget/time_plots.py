@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-10-18	leerw@ornl.gov				-
+#	  Added auxNodeAddrs and nodeAddr attributes.
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-10-06	leerw@ornl.gov				-
@@ -112,6 +114,7 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
+    self.auxNodeAddrs = []
     self.auxSubAddrs = []
     self.ax2 = None
     self.axialValue = DataModel.CreateEmptyAxialValue()
@@ -124,6 +127,7 @@ Properties:
     #self.detectorDataSet = 'detector_response'
     #self.detectorIndex = ( -1, -1, -1 )
     #self.fixedDetectorDataSet = 'fixed_detector_response'
+    self.nodeAddr = -1
 
     self.refAxisDataSet = ''
     self.refAxisMenu = wx.Menu()
@@ -702,16 +706,22 @@ XXX size according to how many datasets selected?
     self.dataSetDialog = None
     if self.data is not None and self.data.HasData():
       assy_addr = self.data.NormalizeAssemblyAddr( self.state.assemblyAddr )
+      aux_node_addrs = self.data.NormalizeNodeAddrs( self.state.auxNodeAddrs )
+      aux_sub_addrs = self.data.\
+          NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
+      node_addr = self.data.NormalizeNodeAddr( self.state.nodeAddr )
       sub_addr = self.data.NormalizeSubAddr( self.state.subAddr )
       #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )
       state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
 	'assembly_addr': assy_addr,
-	'aux_sub_addrs': self.state.auxSubAddrs,
+	'aux_node_addrs': aux_node_addrs,
+	'aux_sub_addrs': aux_sub_addrs,
 	'axial_value': axial_value,
 	'cur_dataset': self.state.curDataSet,
+	'node_addr': node_addr,
 	'state_index': state_ndx,
 	'sub_addr': sub_addr,
 	'time_dataset': self.state.timeDataSet
@@ -736,8 +746,8 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'refAxisDataSet',
+	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
+	'curDataSet', 'dataSetSelections', 'nodeAddr', 'refAxisDataSet',
 	'scaleMode', 'subAddr'
 	):
       if k in props_dict:
@@ -985,8 +995,8 @@ method via super.SaveProps().
     super( TimePlots, self ).SaveProps( props_dict )
 
     for k in (
-	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections',
+	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
+	'curDataSet', 'dataSetSelections', 'nodeAddr',
 	'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
@@ -1041,6 +1051,7 @@ already read.
 #		-- Must have data
 #		--
     if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
+      node_addr_list = None
       sub_addr_list = None
 
 #			-- Construct read specs
@@ -1084,12 +1095,16 @@ already read.
 #						-- Everything else
 	    else:
 #							-- Lazy creation
+	      if node_addr_list is None:
+	        node_addr_list = list( self.auxNodeAddrs )
+		node_addr_list.insert( 0, self.nodeAddr )
 	      if sub_addr_list is None:
                 sub_addr_list = list( self.auxSubAddrs )
                 sub_addr_list.insert( 0, self.subAddr )
 
 	      spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
 	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
+	      spec[ 'node_addrs' ] = node_addr_list
 	      spec[ 'sub_addrs' ] = sub_addr_list
 	      specs.append( spec )
               self.dataSetTypes.add( ds_type )
@@ -1123,128 +1138,6 @@ already read.
       #end for k
     #end if valid state
   #end _UpdateDataSetValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDataSetValues_old()			-
-  #----------------------------------------------------------------------
-  def _UpdateDataSetValues_old( self ):
-    """Rebuild dataset arrays to plot.
-Performance enhancement
-=======================
-Once auxSubAddrs include the assembly and axial indexes,
-compare each new dataset with what's in self.dataSetValues and only load
-new ones in new_ds_values, copying from self.dataSetValues for ones
-already read.
-"""
-    self.dataSetTypes.clear()
-    self.dataSetValues.clear()
-
-#		-- Must have data
-#		--
-    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
-      sub_addr_list = None
-
-#			-- Construct read specs
-#			--
-      specs = []
-      spec_names = set()
-      if self.refAxisDataSet:
-        specs.append({
-	    'assembly_index': self.assemblyAddr[ 0 ],
-	    'axial_cm': self.axialValue[ 0 ],
-	    'ds_name': '*' + self.refAxisDataSet,
-	    'sub_addrs': [ self.subAddr ]
-	    })
-      else:
-        specs.append( { 'ds_name': self.state.timeDataSet} )
-
-      for k in self.dataSetSelections:
-        ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
-
-#				-- Must be visible
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name not in spec_names:
-	  ds_type = self.data.GetDataSetType( ds_name )
-	  if ds_type:
-	    spec = { 'ds_name': ds_name }
-	    spec_names.add( ds_name )
-
-#						-- Channel
-	    if ds_type.startswith( 'channel' ):
-#							-- Lazy creation
-	      if sub_addr_list is None:
-                sub_addr_list = list( self.auxSubAddrs )
-                sub_addr_list.insert( 0, self.subAddr )
-
-	      spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
-	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	      spec[ 'sub_addrs' ] = sub_addr_list
-	      specs.append( spec )
-              self.dataSetTypes.add( 'channel' )
-
-#						-- Detector
-	    elif ds_type.startswith( 'detector' ):
-	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
-	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	      specs.append( spec )
-              self.dataSetTypes.add( 'detector' )
-
-#						-- Fixed detector
-	    elif ds_type.startswith( 'fixed_detector' ):
-	      spec[ 'detector_index' ] = self.assemblyAddr[ 0 ]
-	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	      specs.append( spec )
-              self.dataSetTypes.add( 'fixed_detector' )
-
-#						-- Pin
-	    elif ds_type.startswith( 'pin' ):
-#							-- Lazy creation
-	      if sub_addr_list is None:
-                sub_addr_list = list( self.auxSubAddrs )
-                sub_addr_list.insert( 0, self.subAddr )
-
-	      spec[ 'assembly_index' ] = self.assemblyAddr[ 0 ]
-	      spec[ 'axial_cm' ] = self.axialValue[ 0 ]
-	      spec[ 'sub_addrs' ] = sub_addr_list
-	      specs.append( spec )
-              self.dataSetTypes.add( 'pin' )
-
-#						-- Scalar
-	    else:
-	      specs.append( spec )
-              self.dataSetTypes.add( 'scalar' )
-	    #end if-else ds_type match
-	  #end if ds_type exists
-        #end if visible
-      #end for k
-
-#			-- Read and extract
-#			--
-      results = self.data.ReadDataSetValues2( *specs )
-
-      #self.refAxisValues = results[ self.state.timeDataSet ]
-      if self.refAxisDataSet:
-	#values_dict = results[ '*' + self.refAxisDataSet ]
-	#self.refAxisValues = values_dict.itervalues().next()
-	values_item = results[ '*' + self.refAxisDataSet ]
-	if isinstance( values_item, dict ):
-	  self.refAxisValues = values_item.itervalues().next()
-	else:
-	  self.refAxisValues = values_item
-      else:
-        self.refAxisValues = results[ self.state.timeDataSet ]
-
-      for k in self.dataSetSelections:
-        ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name in results:
-	  self.dataSetValues[ k ] = results[ ds_name ]
-      #end for k
-    #end if valid state
-  #end _UpdateDataSetValues_old
 
 
   #----------------------------------------------------------------------
@@ -1332,6 +1225,12 @@ Must be called from the UI thread.
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
     #end if
 
+    if 'aux_node_addrs' in kwargs and \
+        kwargs[ 'aux_node_addrs' ] != self.auxNodeAddrs:
+      replot = True
+      self.auxNodeAddrs = \
+          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+
     if 'aux_sub_addrs' in kwargs and \
         kwargs[ 'aux_sub_addrs' ] != self.auxSubAddrs:
       replot = True
@@ -1351,6 +1250,10 @@ Must be called from the UI thread.
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
     #end if
+
+    if 'node_addr' in kwargs and kwargs[ 'node_addr' ] != self.nodeAddr:
+      replot = True
+      self.nodeAddr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
       replot = True

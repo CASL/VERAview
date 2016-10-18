@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-18	leerw@ornl.gov				-
+#	  Modified ReadDataSetAxialValues() and ReadDataSetValues2() to
+#	  accept node_addrs params, no longer gleaning node addresses from
+#	  sub_addrs.
 #		2016-10-17	leerw@ornl.gov				-
 #	  Migrating to new approach where all dataset types, including
 #	  derived types, are "primary", meaning they are presented along
@@ -3494,6 +3498,7 @@ being one greater in each dimension.
   def ReadDataSetAxialValues( self,
       ds_name,
       assembly_index = 0,
+      node_addrs = None,
       sub_addrs = None,
       detector_index = 0,
       state_index = 0
@@ -3502,6 +3507,7 @@ being one greater in each dimension.
 @param  ds_name		dataset name
 @param  assembly_index	0-based assembly index
 @param  detector_index	0-based detector index
+@param  node_addrs	list of node indexes
 @param  sub_addrs	list of sub_addr pairs
 @param  state_index	0-based state point index
 @return			None if dataset cannot be found,
@@ -3541,16 +3547,26 @@ being one greater in each dimension.
 	  result = {}
           ds_shape = ds_def[ 'copy_shape' ]
           assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
+# We don't do this any more b/c we have nodeAddr and auxNodeAddrs
+#					-- Glean node_addrs from sub_addrs
+#	  node_addr_set = set()
+#	  if sub_addrs is None:
+#	    node_addr_set.add( ( 0, -1 ) )
+#	  else:
+#            for sub_addr in sub_addrs:
+#	      node_ndx = self.GetNodeAddr( sub_addr )
+#              node_addr = ( node_ndx, -1 )
+#              if node_addr not in node_addr_set:
+#	        node_addr_set.add( node_addr )
+#	  #end if-else sub_addrs
 	  node_addr_set = set()
-	  if sub_addrs is None:
+	  if node_addrs is None:
 	    node_addr_set.add( ( 0, -1 ) )
 	  else:
-            for sub_addr in sub_addrs:
-	      node_ndx = self.GetNodeAddr( sub_addr )
-              node_addr = ( node_ndx, -1 )
-              if node_addr not in node_addr_set:
-	        node_addr_set.add( node_addr )
-	  #end if-else sub_addrs
+	    for node_ndx in node_addrs:
+	      cur_pair = ( self.NormalizeNodeAddr( node_ndx ), -1 )
+	      node_addr_set.add( cur_pair )
+	  #end if-else node_addrs
 
 	  for node_addr in sorted( node_addr_set ):
 	    result[ node_addr ] = dset.value[ 0, node_addr[ 0 ], :, assy_ndx ]
@@ -3834,11 +3850,12 @@ being one greater in each dimension.
     """Reads values for a dataset across all state points, one state point
 at a time for better performance.
 @param  ds_specs_in	list of dataset specifications with the following keys:
-	  ds_name		required dataset name
 	  assembly_addr		0-based assembly index
 	  assembly_index	0-based assembly index
-	  detector_index	0-based detector index for detector datasets
 	  axial_cm		axial value in cm
+	  detector_index	0-based detector index for detector datasets
+	  ds_name		required dataset name
+	  node_addrs		list of node addrs
 	  sub_addrs		list of sub_addr pairs
 @return			dict keyed by found ds_name of:
 			  dict keyed by sub_addr of np.ndarray for pin-based
@@ -3880,6 +3897,10 @@ at a time for better performance.
         dset = self.GetStateDataSet( state_ndx, lookup_ds_name )
 	ds_type = ds_def[ 'type' ]
 
+	node_addrs = spec.get( 'node_addrs' )
+	if node_addrs is not None and not hasattr( node_addrs, '__iter__' ):
+	  node_addrs = [ node_addrs ]
+
         sub_addrs = spec.get( 'sub_addrs' )
         if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
           sub_addrs = [ sub_addrs ]
@@ -3894,7 +3915,7 @@ at a time for better performance.
 
 #			-- Detector
 #			--
-	elif ds_type == 'detector':
+	elif ds_type == 'detector' or ds_type == 'fixed_detector':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
 
@@ -3903,8 +3924,10 @@ at a time for better performance.
 	  else:
             ds_shape = ds_def[ 'shape' ]
 	    axial_cm = spec.get( 'axial_cm', 0.0 )
+	    ax_ndx = 2 if ds_type == 'detector' else 3
             ax_value = self.CreateAxialValue( cm = axial_cm )
-            axial_ndx = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
+            #axial_ndx = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
+            axial_ndx = max( 0, min( ax_value[ ax_ndx ], ds_shape[ 0 ] - 1 ) )
 
 	    detector_ndx = spec.get( 'detector_index', 0 )
             det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
@@ -3914,23 +3937,23 @@ at a time for better performance.
 
 #			-- Fixed detector
 #			--
-	elif ds_type == 'fixed_detector':
-	  if ds_name not in result:
-	    result[ ds_name ] = []
-
-	  if dset is None:
-	    value = 0.0
-	  else:
-            ds_shape = ds_def[ 'shape' ]
-	    axial_cm = spec.get( 'axial_cm', 0.0 )
-            ax_value = self.CreateAxialValue( cm = axial_cm )
-            axial_ndx = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
-
-	    detector_ndx = spec.get( 'detector_index', 0 )
-            det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
-
-	    value = dset.value[ axial_ndx, det_ndx ]
-	  result[ ds_name ].append( value )
+#	elif ds_type == 'fixed_detector':
+#	  if ds_name not in result:
+#	    result[ ds_name ] = []
+#
+#	  if dset is None:
+#	    value = 0.0
+#	  else:
+#            ds_shape = ds_def[ 'shape' ]
+#	    axial_cm = spec.get( 'axial_cm', 0.0 )
+#            ax_value = self.CreateAxialValue( cm = axial_cm )
+#            axial_ndx = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
+#
+#	    detector_ndx = spec.get( 'detector_index', 0 )
+#            det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
+#
+#	    value = dset.value[ axial_ndx, det_ndx ]
+#	  result[ ds_name ].append( value )
 
 #			-- :node
 #			--
@@ -3955,16 +3978,25 @@ at a time for better performance.
               ax_value = self.CreateAxialValue( cm = axial_cm )
               axial_ndx = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
+# We don't do this any more b/c we have nodeAddr and auxNodeAddrs
+#					-- Glean node_addrs from sub_addrs
+#	    node_addr_set = set()
+#	    if sub_addrs is None:
+#	      node_addr_set.add( ( 0, -1 ) )
+#	    else:
+#              for sub_addr in sub_addrs:
+#	        node_ndx = self.GetNodeAddr( sub_addr )
+#		node_addr = ( node_ndx, -1 )
+#	        if node_addr not in node_addr_set:
+#	          node_addr_set.add( node_addr )
+#	    #end if-else sub_addrs
 	    node_addr_set = set()
-	    if sub_addrs is None:
+	    if node_addrs is None:
 	      node_addr_set.add( ( 0, -1 ) )
 	    else:
-              for sub_addr in sub_addrs:
-	        node_ndx = self.GetNodeAddr( sub_addr )
-		node_addr = ( node_ndx, -1 )
-	        if node_addr not in node_addr_set:
-	          node_addr_set.add( node_addr )
-	    #end if-else sub_addrs
+	      for node_ndx in node_addrs:
+		cur_pair = ( self.NormalizeNodeAddr( node_ndx ), -1 )
+		node_addr_set.add( cur_pair )
 
 	    for node_addr in sorted( node_addr_set ):
 	      if node_addr not in ds_result:
@@ -3973,6 +4005,7 @@ at a time for better performance.
               if dset is not None:
 	        value = dset.value[ 0, node_addr[ 0 ], axial_ndx, assy_ndx ]
               ds_result[ node_addr ].append( value )
+	    #end if-else node_addrs
 	  #end if copy_shape
 
 #			-- Others are pin-based

@@ -1671,10 +1671,10 @@ be overridden by subclasses.
 	  else:
 	    addrs.append( node_addr )
 	  if addrs != self.auxNodeAddrs:
-	    state_args[ 'aux_node_adrs' ] = addrs
+	    state_args[ 'aux_node_addrs' ] = addrs
 	elif node_addr != self.nodeAddr:
 	  state_args[ 'node_addr' ] = node_addr
-	  state_args[ 'aux_node_adrs' ] = []
+	  state_args[ 'aux_node_addrs' ] = []
 
       elif ev.GetClickCount() > 1:
         pin_addr = cell_info[ 3 : 5 ]

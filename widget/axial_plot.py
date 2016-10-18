@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-10-18	leerw@ornl.gov				-
+#	  Added auxNodeAddrs and nodeAddr attributes.
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-10-01	leerw@ornl.gov				-
@@ -158,6 +160,7 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
+    self.auxNodeAddrs = []
     self.auxSubAddrs = []
     self.ax2 = None
     self.axialValue = DataModel.CreateEmptyAxialValue()
@@ -169,6 +172,7 @@ Properties:
     self.dataSetValues = {}  # keyed by dataset name or pseudo name
     #self.detectorDataSet = 'detector_response'
     #self.detectorIndex = ( -1, -1, -1 )
+    self.nodeAddr = -1
     #self.fixedDetectorDataSet = 'fixed_detector_response'
     #self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.scaleMode = 'selected'
@@ -833,9 +837,11 @@ to be passed to UpdateState().  Assume self.data is valid.
 
     if self.data is not None and self.data.HasData():
       assy_addr = self.data.NormalizeAssemblyAddr( self.state.assemblyAddr )
+      aux_node_addrs = self.data.NormalizeNodeAddrs( self.state.auxNodeAddrs )
       aux_sub_addrs = self.data.\
           NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
       axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
+      node_addr = self.data.NormalizeNodeAddr( self.state.nodeAddr )
       sub_addr = \
           self.data.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
       #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )
@@ -843,9 +849,11 @@ to be passed to UpdateState().  Assume self.data is valid.
       update_args = \
         {
 	'assembly_addr': assy_addr,
+	'aux_node_addrs': aux_node_addrs,
 	'aux_sub_addrs': aux_sub_addrs,
 	'axial_value': axial_value,
 	'cur_dataset': self.state.curDataSet,
+	'node_addr': node_addr,
 	'state_index': state_ndx,
 	'sub_addr': sub_addr,
 	'time_dataset': self.state.timeDataSet
@@ -867,8 +875,8 @@ be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in (
-	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'scaleMode', 'subAddr'
+	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
+	'curDataSet', 'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1012,8 +1020,8 @@ method via super.SaveProps().
     super( AxialPlot, self ).SaveProps( props_dict )
 
     for k in (
-	'assemblyAddr', 'auxSubAddrs', 'axialValue',
-	'dataSetSelections', 'scaleMode', 'subAddr'
+	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
+	'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
 
@@ -1061,6 +1069,7 @@ Must be called from the event thread.
     if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
       axial_ds_names = self.data.GetDataSetNames( 'axial' )
 
+      node_addr_list = None
       sub_addr_list = None
 
       for k in self.dataSetSelections:
@@ -1089,6 +1098,9 @@ Must be called from the event thread.
 #					-- Not scalar
 	  elif ds_type != 'scalar':
 #						-- Lazy creation
+	    if node_addr_list is None:
+	      node_addr_list = list( self.auxNodeAddrs )
+	      node_addr_list.insert( 0, self.nodeAddr )
 	    if sub_addr_list is None:
               sub_addr_list = list( self.auxSubAddrs )
               sub_addr_list.insert( 0, self.subAddr )
@@ -1096,6 +1108,7 @@ Must be called from the event thread.
 	    ds_values = self.data.ReadDataSetAxialValues(
 	        ds_name,
 		assembly_index = self.assemblyAddr[ 0 ],
+		node_addrs = node_addr_list,
 		sub_addrs = sub_addr_list,
 		state_index = self.stateIndex
 		)
