@@ -147,9 +147,11 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     z = self.meshLevels[ self.axialValue[ 1 ] ]
 
     assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
+    #xxxxx channel? track with mode flag?
     x = core.npinx * assy_col + self.subAddr[ 0 ]
 
     assy_row = self.assemblyAddr[ 2 ] - self.coreExtent[ 1 ]
+    #xxxxx channel?
     y = \
         core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
 	self.subAddr[ 1 ]
@@ -168,8 +170,12 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
         (self.data.core.npinx > 0 or self.data.core.npiny > 0):
       core = self.data.GetCore()
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      dset_value = dset.value
+      #dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset.shape
+
+      cur_npinx = max( core.npinx, dset_shape[ 1 ] )
+      cur_npiny = max( core.npiny, dset_shape[ 0 ] )
 
       print >> sys.stderr, \
           '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
@@ -180,7 +186,7 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
       ax_mesh = core.axialMesh
       #pin_pitch = 1.26
-      pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npiny )
+      pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npinx )
       self.meshLevels = [
 	  int( (ax_mesh[ i + 1 ] - ax_mesh[ 0 ]) / pin_pitch )
 	  for i in range( len( ax_mesh ) - 1 )
@@ -191,8 +197,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
       #xxxxx +1 on pin ranges if a channel dataset
       matrix = np.ndarray(
 	( z_size,
-	  core.npinx * self.coreExtent[ -2 ],
-	  core.npiny * self.coreExtent[ -1 ] ),
+	  cur_npinx * self.coreExtent[ -2 ],
+	  cur_npiny * self.coreExtent[ -1 ] ),
 	np.float64
 	)
       matrix.fill( 0.0 )
@@ -205,20 +211,21 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
         for assy_x in range( self.coreExtent[ 0 ], self.coreExtent[ 2 ] ):
           assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
           if assy_ndx >= 0:
+	    assy_ndx = min( assy_ndx, dset_shape[ 3 ] - 1 )
 	    for z in range( z_size ):
 	      #xxx is this off by one?
 	      ax_level = min(
 	          bisect.bisect_left( self.meshLevels, z ),
 		  len( self.meshLevels ) - 1
 		  )
+	      ax_level = min( ax_level, dset_shape[ 2 ] - 1 )
               #print >> sys.stderr, '[XX] z=%d, ax_level=%d' % ( z, ax_level )
 	      #for y in range( core.npiny ):
 	      pin_y2 = 0
-	      #xxxxx +1 on pin ranges if channel dataset
-	      for y in range( core.npiny - 1, -1, -1 ):
+	      for y in range( cur_npiny - 1, -1, -1 ):
 		data_y = min( y, dset_shape[ 0 ] - 1 )
 
-	        for x in range( core.npinx ):
+	        for x in range( cur_npinx ):
 		  data_x = min( x, dset_shape[ 1 ] - 1 )
 	          matrix[ z, pin_x + x, pin_y + pin_y2 ] = \
 	              dset_value[ data_y, data_x, ax_level, assy_ndx ]
@@ -228,10 +235,10 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 	    #end for z
           #end if assy_ndx
 
-          pin_x += core.npinx
+          pin_x += cur_npinx
         #end for assy_x
 
-        pin_y += core.npiny
+        pin_y += cur_npiny
       #end for assy_y
     #end if self.data is not None
 
@@ -407,7 +414,7 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #	METHOD:		Slicer3DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin' ]
+    return  [ 'pin', ':assembly', ':radial' ]
   #end GetDataSetTypes
 
 
@@ -605,7 +612,7 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #----------------------------------------------------------------------
   def _UpdateSlicePositions( self ):
     pos = self.CalcSlicePosition()
-    self.viz.UpdateView( self.CalcSlicePosition() )
+    self.viz.UpdateView( pos )
   #end _UpdateSlicePositions
 
 

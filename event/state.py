@@ -86,6 +86,8 @@ STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
 STATE_CHANGE_weightsMode = 0x1 << 8
 
+STATE_CHANGE_ALL = 0xffffffff
+
 # These are in the order of being added
 ##  STATE_CHANGE_noop = 0
 ##  STATE_CHANGE_init = 0x1 << 0

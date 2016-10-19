@@ -249,7 +249,6 @@ Must be called in the UI thread.
     """
 """
     status = result.get()
-    #pdb.set_trace()
 
     if status is not None:
       dialog = status.get( 'dialog' )

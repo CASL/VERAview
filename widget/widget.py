@@ -950,8 +950,10 @@ Returning None means no tool buttons, which is the default implemented here.
       print >> sys.stderr, \
           '[Core2DView.HandleStateChange] calling _LoadDataModel()'
       self._LoadDataModel()
+      reason = STATE_CHANGE_ALL
 
-    else:
+    #else:
+    if True:
       update_args = self.state.CreateUpdateArgs( reason )
 
       if len( update_args ) > 0:

@@ -1621,7 +1621,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
-    self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    #self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    self.pinDataSet = self._FindFirstDataSet()
     self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 

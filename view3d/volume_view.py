@@ -89,8 +89,12 @@ class Volume3DView( Widget ):
         (self.data.core.npinx > 0 or self.data.core.npiny > 0):
       core = self.data.GetCore()
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      dset_value = dset.value
+      #dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset.shape
+
+      cur_npinx = max( core.npinx, dset_shape[ 1 ] )
+      cur_npiny = max( core.npiny, dset_shape[ 0 ] )
 
       print >> sys.stderr, \
           '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
@@ -113,8 +117,8 @@ class Volume3DView( Widget ):
       matrix = np.ndarray(
 	#( z_size, core.npinx * assy_range[ 5 ], core.npiny * assy_range[ 4 ] ),
 	( z_size,
-	  core.npinx * self.coreExtent[ -2 ],
-	  core.npiny * self.coreExtent[ -1 ] ),
+	  cur_npinx * self.coreExtent[ -2 ],
+	  cur_npiny * self.coreExtent[ -1 ] ),
 	np.float64
 	)
       matrix.fill( 0.0 )
@@ -134,11 +138,10 @@ class Volume3DView( Widget ):
 		  )
 	      #for y in range( core.npiny ):
 	      pin_y2 = 0
-              #xxxxx +1 on pin ranges if a channel dataset
-	      for y in range( core.npiny - 1, -1, -1 ):
+	      for y in range( cur_npiny - 1, -1, -1 ):
 		data_y = min( y, dset_shape[ 0 ] - 1 )
 
-	        for x in range( core.npinx ):
+	        for x in range( cur_npinx ):
 		  data_x = min( x, dset_shape[ 1 ] - 1 )
 	          matrix[ z, pin_x + x, pin_y + pin_y2 ] = \
 	              dset_value[ data_y, data_x, ax_level, assy_ndx ]
@@ -148,10 +151,10 @@ class Volume3DView( Widget ):
 	    #end for z
           #end if assy_ndx
 
-          pin_x += core.npinx
+          pin_x += cur_npinx
         #end for assy_x
 
-        pin_y += core.npiny
+        pin_y += cur_npiny
       #end for assy_y
     #end if self.data is not None
 
