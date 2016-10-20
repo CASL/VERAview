@@ -1538,7 +1538,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	    node_rect = [
 		assy_region[ 0 ] + rel_x,
 		assy_region[ 1 ] + rel_y,
-		pin_adv, pin_adv
+		pin_wd, pin_wd
 		]
 	    #pen = primary_pen if i == 0 else secondary_pen
 	    pen = \
@@ -1800,7 +1800,7 @@ be overridden by subclasses.
       if self.nodalMode:
         if self.state.weightsMode == 'on':
 	  pin_factors = self.data.GetNodeFactors()
-        node_addr = pin_info[ 3 ]
+        node_addr = pin_info[ 2 ]
 	if node_addr < dset.shape[ 1 ] and assy_ndx < dset.shape[ 3 ]:
 	  pin_factor = 1
 	  if pin_factors is not None:
@@ -1893,7 +1893,7 @@ be overridden by subclasses.
       pass
 
     elif self.nodalMode:
-      node_addr = pin_info[ 3 ]
+      node_addr = pin_info[ 2 ]
       valid = self.data.IsValid( node_addr = node_addr )
       if valid:
         is_aux = self.IsAuxiliaryEvent( ev )
