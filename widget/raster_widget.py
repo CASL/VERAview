@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  Removed Redraw() call from _LoadDataModelUI() since
+#	  Widget.HandleStateChange() now calls UpdateState().
 #		2016-10-14	leerw@ornl.gov				-
 #	  Added _DrawValues() method.
 #		2016-09-29	leerw@ornl.gov				-
@@ -171,7 +174,7 @@ _LoadDataModel()
   UI thread.
 
 _LoadDataModelUI()
-  The method defined here calls Redraw(), but extensions can override this
+  The method defined here is a noop, but extensions can override this
   for any special UI processing needed after _LoadDataModelValues() has been
   called.
 
@@ -1244,7 +1247,8 @@ Must be called on the UI thread.
 #    self.axialBean.axialLevel = 0
 #    self.exposureBean.SetRange( 1, len( self.data.states ) )
 #    self.exposureBean.stateIndex = 0
-    self.Redraw()  # self._OnSize( None )
+    #x self.Redraw()  # self._OnSize( None )
+    pass
   #end _LoadDataModelUI
 
 

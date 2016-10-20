@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  No longer calling UpdateState() in _LoadDataModel() since
+#	  Widget.HandleStateChange() now does so.
 #		2016-06-30	leerw@ornl.gov				-
 #	  Added {Load,Save}Props().
 #		2016-04-18	leerw@ornl.gov				-
@@ -377,7 +380,7 @@ _LoadDataModelValues()
         not self.isLoaded:
       self.isLoaded = True
       update_args = self._LoadDataModelValues()
-      wx.CallAfter( self.UpdateState, **update_args )
+      #x wx.CallAfter( self.UpdateState, **update_args )
   #end _LoadDataModel
 
 

@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  Added auxNodeAddrs and nodeAddr attributes with firing of
+#	  node_addr and aux_node_addr state changes on clicks.
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-10-14	leerw@ornl.gov				-
@@ -126,9 +129,11 @@ Attrs/properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
+    self.auxNodeAddrs = []
     self.auxSubAddrs = []
+    self.nodeAddr = -1
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
-    self.subAddr = None
+    self.subAddr = ( -1, -1 )
 
     super( Assembly2DView, self ).__init__( container, id )
   #end __init__
@@ -1106,7 +1111,10 @@ attributes/properties that aren't already set in _LoadDataModel():
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'assemblyAddr', 'auxSubAddrs', 'pinDataSet', 'subAddr' ):
+    for k in (
+        'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
+	'nodeAddr', 'pinDataSet', 'subAddr'
+	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1146,20 +1154,36 @@ be overridden by subclasses.
 #	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
 #	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 #	    ]
-
       #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-      if True:
-	if is_aux:
-	  addrs = list( self.auxSubAddrs )
-	  if pin_addr in addrs:
-	    addrs.remove( pin_addr )
-	  else:
-	    addrs.append( pin_addr )
-	  self.FireStateChange( aux_sub_addrs = addrs )
-
+      #xxxxx node_addr = self.data.GetNodeAddr( ( pin_col, pin_row ) )
+      if is_aux:
+	addrs = list( self.auxSubAddrs )
+	if pin_addr in addrs:
+	  addrs.remove( pin_addr )
 	else:
-          self.FireStateChange( sub_addr = pin_addr, aux_sub_addrs = [] )
-      #end if True # not nodata value
+	  addrs.append( pin_addr )
+	#self.FireStateChange( aux_sub_addrs = addrs )
+	node_addrs = self.data.NormalizeNodeAddrs(
+	    self.auxNodeAddrs + self.data.GetNodeAddrs( addrs )
+	    )
+	self.FireStateChange(
+	    aux_node_addrs = node_addrs,
+	    aux_sub_addrs = addrs
+	    )
+
+      else:
+        #self.FireStateChange( sub_addr = pin_addr, aux_sub_addrs = [] )
+        #state_args = { 'aux_sub_addrs': [] 'sub_addr': pin_addr }
+	state_args = dict(
+	    aux_node_addrs = [],
+	    aux_sub_addrs = [],
+	    sub_addr = pin_addr
+	    )
+	node_addr = self.data.GetNodeAddr( pin_addr )
+	if node_addr >= 0:
+	  state_args[ 'node_addr' ] = node_addr
+        self.FireStateChange( **state_args )
+      #end if-else is_aux
     #end if valid
   #end _OnClick
 
@@ -1196,7 +1220,10 @@ method via super.SaveProps().
 """
     super( Assembly2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyAddr', 'auxSubAddrs', 'subAddr' ):
+    for k in (
+        'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
+	'nodeAddr', 'subAddr'
+	):
       props_dict[ k ] = getattr( self, k )
 
     if self.data is not None:
@@ -1233,6 +1260,12 @@ method via super.SaveProps().
       changed = True
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
+    if 'aux_node_addrs' in kwargs:
+      aux_node_addrs = \
+          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+      if aux_node_addrs != self.auxNodeAddrs:
+	self.auxNodeAddrs = aux_node_addrs
+
     if 'aux_sub_addrs' in kwargs:
       aux_sub_addrs = \
           self.data.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'pin' )
@@ -1246,6 +1279,11 @@ method via super.SaveProps().
         resized = True
         self.pinDataSet = kwargs[ 'cur_dataset' ]
 	self.container.GetDataSetMenu().Reset()
+
+    if 'node_addr' in kwargs:
+      node_addr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
+      if node_addr != self.nodeAddr:
+        self.nodeAddr = node_addr
 
     if 'sub_addr' in kwargs:
       sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )

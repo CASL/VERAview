@@ -230,18 +230,6 @@ otherwise returns self.state.curDataSet
 	    not item.IsChecked():
 	  self._CheckSingleItem( self, item )
 
-#      data = self.state.GetDataModel()
-#      ds_name = self.state.GetCurDataSet()
-#      ds_type = data.GetDataSetType( ds_name ) if ds_name else None
-#      print '[HandleStateChange] ds_name=', ds_name, ', ds_type=', ds_type
-#      if ds_type:
-#        item = self._FindMenuItem( ds_type, ds_name )
-#	if item and item.GetItemLabelText() == ds_name:
-#	  if self.IsSingleSelection() and not item.IsChecked():
-#	    self._CheckSingleItem( self, item )
-
-#x	  else:
-#x	    item.Check()
 #_        if item and item.GetKind() == wx.ITEM_RADIO and \
 #_	    item.GetItemLabelText() == ds_name:
 #_          item.Check()

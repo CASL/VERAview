@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  In nodalMode, hiliting assembly in white and node in red.
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #	  Added auxNodeAddrs and nodeAddr attributes.
@@ -1443,25 +1445,40 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       line_wd = self.config[ 'lineWidth' ]
       half_line_wd = line_wd >> 1
 
-      select_pen = wx.ThePenList.FindOrCreatePen(
-          wx.Colour( 255, 0, 0, 255 ),
-	  line_wd, wx.PENSTYLE_SOLID
-	  )
+#      select_pen = wx.ThePenList.FindOrCreatePen(
+#          wx.Colour( 255, 0, 0, 255 ),
+#	  half_line_wd if self.nodalMode else line_wd,
+#	  wx.PENSTYLE_SOLID
+#	  )
 
       rect = None
       draw_list = []  # ( rect, pen )
 
       if self.nodalMode:
         node_addr_list = list( self.auxNodeAddrs )
-        node_addr_list.insert( 0, self.nodeAddr )
+        #node_addr_list.insert( 0, self.nodeAddr )
+        node_addr_list.append( self.nodeAddr )
+        select_pen = wx.ThePenList.FindOrCreatePen(
+            wx.Colour( 255, 255, 255, 255 ),
+	    half_line_wd, wx.PENSTYLE_SOLID
+	    )
         primary_pen = wx.ThePenList.FindOrCreatePen(
-	    wx.Colour( 255, 255, 255, 255 ),
-	    max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+#	    wx.Colour( 255, 255, 255, 255 ),
+	    wx.Colour( 255, 0, 0, 255 ),
+	    #max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    line_wd, wx.PENSTYLE_SOLID
 	    )
         secondary_pen = wx.ThePenList.FindOrCreatePen(
 	    wx.Colour( 255, 255, 0, 255 ),
-	    max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    #max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    line_wd, wx.PENSTYLE_SOLID
 	    )
+      else:
+        select_pen = wx.ThePenList.FindOrCreatePen(
+            wx.Colour( 255, 0, 0, 255 ),
+	    line_wd, wx.PENSTYLE_SOLID
+	    )
+      #end if-else self.nodalMode
 
 #			-- Core mode
 #			--
@@ -1495,7 +1512,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	            rect[ 0 ] + rel_x, rect[ 1 ] + rel_y,
 		    node_wd - half_line_wd, node_wd - half_line_wd
 		    ]
-		pen = primary_pen if i == 0 else secondary_pen
+		#pen = primary_pen if i == 0 else secondary_pen
+		pen = \
+		    secondary_pen if i < len( node_addr_list ) - 1 else \
+		    primary_pen
 	        draw_list.append( ( node_rect, pen ) )
 	      #end if valid node addr
 	    #end for i
@@ -1520,7 +1540,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 		assy_region[ 1 ] + rel_y,
 		pin_adv, pin_adv
 		]
-	    pen = primary_pen if i == 0 else secondary_pen
+	    #pen = primary_pen if i == 0 else secondary_pen
+	    pen = \
+	        secondary_pen if i < len( node_addr_list ) - 1 else primary_pen
 	    draw_list.append( ( node_rect, pen ) )
 	  #end if valid node addr
 	#end for i

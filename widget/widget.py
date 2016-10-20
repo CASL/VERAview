@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#		2016-10-19	leerw@ornl.gov				-
+#	  Resolve issue of widgets not initializing correctly for derived
+#	  datasets by changing HandleStateChange() to specify
+#	  STATE_CHANGE_ALL and call UpdateState() when
+#	  STATE_CHANGE_{dataModel,init} are received.
 #		2016-08-23	leerw@ornl.gov				-
 #	  Added CheckSingleMenuItem() and ClearMenu().
 #	  Setting state in __init__().
@@ -953,11 +959,10 @@ Returning None means no tool buttons, which is the default implemented here.
       reason = STATE_CHANGE_ALL
 
     #else:
-    if True:
-      update_args = self.state.CreateUpdateArgs( reason )
+    update_args = self.state.CreateUpdateArgs( reason )
 
-      if len( update_args ) > 0:
-        wx.CallAfter( self.UpdateState, **update_args )
+    if len( update_args ) > 0:
+      wx.CallAfter( self.UpdateState, **update_args )
     #end else not a data model load
   #end HandleStateChange
 
@@ -1378,6 +1383,9 @@ implementation is a noop.
   #	METHOD:		Widget.SetState()				-
   #----------------------------------------------------------------------
   def SetState( self, state = None ):
+    """
+@deprecated  call Init()
+"""
     self.Init( state )
     #self.state = state
     #self.HandleStateChange( STATE_CHANGE_init )
