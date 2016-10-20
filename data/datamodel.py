@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  Added first attempt at GetFactors().
 #		2016-10-18	leerw@ornl.gov				-
 #	  Modified ReadDataSetAxialValues() and ReadDataSetValues2() to
 #	  accept node_addrs params, no longer gleaning node addresses from
@@ -264,7 +266,6 @@ DATASET_DEFS = \
 
   ':assembly':
     {
-#    'avg_method': 'avg.calc_pin_assembly_avg( core, data )',
     'avg_method':
       {
       'channel': 'calc_channel_assembly_avg',
@@ -273,6 +274,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, 0, :, : ]',
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
     'ds_prefix': ( 'asy', 'assembly' ),
+    'factors': 'assemblyWeights',
     'label': 'assembly',  # '3D asy'
     'shape_expr': '( core.nax, core.nass )',
     'type': ':assembly'
@@ -288,6 +290,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, 0, :, 0 ]',
     'copy_shape_expr': '( 1, 1, core.nax, 1 )',
     'ds_prefix': ( 'axial', ),
+    'factors': 'axialWeights',
     'label': 'axial',
     'shape_expr': '( core.nax, )',
     'type': ':axial'
@@ -315,6 +318,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, 0, 0, 0 ]',
     'copy_shape_expr': '( 1, 1, 1, 1 )',
     'ds_prefix': ( 'core', ),
+    'factors': 'coreWeights',
     'label': 'core',
     'shape_expr': '( 1, )',
     'type': ':core'
@@ -329,6 +333,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, :, :, : ]',
     'copy_shape_expr': '( 1, 4, core.nax, core.nass )',
     'ds_prefix': ( 'node', ),
+    'factors': 'nodeWeights',
     'label': 'node',
     'shape_expr': '( 4, core.nax, core.nass )',
     'type': ':node'
@@ -343,6 +348,7 @@ DATASET_DEFS = \
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
     'ds_prefix': ( 'radial', ),
+    'factors': 'radialWeights',
     'label': 'radial',  # '2D pin'
     'shape_expr': '( core.npiny, core.npinx, core.nass )',
     'type': ':radial'
@@ -357,6 +363,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, 0, 0, : ]',
     'copy_shape_expr': '( 1, 1, 1, core.nass )',
     'ds_prefix': ( 'radial_asy', 'radial_assembly' ),
+    'factors': 'radialAssemblyWeights',
     'label': 'radial assembly',  # '2D assy'
     'shape_expr': '( core.nass, )',
     'type': ':radial_assembly'
@@ -371,6 +378,7 @@ DATASET_DEFS = \
     'copy_expr': '[ 0, :, 0, : ]',
     'copy_shape_expr': '( 1, 4, 1, core.nass )',
     'ds_prefix': ( 'radial_node', ),
+    'factors': 'radialNodeWeights',
     'label': 'radial node',
     'shape_expr': '( 4, core.nass )',
     'type': ':radial_node'
@@ -1198,7 +1206,8 @@ Parameters:
       der_names = \
           self._CreateDerivedNames( ds_category, derived_label, ds_name )
       if der_names:
-        ddef = self.dataSetDefs.get( der_names[ 0 ] )
+	ddef = self.GetDataSetDef( der_names[ 0 ] )
+        #ddef = self.dataSetDefs.get( der_names[ 0 ] )
 
 #			-- Second, get averager and find method name
 #			--
@@ -2642,6 +2651,54 @@ derived datasets.  Lazily created and cached.
 """
     return  self.derivedStates
   #end GetDerivedStates
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetFactors()				-
+  #----------------------------------------------------------------------
+  def GetFactors( self, ds_name ):
+    """Determines the factors from the dataset shape.
+@param  dset		dataset to match
+@return			factors np.ndarray or None
+"""
+    result = None
+
+#		-- Find dataset type
+#		--
+#    if ds_name and self.GetStatesCount() > 0:
+#      dset = self.GetStateDataSet( 0, ds_name )
+    ddef = self.GetDataSetDefByDsName( ds_name ) if ds_name else none
+    if ddef:
+      result = self.pinFactors
+
+      if ddef[ 'type' ] == 'channel':
+        result = self.channelFactors
+
+      elif ddef[ 'type' ] == ':chan_radial':
+	pdb.set_trace()
+        result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
+        result.fill( 0.0 )
+	factors_sum = np.sum( self.channelFactors, axis = 2 )
+	exec_str = 'result' + ddef[ 'copy_expr' ] + ' = factors_sum'
+	exec(
+	    exec_str, {},
+	    { 'factors_sum': factors_sum, 'result': result }
+	    )
+
+      elif 'factors' in ddef and 'copy_shape' in ddef and \
+          'pin' in self.averagers:
+        result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
+        result.fill( 0.0 )
+	exec_str = \
+	    'result' + ddef[ 'copy_expr' ] + ' = averager.' + ddef[ 'factors' ]
+	exec(
+	    exec_str, {},
+	    { 'averager': self.averagers[ 'pin' ], 'result': result }
+	    )
+    #end if ddef
+
+    return  result
+  #end GetFactors
 
 
   #----------------------------------------------------------------------

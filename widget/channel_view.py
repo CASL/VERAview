@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  Calling DataModel.GetFactors().
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-10-14	leerw@ornl.gov				-
@@ -244,7 +246,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       chan_factors = None
       if self.state.weightsMode == 'on':
-        chan_factors = self.data.GetChannelFactors()
+        #chan_factors = self.data.GetChannelFactors()
+        chan_factors = self.data.GetFactors( self.channelDataSet )
         chan_factors_shape = chan_factors.shape
 
       if dset is None:
@@ -683,7 +686,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       chan_factors = None
       if self.state.weightsMode == 'on':
-        chan_factors = self.data.GetChannelFactors()
+        #chan_factors = self.data.GetChannelFactors()
+        chan_factors = self.data.GetFactors( self.channelDataSet )
         chan_factors_shape = chan_factors.shape
 
       if dset is None:

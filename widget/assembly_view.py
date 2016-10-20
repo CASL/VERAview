@@ -6,6 +6,7 @@
 #		2016-10-20	leerw@ornl.gov				-
 #	  Added auxNodeAddrs and nodeAddr attributes with firing of
 #	  node_addr and aux_node_addr state changes on clicks.
+#	  Calling DataModel.GetFactors().
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-10-14	leerw@ornl.gov				-
@@ -594,7 +595,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
       if self.state.weightsMode == 'on':
-        pin_factors = self.data.GetPinFactors()
+#        pin_factors = self.data.GetPinFactors()
+        pin_factors = self.data.GetFactors( self.pinDataSet )
         pin_factors_shape = pin_factors.shape
 
       #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )

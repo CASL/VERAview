@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-20	leerw@ornl.gov				-
+#	  Calling DataModel.GetFactors().
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-10-06	leerw@ornl.gov				-
@@ -482,12 +484,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
       pin_factors = None
       if self.state.weightsMode == 'on':
-	if self.nodalMode:
-          pin_factors = self.data.GetNodeFactors()
-          pin_factors_shape = pin_factors.shape
-        else:
-          pin_factors = self.data.GetPinFactors()
-          pin_factors_shape = pin_factors.shape
+        pin_factors = self.data.GetFactors( self.pinDataSet )
+#	if self.nodalMode:
+#          pin_factors = self.data.GetNodeFactors()
+#          pin_factors_shape = pin_factors.shape
+#        else:
+#          pin_factors = self.data.GetPinFactors()
+#          pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
