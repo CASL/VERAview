@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-10-21	leerw@ornl.gov				-
+#	  Added handling of node_addr and aux_node_addrs in 
+#	  _UpdateStateValues().
 #		2016-10-18	leerw@ornl.gov				-
 #	  Added auxNodeAddrs and nodeAddr attributes.
 #		2016-10-17	leerw@ornl.gov				-
@@ -1230,6 +1233,12 @@ Must be called from the UI thread.
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
     #end if
 
+    if 'aux_node_addrs' in kwargs and \
+        kwargs[ 'aux_node_addrs' ] != self.auxNodeAddrs:
+      replot = True
+      self.auxNodeAddrs = \
+          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+
     if 'aux_sub_addrs' in kwargs and kwargs[ 'aux_sub_addrs' ] != self.auxSubAddrs:
       replot = True
       self.auxSubAddrs = \
@@ -1250,6 +1259,10 @@ Must be called from the UI thread.
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True
     #end if
+
+    if 'node_addr' in kwargs and kwargs[ 'node_addr' ] != self.nodeAddr:
+      replot = True
+      self.nodeAddr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
       replot = True

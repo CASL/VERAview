@@ -1176,17 +1176,26 @@ The config and data attributes are good to go.
 
     if self.mode == 'core' and cell_info is not None and cell_info[ 0 ] >= 0:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      assy_ndx = cell_info[ 0 ]
-      if dset is not None and assy_ndx < dset.shape[ 3 ]:
+      #if dset is not None and assy_ndx < dset.shape[ 3 ]:
+      if dset is not None:
+        assy_ndx = min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
+        axial_value = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
         show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-        tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+	value = None
 
-	if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
-          value = dset[
-	      0, 0,
-	      min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
-	      min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
-	      ]
+	if self.nodalMode:
+	  node_addr = cell_info[ 5 ] if len( cell_info ) > 5 else -1
+	  if self.data.IsValid( node_addr = node_addr ):
+	    tip_str = 'Assy: %d %s, Node %d' % \
+	        ( assy_ndx + 1, show_assy_addr, node_addr + 1 )
+	    value = dset[ 0, node_addr, axial_value, assy_ndx ]
+	else:
+          tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+	  if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
+	    value = dset[ 0, 0, axial_value, assy_ndx ]
+	#end if self.nodalMode
+
+	if not self.data.IsBadValue( value ):
 	  tip_str += ': %g' % value
       #end if assy_ndx in range
     #end if cell_info
@@ -1203,8 +1212,8 @@ The config and data attributes are good to go.
 @param  ev_x		event x coordinate (relative to this)
 @param  ev_y		event y coordinate (relative to this)
 @return			None if no match, otherwise tuple of
-			( 0-based index, cell_col, cell_row, pin_col, pin_row,
-			  node_addr )
+			( 0-based index, cell_col, cell_row,
+			  pin_col, pin_row, node_addr )
 """
     result = None
 
@@ -1249,60 +1258,6 @@ The config and data attributes are good to go.
 
     return  result
   #end FindAssembly
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView.FindAssembly_old()			-
-  #----------------------------------------------------------------------
-  def FindAssembly_old( self, ev_x, ev_y ):
-    """Finds the assembly index.
-@param  ev_x		event x coordinate (relative to this)
-@param  ev_y		event y coordinate (relative to this)
-@return			None if no match, otherwise tuple of
-			( 0-based index, cell_col, cell_row, pin_col, pin_row )
-"""
-    result = None
-
-    if self.config is not None and self.data is not None and \
-        self.data.core is not None and self.data.core.coreMap is not None:
-      if ev_x >= 0 and ev_y >= 0:
-	assy_advance = self.config[ 'assemblyAdvance' ]
-	core_region = self.config[ 'coreRegion' ]
-	off_x = ev_x - core_region[ 0 ]
-	off_y = ev_y - core_region[ 1 ]
-        cell_x = min(
-	    int( off_x / assy_advance ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-	cell_x = max( self.cellRange[ 0 ], cell_x )
-        cell_y = min(
-	    int( off_y / assy_advance ) + self.cellRange[ 1 ],
-	    self.cellRange[ 3 ] - 1
-	    )
-	cell_y = max( self.cellRange[ 1 ], cell_y )
-
-	assy_ndx = self.data.core.coreMap[ cell_y, cell_x ] - 1
-
-	pin_wd = self.config[ 'pinWidth' ]
-	if self.nodalMode:
-	  node_col = int( (off_x % assy_advance) / pin_wd )
-	  node_row = int( (off_y % assy_advance) / pin_wd )
-	  node_addr = 2 if node_row > 0 else 0
-	  if node_col > 0:
-	    node_addr += 1
-	  pin_col, pin_row = self.data.GetSubAddrFromNode( node_addr )
-	else:
-	  pin_col = int( (off_x % assy_advance) / pin_wd )
-	  if pin_col >= self.data.core.npinx: pin_col = -1
-	  pin_row = int( (off_y % assy_advance) / pin_wd )
-	  if pin_row >= self.data.core.npiny: pin_row = -1
-
-	result = ( assy_ndx, cell_x, cell_y, pin_col, pin_row )
-      #end if event within display
-    #end if we have data
-
-    return  result
-  #end FindAssembly_old
 
 
   #----------------------------------------------------------------------
@@ -1447,14 +1402,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     if self.config is not None:
       line_wd = self.config[ 'lineWidth' ]
       half_line_wd = line_wd >> 1
-
-#      select_pen = wx.ThePenList.FindOrCreatePen(
-#          wx.Colour( 255, 0, 0, 255 ),
-#	  half_line_wd if self.nodalMode else line_wd,
-#	  wx.PENSTYLE_SOLID
-#	  )
-
-      rect = None
       draw_list = []  # ( rect, pen )
 
       if self.nodalMode:
@@ -1566,10 +1513,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	      self.subAddr[ 1 ] * pin_adv + assy_region[ 1 ],
 	      pin_adv, pin_adv
 	    ]
-	  pen = wx.ThePenList.FindOrCreatePen(
-	      wx.Colour( 255, 0, 0, 255 ),
-	      line_wd, wx.PENSTYLE_SOLID
-	      )
 	  draw_list.append( ( rect, select_pen ) )
         #end if cell in drawing range
       #end if-else on mode
@@ -1702,6 +1645,7 @@ be overridden by subclasses.
 	  state_args[ 'node_addr' ] = node_addr
 	  state_args[ 'aux_node_addrs' ] = []
 
+      #if ev.GetClickCount() > 1:
       elif ev.GetClickCount() > 1:
         pin_addr = cell_info[ 3 : 5 ]
         if pin_addr != self.subAddr:
@@ -1802,7 +1746,7 @@ be overridden by subclasses.
 
       if self.nodalMode:
         if self.state.weightsMode == 'on':
-	  pin_factors = self.data.GetNodeFactors()
+          pin_factors = self.data.GetFactors( self.pinDataSet )
         node_addr = pin_info[ 2 ]
 	if node_addr < dset.shape[ 1 ] and assy_ndx < dset.shape[ 3 ]:
 	  pin_factor = 1
@@ -1816,7 +1760,7 @@ be overridden by subclasses.
 
       else:
         if self.state.weightsMode == 'on':
-	  pin_factors = self.data.GetPinFactors()
+          pin_factors = self.data.GetFactors( self.pinDataSet )
         pin_addr = pin_info[ 0 : 2 ]
         if pin_addr[ 1 ] < dset.shape[ 0 ] and \
 	    pin_addr[ 0 ] < dset.shape[ 1 ] and \
@@ -1923,7 +1867,7 @@ be overridden by subclasses.
 	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
 	      self.assemblyAddr[ 0 ]
 	      ]
-          if not self.data.IsNoDataValue( self.pinDataSet, pin_value ):
+	  if not self.data.IsBadValue( pin_value ):
 	    self.FireStateChange( sub_addr = pin_addr )
       #end if dset
     #end if-else

@@ -3116,7 +3116,7 @@ a 4D array if necessary.
 @param  value		value to check
 @return			True if nan or inf, False otherwise
 """
-    return  math.isnan( value ) or math.isinf( value )
+    return  value is None or math.isnan( value ) or math.isinf( value )
   #end IsBadValue
 
 

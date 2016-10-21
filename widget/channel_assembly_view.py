@@ -856,7 +856,7 @@ Must be called from the UI thread.
     tip_str = ''
     valid = cell_info is not None and \
         self.data.IsValid(
-              assembly_index = self.assemblyAddr,
+              assembly_addr = self.assemblyAddr,
 	      axial_level = self.axialValue[ 1 ],
 	      sub_addr = cell_info[ 1 : 3 ],
 	      sub_addr_mode = 'channel',
@@ -864,17 +864,17 @@ Must be called from the UI thread.
 	      )
 
     if valid:
-      value = 0.0
-      #ds = self.data.states[ self.stateIndex ].group[ self.channelDataSet ]
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
-      if dset is not None:
+      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
+      value = None
+      if cell_info[ 2 ] < dset_shape[ 0 ] and cell_info[ 1 ] < dset_shape[ 1 ]:
         value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
-	    self.axialValue[ 1 ], self.assemblyAddr[ 0 ]
+	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
+	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      #if value > 0.0:
-      if not self.data.IsNoDataValue( self.channelDataSet, value ):
+      if not self.data.IsBadValue( value ):
         show_chan_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Channel: %s\n%s: %g' % \

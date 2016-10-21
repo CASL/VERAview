@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-21	leerw@ornl.gov				-
+#	  Attempting to draw node values.
 #		2016-10-20	leerw@ornl.gov				-
 #	  Calling DataModel.GetFactors().
 #		2016-10-17	leerw@ornl.gov				-
@@ -274,25 +276,6 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._CreateDrawConfig()		-
   #----------------------------------------------------------------------
-#  def _CreateDrawConfig( self, **kwargs ):
-#    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
-#'scale' (pixels per pin) from which a size is determined.
-#If neither are specified, a default 'scale' value of 4 is used.
-#Calls either _CreateDrawConfigNodal() or _CreateDrawConfigNonNodal().
-#@param  kwargs
-#    scale	pixels per cm
-#    size	( wd, ht ) against which to compute the scale
-#@return			config dict with keys
-#"""
-#    return \
-#        self._CreateDrawConfigNodal( **kwargs ) if self.nodalMode else \
-#        self._CreateDrawConfigNonNodal( **kwargs )
-#  #end _CreateDrawConfig
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateDrawConfig()		-
-  #----------------------------------------------------------------------
   def _CreateDrawConfig( self, **kwargs ):
     """Creates a draw configuration based on imposed 'size' (wd, ht ) or
 'scale' (pixels per pin) from which a size is determined.
@@ -314,7 +297,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     axialPixPerCm	used?
     coreRegion
     lineWidth
-    nodeWidth
+    nodeWidth		if self.nodalMode
+    valueFont
+    valueFontSize
 """
     ds_range = self.data.GetRange(
         self.pinDataSet,
@@ -418,6 +403,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       axials_dy.insert( 0, dy )
     #end for
 
+    value_font_size = assy_wd >> 1
+    value_font = \
+        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
+	if value_font_size >= 6 else None
+
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'axialLevelsDy' ] = axials_dy
     config[ 'axialPixPerCm' ] = axial_pix_per_cm
@@ -425,6 +415,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'pinWidth' ] = pin_wd
+    config[ 'valueFont' ] = value_font
+    config[ 'valueFontSize' ] = value_font_size
 
     if self.nodalMode:
       config[ 'nodeWidth' ] = node_wd
@@ -485,12 +477,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_factors = None
       if self.state.weightsMode == 'on':
         pin_factors = self.data.GetFactors( self.pinDataSet )
-#	if self.nodalMode:
-#          pin_factors = self.data.GetNodeFactors()
-#          pin_factors_shape = pin_factors.shape
-#        else:
-#          pin_factors = self.data.GetPinFactors()
-#          pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -542,6 +528,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    additional = addresses
 	    )
       #end if-else self.mode
+
+      node_value_draw_list = []
 
 #			-- Create image
 #			--
@@ -618,6 +606,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 		        node_x + node_wd + 1, axial_y + cur_dy + 1 ],
 		      fill = brush_color, outline = pen_color
 		      )
+		  node_value_draw_list.append((
+		      self._CreateValueString( value, 3 ),
+                      Widget.GetContrastColor( *brush_color ),
+                      node_x, axial_y, node_wd, cur_dy
+		      ))
 	        #end if valid value
 	        node_x += node_wd
 	      #end for node cells
@@ -671,6 +664,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	axial_y += cur_dy
       #end for assy_row
+
+#			-- Draw Values
+#			--
+      if node_value_draw_list:
+        self._DrawValues( node_value_draw_list, im_draw )
 
 #			-- Draw Legend Image
 #			--

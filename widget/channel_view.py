@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-10-21	leerw@ornl.gov				-
+#	  Updating for node support.
 #		2016-10-20	leerw@ornl.gov				-
 #	  Calling DataModel.GetFactors().
 #		2016-10-17	leerw@ornl.gov				-
@@ -106,8 +108,11 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
+    self.auxNodeAddrs = []
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
     self.mode = ''
+    self.nodeAddr = -1
+    self.nodalMode = False
     self.subAddr = None
 
     super( Channel2DView, self ).__init__( container, id )
@@ -953,17 +958,30 @@ The config and data attributes are good to go.
     tip_str = ''
 
     if self.mode == 'core' and cell_info is not None and cell_info[ 0 ] >= 0:
-      #xxxx must get this later, like Core2DView
-#      avg_value = 0.0
-#      show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-#      tip_str = 'Assy: %d %s\n%s %s: %.3g' % \
-#          ( cell_info[ 0 ] + 1, show_assy_addr, 'Avg', \
-#	    self.channelDataSet, avg_value )
-      show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
-      tip_str = 'Assy: %d %s\n%s' % \
-          ( cell_info[ 0 ] + 1, show_assy_addr,
-	    self.data.GetDataSetDisplayName( self.channelDataSet ) )
-    #end if
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+      #if dset is not None and assy_ndx < dset.shape[ 3 ]:
+      if dset is not None:
+        assy_ndx = min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
+        axial_value = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+        show_assy_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+	value = None
+
+	if self.nodalMode:
+	  node_addr = cell_info[ 5 ] if len( cell_info ) > 5 else -1
+	  if self.data.IsValid( node_addr = node_addr ):
+	    tip_str = 'Assy: %d %s, Node %d' % \
+	        ( assy_ndx + 1, show_assy_addr, node_addr + 1 )
+	    value = dset[ 0, node_addr, axial_value, assy_ndx ]
+	else:
+          tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+	  if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
+	    value = dset[ 0, 0, axial_value, assy_ndx ]
+	#end if self.nodalMode
+
+	if not self.data.IsBadValue( value ):
+	  tip_str += ': %g' % value
+      #end if assy_ndx in range
+    #end if cell_info
 
     return  tip_str
   #end _CreateToolTipText
@@ -977,7 +995,8 @@ The config and data attributes are good to go.
 @param  ev_x		event x coordinate (relative to this)
 @param  ev_y		event y coordinate (relative to this)
 @return			None if no match, otherwise tuple of
-			( 0-based index, cell_col, cell_row, chan_col, chan_row )
+			( 0-based index, cell_col, cell_row,
+			  chan_col, chan_row, node_addr )
 """
     result = None
 
@@ -1002,12 +1021,22 @@ The config and data attributes are good to go.
 	assy_ndx = self.data.core.coreMap[ cell_y, cell_x ] - 1
 
 	chan_wd = self.config[ 'channelWidth' ]
-	chan_col = int( (off_x % assy_advance) / chan_wd )
-	if chan_col > self.data.core.npinx: chan_col = -1
-	chan_row = int( (off_y % assy_advance) / chan_wd )
-	if chan_row > self.data.core.npiny: chan_row = -1
+	if self.nodalMode:
+	  node_col = int( (off_x % assy_advance) / chan_wd )
+	  node_row = int( (off_y % assy_advance) / chan_wd )
+	  node_addr = 2 if node_row > 0 else 0
+	  if node_col > 0:
+	    node_addr += 1
+	  chan_col, chan_row = \
+	      self.data.GetSubAddrFromNode( node_addr, 'channel' )
+	else:
+	  chan_col = int( (off_x % assy_advance) / chan_wd )
+	  if chan_col > self.data.core.npinx: chan_col = -1
+	  chan_row = int( (off_y % assy_advance) / chan_wd )
+	  if chan_row > self.data.core.npiny: chan_row = -1
+	  node_addr = self.data.GetNodeAddr( ( chan_col, chan_row ), 'channel' )
 
-	result = ( assy_ndx, cell_x, cell_y, chan_col, chan_row )
+	result = ( assy_ndx, cell_x, cell_y, chan_col, chan_row, node_addr )
       #end if event within display
     #end if we have data
 
@@ -1044,7 +1073,7 @@ The config and data attributes are good to go.
 @param  ev_x		event x coordinate (relative to this)
 @param  ev_y		event y coordinate (relative to this)
 @return			None if no match, otherwise tuple of
-			( 0-based cell_col, cell_row )
+			( 0-based cell_col, cell_row, node_addr )
 """
     result = None
 
@@ -1052,16 +1081,26 @@ The config and data attributes are good to go.
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         chan_size = self.config[ 'channelWidth' ] + self.config[ 'channelGap' ]
-        cell_x = min(
-	    int( (ev_x - assy_region[ 0 ]) / chan_size ),
-	    self.data.core.npin
-	    )
-        cell_y = min(
-	    int( (ev_y - assy_region[ 1 ]) / chan_size ),
-	    self.data.core.npin
-	    )
 
-	result = ( cell_x, cell_y )
+	if self.nodalMode:
+	  node_col = min( int( (ev_x - assy_region[ 0 ]) / chan_size ), 1 )
+	  node_row = min( int( (ev_y - assy_region[ 1 ]) / chan_size ), 1 )
+	  node_addr = 2 if node_row > 0 else 0
+	  if node_col > 0:
+	    node_addr += 1
+	  cell_x, cell_y = self.data.GetSubAddrFromNode( node_addr, 'channel' )
+	else:
+          cell_x = min(
+	      int( (ev_x - assy_region[ 0 ]) / chan_size ),
+	      self.data.core.npin
+	      )
+          cell_y = min(
+	      int( (ev_y - assy_region[ 1 ]) / chan_size ),
+	      self.data.core.npin
+	      )
+          node_addr = self.data.GetNodeAddr( ( cell_x, cell_y ), 'channel' )
+
+	result = ( cell_x, cell_y, node_addr )
       #end if event within display
     #end if we have data
 
@@ -1132,6 +1171,159 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Channel2DView._HiliteBitmap()			-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap ):
+    result = bmap
+
+    if self.config is not None:
+      line_wd = -1
+      half_line_wd = line_wd >> 1
+      draw_list = []  # ( rect, pen )
+
+      if self.nodalMode:
+        node_addr_list = list( self.auxNodeAddrs )
+        #node_addr_list.insert( 0, self.nodeAddr )
+        node_addr_list.append( self.nodeAddr )
+        select_pen = wx.ThePenList.FindOrCreatePen(
+            wx.Colour( 255, 255, 255, 255 ),
+	    half_line_wd, wx.PENSTYLE_SOLID
+	    )
+        primary_pen = wx.ThePenList.FindOrCreatePen(
+#	    wx.Colour( 255, 255, 255, 255 ),
+	    wx.Colour( 255, 0, 0, 255 ),
+	    #max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    line_wd, wx.PENSTYLE_SOLID
+	    )
+        secondary_pen = wx.ThePenList.FindOrCreatePen(
+	    wx.Colour( 255, 255, 0, 255 ),
+	    #max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    line_wd, wx.PENSTYLE_SOLID
+	    )
+      else:
+        select_pen = wx.ThePenList.FindOrCreatePen(
+            wx.Colour( 255, 0, 0, 255 ),
+	    line_wd, wx.PENSTYLE_SOLID
+	    )
+      #end if-else self.nodalMode
+
+#      if self.cellRange[ -2 ] == 1 and self.cellRange[ -1 ] == 1:
+#        pass
+
+#			-- Core mode
+#			--
+      if self.config[ 'mode' ] == 'core':
+        rel_col = self.assemblyAddr[ 1 ] - self.cellRange[ 0 ]
+        rel_row = self.assemblyAddr[ 2 ] - self.cellRange[ 1 ]
+
+        if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
+            rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
+          assy_adv = self.config[ 'assemblyAdvance' ]
+	  assy_wd = self.config[ 'assemblyWidth' ]
+	  core_region = self.config[ 'coreRegion' ]
+
+	  rect = \
+	    [
+	      rel_col * assy_adv + core_region[ 0 ],
+	      rel_row * assy_adv + core_region[ 1 ],
+	      assy_wd, assy_wd
+	    ]
+	  draw_list.append( ( rect, select_pen ) )
+
+#					-- Core nodal
+	  if self.nodalMode:
+	    node_wd = self.config[ 'channelWidth' ]
+            for i in range( len( node_addr_list ) ):
+	      node_addr = node_addr_list[ i ]
+	      if node_addr >= 0:
+	        rel_x = node_wd if node_addr in ( 1, 3 ) else half_line_wd
+	        rel_y = node_wd if node_addr in ( 2, 3 ) else half_line_wd
+	        node_rect = [
+	            rect[ 0 ] + rel_x, rect[ 1 ] + rel_y,
+		    node_wd - half_line_wd, node_wd - half_line_wd
+		    ]
+		#pen = primary_pen if i == 0 else secondary_pen
+		pen = \
+		    secondary_pen if i < len( node_addr_list ) - 1 else \
+		    primary_pen
+	        draw_list.append( ( node_rect, pen ) )
+	      #end if valid node addr
+	    #end for i
+	  #end if nodalMode
+        #end if cell in drawing range
+
+#			-- Assy nodal mode
+#			--
+      elif self.nodalMode:
+        assy_region = self.config[ 'assemblyRegion' ]
+        chan_gap = self.config[ 'channelGap' ]
+	chan_wd = self.config[ 'channelWidth' ]
+	chan_adv = chan_wd + chan_gap
+
+	for i in range( len( node_addr_list ) ):
+	  node_addr = node_addr_list[ i ]
+	  if node_addr >= 0:
+	    rel_x = pin_adv if node_addr in ( 1, 3 ) else 0
+	    rel_y = pin_adv if node_addr in ( 2, 3 ) else 0
+	    node_rect = [
+		assy_region[ 0 ] + rel_x,
+		assy_region[ 1 ] + rel_y,
+		chan_wd, chan_wd
+		]
+	    #pen = primary_pen if i == 0 else secondary_pen
+	    pen = \
+	        secondary_pen if i < len( node_addr_list ) - 1 else primary_pen
+	    draw_list.append( ( node_rect, pen ) )
+	  #end if valid node addr
+	#end for i
+
+#			-- Assy not nodal mode
+#			--
+      else:  # 'assy'
+	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
+	    self.subAddr[ 0 ] <= self.data.core.npinx and \
+	    self.subAddr[ 1 ] <= self.data.core.npiny:
+          assy_region = self.config[ 'assemblyRegion' ]
+	  chan_gap = self.config[ 'channelGap' ]
+	  chan_wd = self.config[ 'channelWidth' ]
+	  chan_adv = chan_wd + chan_gap
+	  line_wd = self.config[ 'lineWidth' ]
+
+	  rect = \
+	    [
+	      self.subAddr[ 0 ] * chan_adv + assy_region[ 0 ],
+	      self.subAddr[ 1 ] * chan_adv + assy_region[ 1 ],
+	      chan_adv, chan_adv
+	    ]
+	  draw_list.append( ( rect, select_pen ) )
+        #end if cell in drawing range
+      #end if-else on mode
+
+#			-- Draw?
+#			--
+      if draw_list:
+	new_bmap = self._CopyBitmap( bmap )
+
+        dc = wx.MemoryDC( new_bmap )
+	gc = wx.GraphicsContext.Create( dc )
+
+	for draw_item in draw_list:
+	  gc.SetPen( draw_item[ 1 ] )
+	  path = gc.CreatePath()
+	  path.AddRectangle( *draw_item[ 0 ] )
+	  gc.StrokePath( path )
+	#end for draw_item
+
+	dc.SelectObject( wx.NullBitmap )
+	result = new_bmap
+      #end if draw_list
+    #end if self.config is not None:
+
+    return  result
+  #end _HiliteBitmap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView._HiliteBitmap_old()		-
+  #----------------------------------------------------------------------
+  def _HiliteBitmap_old( self, bmap ):
     result = bmap
 
     if self.config is not None:
@@ -1213,7 +1405,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     #end if self.config is not None:
 
     return  result
-  #end _HiliteBitmap
+  #end _HiliteBitmap_old
 
 
   #----------------------------------------------------------------------
@@ -1275,7 +1467,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'assemblyAddr', 'channelDataSet', 'mode', 'subAddr' ):
+    for k in (
+        'assemblyAddr', 'auxNodeAddr' 'channelDataSet', 'mode',
+	'nodeAddr', 'subAddr'
+	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1299,7 +1494,23 @@ be overridden by subclasses.
       if assy_addr != self.assemblyAddr:
 	state_args[ 'assembly_addr' ] = assy_addr
 
-      if ev.GetClickCount() > 1:
+      if self.nodalMode:
+        node_addr = cell_info[ 5 ]
+        is_aux = self.IsAuxiliaryEvent( ev )
+	if is_aux:
+	  addrs = list( self.auxNodeAddrs )
+	  if node_addr in addrs:
+	    addrs.remove( node_addr )
+	  else:
+	    addrs.append( node_addr )
+	  if addrs != self.auxNodeAddrs:
+	    state_args[ 'aux_node_addrs' ] = addrs
+	elif node_addr != self.nodeAddr:
+	  state_args[ 'node_addr' ] = node_addr
+	  state_args[ 'aux_node_addrs' ] = []
+
+      #if ev.GetClickCount() > 1:
+      elif ev.GetClickCount() > 1:
         chan_addr = cell_info[ 3 : 5 ]
         if chan_addr != self.subAddr:
 	  state_args[ 'sub_addr' ] = chan_addr
@@ -1354,6 +1565,64 @@ be overridden by subclasses.
     """
 """
     tip_str = ''
+
+    dset = None
+    chan_info = self.FindChannel( *ev.GetPosition() )
+    if chan_info is not None:
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+
+    if dset is not None:
+      axial_level = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 )
+      assy_ndx = self.assemblyAddr[ 0 ]
+      chan_factors = None
+
+      if self.nodalMode:
+        if self.state.weightsMode == 'on':
+          chan_factors = self.data.GetFactors( self.channelDataSet )
+        node_addr = chan_info[ 2 ]
+	if node_addr < dset.shape[ 1 ] and assy_ndx < dset.shape[ 3 ]:
+	  chan_factor = 1
+	  if chan_factors is not None:
+	    chan_factor = chan_factors[ 0, node_addr, axial_level, assy_ndx ]
+          chan_value = dset[ 0, node_addr, axial_level, assy_ndx ]
+	  if not ( self.data.IsBadValue( chan_value ) or chan_factor == 0 ):
+            tip_str = 'Node: %d\n%s: %g' % \
+		( node_addr + 1, self.channelDataSet, chan_value )
+	#end if node_addr and assy_ndx valid
+
+      else:
+        if self.state.weightsMode == 'on':
+          chan_factors = self.data.GetFactors( self.channelDataSet )
+        chan_addr = chan_info[ 0 : 2 ]
+        if chan_addr[ 1 ] < dset.shape[ 0 ] and \
+	    chan_addr[ 0 ] < dset.shape[ 1 ] and \
+	    assy_ndx < dset.shape[ 3 ]:
+	  chan_factor = 1
+	  if chan_factors is not None:
+	    chan_factor = chan_factors[
+	        chan_addr[ 1 ], chan_addr[ 0 ],
+		axial_level, assy_ndx
+		]
+          chan_value = \
+	      dset[ chan_addr[ 1 ], chan_addr[ 0 ], axial_level, assy_ndx ]
+	  if not ( self.data.IsBadValue( chan_value ) or chan_factor == 0 ):
+	    chan_rc = ( chan_addr[ 0 ] + 1, chan_addr[ 1 ] + 1 )
+            tip_str = 'Pin: %s\n%s: %g' % \
+	        ( str( chan_rc ), self.channelDataSet, chan_value )
+      #end if-else nodalMode
+    #end if dset
+
+    self.bitmapCtrl.SetToolTipString( tip_str )
+  #end _OnMouseMotionAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView._OnMouseMotionAssy_old()		-
+  #----------------------------------------------------------------------
+  def _OnMouseMotionAssy_old( self, ev ):
+    """
+"""
+    tip_str = ''
     chan_addr = self.FindChannel( *ev.GetPosition() )
     if chan_addr is not None:
       state_ndx = self.stateIndex
@@ -1381,13 +1650,57 @@ be overridden by subclasses.
     #end if pin found
 
     self.bitmapCtrl.SetToolTipString( tip_str )
-  #end _OnMouseMotionAssy
+  #end _OnMouseMotionAssy_old
 
 
   #----------------------------------------------------------------------
   #	METHOD:		Channel2DView._OnMouseUpAssy()			-
   #----------------------------------------------------------------------
   def _OnMouseUpAssy( self, ev ):
+    """
+"""
+    chan_info = self.FindChannel( *ev.GetPosition() )
+    if chan_info is None:
+      pass
+
+    elif self.nodalMode:
+      node_addr = chan_info[ 2 ]
+      valid = self.data.IsValid( node_addr = node_addr )
+      if valid:
+        is_aux = self.IsAuxiliaryEvent( ev )
+	if is_aux:
+	  addrs = list( self.auxNodeAddrs )
+	  if node_addr in addrs:
+	    addrs.remove( node_addr )
+	  else:
+	    addrs.append( node_addr )
+	  self.FireStateChange( aux_node_addrs = addrs )
+	else:
+          self.FireStateChange( node_addr = node_addr, aux_node_addrs = [] )
+      #end if valid
+
+    else:
+      chan_addr = chan_info[ 0 : 2 ]
+      dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
+      if dset is not None:
+        axial_level = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 )
+        assy_ndx = self.assemblyAddr[ 0 ]
+        if chan_addr[ 1 ] < dset.shape[ 0 ] and \
+	    chan_addr[ 0 ] < dset.shape[ 1 ] and \
+	    assy_ndx < dset.shape[ 3 ]:
+          chan_value = \
+	      dset[ chan_addr[ 1 ], chan_addr[ 0 ], axial_level, assy_ndx ]
+	  if not self.data.IsBadValue( chan_value ):
+	    self.FireStateChange( sub_addr = chan_addr )
+      #end if dset
+    #end if-else
+  #end _OnMouseUpAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Channel2DView._OnMouseUpAssy_old()		-
+  #----------------------------------------------------------------------
+  def _OnMouseUpAssy_old( self, ev ):
     """
 """
     chan_addr = self.FindChannel( *ev.GetPosition() )
@@ -1414,7 +1727,7 @@ be overridden by subclasses.
       if not self.data.IsNoDataValue( ds_name, chan_value ):
 	self.FireStateChange( sub_addr = chan_addr )
     #end if chan_addr changed
-  #end _OnMouseUpAssy
+  #end _OnMouseUpAssy_old
 
 
   #----------------------------------------------------------------------
@@ -1440,7 +1753,7 @@ method via super.SaveProps().
 """
     super( Channel2DView, self ).SaveProps( props_dict )
 
-    for k in ( 'assemblyAddr', 'mode', 'subAddr' ):
+    for k in ( 'assemblyAddr', 'auxNodeAddrs', 'mode', 'nodeAddr', 'subAddr' ):
       props_dict[ k ] = getattr( self, k )
 
     if self.data is not None:
@@ -1506,6 +1819,13 @@ method via super.SaveProps().
       changed = True
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
+    if 'aux_node_addrs' in kwargs:
+      aux_node_addrs = \
+          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+      if aux_node_addrs != self.auxNodeAddrs:
+        changed = True
+	self.auxNodeAddrs = aux_node_addrs
+
     if 'cur_dataset' in kwargs and \
         kwargs[ 'cur_dataset' ] != self.channelDataSet:
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
@@ -1513,6 +1833,12 @@ method via super.SaveProps().
         resized = True
         self.channelDataSet = kwargs[ 'cur_dataset' ]
 	self.container.GetDataSetMenu().Reset()
+
+    if 'node_addr' in kwargs:
+      node_addr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
+      if node_addr != self.nodeAddr:
+        changed = True
+        self.nodeAddr = node_addr
 
     if 'sub_addr' in kwargs:
       sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'channel' )

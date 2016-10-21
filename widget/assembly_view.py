@@ -804,7 +804,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     if valid:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
-      value = 0.0
+      value = None
       if cell_info[ 2 ] < dset_shape[ 0 ] and cell_info[ 1 ] < dset_shape[ 1 ]:
         value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
@@ -812,15 +812,11 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      #if value > 0.0:
-      if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	ds_name = \
-	    self.pinDataSet[ 6 : ] if self.pinDataSet.startswith( 'extra:' ) \
-	    else self.pinDataSet
+      if not self.data.IsBadValue( value ):
         show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = \
 	    'Pin: %s\n%s: %g' % \
-	    ( str( show_pin_addr ), ds_name, value )
+	    ( str( show_pin_addr ), self.pinDataSet, value )
     #end if valid
 
     return  tip_str
