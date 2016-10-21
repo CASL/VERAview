@@ -142,18 +142,19 @@ Properties:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
 
     if dset is not None:
-      dset_value = dset.value
+      #dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       if self.mode == 'xz':
 	assy_row = self.assemblyAddr[ 2 ]
 	pin_row = self.subAddr[ 1 ]
-	pin_count = dset_shape[ 0 ]
+	pin_count = 4 if self.nodalMode else dset_shape[ 0 ]
       else:
 	assy_col = self.assemblyAddr[ 1 ]
 	pin_col = self.subAddr[ 0 ]
-	pin_count = dset_shape[ 1 ]
+	pin_count = 4 if self.nodalMode else dset_shape[ 1 ]
 
       clip_shape = (
           self.cellRange[ -1 ],
@@ -164,7 +165,6 @@ Properties:
 
       #for ax in range( self.cellRange[ -1 ] ):
       for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-	#ax_offset = ax - self.cellRange[ 1 ]
 	ax_offset = self.cellRange[ 3 ] - 1 - ax
 	clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
 
@@ -175,12 +175,14 @@ Properties:
 	    assy_ndx = self.data.core.coreMap[ assy_row, assy_cell ] - 1
 	    if assy_ndx >= 0:
 	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
+	        dset_value[ 0, :, ax, assy_ndx ] if self.nodalMode else \
 	        dset_value[ pin_row, :, ax, assy_ndx ]
 
 	  else:
 	    assy_ndx = self.data.core.coreMap[ assy_cell, assy_col ] - 1
 	    if assy_ndx >= 0:
 	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
+	        dset_value[ 0, :, ax, assy_ndx ] if self.nodalMode else \
 	        dset_value[ :, pin_col, ax, assy_ndx ]
 
 	  pin_cell = pin_cell_to
@@ -243,19 +245,24 @@ Properties:
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
 
     if dset is not None:
-      dset_value = dset.value
+      #dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       if self.mode == 'xz':
 	pin_row = self.subAddr[ 1 ]
-	clip_data = dset_value[ pin_row, :, axial_level, assy_ndx ]
+	clip_data = \
+	    dset_value[ 0, :, axial_level, assy_ndx ] if self.nodalMode else \
+	    dset_value[ pin_row, :, axial_level, assy_ndx ]
 	pin_title = 'Pin Row=%d' % (pin_row + 1)
 
       else:
 	pin_col = self.subAddr[ 0 ]
-	clip_data = dset_value[ :, pin_col, axial_level, assy_ndx ]
+	clip_data = \
+	    dset_value[ 0, :, axial_level, assy_ndx ] if self.nodalMode else \
+	    dset_value[ :, pin_col, axial_level, assy_ndx ]
 	pin_title = 'Pin Col=%d' % (pin_col + 1)
 
       title = '"%s: Assembly=%d %s; %s; Axial=%.3f; %s=%.3g"' % (
@@ -423,22 +430,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     return  config
   #end _CreateDrawConfig
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateRasterImage()		-
-  #----------------------------------------------------------------------
-#  def _CreateRasterImage( self, tuple_in, config_in = None ):
-#    """Called in background task to create the PIL image for the state.
-#Calls either _CreateRasterImageNodal() or _CreateRasterImageNonNodal().
-#@param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
-#@param  config_in	optional config to use instead of self.config
-#"""
-#    return \
-#        self._CreateRasterImageNodal( tuple_in, config_in ) \
-#	if self.nodalMode else \
-#        self._CreateRasterImageNonNodal( tuple_in, config_in )
-#  #end _CreateRasterImage
 
 
   #----------------------------------------------------------------------

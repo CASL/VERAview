@@ -72,6 +72,7 @@ Properties:
     self.assemblyAddr = ( -1, -1, -1 )
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
+    self.nodalMode = False
     self.subAddr = None
 
     self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
@@ -114,18 +115,19 @@ Properties:
       dset = self.data.GetStateDataSet( self.stateIndex, self.channelDataSet )
 
     if dset is not None:
-      dset_value = dset.value
+      #dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
       if self.mode == 'xz':
 	assy_row = self.assemblyAddr[ 2 ]
 	chan_row = self.subAddr[ 1 ]
-	chan_count = dset_shape[ 0 ]
+	chan_count = 4 if self.nodalMode else dset_shape[ 0 ]
       else:
 	assy_col = self.assemblyAddr[ 1 ]
 	chan_col = self.subAddr[ 0 ]
-	chan_count = dset_shape[ 1 ]
+	chan_count = 4 if self.nodalMode else dset_shape[ 1 ]
 
       clip_shape = (
           self.cellRange[ -1 ],
@@ -136,7 +138,6 @@ Properties:
 
       #for ax in range( self.cellRange[ -1 ] ):
       for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-	#ax_offset = ax - self.cellRange[ 1 ]
 	ax_offset = self.cellRange[ 3 ] - 1 - ax
 	clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
 
@@ -147,12 +148,14 @@ Properties:
 	    assy_ndx = self.data.core.coreMap[ assy_row, assy_cell ] - 1
 	    if assy_ndx >= 0:
 	      clip_data[ ax_offset, chan_cell : chan_cell_to ] = \
+	        dset_value[ 0, :, ax, assy_ndx ] if self.nodalMode else \
 	        dset_value[ chan_row, :, ax, assy_ndx ]
 
 	  else:
 	    assy_ndx = self.data.core.coreMap[ assy_cell, assy_col ] - 1
 	    if assy_ndx >= 0:
 	      clip_data[ ax_offset, chan_cell : chan_cell_to ] = \
+	        dset_value[ 0, :, ax, assy_ndx ] if self.nodalMode else \
 	        dset_value[ :, chan_col, ax, assy_ndx ]
 
 	  chan_cell = chan_cell_to
@@ -222,12 +225,16 @@ Properties:
 
       if self.mode == 'xz':
 	chan_row = self.subAddr[ 1 ]
-	clip_data = dset_value[ chan_row, :, axial_level, assy_ndx ]
+	clip_data = \
+	    dset_value[ 0, :, axial_level, assy_ndx ] if self.nodalMode else \
+	    dset_value[ chan_row, :, axial_level, assy_ndx ]
 	chan_title = 'Chan Row=%d' % (chan_row + 1)
 
       else:
 	chan_col = self.subAddr[ 0 ]
-	clip_data = dset_value[ :, chan_col, axial_level, assy_ndx ]
+	clip_data = \
+	    dset_value[ 0, :, axial_level, assy_ndx ] if self.nodalMode else \
+	    dset_value[ :, chan_col, axial_level, assy_ndx ]
 	chan_title = 'Chan Col=%d' % (chan_col + 1)
 
       title = '"%s: Assembly=%d %s; %s; Axial=%.3f; %s=%.3g"' % (
@@ -270,6 +277,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     channelWidth
     coreRegion
     lineWidth
+    nodeWidth		if self.nodalMode
+    valueFont
+    valueFontSize
 """
     ds_range = self.data.GetRange(
         self.channelDataSet,
@@ -328,19 +338,21 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				-- Limited by height
       if region_aspect_ratio > core_aspect_ratio:
 	chan_wd = max( 1, int( math.floor( region_ht / axial_pin_equivs ) ) )
+	if self.nodalMode:
+	  node_count = self.cellRange[ -2 ] << 1
+	  node_wd = max( 1, int( math.floor( region_ht / node_count ) ) )
 
 #				-- Limited by width
       else:
         assy_wd = region_wd / self.cellRange[ -2 ]
         chan_wd = max( 1, (assy_wd - 2) / (npin + 1) )
+	if self.nodalMode:
+	  node_wd = max( 1, (assy_wd - 2) >> 1 )
 
-      assy_wd = chan_wd * (npin + 1) + 1
+      #assy_wd = chan_wd * (npin + 1) + 1
+      assy_wd = \
+          (node_wd << 1) + 1 if self.nodalMode else chan_wd * (npin + 1) + 1
       axial_pix_per_cm = chan_wd / cm_per_pin
-
-      print >> sys.stderr, \
-          '[ChannelAxial2DView._CreateDrawConfig] after scale' + \
-	  '\n  assy_wd=%d, chan_wd=%d\n  axial_pix_per_cm=%f' % \
-	  ( assy_wd, chan_wd, axial_pix_per_cm )
 
 #			-- Calc sizes
 #			--
@@ -352,6 +364,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     else:
       chan_wd = kwargs.get( 'scale', 4 )
       axial_pix_per_cm = chan_wd / cm_per_pin
+      if self.nodalMode:
+        node_wd = chan_wd << 2
 
       assy_wd = chan_wd * (npin + 1) + 1
       core_wd = self.cellRange[ -2 ] * assy_wd
@@ -374,6 +388,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       axials_dy.insert( 0, dy )
     #end for
 
+    value_font_size = assy_wd >> 1
+    value_font = \
+        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
+	if value_font_size >= 6 else None
+
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'axialLevelsDy' ] = axials_dy
     config[ 'axialPixPerCm' ] = axial_pix_per_cm
@@ -381,6 +400,11 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
+    config[ 'valueFont' ] = value_font
+    config[ 'valueFontSize' ] = value_font_size
+
+    if self.nodalMode:
+      config[ 'nodeWidth' ] = node_wd
 
     return  config
   #end _CreateDrawConfig
@@ -430,6 +454,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
 
+      if self.nodalMode:
+        node_wd = config[ 'nodeWidth' ]
+
       dset = self.data.GetStateDataSet( state_ndx, self.channelDataSet )
       chan_factors = None
       if self.state.weightsMode == 'on':
@@ -450,25 +477,44 @@ If neither are specified, a default 'scale' value of 4 is used.
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       if self.mode == 'xz':
-	chan_cell = min( tuple_in[ 2 ], dset_shape[ 0 ] - 1 )
-	cur_nchan = min( self.data.core.npinx + 1, dset_shape[ 1 ] )
-	chan_range = range( self.data.core.npinx + 1 )
-	addresses = 'Assy Row %s, Chan Row %d' % \
-	    ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], chan_cell + 1 )
+	if self.nodalMode:
+          node_cells = ( 0, 1 ) if node_addr in ( 0, 1 ) else ( 2, 3 )
+	  addresses = 'Assy Row %s, Nodes %d,%d' % ( 
+	      self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ],
+	      node_cells[ 0 ] + 1, node_cells[ 1 ] + 1
+	      )
+	else:
+	  chan_cell = min( tuple_in[ 2 ], dset_shape[ 0 ] - 1 )
+	  cur_nchan = min( self.data.core.npinx + 1, dset_shape[ 1 ] )
+	  chan_range = range( self.data.core.npinx + 1 )
+	  addresses = 'Assy Row %s, Chan Row %d' % \
+	      ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], chan_cell + 1 )
+
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
 	    additional = addresses
 	    )
       else: # 'yz'
-	chan_cell = min( tuple_in[ 2 ], dset_shape[ 1 ] - 1 )
-	cur_nchan = min( self.data.core.npiny + 1, dset_shape[ 0 ] )
-	chan_range = range( self.data.core.npiny + 1 )
-	addresses = 'Assy Col %s, Chan Col %d' % \
-	    ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], chan_cell + 1 )
+	if self.nodalMode:
+          node_cells = ( 0, 2 ) if node_addr in ( 0, 2 ) else ( 1, 3 )
+	  addresses = 'Assy Col %s, Nodes %d,%d' % (
+	      self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ],
+	      node_cells[ 0 ] + 1, node_cells[ 1 ] + 1
+	      )
+	else:
+	  chan_cell = min( tuple_in[ 2 ], dset_shape[ 1 ] - 1 )
+	  cur_nchan = min( self.data.core.npiny + 1, dset_shape[ 0 ] )
+	  chan_range = range( self.data.core.npiny + 1 )
+	  addresses = 'Assy Col %s, Chan Col %d' % \
+	      ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], chan_cell + 1 )
+
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
 	    additional = addresses
 	    )
+      #end if-else self.mode
+
+      node_value_draw_list = []
 
 #			-- Create image
 #			--
@@ -525,47 +571,81 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  else:
 	    assy_ndx = self.data.core.coreMap[ assy_col, tuple_in[ 1 ] ] - 1
 
+#					-- Assembly referenced?
+#					--
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    chan_x = assy_x + 1
+	    if self.nodalMode:
+	      node_x = assy_x + 1
 
-	    for chan_col in chan_range:
-	      cur_chan_col = min( chan_col, cur_nchan - 1 )
-	      if self.mode == 'xz':
-	        value = dset_array[
-		    chan_cell, cur_chan_col, axial_level, assy_ndx
-		    ]
-	        if chan_factors is None:
-	          chan_factor = 1
-		else:
-	          chan_factor = chan_factors[
+	      for node_ndx in node_cells:
+	        value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
+	        if pin_factors is None:
+	          pin_factor = 1
+	        else:
+	          pin_factor = pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
+
+	        if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
+	          pen_color = Widget.GetColorTuple(
+	              value - ds_range[ 0 ], value_delta, 255
+	              )
+	          brush_color = \
+		      ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+	          im_draw.rectangle(
+		      [ node_x, axial_y,
+		        node_x + node_wd + 1, axial_y + cur_dy + 1 ],
+		      fill = brush_color, outline = pen_color
+		      )
+		  node_value_draw_list.append((
+		      self._CreateValueString( value, 3 ),
+                      Widget.GetContrastColor( *brush_color ),
+                      node_x, axial_y, node_wd, cur_dy
+		      ))
+	        #end if valid value
+	        node_x += node_wd
+	      #end for node cells
+
+	    else: # not self.nodalMode:
+	      chan_x = assy_x + 1
+
+	      for chan_col in chan_range:
+	        cur_chan_col = min( chan_col, cur_nchan - 1 )
+	        if self.mode == 'xz':
+	          value = dset_array[
 		      chan_cell, cur_chan_col, axial_level, assy_ndx
 		      ]
-	      else:
-	        value = dset_array[
-		    cur_chan_col, chan_cell, axial_level, assy_ndx
-		    ]
-	        if chan_factors is None:
-	          chan_factor = 1
-		else:
-	          chan_factor = chan_factors[
+	          if chan_factors is None:
+	            chan_factor = 1
+		  else:
+	            chan_factor = chan_factors[
+		        chan_cell, cur_chan_col, axial_level, assy_ndx
+		        ]
+	        else:
+	          value = dset_array[
 		      cur_chan_col, chan_cell, axial_level, assy_ndx
 		      ]
+	          if chan_factors is None:
+	            chan_factor = 1
+		  else:
+	            chan_factor = chan_factors[
+		        cur_chan_col, chan_cell, axial_level, assy_ndx
+		        ]
 
-	      #if not self.data.IsNoDataValue( self.channelDataSet, value ):
-	      if not ( self.data.IsBadValue( value ) or chan_factor == 0 ):
-	        chan_color = Widget.GetColorTuple(
-	            value - ds_range[ 0 ], value_delta, 255
-	            )
-	        brush_color = \
-		    ( chan_color[ 0 ], chan_color[ 1 ], chan_color[ 2 ], 255 )
-	        im_draw.rectangle(
-		    [ chan_x, axial_y,
-		      chan_x + chan_wd + 1, axial_y + cur_dy + 1 ],
-		    fill = brush_color, outline = chan_color
-		    )
-	      #end if valid value not hidden by chan_factor
-	      chan_x += chan_wd
-	    #end for pin cols
+	        #if not self.data.IsNoDataValue( self.channelDataSet, value ):
+	        if not ( self.data.IsBadValue( value ) or chan_factor == 0 ):
+	          chan_color = Widget.GetColorTuple(
+	              value - ds_range[ 0 ], value_delta, 255
+	              )
+	          brush_color = \
+		      ( chan_color[ 0 ], chan_color[ 1 ], chan_color[ 2 ], 255 )
+	          im_draw.rectangle(
+		      [ chan_x, axial_y,
+		        chan_x + chan_wd + 1, axial_y + cur_dy + 1 ],
+		      fill = brush_color, outline = chan_color
+		      )
+	        #end if valid value not hidden by chan_factor
+	        chan_x += chan_wd
+	      #end for chan cols
+	    #end if-else self.nodalMode
 
 	    im_draw.rectangle(
 		[ assy_x, axial_y, assy_x + assy_wd, axial_y + cur_dy ],
@@ -578,6 +658,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	axial_y += cur_dy
       #end for assy_row
+
+#			-- Draw Values
+#			--
+      if node_value_draw_list:
+        self._DrawValues( node_value_draw_list, im_draw )
 
 #			-- Draw Legend Image
 #			--
@@ -703,7 +788,11 @@ If neither are specified, a default 'scale' value of 4 is used.
         assy_col = max( self.cellRange[ 0 ], assy_col )
 	assy_col_or_row = assy_col
 
-	chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
+	#chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
+	chan_offset = off_x % assy_wd
+	chan_col_or_row = \
+	    self._FindChannelNodal( chan_offset ) if self.nodalMode else \
+	    self._FindChannelNonNodal( chan_offset )
 	if chan_col_or_row >= self.data.core.npinx + 1: chan_col_or_row = -1
 
       else:
@@ -715,8 +804,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	assy_row = max( self.cellRange[ 0 ], assy_row )
 	assy_col_or_row = assy_row
 
-	chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
-	if chan_col_or_row >= self.data.core.npiny: chan_col_or_row = -1
+	#chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
+	chan_offset = off_x % assy_wd
+	chan_col_or_row = \
+	    self._FindChannelNodal( chan_offset ) if self.nodalMode else \
+	    self._FindChannelNonNodal( chan_offset )
+	if chan_col_or_row >= self.data.core.npiny + 1: chan_col_or_row = -1
       #end if-else
 
       axial_level = 0
@@ -791,6 +884,51 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     return  result
   #end FindCellAll
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._FindChannelNodal()		-
+  #----------------------------------------------------------------------
+  def _FindChannelNodal( self, chan_offset ):
+    """
+@return  0-based chan_col_or_row
+"""
+    chan_col_or_row = -1
+    node_wd = self.config[ 'nodeWidth' ]
+
+    node_addr = self.data.GetNodeAddr( self.subAddr, 'channel' )
+
+    node_col_or_row = chan_offset / node_wd
+    if self.mode == 'xz':
+      if node_col_or_row > ((self.data.core.npinx + 1) >> 1):
+	node_addr = 3 if node_addr >= 2 else 1
+      else:
+	node_addr = 2 if node_addr >= 2 else 0
+      sub_addr = self.data.GetSubAddrFromNode( node_addr, 'channel' )
+      chan_col_or_row = sub_addr[ 0 ]
+
+    else:
+      if node_col_or_row > ((self.data.core.npiny + 1) >> 1):
+	node_addr = 3 if node_addr in ( 1, 3 ) else 2
+      else:
+	node_addr = 1 if node_addr in ( 1, 3 ) else 0
+      sub_addr = self.data.GetSubAddrFromNode( node_addr, 'channel' )
+      chan_col_or_row = sub_addr[ 1 ]
+
+    return  chan_col_or_row
+  #end _FindChannelNodal
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._FindChannelNonNodal()		-
+  #----------------------------------------------------------------------
+  def _FindChannelNonNodal( self, chan_offset ):
+    """
+@return  0-based chan_col_or_row
+"""
+    chan_wd = self.config[ 'channelWidth' ]
+    return  chan_offset / chan_wd
+  #end _FindChannelNonNodal
 
 
   #----------------------------------------------------------------------
@@ -1230,6 +1368,7 @@ method via super.SaveProps().
       ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
         resized = True
+	self.nodalMode = self.data.IsNodalType( ds_type )
         self.channelDataSet = kwargs[ 'cur_dataset' ]
 	self.container.GetDataSetMenu().Reset()
 
