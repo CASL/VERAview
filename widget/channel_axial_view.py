@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-22	leerw@ornl.gov				-
+#	  Calling DataModel.Core.Get{Col,Row}Label().
 #		2016-10-20	leerw@ornl.gov				-
 #	  Calling DataModel.GetFactors().
 #		2016-10-17	leerw@ornl.gov				-
@@ -165,29 +167,35 @@ Properties:
       if self.mode == 'xz':
         title1 = '"%s: Assy Row=%s; Chan Row=%d; %s=%.3g"' % (
 	    self.channelDataSet,
-            self.data.core.coreLabels[ 1 ][ assy_row ],
+#            self.data.core.coreLabels[ 1 ][ assy_row ],
+	    self.data.core.GetRowLabel( assy_row ),
 	    chan_row + 1,
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 	    )
-        col_labels = [
-            self.data.core.coreLabels[ 0 ][ i ]
-	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
-            ]
+#        col_labels = [
+#            self.data.core.coreLabels[ 0 ][ i ]
+#	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+#            ]
+	col_labels = self.data.core.\
+	    GetColLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
         title2 = '"Axial; Cols=%s"' % ':'.join( col_labels )
 
       else:
         title1 = '"%s: Assy Col=%s; Pin Col=%d; %s=%.3g"' % (
 	    self.channelDataSet,
-            self.data.core.coreLabels[ 0 ][ assy_col ],
+            #self.data.core.coreLabels[ 0 ][ assy_col ],
+	    self.data.core.GetColLabel( assy_col ),
 	    chan_col + 1,
 	    self.state.timeDataSet,
 	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 	    )
-        row_labels = [
-            self.data.core.coreLabels[ 1 ][ i ]
-	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
-            ]
+#        row_labels = [
+#            self.data.core.coreLabels[ 1 ][ i ]
+#	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+#            ]
+	row_labels = self.data.core.\
+	    GetRowLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
         title2 = '"Axial; Rows=%s"' % ':'.join( row_labels )
       #end if-else
 
@@ -480,7 +488,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	if self.nodalMode:
           node_cells = ( 0, 1 ) if node_addr in ( 0, 1 ) else ( 2, 3 )
 	  addresses = 'Assy Row %s, Nodes %d,%d' % ( 
-	      self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ],
+#	      self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ],
+	      self.data.core.GetRowLabel( tuple_in[ 1 ] ),
 	      node_cells[ 0 ] + 1, node_cells[ 1 ] + 1
 	      )
 	else:
@@ -488,7 +497,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  cur_nchan = min( self.data.core.npinx + 1, dset_shape[ 1 ] )
 	  chan_range = range( self.data.core.npinx + 1 )
 	  addresses = 'Assy Row %s, Chan Row %d' % \
-	      ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], chan_cell + 1 )
+	      ( self.data.core.GetRowLabel( tuple_in[ 1 ] ), chan_cell + 1 )
+#	      ( self.data.core.coreLabels[ 1 ][ tuple_in[ 1 ] ], chan_cell + 1 )
 
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
@@ -498,7 +508,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	if self.nodalMode:
           node_cells = ( 0, 2 ) if node_addr in ( 0, 2 ) else ( 1, 3 )
 	  addresses = 'Assy Col %s, Nodes %d,%d' % (
-	      self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ],
+#	      self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ],
+	      self.data.core.GetColLabel( tuple_in[ 1 ] ),
 	      node_cells[ 0 ] + 1, node_cells[ 1 ] + 1
 	      )
 	else:
@@ -506,7 +517,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  cur_nchan = min( self.data.core.npiny + 1, dset_shape[ 0 ] )
 	  chan_range = range( self.data.core.npiny + 1 )
 	  addresses = 'Assy Col %s, Chan Col %d' % \
-	      ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], chan_cell + 1 )
+	      ( self.data.core.GetColLabel( tuple_in[ 1 ] ), chan_cell + 1 )
+#	      ( self.data.core.coreLabels[ 0 ][ tuple_in[ 1 ] ], chan_cell + 1 )
 
         title_templ, title_size = self._CreateTitleTemplate2(
 	    pil_font, self.channelDataSet, dset_shape, self.state.timeDataSet,
@@ -557,7 +569,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  #if axial_level == self.cellRange[ 3 ] - 1 and self.showLabels:
 	  if ax == len( axial_levels_dy ) - 1 and self.showLabels:
 	    label_ndx = 0 if self.mode == 'xz' else 1
-	    label = self.data.core.coreLabels[ label_ndx ][ assy_col ]
+#	    label = self.data.core.coreLabels[ label_ndx ][ assy_col ]
+	    label = self.data.core.GetCoreLabel( label_ndx, assy_col )
 	    label_size = pil_font.getsize( label )
 	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
 	    im_draw.text(

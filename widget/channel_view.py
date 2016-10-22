@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-10-22	leerw@ornl.gov				-
+#	  Calling DataModel.Core.Get{Col,Row}Label().
 #		2016-10-21	leerw@ornl.gov				-
 #	  Updating for node support.
 #		2016-10-20	leerw@ornl.gov				-
@@ -493,14 +495,18 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  self.state.timeDataSet,
 	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
-      col_labels = [
-          self.data.core.coreLabels[ 0 ][ i ]
-	  for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
-          ]
-      row_labels = [
-          self.data.core.coreLabels[ 1 ][ i ]
-	  for i in range( self.cellRange[ 1 ], self.cellRange[ 3 ] )
-	  ]
+#      col_labels = [
+#          self.data.core.coreLabels[ 0 ][ i ]
+#	  for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+#          ]
+      col_labels = self.data.core.\
+          GetColLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+#      row_labels = [
+#          self.data.core.coreLabels[ 1 ][ i ]
+#	  for i in range( self.cellRange[ 1 ], self.cellRange[ 3 ] )
+#	  ]
+      row_labels = self.data.core.\
+          GetRowLabel( self.cellRange[ 1 ], self.cellRange[ 3 ] )
       title2 = 'Cols=%s; Rows=%s' % (
 	  ':'.join( col_labels ),
 	  ':'.join( row_labels )
@@ -744,7 +750,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				-- Row label
 #				--
 	if self.showLabels:
-	  label = self.data.core.coreLabels[ 1 ][ assy_row ]
+#	  label = self.data.core.coreLabels[ 1 ][ assy_row ]
+	  label = self.data.core.GetRowLabel( assy_row )
 	  label_size = pil_font.getsize( label )
 	  label_y = assy_y + ((assy_wd - label_size[ 1 ]) >> 1)
 	  im_draw.text(
@@ -760,7 +767,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #					-- Column label
 #					--
 	  if assy_row == self.cellRange[ 1 ] and self.showLabels:
-	    label = self.data.core.coreLabels[ 0 ][ assy_col ]
+#	    label = self.data.core.coreLabels[ 0 ][ assy_col ]
+	    label = self.data.core.GetColLabel( assy_col )
 	    label_size = pil_font.getsize( label )
 	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
 	    im_draw.text(
@@ -1174,7 +1182,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     result = bmap
 
     if self.config is not None:
-      line_wd = -1
+      line_wd = self.config[ 'lineWidth' ]
       half_line_wd = line_wd >> 1
       draw_list = []  # ( rect, pen )
 

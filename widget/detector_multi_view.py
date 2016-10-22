@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-10-22	leerw@ornl.gov				-
+#	  Calling DataModel.Core.Get{Col,Row}Label().
 #		2016-09-29	leerw@ornl.gov				-
 #	  Trying to prevent overrun of values displayed in cells.
 #		2016-08-18	leerw@ornl.gov				-
@@ -205,12 +207,14 @@ Attrs/properties:
 #						-- Header row
             row_text = 'Row,Mesh'
             for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
+              row_text += ',' + core.GetColLabel( det_col )
+#              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
             csv_text += row_text + '\n'
 
 #						-- Data rows
             for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-              row_label = core.coreLabels[ 1 ][ det_row ]
+#              row_label = core.coreLabels[ 1 ][ det_row ]
+              row_label = core.GetRowLabel( det_row )
 	      for ax_ndx in \
 	          range( len( core.detectorMesh ) - 1, -1, -1 ):
 	        ax_value = core.detectorMesh[ ax_ndx ]
@@ -245,12 +249,14 @@ Attrs/properties:
 #						-- Header row
             row_text = 'Row,Mesh Center'
             for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
+              row_text += ',' + core.GetColLabel( det_col )
+#              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
             csv_text += row_text + '\n'
 
 #						-- Data rows
             for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-              row_label = core.coreLabels[ 1 ][ det_row ]
+#              row_label = core.coreLabels[ 1 ][ det_row ]
+              row_label = core.GetRowLabel( det_row )
 	      for ax_ndx in \
 	          range( len( core.fixedDetectorMeshCenters ) - 1, -1, -1 ):
 	        ax_value = core.fixedDetectorMeshCenters[ ax_ndx ]
@@ -540,7 +546,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				-- Row label
 #				--
 	if self.showLabels:
-	  label = self.data.core.coreLabels[ 1 ][ det_row ]
+#	  label = self.data.core.coreLabels[ 1 ][ det_row ]
+	  label = self.data.core.GetRowLabel( det_row )
 	  label_size = label_font.getsize( label )
 	  label_y = det_y + ((det_wd - label_size[ 1 ]) >> 1)
 	  im_draw.text(
@@ -555,7 +562,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #					-- Column label
 #					--
 	  if det_row == self.cellRange[ 1 ] and self.showLabels:
-	    label = self.data.core.coreLabels[ 0 ][ det_col ]
+#	    label = self.data.core.coreLabels[ 0 ][ det_col ]
+	    label = self.data.core.GetColLabel( det_col )
 	    label_size = label_font.getsize( label )
 	    label_x = det_x + ((det_wd - label_size[ 0 ]) >> 1)
 	    im_draw.text(

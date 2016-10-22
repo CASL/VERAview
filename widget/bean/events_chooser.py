@@ -18,7 +18,7 @@ import pdb  #pdb.set_trace()
 try:
 #  import wx, wx.lib.newevent
   import wx
-  from wx.lib.scrolledpanel import ScrolledPanel
+#  from wx.lib.scrolledpanel import ScrolledPanel
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
@@ -114,7 +114,7 @@ Attributes/properties:
       #end if panel exists
     #end for panels
 
-    self._UpdateControls()
+    #self._UpdateControls()
   #end Enable
 
 

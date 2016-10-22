@@ -1384,6 +1384,12 @@ Note this defines a new State as well as widgets in the grid.
   #	METHOD:		VeraViewFrame.OnCloseFrame()			-
   #----------------------------------------------------------------------
   def OnCloseFrame( self, ev ):
+#	-- Windows focus hack
+    win = wx.Window_FindFocus()
+    if win is not None:
+      win.Disconnect( -1, -1, wx.wxEVT_KILL_FOCUS )
+#
+
     self._OnQuit( None )
   #end OnCloseFrame
 

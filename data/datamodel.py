@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-22	leerw@ornl.gov				-
+#	  Added Core._InferCoreLabels{Simply,Smartly}(), calling the
+#	  former in Core.ReadImpl().
 #		2016-10-20	leerw@ornl.gov				-
 #	  Added first attempt at GetFactors().
 #		2016-10-18	leerw@ornl.gov				-
@@ -620,6 +623,167 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.GetColLabel()				-
+  #----------------------------------------------------------------------
+  def GetColLabel( self, from_ndx, to_ndx = -1 ):
+    """Gets the column label or range of labels.
+Calls _GetCoreLabel().
+"""
+    return  self.GetCoreLabel( 0, from_ndx, to_ndx )
+  #end GetColLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetCoreLabel()				-
+  #----------------------------------------------------------------------
+  def GetCoreLabel( self, col_or_row, from_ndx, to_ndx = -1 ):
+    """Gets the label or range of labels.
+@param  col_or_row	0 for column labels, 1 for row labels
+@param  from_ndx	required 0-based inclusive column index
+@param  to_ndx		optional 0-based exclusive index for a range
+@return			either a single label string or a list of to_ndx
+			is specified and is gt from_ndx
+"""
+    #col_or_row = min( 1, max( 0, col_or_row ) )
+    result = ''
+    if from_ndx >= 0 and from_ndx < len( self.coreLabels[ col_or_row ] ):
+      if to_ndx > from_ndx:
+        to_ndx = min( to_ndx, len( self.coreLabels[ col_or_row ] ) )
+	result = [
+	    self.coreLabels[ col_or_row ][ i ]
+	    for i in xrange( from_ndx, to_ndx )
+	    ]
+      else:
+        result = self.coreLabels[ col_or_row ][ from_ndx ]
+    #end if from_ndx is valid
+
+    return  result
+  #end GetCoreLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetGroup()					-
+  #----------------------------------------------------------------------
+  def GetGroup( self ):
+    return  self.group
+  #end GetGroup
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetRowLabel()				-
+  #----------------------------------------------------------------------
+  def GetRowLabel( self, from_ndx, to_ndx = -1 ):
+    """Gets the row label or range of labels.
+Calls _GetCoreLabel().
+"""
+    return  self.GetCoreLabel( 1, from_ndx, to_ndx )
+  #end GetRowLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core._InferCoreLabelsSimply()			-
+  #----------------------------------------------------------------------
+  def _InferCoreLabelsSimply( self, core_group, in_core_group ):
+    """Assumes 'xlabel' dataset if specified provides column labels
+left-to-right, and 'ylabel' if provided gives row labels top-to-bottom.
+@param  core_group	CORE h5py.Group
+@param  in_core_group	INPUT/CASEID/CORE h5py.Group
+@return			core_labels, row_labels
+"""
+    item = self._FindInGroup( 'xlabel', core_group, in_core_group )
+    if item is not None and item.shape[ 0 ] == self.nassx:
+      col_labels = [
+          item[ i ].replace( ' ', '' )
+	  for i in xrange( self.nassx )
+	  ]
+      # Assume left-to-right
+      #col_labels = col_labels[ ::-1 ]
+    else:
+      col_labels = list( COL_LABELS )
+      while self.nassx > len( col_labels ):
+        col_labels.insert( 0, chr( ord( col_labels[ 0 ] ) + 1 ) )
+      col_labels = col_labels[ -self.nassx : ]
+
+    # Rows
+    item = self._FindInGroup( 'ylabel', core_group, in_core_group )
+    if item is not None and item.shape[ 0 ] == self.nassy:
+      row_labels = [
+          item[ i ].replace( ' ', '' )
+	  for i in xrange( self.nassy )
+	  ]
+      # Assume top-to-bottom
+    else:
+      row_labels = [ '%d' % x for x in xrange( 1, self.nassy + 1 ) ]
+
+    return  col_labels, row_labels
+  #end _InferCoreLabelsSimply
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core._InferCoreLabelsSmartly()			-
+  #----------------------------------------------------------------------
+  def _InferCoreLabelsSmartly( self, core_group, in_core_group ):
+    """Assumes 'xlabel' and 'ylabel' datasets, if specified, can provide
+column or row labels in any order.  Alphabetic and numeric labels are assumed
+to be column and row labels, respectively, and the order is forced such that
+'A' is rightmost and '1' is topmost.
+@param  core_group	CORE h5py.Group
+@param  in_core_group	INPUT/CASEID/CORE h5py.Group
+@return			core_labels, row_labels
+"""
+    col_labels = row_labels = None
+
+#		-- Search in groups
+#		--
+    for name in ( 'xlabel', 'ylabel' ):
+      item = self._FindInGroup( name, core_group, in_core_group )
+      if item is not None and item.shape[ 0 ] > 0:
+        first_value = item[ 0 ].replace( ' ', '' )
+
+#				-- Column?
+	#if first_value.isalpha() and item.shape[ 0 ] == self.nassx:
+	if first_value.isalpha():
+	  if item.shape[ 0 ] == self.nassx:
+	    col_labels = [
+	        item[ i ].replace( ' ', '' )
+	        for i in xrange( self.nassx )
+	        ]
+#					-- Reverse if necessary
+	    if col_labels[ 0 ] < col_labels[ -1 ]:
+	      col_labels = col_labels[ ::-1 ]
+
+#				-- Row?
+	else:
+	  if item.shape[ 0 ] == self.nassy:
+	    row_labels = [
+	        item[ i ].replace( ' ', '' )
+	        for i in xrange( self.nassy )
+	        ]
+#					-- Reverse if necessary
+	    if row_labels[ 0 ] > row_labels[ -1 ]:
+	      row_labels = row_labels[ ::-1 ]
+      #if item not empty
+    #end for name
+
+#		-- Default col_labels if necessary
+#		--
+    if col_labels is None:
+      col_labels = list( COL_LABELS )
+      while self.nassx > len( col_labels ):
+        col_labels.insert( 0, chr( ord( col_labels[ 0 ] ) + 1 ) )
+      col_labels = col_labels[ -self.nassx : ]
+    #end if col_labels is None
+
+#		-- Default row_labels if necessary
+#		--
+    if row_labels is None:
+      row_labels = [ '%d' % x for x in xrange( 1, self.nassy + 1 ) ]
+
+    return  col_labels, row_labels
+  #end _InferCoreLabelsSmartly
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core.IsNonZero()				-
   #----------------------------------------------------------------------
   def IsNonZero( self ):
@@ -631,14 +795,6 @@ Properties:
         self.npiny > 0 and self.npinx > 0 and \
 	self.nax > 0 and self.nass > 0 and self.coreSym > 0
   #end IsNonZero
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core.GetGroup()					-
-  #----------------------------------------------------------------------
-  def GetGroup( self ):
-    return  self.group
-  #end GetGroup
 
 
   #----------------------------------------------------------------------
@@ -698,14 +854,10 @@ Properties:
     self.nassx = self.coreMap.shape[ 1 ]
     self.nass = int( np.amax( self.coreMap ) )
 
-#		-- Labels
+#		-- Core Labels
 #		--
-    col_labels = list( COL_LABELS )
-    while self.nassx > len( col_labels ):
-      col_labels.insert( 0, chr( ord( col_labels[ 0 ] ) + 1 ) )
-    col_labels = col_labels[ -self.nassx : ]
-    row_labels = [ '%d' % x for x in range( 1, self.nassy + 1 ) ]
-    self.coreLabels = ( col_labels, row_labels )
+    self.coreLabels = self._InferCoreLabelsSimply( core_group, in_core_group )
+    #self#.coreLabels = self._InferCoreLabelsSmartly( core_group, in_core_group )
 
 #		-- Other datasets
 #		--
@@ -1229,7 +1381,7 @@ Parameters:
 	  avg_method = getattr( averager, avg_method_name )
 
 #xxxxx will need to make this a separate thread with per-state progress feedback
-          for state_ndx in range( len( self.states ) ):
+          for state_ndx in xrange( len( self.states ) ):
 	    st = self.GetState( state_ndx )
 	    derived_st = self.GetDerivedState( state_ndx )
 
@@ -1706,7 +1858,7 @@ descending.  Note bisect only does ascending.
 	elif value <= values[ -1 ]:
 	  match_ndx = len( values ) - 1
 	else:
-	  for i in range( len( values ) ):
+	  for i in xrange( len( values ) ):
 	    if values[ i ] < value:
 	      match_ndx = i
 	      break
@@ -1719,7 +1871,7 @@ descending.  Note bisect only does ascending.
 	elif value >= values[ -1 ]:
 	  match_ndx = len( values ) -1
 	else:
-	  for i in range( len( values ) ):
+	  for i in xrange( len( values ) ):
 	    if values[ i ] > value:
 	      match_ndx = i
 	      break
@@ -1756,7 +1908,7 @@ descending.  Note bisect only does ascending.
 
     else:
       max_value = -sys.float_info.max
-      for st in range( len( self.states ) ):
+      for st in xrange( len( self.states ) ):
         dset = self.GetStateDataSet( st, ds_name )
 	if dset:
 	  x = np.nanargmax( dset.value )
@@ -1858,7 +2010,7 @@ descending.  Note bisect only does ascending.
 #		--
     else:
       minmax_value = -sys.float_info.max if max_flag else sys.float_info.max
-      for st in range( len( self.states ) ):
+      for st in xrange( len( self.states ) ):
         dset = self.GetStateDataSet( st, ds_name )
 	if dset:
 	  dset_value = dset.value
@@ -2675,7 +2827,6 @@ derived datasets.  Lazily created and cached.
         result = self.channelFactors
 
       elif ddef[ 'type' ] == ':chan_radial':
-	pdb.set_trace()
         result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
         result.fill( 0.0 )
 	factors_sum = np.sum( self.channelFactors, axis = 2 )
@@ -3484,7 +3635,7 @@ being one greater in each dimension.
     self.derivedLabelsByType = {}
 
     self.ranges = {}
-    self.rangesByStatePt = [ dict() for i in range( len( self.states ) ) ]
+    self.rangesByStatePt = [ dict() for i in xrange( len( self.states ) ) ]
 
 #		-- Create derived file and states
 #		--
@@ -3679,8 +3830,8 @@ being one greater in each dimension.
       vmin = vmax = float( 'nan' )
       #for i in range( len( self.GetStates() ) ):
       search_range = \
-          range( self.GetStatesCount() )  if state_ndx < 0 else \
-	  range( state_ndx, state_ndx + 1 )
+          xrange( self.GetStatesCount() )  if state_ndx < 0 else \
+	  xrange( state_ndx, state_ndx + 1 )
 
       for i in search_range:
         st = self.GetState( i )
@@ -3769,7 +3920,7 @@ being one greater in each dimension.
       values = []
       #for st in self.states:
         #dset = st.GetDataSet( ds_name )
-      for i in range( len( self.states ) ):
+      for i in xrange( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
 	  values.append( dset.value.item() )
@@ -3787,7 +3938,7 @@ being one greater in each dimension.
       det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
       #for st in self.states:
         #dset = st.GetDataSet( ds_name )
-      for i in range( len( self.states ) ):
+      for i in xrange( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
 	  values.append( dset.value[ axial_level, det_ndx ] )
@@ -3803,7 +3954,7 @@ being one greater in each dimension.
       ax_value = self.CreateAxialValue( value = axial_value )
       axial_level = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
       det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-      for i in range( len( self.states ) ):
+      for i in xrange( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
 	  values.append( dset.value[ axial_level, det_ndx ] )
@@ -3826,7 +3977,7 @@ being one greater in each dimension.
 	    result[ node_addr ] = []
         node_addrs_sorted = sorted( node_addr_set )
 
-        for i in range( len( self.states ) ):
+        for i in xrange( len( self.states ) ):
 	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is None:
 	    for node_addr in node_addrs_sorted:
@@ -3866,7 +4017,7 @@ being one greater in each dimension.
 
         #for st in self.states:
           #dset = st.GetDataSet( ds_name )
-        for i in range( len( self.states ) ):
+        for i in xrange( len( self.states ) ):
 	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is None:
 	    for sub_addr in sub_addrs_sorted:
@@ -3885,7 +4036,7 @@ being one greater in each dimension.
 	values = []
 	#for st in self.states:
 	#  dset = st.GetDataSet( ds_name )
-        for i in range( len( self.states ) ):
+        for i in xrange( len( self.states ) ):
 	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is not None:
 	    values.append( dset.value[ 0, 0, axial_level, assy_ndx ] )
@@ -3946,7 +4097,7 @@ at a time for better performance.
 
 #		-- Process by looping on state points
 #		--
-    for state_ndx in range( len( self.states ) ):
+    for state_ndx in xrange( len( self.states ) ):
       for spec in ds_specs:
         ds_name = spec[ 'ds_name' ]
 	lookup_ds_name = ds_name[ 1 : ] if ds_name[ 0 ] == '*' else ds_name
