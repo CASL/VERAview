@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-10-24	leerw@ornl.gov				-
+#	  Calling _ResolveDataRange() instead of DatModel.GetRange()
+#	  directly.
 #		2016-10-22	leerw@ornl.gov				-
 #	  Calling DataModel.Core.Get{Col,Row}Label().
 #		2016-09-29	leerw@ornl.gov				-
@@ -390,6 +393,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys:
     clientSize
+    dataRange
     fontSize
     labelFont
     labelSize
@@ -1226,7 +1230,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     ds_max = None
     ds_min = None
     for ds_name in self.detectorDataSets.union( self.fixedDetectorDataSets ):
-      cur_min, cur_max = self.data.GetRange(
+      #cur_min, cur_max = self.data.GetRange
+      cur_min, cur_max = self._ResolveDataRange(
           ds_name,
 	  self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )

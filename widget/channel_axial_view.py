@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-24	leerw@ornl.gov				-
+#	  Calling _ResolveDataRange() instead of DatModel.GetRange()
+#	  directly.
 #		2016-10-22	leerw@ornl.gov				-
 #	  Calling DataModel.Core.Get{Col,Row}Label().
 #		2016-10-20	leerw@ornl.gov				-
@@ -272,6 +275,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys:
     clientSize
+    dataRange
     fontSize
     labelFont
     labelSize
@@ -289,7 +293,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     valueFont
     valueFontSize
 """
-    ds_range = self.data.GetRange(
+    #ds_range = self.data.GetRange
+    ds_range = self._ResolveDataRange(
         self.channelDataSet,
 	self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
@@ -478,10 +483,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         dset_array = dset.value
         dset_shape = dset.shape
-      ds_range = self.data.GetRange(
-          self.channelDataSet,
-	  state_ndx if self.state.scaleMode == 'state' else -1
-	  )
+#      ds_range = self.data.GetRange(
+#          self.channelDataSet,
+#	  state_ndx if self.state.scaleMode == 'state' else -1
+#	  )
+      ds_range = self.config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       if self.mode == 'xz':

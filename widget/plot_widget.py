@@ -217,18 +217,18 @@ Support Methods
   #----------------------------------------------------------------------
   #	METHOD:		_CreateMenuDef()				-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
-    """
-"""
-    menu_def = super( PlotWidget, self )._CreateMenuDef( data_model )
-
-    toolbar_def = \
-      [
-        { 'label': 'Toggle Toolbar', 'handler': self._OnToggleToolBar }
-      ]
-
-    return  menu_def + toolbar_def
-  #end _CreateMenuDef
+#  def _CreateMenuDef( self, data_model ):
+#    """
+#"""
+#    menu_def = super( PlotWidget, self )._CreateMenuDef( data_model )
+#
+#    toolbar_def = \
+#      [
+#        { 'label': 'Toggle Toolbar', 'handler': self._OnToggleToolBar }
+#      ]
+#
+#    return  menu_def + toolbar_def
+#  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
@@ -536,9 +536,11 @@ with super.
   def _OnSize( self, ev ):
     """
 """
-    ev.Skip()
+    if ev is not None:
+      ev.Skip()
+
     wd, ht = self.GetClientSize()
-    print >> sys.stderr, '[PlotWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
+    #print >> sys.stderr, '[PlotWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
 
     if wd > 0 and ht > 0 and self.data is not None:
       self.UpdateState( replot = True )

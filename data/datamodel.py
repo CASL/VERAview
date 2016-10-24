@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-24	leerw@ornl.gov				-
+#	  Added NAN constant to save a picosecond or two.
 #		2016-10-22	leerw@ornl.gov				-
 #	  Added Core._InferCoreLabels{Simply,Smartly}(), calling the
 #	  former in Core.ReadImpl().
@@ -401,6 +403,13 @@ DATASET_DEFS = \
 #    'type': 'vanadium'
 #    },
   }
+
+
+#------------------------------------------------------------------------
+#	CONST:		NAN						-
+# NaN value.
+#------------------------------------------------------------------------
+NAN = float( 'NaN' )
 
 
 #------------------------------------------------------------------------
@@ -3827,7 +3836,7 @@ being one greater in each dimension.
     range_max = sys.float_info.max
 
     if ds_name:
-      vmin = vmax = float( 'nan' )
+      vmin = vmax = NAN
       #for i in range( len( self.GetStates() ) ):
       search_range = \
           xrange( self.GetStatesCount() )  if state_ndx < 0 else \

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-10-24	leerw@ornl.gov				-
+#	  Using customDataRange.
 #		2016-10-21	leerw@ornl.gov				-
 #	  Added handling of node_addr and aux_node_addrs in 
 #	  _UpdateStateValues().
@@ -381,7 +383,8 @@ dataset names and ( rc, values ) pairs.
 	{
 	'label': 'Select Bottom Axis Scale Mode',
 	'submenu': select_scale_def
-	}
+	},
+        { 'label': 'Toggle Toolbar', 'handler': self._OnToggleToolBar }
       ]
 #    more_def = \
 #      [
@@ -481,24 +484,34 @@ configuring the grid, plotting, and creating self.axline.
 #				-- Bottom, primary
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
       self.ax.set_xlabel( bottom_ds_name, fontsize = label_font_size )
-      ds_range = self.data.GetRange(
-	  bottom_ds_name,
-	  self.stateIndex if self.state.scaleMode == 'state' else -1
-	  )
+      
+      ds_range = list( self.customDataRange) \
+          if self.customDataRange is not None else \
+	  [ NAN, NAN ]
+      if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
+        calc_range = self.data.GetRange(
+	    bottom_ds_name,
+	    self.stateIndex if self.state.scaleMode == 'state' else -1
+	    )
 #					-- Scale over all plotted datasets?
-      if self.scaleMode == 'all':
-        for k in self.dataSetValues:
-	  cur_name = self._GetDataSetName( k )
-	  if cur_name != top_ds_name and cur_name != bottom_ds_name:
-	    cur_range = self.data.GetRange(
-	        cur_name,
-	        self.stateIndex if self.state.scaleMode == 'state' else -1
-	        )
-	    ds_range = (
-	        min( ds_range[ 0 ], cur_range[ 0 ] ),
-		max( ds_range[ 1 ], cur_range[ 1 ] )
-	        )
-        #end for k
+        if self.scaleMode == 'all':
+          for k in self.dataSetValues:
+	    cur_name = self._GetDataSetName( k )
+	    if cur_name != top_ds_name and cur_name != bottom_ds_name:
+	      cur_range = self.data.GetRange(
+	          cur_name,
+	          self.stateIndex if self.state.scaleMode == 'state' else -1
+	          )
+	      calc_range = (
+	          min( calc_range[ 0 ], cur_range[ 0 ] ),
+		  max( calc_range[ 1 ], cur_range[ 1 ] )
+	          )
+          #end for k
+
+        for i in xrange( len( ds_range ) ):
+	  if math.isnan( ds_range[ i ] ):
+	    ds_range[ i ] = calc_range[ i ]
+      #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
 
       if self.data.IsValidRange( *ds_range ):
         self.ax.set_xlim( *ds_range )
@@ -626,10 +639,6 @@ configuring the grid, plotting, and creating self.axline.
 	  loc = 'upper right',
 	  prop = { 'size': 'small' }
 	  )
-#      self.ax.legend(
-#	  handles, labels,
-#	  bbox_to_anchor = ( 1.05, 1 ), borderaxespad = 0., loc = 2
-#	  )
 
       #xxxplacement orig=0.925, tried=0.975
       self.fig.text(

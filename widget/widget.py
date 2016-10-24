@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-10-24	leerw@ornl.gov				-
+#	  Added customDataRange and dataRangeDialog attributes, with
+#	  (de)serialization in {Load,Save}Props().
+#	  Added _ResolveDataRange().
 #		2016-10-20	leerw@ornl.gov				-
 #		2016-10-19	leerw@ornl.gov				-
 #	  Resolve issue of widgets not initializing correctly for derived
@@ -92,6 +96,7 @@ except Exception:
 from event.state import *
 from legend import *
 from legend2 import *
+from bean.data_range_bean import *
 
 
 BMAP_NAME_green = 'led_green_16x16'
@@ -346,12 +351,14 @@ Widget Class Hierarchy
     self.busy = False
     #self.busyCursor = None
     self.container = container
+    self.customDataRange = None
     self.data = None
     self.state = \
         getattr( container, 'state' )  if hasattr( container, 'state' ) else \
 	None
 
     #self.derivedLabels = None
+    self.dataRangeDialog = None
     self.menuDef = None
     self.popupMenu = None
 
@@ -600,8 +607,9 @@ or append items.
 	  'handler':functools.partial( self._OnCopyData, 'displayed' ) },
 	{ 'label': 'Copy Selected Data',
 	  'handler': functools.partial( self._OnCopyData, 'selected' ) },
-        { 'label': 'Copy Image',
-	  'handler': self._OnCopyImage }
+        { 'label': 'Copy Image', 'handler': self._OnCopyImage },
+	{ 'label': '-' },
+        { 'label': 'Edit Data Scale...', 'handler': self._OnCustomScale },
       ]
 #    return \
 #      [
@@ -1043,6 +1051,10 @@ initializes the data property.
 method via super.SaveProps() at the end.
 @param  props_dict	dict object from which to deserialize properties
 """
+    for k in ( 'customDataRange', ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
     if 'eventLocks' in props_dict:
 #		-- Must convert keys to ints
       locks_in = props_dict[ 'eventLocks' ]
@@ -1150,6 +1162,26 @@ it to the clipboard.
       #end if-else
     #end if data exist
   #end _OnCopyImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnCustomScale()				-
+  #----------------------------------------------------------------------
+  def _OnCustomScale( self, ev ):
+    """Handler for a setting the custom scale.
+Must be called from the UI thread.
+"""
+    ev.Skip()
+
+    if self.dataRangeDialog is None:
+      self.dataRangeDialog = DataRangeDialog( self, wx.ID_ANY )
+
+    self.dataRangeDialog.ShowModal( self.customDataRange )
+    new_range = self.dataRangeDialog.GetResult()
+    if new_range != self.customDataRange:
+      self.customDataRange = self.dataRangeDialog.GetResult()
+      self.Redraw()
+  #end _OnCustomScale
 
 
   #----------------------------------------------------------------------
@@ -1357,6 +1389,39 @@ and/or sub_addr changes.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.Redraw()					-
+  #----------------------------------------------------------------------
+  def Redraw( self ):
+    """Calls _OnSize( None )
+"""
+    self._OnSize( None )
+  #end Redraw
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._ResolveDataRange()			-
+  #----------------------------------------------------------------------
+  def _ResolveDataRange( self, ds_name, state_ndx ):
+    """Calls self.data.GetRange() if necessary to replace NaN values in
+customDataRange.
+@param  ds_name		dataset name
+@param  state_ndx	explicit state index or -1 for all states
+@return			( range_min, range_max )
+"""
+    ds_range = [ NAN, NAN ] \
+        if self.customDataRange is None else \
+	list( self.customDataRange )
+    if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
+      calc_range = self.data.GetRange( ds_name, state_ndx )
+      for i in xrange( len( ds_range ) ):
+        if math.isnan( ds_range[ i ] ):
+          ds_range[ i ] = calc_range[ i ]
+
+    return  tuple( ds_range )
+  #end _ResolveDataRange
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.SaveProps()				-
   #----------------------------------------------------------------------
   def SaveProps( self, props_dict ):
@@ -1364,6 +1429,9 @@ and/or sub_addr changes.
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
+    for k in ( 'customDataRange', ):
+      props_dict[ k ] = getattr( self, k )
+
     props_dict[ 'eventLocks' ] = self.container.GetEventLocks()
   #end SaveProps
 

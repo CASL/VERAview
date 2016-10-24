@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-10-24	leerw@ornl.gov				-
+#	  Using customDataRange.
 #		2016-10-18	leerw@ornl.gov				-
 #	  Added auxNodeAddrs and nodeAddr attributes.
 #		2016-10-17	leerw@ornl.gov				-
@@ -255,8 +257,8 @@ Properties:
 	{
 	'label': 'Select X-Axis Dataset...',
 	'submenu': self.refAxisMenu
-	#'handler': self._OnShowXAxisDataSetMenu
-	}
+	},
+        { 'label': 'Toggle Toolbar', 'handler': self._OnToggleToolBar }
       ]
 #    more_def = \
 #      [
@@ -369,24 +371,34 @@ configuring the grid, plotting, and creating self.axline.
       #self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
       self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
       self.ax.set_ylabel( left_ds_name, fontsize = label_font_size )
-      ds_range = self.data.GetRange(
-	  left_ds_name,
-	  self.stateIndex if self.state.scaleMode == 'state' else -1
-	  )
+
+      ds_range = list( self.customDataRange) \
+          if self.customDataRange is not None else \
+	  [ NAN, NAN ]
+      if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
+        calc_range = self.data.GetRange(
+	    left_ds_name,
+	    self.stateIndex if self.state.scaleMode == 'state' else -1
+	    )
 #					-- Scale over all plotted datasets?
-      if self.scaleMode == 'all':
-        for k in self.dataSetValues:
-	  cur_name = self._GetDataSetName( k )
-	  if cur_name != right_ds_name and cur_name != left_ds_name:
-	    cur_range = self.data.GetRange(
-	        cur_name,
-	        self.stateIndex if self.state.scaleMode == 'state' else -1
-	        )
-	    ds_range = (
-	        min( ds_range[ 0 ], cur_range[ 0 ] ),
-		max( ds_range[ 1 ], cur_range[ 1 ] )
-	        )
-        #end for k
+        if self.scaleMode == 'all':
+          for k in self.dataSetValues:
+	    cur_name = self._GetDataSetName( k )
+	    if cur_name != right_ds_name and cur_name != left_ds_name:
+	      cur_range = self.data.GetRange(
+	          cur_name,
+	          self.stateIndex if self.state.scaleMode == 'state' else -1
+	          )
+	      calc_range = (
+	          min( calc_range[ 0 ], cur_range[ 0 ] ),
+		  max( calc_range[ 1 ], cur_range[ 1 ] )
+	          )
+          #end for k
+
+        for i in xrange( len( ds_range ) ):
+	  if math.isnan( ds_range[ i ] ):
+	    ds_range[ i ] = calc_range[ i ]
+      #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
 
       if self.data.IsValidRange( *ds_range ):
         self.ax.set_ylim( *ds_range )

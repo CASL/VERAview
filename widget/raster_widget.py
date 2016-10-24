@@ -1281,18 +1281,6 @@ be overridden by subclasses.
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
-#    if 'axialValue' in props_dict:
-#      self.axialValue = props_dict[ 'axialValue' ]
-#    if 'cellRange' in props_dict:
-#      self.cellRange = props_dict[ 'cellRange' ]
-#    if 'cellRangeStack' in props_dict:
-#      self.cellRangeStack = props_dict[ 'cellRangeStack' ]
-#    if 'showLabels' in props_dict:
-#      self.showLabels = props_dict[ 'showLabels' ]
-#    if 'showLegend' in props_dict:
-#      self.showLegend = props_dict[ 'showLegend' ]
-#    if 'stateIndex' in props_dict:
-#      self.stateIndex = props_dict[ 'stateIndex' ]
 
     super( RasterWidget, self ).LoadProps( props_dict )
     wx.CallAfter( self.UpdateState, resized = True )
@@ -1545,11 +1533,11 @@ This implementation is a noop.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.Redraw()				-
   #----------------------------------------------------------------------
-  def Redraw( self ):
-    """Calls _OnSize( None )
-"""
-    self._OnSize( None )
-  #end Redraw
+#  def Redraw( self ):
+#    """Calls _OnSize( None )
+#"""
+#    self._OnSize( None )
+#  #end Redraw
 
 
   #----------------------------------------------------------------------

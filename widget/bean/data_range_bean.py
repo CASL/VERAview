@@ -90,9 +90,10 @@ Attributes/properties:
   def _InitUI( self ):
     """Builds this panel.
 """
-
+#		-- Panel
+#		--
     panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
-    panel_sizer = wx.FlexGridSizer( 2, 2, 6, 4 )
+    panel_sizer = wx.FlexGridSizer( 3, 2, 6, 4 )
     panel_sizer.SetFlexibleDirection( wx.HORIZONTAL )
     panel.SetSizer( panel_sizer )
 
@@ -110,17 +111,40 @@ Attributes/properties:
       panel_sizer.Add( label, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
       panel_sizer.Add(
           field, 0,
-	  wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND,
-	  0
+	  wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
 	  )
     #end for name
 
-#			-- Lay Out
+#		-- Panel button
+#		--
+    reset_button = wx.Button( panel, label = '&Reset' )
+    reset_button.Bind( wx.EVT_BUTTON, self._OnReset )
+
+    panel_sizer.Add(
+	wx.StaticText( panel, wx.ID_ANY, label = '' ), 0,
+	wx.ALIGN_RIGHT, 0
+        )
+    panel_sizer.Add( reset_button, 0, wx.ALIGN_CENTER, 0 )
+
+#		-- Info message
+#		--
+    message = wx.StaticText(
+	self, wx.ID_ANY,
+	'Non-numeric values are interpreted as "NaN".\n' +
+	'"NaN" specifies that the calculated range value should be used.',
+	style = wx.ALIGN_LEFT
+        )
+
+#			-- Lay out
 #			--
     sizer = wx.BoxSizer( wx.VERTICAL )
     self.SetSizer( sizer )
 
     sizer.Add( panel, 1, wx.ALIGN_LEFT | wx.ALIGN_TOP | wx.ALL | wx.EXPAND, 6 )
+    sizer.Add(
+        message, 0,
+	wx.ALIGN_CENTRE_HORIZONTAL | wx.ALIGN_TOP | wx.ALL | wx.EXPAND, 6
+	)
     sizer.AddStretchSpacer()
     self.Fit()
   #end _InitUI
@@ -147,6 +171,17 @@ Attributes/properties:
     #ev.Skip()
     self._UpdateValue()
   #end _OnFocusOut
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnReset()			-
+  #----------------------------------------------------------------------
+  def _OnReset( self, ev ):
+    """
+"""
+    ev.Skip()
+    self.SetValue( EMPTY_RANGE )
+  #end _OnReset
 
 
   #----------------------------------------------------------------------
@@ -315,7 +350,7 @@ Properties:
     sizer.Layout()
 
     self.SetSizer( sizer )
-    self.SetTitle( 'Edit Custom Range' )
+    self.SetTitle( 'Edit Custom Data Scale' )
     self.Fit()
     self.Center()
   #end _InitUI
@@ -342,7 +377,7 @@ Properties:
   #	METHOD:		DataRangeDialog.ShowModal()			-
   #----------------------------------------------------------------------
   def ShowModal( self, value_in = None ):
-    self.fResult = None
+    self.fResult = value_in
     if value_in is not None:
       self.fBean.SetValue( value_in )
     super( DataRangeDialog, self ).ShowModal()
