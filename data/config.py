@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2016-10-25	leerw@ornl.gov				-
+#	  Configuring logging.
 #		2016-03-17	leerw@ornl.gov				-
 #	  We now care about gifsicle instead of ImageMagick.
 #		2016-01-15	leerw@ornl.gov				-
@@ -13,10 +15,9 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import os, platform, subprocess
+import logging, logging.config, os, platform, subprocess
 from distutils.spawn import find_executable
-#import h5py, os, sys, traceback
-#import numpy as np
+import pdb
 
 
 #------------------------------------------------------------------------
@@ -138,6 +139,10 @@ Static properties (use accessors):
   def SetRootDir( value ):
     Config.rootDir_ = value
     Config.resDir_ = os.path.join( value, 'res' )
+
+    log_file = os.path.join( Config.resDir_, 'logging.conf' )
+    logging.config.fileConfig( log_file )
+    #logging.config.fileConfig( os.path.join( Config.resDir_, 'logging.conf' ) )
   #end SetRootDir
 
 #end Config

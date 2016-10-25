@@ -108,7 +108,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import argparse, os, sys, threading, traceback
+import argparse, logging, os, sys, threading, traceback
 import pdb  # set_trace()
 
 try:
@@ -286,6 +286,7 @@ class VeraViewApp( wx.App ):
     self.filepath = None
     self.firstLoop = True
     self.frame = None
+    self.logger = logging.getLogger( 'root' )
     self.skipSession = False
     self.state = None
 
@@ -324,9 +325,13 @@ class VeraViewApp( wx.App ):
 unnecessary.
 """
     print >> sys.stderr, '[VeraViewApp.OnEventLoopEnter]'
+    #DEBUG,INFO,WARNING,ERROR,CRITICAL
+    if self.logger.isEnabledFor( logging.INFO ):
+      self.logger.info( '[OnEventLoopEnter]' )
 
     if self.frame is None:
       print >> sys.stderr, '[VeraViewApp] no frame to show'
+      self.logger.critical( 'No frame to show' )
       self.ExitMainLoop()
 
     elif self.firstLoop:
@@ -485,14 +490,19 @@ unnecessary.
       app.MainLoop()
 
     except Exception, ex:
+      msg = str( ex )
       print >> sys.stderr, str( ex )
       et, ev, tb = sys.exc_info()
       while tb:
+	msg += \
+	    os.linesep + 'File=' + str( tb.tb_frame.f_code ) + \
+	    ', Line=' + str( traceback.tb_lineno( tb ) )
 	print >> sys.stderr, \
             'File=' + str( tb.tb_frame.f_code ) + \
             ', Line=' + str( traceback.tb_lineno( tb ) )
         tb = tb.tb_next
       #end while
+      logging.error( msg )
   #end main
 
 #end VeraViewApp
@@ -522,6 +532,7 @@ class VeraViewFrame( wx.Frame ):
     self.config = None
 #    self.dataSetDefault = ds_default
     self.eventLocks = State.CreateLocks()
+    self.logger = logging.getLogger( 'root' )
     self.state = state
 #    self.windowMenu = None
 
@@ -2236,6 +2247,7 @@ class VeraViewGrid( wx.Panel ):
     super( VeraViewGrid, self ).__init__( *args, **kwargs )
 
     self.listener = None
+    self.logger = logging.getLogger( 'root' )
     self._InitUI()
   #end __init__
 
