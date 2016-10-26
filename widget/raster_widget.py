@@ -47,7 +47,7 @@
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
-import functools, logging, math, os, string, sys, threading
+import functools, logging, math, os, string, sys, threading, time
 import numpy as np
 import pdb  #pdb.set_trace()
 #import time, traceback
@@ -452,6 +452,11 @@ Calls _CreateRasterImage().
 
       if pil_im is None:
 	self.logger.warning( '* pil_im is None *' )
+
+# There is some sync issue with wx.lib.delayedresult where the return value
+# from this method is not available to result.get() in _BitmapThreadFinish().
+# Hence, we add a short sleep.
+      time.sleep( 0.001 )
 
     return  ( next_tuple, pil_im, try_count )
   #end _BitmapThreadStart
