@@ -1918,18 +1918,22 @@ descending.  Note bisect only does ascending.
     elif state_ndx >= 0:
       dset = self.GetStateDataSet( state_ndx, ds_name )
       if dset:
-        x = np.nanargmax( dset.value )
+        #x = np.nanargmax( dset.value )
+	dset_value = np.array( dset )
+        x = np.nanargmax( dset_value )
 	addr = np.unravel_index( x, dset.shape )
-	max_value = dset.value[ addr ]
+	max_value = dset_value[ addr ]
 
     else:
       max_value = -sys.float_info.max
       for st in xrange( len( self.states ) ):
         dset = self.GetStateDataSet( st, ds_name )
 	if dset:
-	  x = np.nanargmax( dset.value )
+	  #x = np.nanargmax( dset.value )
+	  dset_value = np.array( dset )
+	  x = np.nanargmax( dset_value )
 	  cur_addr = np.unravel_index( x, dset.shape )
-	  cur_max = dset.value[ cur_addr ]
+	  cur_max = dset_value[ cur_addr ]
 	  if cur_max > max_value:
 	    addr = cur_addr
 	    state_ndx = st
@@ -2010,7 +2014,7 @@ descending.  Note bisect only does ascending.
     elif state_ndx >= 0:
       dset = self.GetStateDataSet( state_ndx, ds_name )
       if dset:
-	dset_value = dset.value
+	dset_value = np.array( dset )
 	if factors is not None:
 	  np.place(
 	      dset_value, factors == 0.0,
@@ -2029,7 +2033,7 @@ descending.  Note bisect only does ascending.
       for st in xrange( len( self.states ) ):
         dset = self.GetStateDataSet( st, ds_name )
 	if dset:
-	  dset_value = dset.value
+	  dset_value = np.array( dset )
 	  if factors is not None:
 	    np.place(
 		dset_value, factors == 0.0,
@@ -3113,12 +3117,18 @@ a 4D array if necessary.
 	      copy_data.fill( 0.0 )
 	      exec_str = 'copy_data' + ds_def[ 'copy_expr' ] + ' = dset'
 
-	      globals_env = {}
-	      locals_env = { 'copy_data': copy_data, 'dset': dset }
-	      exec( exec_str, globals_env, locals_env )
-	      dset = derived_st.CreateDataSet(
-	          copy_name, locals_env[ 'copy_data' ]
-		  )
+	      if copy_data.size == 1:
+	        copy_data[ 0, 0, 0, 0 ] = np.array( dset ).item()
+	      else:
+	        globals_env = {}
+	        locals_env = { 'copy_data': copy_data, 'dset': dset }
+	        exec( exec_str, globals_env, locals_env )
+	        dset = derived_st.CreateDataSet(
+	            copy_name, locals_env[ 'copy_data' ]
+		    )
+	      #end if-else copy_data.size
+	    #end if ds_def is not None
+	  #end if-else copy_dset
         #end if must copy
       finally:
         self.dataSetDefsLock.release()
@@ -3750,6 +3760,7 @@ being one greater in each dimension.
     if dset is not None:
       ds_shape = ds_def[ 'shape' ]
       ds_type = ds_def[ 'type' ]
+      dset_value = np.array( dset )
 
       if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
         sub_addrs = [ sub_addrs ]
@@ -3758,7 +3769,8 @@ being one greater in each dimension.
 #			--
       if ds_type == 'detector' or ds_type == 'fixed_detector':
         det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-	result = dset.value[ :, det_ndx ]
+	dset_value = np.array( dset )
+	result = dset_value[ :, det_ndx ]
 
       elif sub_addrs is None:
         pass
@@ -3771,18 +3783,6 @@ being one greater in each dimension.
 	  result = {}
           ds_shape = ds_def[ 'copy_shape' ]
           assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
-# We don't do this any more b/c we have nodeAddr and auxNodeAddrs
-#					-- Glean node_addrs from sub_addrs
-#	  node_addr_set = set()
-#	  if sub_addrs is None:
-#	    node_addr_set.add( ( 0, -1 ) )
-#	  else:
-#            for sub_addr in sub_addrs:
-#	      node_ndx = self.GetNodeAddr( sub_addr )
-#              node_addr = ( node_ndx, -1 )
-#              if node_addr not in node_addr_set:
-#	        node_addr_set.add( node_addr )
-#	  #end if-else sub_addrs
 	  node_addr_set = set()
 	  if node_addrs is None:
 	    node_addr_set.add( ( 0, -1 ) )
@@ -3792,8 +3792,9 @@ being one greater in each dimension.
 	      node_addr_set.add( cur_pair )
 	  #end if-else node_addrs
 
+	  dset_value = np.array( dset )
 	  for node_addr in sorted( node_addr_set ):
-	    result[ node_addr ] = dset.value[ 0, node_addr[ 0 ], :, assy_ndx ]
+	    result[ node_addr ] = dset_value[ 0, node_addr[ 0 ], :, assy_ndx ]
 	#end if copy_shape
 
 #			-- Everything else
@@ -3817,11 +3818,13 @@ being one greater in each dimension.
 	      if sub_addr not in sub_addr_set:
 	        sub_addr_set.add( sub_addr )
 	        result[ sub_addr ] = \
-	            dset.value[ sub_addr[ 1 ], sub_addr[ 0 ], :, assy_ndx ]
+	            dset_value[ sub_addr[ 1 ], sub_addr[ 0 ], :, assy_ndx ]
             #end for sub_addr
 	  #end if sub_addrs
+	elif dset_value.size == 1:
+	  result = dset_value.item()
         else:
-	  result = dset.value[ 0, 0, :, assy_ndx ]
+	  result = dset_value[ 0, 0, :, assy_ndx ]
         #end if-else ds_shape
       #end if-else ds_type
     #end if dset is not None
@@ -3939,7 +3942,8 @@ being one greater in each dimension.
       for i in xrange( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
-	  values.append( dset.value.item() )
+	  dset_value = np.array( dset )
+	  values.append( dset_value.item() )
 	else:
 	  values.append( 0.0 )
       result = np.array( values, dtype = np.float64 )
@@ -3957,7 +3961,8 @@ being one greater in each dimension.
       for i in xrange( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
-	  values.append( dset.value[ axial_level, det_ndx ] )
+	  dset_value = np.array( dset )
+	  values.append( dset_value[ axial_level, det_ndx ] )
 	else:
 	  values.append( 0.0 )
       result = np.array( values, dtype = np.float64 )
@@ -3973,7 +3978,8 @@ being one greater in each dimension.
       for i in xrange( len( self.states ) ):
 	dset = self.GetStateDataSet( i, ds_name )
 	if dset is not None:
-	  values.append( dset.value[ axial_level, det_ndx ] )
+	  dset_value = np.array( dset )
+	  values.append( dset_value[ axial_level, det_ndx ] )
 	else:
 	  values.append( 0.0 )
       result = np.array( values, dtype = np.float64 )
@@ -4039,9 +4045,11 @@ being one greater in each dimension.
 	    for sub_addr in sub_addrs_sorted:
 	      result[ sub_addr ].append( 0.0 )
 	  else:
+	    dset_value = np.array( dset )
 	    for sub_addr in sub_addrs_sorted:
-	      value = dset.\
-	          value[ sub_addr[ 1 ], sub_addr[ 0 ], axial_level, assy_ndx ]
+	      value = dset_value[
+	          sub_addr[ 1 ], sub_addr[ 0 ], axial_level, assy_ndx
+		  ]
 	      result[ sub_addr ].append( value )
         #end for i
 
@@ -4055,7 +4063,8 @@ being one greater in each dimension.
         for i in xrange( len( self.states ) ):
 	  dset = self.GetStateDataSet( i, ds_name )
 	  if dset is not None:
-	    values.append( dset.value[ 0, 0, axial_level, assy_ndx ] )
+	    dset_value = np.array( dset )
+	    values.append( dset_value[ 0, 0, axial_level, assy_ndx ] )
 	  else:
 	    values.append( 0.0 )
 	#end for st
@@ -4119,6 +4128,7 @@ at a time for better performance.
 	lookup_ds_name = ds_name[ 1 : ] if ds_name[ 0 ] == '*' else ds_name
 	ds_def = ds_defs.get( ds_name )
         dset = self.GetStateDataSet( state_ndx, lookup_ds_name )
+	dset_value = np.array( dset )
 	ds_type = ds_def[ 'type' ]
 
 	node_addrs = spec.get( 'node_addrs' )
@@ -4134,7 +4144,7 @@ at a time for better performance.
 	if ds_type == 'scalar':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
-	  value = 0.0  if dset is None else  dset.value.item()
+	  value = 0.0  if dset is None else  dset_value.item()
 	  result[ ds_name ].append( value )
 
 #			-- Detector
@@ -4156,7 +4166,8 @@ at a time for better performance.
 	    detector_ndx = spec.get( 'detector_index', 0 )
             det_ndx = max( 0, min( detector_ndx, ds_shape[ 1 ] - 1 ) )
 
-	    value = dset.value[ axial_ndx, det_ndx ]
+	    dset_value = np.array( dset )
+	    value = dset_value[ axial_ndx, det_ndx ]
 	  result[ ds_name ].append( value )
 
 #			-- Fixed detector
@@ -4202,18 +4213,6 @@ at a time for better performance.
               ax_value = self.CreateAxialValue( cm = axial_cm )
               axial_ndx = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
 
-# We don't do this any more b/c we have nodeAddr and auxNodeAddrs
-#					-- Glean node_addrs from sub_addrs
-#	    node_addr_set = set()
-#	    if sub_addrs is None:
-#	      node_addr_set.add( ( 0, -1 ) )
-#	    else:
-#              for sub_addr in sub_addrs:
-#	        node_ndx = self.GetNodeAddr( sub_addr )
-#		node_addr = ( node_ndx, -1 )
-#	        if node_addr not in node_addr_set:
-#	          node_addr_set.add( node_addr )
-#	    #end if-else sub_addrs
 	    node_addr_set = set()
 	    if node_addrs is None:
 	      node_addr_set.add( ( 0, -1 ) )
@@ -4227,7 +4226,8 @@ at a time for better performance.
 	        ds_result[ node_addr ] = []
               value = 0.0
               if dset is not None:
-	        value = dset.value[ 0, node_addr[ 0 ], axial_ndx, assy_ndx ]
+	        dset_value = np.array( dset )
+	        value = dset_value[ 0, node_addr[ 0 ], axial_ndx, assy_ndx ]
               ds_result[ node_addr ].append( value )
 	    #end if-else node_addrs
 	  #end if copy_shape
@@ -4284,7 +4284,11 @@ at a time for better performance.
 
 	      value = 0.0
 	      if dset is not None:
-	        value = dset.value[ 0, 0, axial_ndx, assy_ndx ]
+		dset_value = np.array( dset )
+		if dset_value.size == 1:
+		  value = dset_value.item()
+		else:
+	          value = dset_value[ 0, 0, axial_ndx, assy_ndx ]
 	      result[ ds_name ].append( value )
             #end if-else ds_shape
 	  #end if sub_addrs specified

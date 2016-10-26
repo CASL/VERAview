@@ -462,7 +462,6 @@ otherwise returns self.state.curDataSet
   #	METHOD:		DataSetMenu._OnNewDataSet()			-
   #----------------------------------------------------------------------
   def _OnNewDataSet( self, *args, **kwargs ):
-    #setattr( self, '__stopme', True )
     wx.CallAfter( self.UpdateMenu )
   #end _OnNewDataSet
 
@@ -649,10 +648,6 @@ otherwise returns self.state.curDataSet
   def UpdateMenu( self ):
     """
 """
-    if hasattr( self, '__stopme' ):
-      pdb.set_trace()
-      delattr( self, '__stopme' )
-
     data_model = State.FindDataModel( self.state )
     if data_model is not None and \
         self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
