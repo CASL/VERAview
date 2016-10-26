@@ -1249,7 +1249,8 @@ Must be called from the UI thread.
 
 #		-- Update title
 #		--
-    title = TITLE
+    #title = TITLE
+    title = self.GetTitle()
     if file_path is not None:
       title += (': %s' % os.path.basename( file_path ))
     self.SetTitle( title )
