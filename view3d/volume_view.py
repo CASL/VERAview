@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		volume_view.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-08-31	leerw@ornl.gov				-
 #	  Handle 'scale_mode' events.  Cannot get the colormap to update
 #	  the display in Volume.SetScalarData().  Need to resolve later.
@@ -11,7 +13,7 @@
 #	  Changed _CreateClipboardData() signature.
 #		2016-03-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, functools, math, os, sys
+import bisect, functools, logging, math, os, sys
 import numpy as np
 import pdb
 
@@ -60,6 +62,7 @@ class Volume3DView( Widget ):
     self.data = None
 
     #self.autoSync = True
+    self.logger = logging.getLogger( 'view3d' )
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
@@ -96,9 +99,11 @@ class Volume3DView( Widget ):
       cur_npinx = max( core.npinx, dset_shape[ 1 ] )
       cur_npiny = max( core.npiny, dset_shape[ 0 ] )
 
-      print >> sys.stderr, \
-          '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
-	  ( os.linesep, self.pinDataSet, self.stateIndex, os.linesep )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+	    'pinDataSet=%s, stateIndex=%d',
+	    self.pinDataSet, self.stateIndex
+	    )
 
       # left, top, right + 1, bottom + 1, dx, dy
       #assy_range = self.data.ExtractSymmetryExtent()
@@ -572,6 +577,7 @@ class Volume( HasTraits ):
 #		--
     self.volume3d
 
+    self.logger = logging.getLogger( 'view3d' )
     #self.slicePosition = [ -1, -1, -1 ]
     #self.slicePositionListener = None
   #end __init__
@@ -678,7 +684,6 @@ class Volume( HasTraits ):
     #vol._ctf.range = data_range
     #vol.update_ctf = True
     vol.lut_manager.data_range = data_range
-    pdb.set_trace()
     vol.update_pipeline()
   #end SetScalarData
 

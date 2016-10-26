@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Added NAN constant to save a picosecond or two.
 #		2016-10-22	leerw@ornl.gov				-
@@ -181,7 +183,7 @@
 #		2014-12-28	leerw@ornl.gov				-
 #		2014-10-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, cStringIO, h5py, json, math, os, sys, \
+import bisect, copy, cStringIO, h5py, logging, json, math, os, sys, \
     tempfile, threading, traceback
 import numpy as np
 import pdb
@@ -1096,6 +1098,7 @@ passed, Read() must be called.
 			HDF5 file (.h5)
 """
     self.averagers = {}
+    self.logger = logging.getLogger( 'data' )
 
 #		-- Instantiate averagers
 #		--
@@ -1407,9 +1410,13 @@ Parameters:
 	  self.AddDataSetName( der_names[ 0 ], derived_name )
 
 	except Exception, ex:
-	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
-	      ( derived_label, ds_name )
-	  print >> sys.stderr, '%s\nddef="%s"' % ( msg, str( ddef ) )
+#	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
+#	      ( derived_label, ds_name )
+#	  print >> sys.stderr, '%s\nddef="%s"' % ( msg, str( ddef ) )
+	  self.logger.error(
+	      'Error calculating derived "%s" dataset for "%s"',
+	      derived_label, ds_name
+	      )
 	  raise Exception( msg )
       #end if dataset definition found
     #end we have state points

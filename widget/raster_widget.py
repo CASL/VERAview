@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-20	leerw@ornl.gov				-
 #	  Removed Redraw() call from _LoadDataModelUI() since
 #	  Widget.HandleStateChange() now calls UpdateState().
@@ -45,7 +47,7 @@
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
-import functools, math, os, string, sys, threading
+import functools, logging, math, os, string, sys, threading
 import numpy as np
 import pdb  #pdb.set_trace()
 #import time, traceback
@@ -300,20 +302,20 @@ Paired to _BitmapThreadStart().
       cur_tuple, pil_im, try_count = result.get()
 
     if cur_tuple is None:
-      print >> sys.stderr, \
-          '[RasterWidget._BitmapThreadFinish] xxx cur_tuple is None xxx'
+      self.logger.warning( '* cur_tuple is None *' )
     if pil_im is None:
-      print >> sys.stderr, \
-          '[RasterWidget._BitmapThreadFinish] xxx pil_im is None xxx'
+      self.logger.warning( '* pil_im is None *' )
 
     if cur_tuple is not None:
 #			-- Create bitmap
 #			--
       if pil_im is None:
 	if try_count < 2:
-          print >> sys.stderr, \
-'[RasterWidget._BitmapThreadFinish] retrying image thread, try_count=', \
-try_count
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug(
+	        'retrying image thread, try_count=%d',
+		try_count
+		)
 	  th = wxlibdr.startWorker(
 	      self._BitmapThreadFinish,
 	      self._BitmapThreadStart,
@@ -368,18 +370,15 @@ Paired to _BitmapThreadStart().
 #		-- Log these conditions
 #		--
     if cur_tuple is None:
-      print >> sys.stderr, \
-          '[RasterWidget._BitmapThreadFinish] XXX cur_tuple is None XXX'
+      self.logger.warning( '* cur_tuple is None *' )
     if pil_im is None:
-      print >> sys.stderr, \
-          '[RasterWidget._BitmapThreadFinish] XXX pil_im is None XXX'
+      self.logger.warning( '* pil_im is None *' )
 
 #		-- Retry image creation thread?
 #		--
     if cur_tuple is not None and pil_im is None and try_count < 2:
-      print >> sys.stderr, \
-'[RasterWidget._BitmapThreadFinish] retrying image thread, try_count=', \
-try_count
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'retrying image thread, try_count=%d', try_count )
       th = wxlibdr.startWorker(
           self._BitmapThreadFinish,
 	  self._BitmapThreadStart,
@@ -452,8 +451,7 @@ Calls _CreateRasterImage().
       pil_im = self._CreateRasterImage( next_tuple )
 
       if pil_im is None:
-        print >> sys.stderr, \
-            '[RasterWidget._BitmapThreadStart] XXX pil_im is None XXX'
+	self.logger.warning( '* pil_im is None *' )
 
     return  ( next_tuple, pil_im, try_count )
   #end _BitmapThreadStart
@@ -490,7 +488,8 @@ configuration based on the current size
 Sets the config attribute.
 """
     wd, ht = self.bitmapPanel.GetClientSize()
-    print >> sys.stderr, '[RasterWidget._Configure] %d,%d' % ( wd, ht )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'wd=%d, ht=%d', wd, ht )
 
     self.config = None
     if wd > 0 and ht > 0 and self.data is not None and \
@@ -546,14 +545,11 @@ called from subclass _CreateDrawConfig() methods.
 #		--
     if 'size' in kwargs:
       wd, ht = kwargs[ 'size' ]
-      print >> sys.stderr, \
-          '[RasterWidget._CreateBaseDrawConfig] size=%d,%d' % ( wd, ht )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'size=%d,%d', wd, ht )
       font_size = self._CalcFontSize( wd )
 
     else:
-#      scale = kwargs.get( 'scale', 8 )
-#      print >> sys.stderr, \
-#          '[RasterWidget._CreateBaseDrawConfig] scale=%d' % scale
       font_size = self._CalcFontSize( 512 )
 
     if self.showLegend:
@@ -1211,13 +1207,13 @@ Sets attributes:
 
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
-    print >> sys.stderr, '[RasterWidget._LoadDataModel]'
+    self.logger.debug( 'entered' )
     #self.data = State.FindDataModel( self.state )
     super( RasterWidget, self )._LoadDataModel()
     if self.data is not None and self.data.HasData() and \
         not self.isLoaded:
       self.isLoaded = True
-      print >> sys.stderr, '[RasterWidget._LoadDataModel] we have data'
+      self.logger.debug( 'we have data' )
 
 #		-- Do here what is not dependent on size
 #		--
@@ -1328,8 +1324,6 @@ This implementation is a noop.
   def _OnLeftUp( self, ev ):
     """
 """
-    #wd, ht = self.GetClientSize()
-    #print >> sys.stderr, '[RasterWidget._OnLeftUp] enter'
     zoom_flag = False
 
     if self.HasCapture():
@@ -1347,8 +1341,6 @@ This implementation is a noop.
       x = ev.GetX()
       y = ev.GetY()
       cell_info = self.FindCell( x, y )
-      #print >> sys.stderr, \
-          #'\n[RasterWidget._OnLeftUp] cell_info=', str( cell_info )
 
       if cell_info is not None:
         left = min( self.dragStartCell[ 1 ], cell_info[ 1 ] )
@@ -1394,7 +1386,6 @@ This implementation is a noop.
 
     else:
       rect = wx.RectPP( self.dragStartPosition, ev.GetPosition() )
-      #print >> sys.stderr, '[RasterWidget._OnMouseMotion]', str( rect )
 
       if rect.width > 5 and rect.height > 5:
         dc = wx.ClientDC( self.bitmapCtrl )
@@ -1431,7 +1422,8 @@ This implementation is a noop.
       ev.Skip()
 
     wd, ht = self.GetClientSize()
-    print >> sys.stderr, '[RasterWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'clientSize=%d,%d', wd, ht )
 
     if wd > 0 and ht > 0 and self.data is not None and \
         (self.curSize is None or wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]):
@@ -1609,9 +1601,11 @@ Calls _UpdateStateValues().
 
       if must_create_image:
 	end_busy = False
-        print >> sys.stderr, \
-	    '[RasterWidget.UpdateState] %s starting worker, args=%s' % \
-	    ( self.GetTitle(), str( tpl + self.curSize ) )
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug(
+	      '%s starting worker, args=%s',
+	      self.GetTitle(), str( tpl + self.curSize )
+	      )
 	th = wxlibdr.startWorker(
 	    self._BitmapThreadFinish,
 	    self._BitmapThreadStart,

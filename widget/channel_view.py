@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_view.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -66,7 +68,7 @@
 #		2015-05-23	leerw@ornl.gov				-
 #		2015-05-21	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, traceback
+import logging, math, os, sys, threading, time, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -166,8 +168,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #		--
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
-      print >> sys.stderr, \
-          '[Assembly2DView._CreateDrawConfig] size=%d,%d' % ( wd, ht )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'size=%d,%d', wd, ht )
 
       # label : core : font-sp : legend
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
@@ -188,7 +190,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     else:
       chan_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 24
-      print >> sys.stderr, '[Assembly2DView._CreateDrawConfig] chan_wd=%d' % chan_wd
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'chan_wd=%d', chan_wd )
 
       #chan_gap = chan_wd >> 3
       chan_gap = 0
@@ -224,8 +227,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     state_ndx = tuple_in[ 0 ]
     assy_ndx = tuple_in[ 1 ]
     axial_level = tuple_in[ 2 ]
-    print >> sys.stderr, \
-        '[Channel2DView._CreateAssyImage] tuple_in=%s' % str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
 
     tuple_valid = DataModel.IsValidObj(
@@ -630,7 +634,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     else:
       chan_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
-      print >> sys.stderr, '[Channel2DView._CreateCoreDrawConfig] chan_wd=%d' % chan_wd
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'chan_wd=%d', chan_wd )
       assy_wd = chan_wd * (self.data.core.npin + 1) + 1
       assy_advance = assy_wd
 
@@ -676,9 +681,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     state_ndx = tuple_in[ 0 ]
     axial_level = tuple_in[ 1 ]
-    print >> sys.stderr, \
-        '[Channel2DView._CreateCoreImage] tuple_in=%d,%d' % \
-	( state_ndx, axial_level )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
 
     if config is None:

@@ -63,8 +63,6 @@ class Legend2( object ):
 @param  font_size	size of font for drawing
 @return			PIL.Image instance
 """
-    print >> sys.stderr, '[Legend2._CreateImage] enter'
-
     value_count = max( 2, value_count )
 
     border = 2
@@ -163,7 +161,6 @@ class Legend2( object ):
 #        )
 
     del  im_draw
-    print >> sys.stderr, '[Legend2._CreateImage] exit'
 
     return  pil_im
   #end _CreateImage

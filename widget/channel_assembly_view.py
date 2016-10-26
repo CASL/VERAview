@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_assembly_view.py			-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -59,7 +61,7 @@
 #	  instead of col, row, ...
 #		2015-07-11	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, traceback
+import logging, math, os, sys, threading, time, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -586,8 +588,8 @@ Must be called from the UI thread.
     state_ndx = tuple_in[ 0 ]
     assy_ndx = tuple_in[ 1 ]
     axial_level = tuple_in[ 2 ]
-    print >> sys.stderr, \
-        '[ChannelAssembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
     im = None
     dset_array = None
 

@@ -63,8 +63,6 @@ class Legend( object ):
 			per contour value
 @return			PIL.Image instance
 """
-    print >> sys.stderr, '[Legend._CreateImage] enter'
-
 #		-- Assert on list lengths
 #		--
 #    if len( values ) != len( colors ) + 1:
@@ -143,7 +141,6 @@ class Legend( object ):
     #end if
 
     del  im_draw
-    print >> sys.stderr, '[Legend._CreateImage] exit'
 
     return  pil_im
   #end _CreateImage

@@ -3,10 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_creator.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2015-11-14	leerw@ornl.gov				-
 #		2015-11-13	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, json, math, os, sys, time, traceback
+import functools, logging, json, math, os, sys, time, traceback
 import numpy as np
 #import pdb  #pdb.set_trace()
 
@@ -65,9 +67,11 @@ Not being used.
     self.fFactors = factors
     self.fWeights = weights
 
-    print >> sys.stderr, \
-        '[DataSetCreator]\n  src_ds_name=%s\n  avg_ds_name=%s\n  avg_shape=%s' % \
-	( src_ds_name, avg_ds_name, avg_shape )
+    if self.logger.isEnabledFor( logging.INFO ):
+      self.logger.info(
+          'src_ds_name=%s, avg_ds_name=%s, avg_shape=%s',
+	  src_ds_name, avg_ds_name, avg_shape
+	  )
   #end __init__
 
 
@@ -104,8 +108,8 @@ Must be called in the UI thread.
       averager = Averager()
       count = 0
       for st in self.fDataModel.GetStates():
-	print >> sys.stderr, \
-	    '[DataSetCreator] calculating for state point=%d' % count
+        if self.logger.isEnabledFor( logging.INFO ):
+          self.logger.info( 'calculating for state point=%d', count )
         wx.CallAfter(
 	    dialog.Update,
 	    count,

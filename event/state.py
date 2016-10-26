@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-17	leerw@ornl.gov				-
 #	  Added nodeAddr as a STATE_CHANGE_coordinates attribute.
 #	  Added auxNodeAddrs.
@@ -64,7 +66,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import h5py, os, sys, traceback
+import h5py, logging, os, sys, traceback
 import numpy as np
 import pdb
 
@@ -255,6 +257,7 @@ All indices are 0-based.
     self.curDataSet = 'pin_powers'
     self.dataModel = None
     self.listeners = []
+    self.logger = logging.getLogger( 'event' )
     self.nodeAddr = -1
     self.scaleMode = 'all'
     self.stateIndex = -1
@@ -432,7 +435,7 @@ Keys passed and the corresponding state bit are:
 	try:
           listener.HandleStateChange( reason )
 	except Exception, ex:
-	  print >> sys.stderr, '[State.FireStateChange] ' + str( ex )
+	  self.logger.error( str( ex ) )
       #end for listeners
     #end if not noop
   #end FireStateChange

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -88,7 +90,7 @@
 #		2015-02-06	leerw@ornl.gov				-
 #	  New grid system.
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, traceback
+import logging, math, os, sys, threading, time, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -490,7 +492,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 20
-      print >> sys.stderr, '[Assembly2DView._CreateDrawConfig] pin_wd=%d' % pin_wd
 
       pin_gap = pin_wd >> 3
       assy_wd = self.cellRange[ -2 ] * (pin_wd + pin_gap)
@@ -571,8 +572,9 @@ If neither are specified, a default 'scale' value of 24 is used.
     state_ndx = tuple_in[ 0 ]
     assy_ndx = tuple_in[ 1 ]
     axial_level = tuple_in[ 2 ]
-    print >> sys.stderr, \
-        '[Assembly2DView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
     dset_array = None
 

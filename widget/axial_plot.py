@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Using customDataRange.
 #		2016-10-21	leerw@ornl.gov				-
@@ -89,7 +91,7 @@
 # 	  Added tooltip.
 #		2015-02-11	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, time, traceback
+import logging, math, os, sys, time, traceback
 import numpy as np
 import pdb  # pdb.set_trace()
 

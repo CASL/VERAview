@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -27,7 +29,7 @@
 #		2016-04-09	leerw@ornl.gov				-
 #	  Starting with core_axial_view.py.
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, timeit, traceback
+import logging, math, os, sys, threading, time, timeit, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -336,17 +338,17 @@ If neither are specified, a default 'scale' value of 4 is used.
       #axial_pix_per_cm = region_ht / axial_range_cm
 
       region_aspect_ratio = float( region_wd ) / float( region_ht )
-      fmt_str = \
-          '[ChannelAxial2DView._CreateDrawConfig]' + \
-	  '\n  region=%d,%d' + \
-	  '\n  region_aspect_ratio=%f' + \
-	  '\n  cm_per_pin=%f' + \
-	  '\n  axial_pin_equivs=%f' + \
-	  '\n  core_aspect_ratio=%f'
-      print >> sys.stderr, fmt_str % (
-	  region_wd, region_ht, region_aspect_ratio,
-	  cm_per_pin, axial_pin_equivs, core_aspect_ratio
-	  )
+
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+	    '\n  region=%d,%d' +
+	    '\n  region_aspect_ratio=%f' + \
+	    '\n  cm_per_pin=%f' + \
+	    '\n  axial_pin_equivs=%f' + \
+	    '\n  core_aspect_ratio=%f',
+	    region_wd, region_ht, region_aspect_ratio,
+	    cm_per_pin, axial_pin_equivs, core_aspect_ratio
+	    )
 
 #				-- Limited by height
       if region_aspect_ratio > core_aspect_ratio:
@@ -449,9 +451,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
-    print >> sys.stderr, \
-        '[ChannelAxial2DView._CreateRasterImage] tuple_in=%s' % \
-	str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
 
     if config is None:
@@ -718,9 +720,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if config exists
     elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, \
-        '\n[ChannelAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
-	( elapsed_time, im is None )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
     #return  im
     return  im if im is not None else self.emptyPilImage

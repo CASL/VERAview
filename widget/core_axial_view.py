@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -50,7 +52,7 @@
 #		2016-02-29	leerw@ornl.gov				-
 #	  Starting with core_view.py.
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, timeit, traceback
+import logging, math, os, sys, threading, time, timeit, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -379,16 +381,17 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = (node_wd << 1) + 1 if self.nodalMode else pin_wd * npin + 1
       axial_pix_per_cm = pin_wd / cm_per_pin
 
-      if self.nodalMode:
-        print >> sys.stderr, \
-            '[CoreAxial2DView._CreateDrawConfig]' + \
-	    '  assy_wd=%d, node_wd=%d, pin_wd=%d, axial_pix_per_cm=%f' % \
-	    ( assy_wd, node_wd, pin_wd, axial_pix_per_cm )
-      else:
-        print >> sys.stderr, \
-            '[CoreAxial2DView._CreateDrawConfig]' + \
-	    '  assy_wd=%d, pin_wd=%d, axial_pix_per_cm=%f' % \
-	    ( assy_wd, pin_wd, axial_pix_per_cm )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        if self.nodalMode:
+          self.logger.debug(
+	      'assy_wd=%d, node_wd=%d, pin_wd=%d, axial_pix_per_cm=%f',
+	      assy_wd, node_wd, pin_wd, axial_pix_per_cm
+	      )
+        else:
+          self.logger.debug(
+	      'assy_wd=%d, pin_wd=%d, axial_pix_per_cm=%f',
+	      assy_wd, pin_wd, axial_pix_per_cm
+	      )
 
 #			-- Calc sizes
 #			--
@@ -457,9 +460,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     node_addr = self.data.GetNodeAddr( self.subAddr )
-    print >> sys.stderr, \
-        '[CoreAxial2DView._CreateRasterImage] tuple_in=%s' % \
-	str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
 
     if config is None:
@@ -716,9 +719,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if config exists
     elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, \
-        '\n[CoreAxial2DView._CreateRasterImage] time=%.3fs, im-None=%s' % \
-	( elapsed_time, im is None )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
     #return  im
     return  im if im is not None else self.emptyPilImage

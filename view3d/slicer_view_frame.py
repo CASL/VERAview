@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view_frame.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-03-07	leerw@ornl.gov				-
 #	  Renamed from slicer_view.py.
 #		2016-03-05	leerw@ornl.gov				-
@@ -21,7 +23,7 @@
 #	  Creating VolumeSlicer after data first defined.
 #		2015-12-08	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, functools, math, os, sys
+import bisect, functools, logging, math, os, sys
 import numpy as np
 import pdb
 
@@ -64,6 +66,7 @@ class Slicer3DFrame( wx.Frame ):
     super( Slicer3DFrame, self ).__init__( parent, id )
 
     #self.state.Load( data_model )
+    self.logger = logging.getLogger( 'view3d' )
     self.state = state
 
 #		-- File Menu
@@ -223,9 +226,11 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
       dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
       dset_value = dset.value
 
-      print >> sys.stderr, \
-          '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
-	  ( os.linesep, self.pinDataSet, self.stateIndex, os.linesep )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+            'pinDataSet=%s, stateIndex=%d',
+	    self.pinDataSet, self.stateIndex
+	    )
 
       # left, top, right + 1, bottom + 1, dx, dy
       #assy_range = self.data.ExtractSymmetryExtent()
@@ -460,7 +465,6 @@ assemblyIndex ( assy_ndx, assy_col, assy_row ), and pinColRow.
     """Used if automagically firing state changes
 """
     rec = self.CalcDataState( position )
-    #print >> sys.stderr, '[Slicer3DView._OnSlicePosition]', str( rec )
 
     if rec is not None:
       if rec[ 'assembly_index' ] != self.assemblyIndex:
@@ -803,7 +807,8 @@ class VolumeSlicer( HasTraits ):
         functools.partial( self.on_slice_change, axis )
         )
 
-    print >> sys.stderr, '[create_side_view] uaxis=%s, pos=%s' % ( uaxis, pos )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'uaxis=%s, pos=%s', uaxis, pos )
     ipw.ipw.slice_position = \
         pos if pos is not None else \
         0.5 * self.matrix.shape[ self.AXIS_INDEX[ axis ] ]
@@ -1033,8 +1038,8 @@ class VolumeSlicer( HasTraits ):
       scene.scene.camera.parallel_scale = \
           0.4 * np.mean( self.dataSourceX.scalar_data.shape )
 #          #0.35 * np.mean( self.dataSource.scalar_data.shape )
-      print >> sys.stderr, '[display_side_view] xaxis scale=%f' % \
-          scene.scene.camera.parallel_scale
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'xaxis scale=%f', scene.scene.camera.parallel_scale )
    
     return  ipw
   #end display_side_view
@@ -1215,8 +1220,8 @@ class VolumeSlicer( HasTraits ):
   def UpdateView( self, position ):
     #position = obj.GetCurrentCursorPosition()
     #xxx compute pinRowCol or axialIndex
-    print >> sys.stderr, \
-        '[UpdateView] position=' + str( position )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'position=%s', str( position ) )
     for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
       ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
       ipw_3d.ipw.slice_position = position[ cur_ndx ]

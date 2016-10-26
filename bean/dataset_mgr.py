@@ -300,7 +300,6 @@ Called on the UI thread.
     result = dialog.ShowModal()
 
     if result == wx.ID_YES:
-      print >> sys.stderr, '[XXX.3] YES'
       ndx = self.fExtrasList.GetFirstSelected()
       while ndx >= 0:
         name = self.fExtrasList.GetItemText( ndx, 0 )

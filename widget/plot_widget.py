@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-20	leerw@ornl.gov				-
 #	  No longer calling UpdateState() in _LoadDataModel() since
 #	  Widget.HandleStateChange() now does so.
@@ -30,7 +32,7 @@
 # 	  Added tooltip.
 #		2015-02-11	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, tempfile, time, traceback
+import logging, math, os, sys, tempfile, time, traceback
 import numpy as np
 #import pdb  # pdb.set_trace()
 
@@ -372,9 +374,6 @@ model.
 xxx need loaded flag set when LoadProps() is called so you don't call
 _LoadDataModelValues()
 """
-    print >> sys.stderr, '[PlotWidget._LoadDataModel]'
-
-    #self.data = State.FindDataModel( self.state )
     super( PlotWidget, self )._LoadDataModel()
     if self.data is not None and self.data.HasData() and \
         not self.isLoaded:
@@ -540,7 +539,6 @@ with super.
       ev.Skip()
 
     wd, ht = self.GetClientSize()
-    #print >> sys.stderr, '[PlotWidget._OnSize] clientSize=%d,%d' % ( wd, ht )
 
     if wd > 0 and ht > 0 and self.data is not None:
       self.UpdateState( replot = True )

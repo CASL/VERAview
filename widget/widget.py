@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Added customDataRange and dataRangeDialog attributes, with
 #	  (de)serialization in {Load,Save}Props().
@@ -84,8 +86,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-#import os, sys, threading, traceback
-import functools, math, os, sys, threading
+import functools, logging, math, os, sys, threading
 import pdb  # set_trace()
 
 try:
@@ -353,6 +354,7 @@ Widget Class Hierarchy
     self.container = container
     self.customDataRange = None
     self.data = None
+    self.logger = logging.getLogger( 'widget' )
     self.state = \
         getattr( container, 'state' )  if hasattr( container, 'state' ) else \
 	None
@@ -954,15 +956,9 @@ Returning None means no tool buttons, which is the default implemented here.
   def HandleStateChange( self, reason ):
     """Note value difference checks must occur in UpdateState()
 """
-#    ct = threading.current_thread()
-#    print >> sys.stderr, \
-#        '[Widget.HandleStateChange] reason=%d, thread=%s/%d' % \
-#        ( reason, ct.name, -1 if ct.ident is None else ct.ident )
-
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
     if (reason & load_mask) > 0:
-      print >> sys.stderr, \
-          '[Core2DView.HandleStateChange] calling _LoadDataModel()'
+      self.logger.debug( 'calling _LoadDataModel()' )
       self._LoadDataModel()
       reason = STATE_CHANGE_ALL
 
@@ -1619,10 +1615,8 @@ submenus.
 http://www.particleincell.com/blog/2014/colormap/
 @return			( red, green, blue, alpha )
 """
-    if debug:
-      print >> sys.stderr, \
-      '[Widget.GetColorTuple] value=%f, max_value=%f' % \
-      ( value, max_value )
+    if debug and self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'value=%f, max_value=%f', value, max_value )
 
     use_value = min( value, max_value )
     f = float( use_value ) / max_value  if max_value != 0.0  else 0.0
@@ -1655,10 +1649,11 @@ http://www.particleincell.com/blog/2014/colormap/
       green = 0
       blue = 100
 
-    if debug:
-      print >> sys.stderr, \
-      '[Widget.GetColorTuple] f=%f, a=%f, x=%f, y=%f, rgb=(%d,%d,%d)' % \
-      ( f, a, x, y, red, green, blue )
+    if debug and self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug(
+          'f=%f, a=%f, x=%f, y=%f, rgb=(%d,%d,%d)',
+	  f, a, x, y, red, green, blue
+	  )
 
     return  ( red, green, blue, alpha )
   #end GetColorTuple

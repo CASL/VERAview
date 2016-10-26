@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -55,7 +57,7 @@
 #	  Using data.core.detectorAxialMesh, detector and detector_operable.
 #		2015-04-27	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, traceback
+import logging, math, os, sys, threading, time, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -440,7 +442,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     else:
       det_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 20
-      print >> sys.stderr, '[Detector2DMultiView._CreateDrawConfig] det_wd=%d' % det_wd
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'det_wd=%d', det_wd )
       det_gap = det_wd >> 4
       core_wd = self.cellRange[ -2 ] * (det_wd + det_gap)
       core_ht = self.cellRange[ -1 ] * (det_wd + det_gap)
@@ -473,8 +476,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 @param  config		optional config to use instead of self.config
 """
     state_ndx = tuple_in[ 0 ]
-    print >> sys.stderr, \
-        '[Detector2DMultiView._CreateRasterImage] tuple_in=%s' % str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
     im = None
 
     tuple_valid = DataModel.IsValidObj( self.data, state_index = state_ndx )

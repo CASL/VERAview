@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-08-31	leerw@ornl.gov				-
 #	  Handle 'scale_mode' events.
 #		2016-08-17	leerw@ornl.gov				-
@@ -13,7 +15,7 @@
 #		2016-03-07	leerw@ornl.gov				-
 #	  Now just Slicer3DView with single figure.
 #------------------------------------------------------------------------
-import bisect, functools, math, os, sys
+import bisect, functools, logging, math, os, sys
 import numpy as np
 import pdb
 
@@ -62,6 +64,7 @@ class Slicer3DView( Widget ):
     self.data = None
 
     #self.autoSync = True
+    self.logger = logging.getLogger( 'view3d' )
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
@@ -177,9 +180,11 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
       cur_npinx = max( core.npinx, dset_shape[ 1 ] )
       cur_npiny = max( core.npiny, dset_shape[ 0 ] )
 
-      print >> sys.stderr, \
-          '%s[_Create3DMatrix] pinDataSet=%s, stateIndex=%d%s' % \
-	  ( os.linesep, self.pinDataSet, self.stateIndex, os.linesep )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+	    'pinDataSet=%s, stateIndex=%d',
+	    self.pinDataSet, self.stateIndex
+	    )
 
       # left, top, right + 1, bottom + 1, dx, dy
       #assy_range = self.data.ExtractSymmetryExtent()
@@ -219,8 +224,6 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 		  len( self.meshLevels ) - 1
 		  )
 	      ax_level = min( ax_level, dset_shape[ 2 ] - 1 )
-              #print >> sys.stderr, '[XX] z=%d, ax_level=%d' % ( z, ax_level )
-	      #for y in range( core.npiny ):
 	      pin_y2 = 0
 	      for y in range( cur_npiny - 1, -1, -1 ):
 		data_y = min( y, dset_shape[ 0 ] - 1 )
@@ -325,8 +328,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     if valid:
       #pos = self.CalcSlicePosition()
       pos = self.viz.GetSlicePosition()
-      print >> sys.stderr, \
-          '[_CreateClipboardSelectedData] pos=' + str( pos )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'pos=%s', str( pos ) )
       csv_text = '"Axial=%d,Col=%d,Row=%d\n' % pos
       csv_text += '%.7g' % matrix[ pos[ 2 ], pos[ 0 ], pos[ 1 ] ]
     #end if
@@ -740,6 +743,8 @@ class VolumeSlicer( HasTraits ):
     #self.outlineY = None
     #self.outlineZ = None
 
+    self.logger = logging.getLogger( 'view3d' )
+
     self.slicePosition = [ -1, -1, -1 ]
     self.slicePositionListener = None
   #end __init__
@@ -920,8 +925,8 @@ class VolumeSlicer( HasTraits ):
   def UpdateView( self, position ):
     #position = obj.GetCurrentCursorPosition()
     #xxx compute pinRowCol or axialIndex
-    print >> sys.stderr, \
-        '[UpdateView] position=' + str( position )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'position=%s', str( position ) )
     for cur_axis, cur_ndx in self.AXIS_INDEX.iteritems():
       ipw_3d = getattr( self, 'ipw3d%s' % cur_axis.upper() )
       ipw_3d.ipw.slice_position = float( position[ cur_ndx ] )

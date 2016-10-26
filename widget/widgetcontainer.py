@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-09-14	leerw@ornl.gov				-
 #	  Fixed bug where a created menu in a menu definition cannot be
 #	  twice-parented and used in the popup menu.
@@ -69,7 +71,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, math, os, sys
+import functools, logging, math, os, sys
 import pdb  #pdb.set_trace()
 
 try:
@@ -126,14 +128,17 @@ class AnimationCallback( object ):
 
   def __call__( self, i, n, msg = None ):
     n = max( n, 1 )
-    print >> sys.stderr, \
-        '[AnimationCallback] %d/%d (%.2f%%) %s' % \
-	( i, n, i * 100.0 / n, '' if msg is None else msg )
+
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug(
+          '%d/%d (%.2f%%) %s',
+	  i, n, i * 100.0 / n, '' if msg is None else msg
+	  )
   #end __call__
 
 
   def __init__( self ):
-    pass
+    self.logger = logging.getLogger( 'widget' )
   #end __init__
 
 #end AnimationCallback
@@ -185,6 +190,7 @@ widget.
     self.eventsMenuButton = None
     self.eventsMenuItems = {}
     self.led = None
+    self.logger = logging.getLogger( 'widget' )
     self.parent = parent
     self.state = state
     self.widget = None
@@ -1080,9 +1086,11 @@ Must be called from the UI event thread
     if data_model is not None and \
         self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
 
-      print >> sys.stderr, \
-          '[WidgetContainer._UpdateDataSetMenu] version from=%d, to=%d' % \
-	  ( self.dataSetMenuVersion, data_model.GetDataSetNamesVersion() )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+	    'version from=%d, to=%d',
+	    self.dataSetMenuVersion, data_model.GetDataSetNamesVersion()
+	    )
 
 #			-- Remove existing items
 #			--

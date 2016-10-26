@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Calling _ResolveDataRange() instead of DatModel.GetRange()
 #	  directly.
@@ -125,7 +127,7 @@
 #	  Added popup on assembly.
 #		2015-01-06	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, threading, time, timeit, traceback
+import logging, math, os, sys, threading, time, timeit, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -334,8 +336,9 @@ If neither are specified, a default 'scale' value of 24 is used.
     state_ndx = tuple_in[ 0 ]
     assy_ndx = tuple_in[ 1 ]
     axial_level = tuple_in[ 2 ]
-    print >> sys.stderr, \
-        '[Core2DView._CreateAssyImage] tuple_in=%s' % str( tuple_in )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
 
     tuple_valid = DataModel.IsValidObj(
@@ -766,9 +769,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       if self.nodalMode:
         pin_wd <<= 4
 
-      print >> sys.stderr, \
-          '[Core2DView._CreateCoreDrawConfig] nodalMode=%d, pin_wd=%d' % \
-	  ( self.nodalMode, pin_wd )
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( 'nodalMode=%d, pin_wd=%d', self.nodalMode, pin_wd )
       if self.nodalMode:
         assy_wd = pin_wd << 1
       else:
@@ -819,9 +821,9 @@ If neither are specified, a default 'scale' value of 4 is used.
     start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     axial_level = tuple_in[ 1 ]
-    print >> sys.stderr, \
-        '[Core2DView._CreateCoreImage] tuple_in=%d,%d' % \
-	( state_ndx, axial_level )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
     im = None
 
     if config is None:
@@ -1102,9 +1104,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       del im_draw
     #end if config exists
     elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, \
-        '\n[Core2DView._CreateCoreImage] time=%.3fs, im-None=%s' % \
-	( elapsed_time, im is None )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
     #return  im
     return  im if im is not None else self.emptyPilImage

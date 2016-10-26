@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-10-26	leerw@ornl.gov				-
+#	  Using logging.
+#	  Fixed _OnMplMouseRelease() not to process if refAxisDataSet
+#	  is not the time dataset.
 #		2016-10-24	leerw@ornl.gov				-
 #	  Using customDataRange.
 #		2016-10-18	leerw@ornl.gov				-
@@ -41,7 +45,7 @@
 #		2016-05-31	leerw@ornl.gov				-
 #		2016-05-26	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys, time, traceback
+import logging, math, os, sys, time, traceback
 import numpy as np
 import pdb  # pdb.set_trace()
 
@@ -818,12 +822,14 @@ be overridden by subclasses.
 """
     super( TimePlots, self )._OnMplMouseRelease( ev )
 
-    button = ev.button or 1
-    if button == 1 and self.cursor is not None:
-      ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
-      if ndx >= 0:
-        self.UpdateState( state_index = ndx )
-        self.FireStateChange( state_index = ndx )
+    if self.refAxisDataSet == '':
+      button = ev.button or 1
+      if button == 1 and self.cursor is not None:
+        ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
+        if ndx >= 0:
+          self.UpdateState( state_index = ndx )
+          self.FireStateChange( state_index = ndx )
+    #end if
   #end _OnMplMouseRelease
 
 

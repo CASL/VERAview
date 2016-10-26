@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-10-25	leerw@ornl.gov				-
+#	  Using logging.
 #		2016-10-02	leerw@ornl.gov				-
 #	  Fixed bug where toolbar item event handlers were not removed
 #	  in VeraViewFrame._UpdateToolBar(), resulting in double widgets
@@ -146,7 +148,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.71'
+TITLE = 'VERAView Version 1.0.72'
 
 TOOLBAR_ITEMS = \
   [
@@ -302,7 +304,8 @@ class VeraViewApp( wx.App ):
   # These noworky
   #----------------------------------------------------------------------
   def MacHideApp( self ):
-    print >> sys.stderr, '[VeraViewApp.MacHideApp]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
     pass
   #end MacHideApp
 
@@ -312,7 +315,8 @@ class VeraViewApp( wx.App ):
   # These noworky
   #----------------------------------------------------------------------
   def MacReopenApp( self ):
-    print >> sys.stderr, '[VeraViewApp.MacReopenApp]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
     self.BringWindowToFront()
   #end MacReopenApp
 
@@ -324,14 +328,12 @@ class VeraViewApp( wx.App ):
     """It looks like this is called only once, so the firstLoop flag is
 unnecessary.
 """
-    print >> sys.stderr, '[VeraViewApp.OnEventLoopEnter]'
     #DEBUG,INFO,WARNING,ERROR,CRITICAL
-    if self.logger.isEnabledFor( logging.INFO ):
-      self.logger.info( '[OnEventLoopEnter]' )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
 
     if self.frame is None:
-      print >> sys.stderr, '[VeraViewApp] no frame to show'
-      self.logger.critical( 'No frame to show' )
+      self.logger.critical( '* No frame to show *' )
       self.ExitMainLoop()
 
     elif self.firstLoop:
@@ -776,8 +778,9 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #	METHOD:		VeraViewFrame.HandleStateChange()		-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
-    print >> sys.stderr, \
-        '[VeraViewFrame.HandleStateChange] reason=%d' % reason
+    if self.logger.isEnabledFor( logging.INFO ):
+      self.logger.info( '[VeraViewFrame.HandleStateChange] reason=%d', reason )
+
     if (reason & STATE_CHANGE_axialValue) > 0:
       if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
         self.axialBean.axialLevel = self.state.axialValue[ 1 ]
@@ -1099,7 +1102,8 @@ Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
 @param  session		optional WidgetConfig instance for session restoration
 """
-    print >> sys.stderr, '[VeraViewFrame.LoadDataModel]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'file_path=%s', file_path )
 
     data = self.state.GetDataModel()
     self.SetRepresentedFilename( file_path )
@@ -1272,9 +1276,11 @@ Must be called from the UI thread.
 #			--
       for w in widget_list:
         self.CreateWidget( w, False )
-        print >> sys.stderr, \
-            '[VeraViewFrame.LoadDataModel] added="%s", size=%s' % \
-	    ( w, str( self.grid.GetSize() ) )
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug(
+	      'widget added="%s", grid.size=%s',
+	      w, str( self.grid.GetSize() )
+	      )
       #end for
 
       fr_size = None if self.config is None else self.config.GetFrameSize()
@@ -1307,7 +1313,8 @@ Note this defines a new State as well as widgets in the grid.
 @param  widget_config	WidgetConfig instance, cannot be None
 @param  check_types	true to check widget dataset types
 """
-    print >> sys.stderr, '[VeraViewFrame._LoadWidgetConfig]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
     #xxxxx recreate derived datasets
 
     self.state.LoadProps( widget_config.GetStateProps() )
@@ -1422,7 +1429,8 @@ Note this defines a new State as well as widgets in the grid.
   #	METHOD:		VeraViewFrame._OnControlTool()			-
   #----------------------------------------------------------------------
   def _OnControlTool( self, ev ):
-    print >> sys.stderr, '[VeraViewFrame._OnControlTool]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
     ev.Skip()
 
     tbar = ev.GetEventObject()
@@ -1585,7 +1593,8 @@ Note this defines a new State as well as widgets in the grid.
   #	METHOD:		VeraViewFrame._OnNew()				-
   #----------------------------------------------------------------------
   def _OnNew( self, ev ):
-    print >> sys.stderr, '[VeraViewFrame._OnNew]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
     ev.Skip()
 
     title = None
@@ -1712,7 +1721,8 @@ Must be called on the UI event thread.
       msg = 'Error saving session:' + os.linesep + str( ex )
       # dialog flashes, not modal.
       #self.ShowMessageDialog( msg, 'Save Session' )
-      print >> sys.stderr, '[VERAView]\n', msg
+      if self.logger.isEnabledFor( logging.ERROR ):
+        self.logger.error( msg )
       wx.MessageBox(
           msg, 'Save Configuration',
 	  wx.ICON_WARNING | wx.OK_DEFAULT,
@@ -1864,7 +1874,8 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._OnWidgetTool()			-
   #----------------------------------------------------------------------
   def _OnWidgetTool( self, ev ):
-    print >> sys.stderr, '[VeraViewFrame._OnWidgetTool]'
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'entered' )
     ev.Skip()
 
     tbar = ev.GetEventObject()
