@@ -316,7 +316,10 @@ class VeraViewApp( wx.App ):
           break
         n += 1
 
-      title = '%d: %s' % ( n, frame.GetTitle() )
+      cur_title = frame.GetTitle()
+      if not cur_title:
+        cur_title = TITLE
+      title = '%d: %s' % ( n, cur_title )
       frame.SetTitle( title )
 
       self.frames[ n ] = { 'frame': frame, 'n': n, 'title': title }
@@ -332,9 +335,16 @@ class VeraViewApp( wx.App ):
 @return			frame rec or None if not found
 """
     match = None
+    title_n = 0
     if title:
+      ndx = title.find( ':' )
+      if ndx > 0:
+        title_n = int( title[ 0 : ndx ] )
+
+    if title_n > 0:
       for n, rec in self.frames.iteritems():
-        if rec[ 'title' ] == title:
+        #if rec[ 'title' ] == title:
+	if n == title_n:
 	  match = rec
 	  break
       #end for n, rec
@@ -1148,11 +1158,13 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.SetTitle( TITLE )
 
 #    self.Center()
-    pos = ( 5, 35 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
-    self.SetPosition( pos )
-    #self.SetSize( ( 640, 480 ) )
+    #pos = ( 5, 35 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
+    #self.SetPosition( pos )
+    client_rect = wx.GetClientDisplayRect()
+    self.SetPosition( client_rect.GetPosition() )
 
-    display_size = wx.DisplaySize()
+    #display_size = wx.DisplaySize()
+    display_size = client_rect.GetSize()
     #if display_size[ 0 ] >= 1200 and display_size[ 1 ] >= 800:
     if display_size[ 0 ] >= 1024 and display_size[ 1 ] >= 768:
       self.SetSize( ( 1024, 768 ) )
@@ -1172,11 +1184,15 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, session = None ):
+  def LoadDataModel( self, file_path, session = None, wc = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
 @param  session		optional WidgetConfig instance for session restoration
+@param  wc		None = for default processing to load all applicable
+			widgets;
+			'empty' = no widgets
+			widget = single widget container to add
 """
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'file_path=%s', file_path )
@@ -1274,6 +1290,13 @@ Must be called from the UI thread.
     #if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
       #self.axialPlotTypes.add( 'vanadium' )
 
+#		-- Initialize
+#		--
+    self.CloseAllWidgets()
+    grid_sizer = self.grid.GetSizer()
+    grid_sizer.SetRows( 1 )
+    grid_sizer.SetCols( 1 )
+
 #		-- Load Config
 #		--
     if session is not None:
@@ -1281,11 +1304,11 @@ Must be called from the UI thread.
 
 #		-- Or determine default initial widgets
 #		--
-    else:
-      self.CloseAllWidgets()
-      grid_sizer = self.grid.GetSizer()
-      grid_sizer.SetRows( 1 )
-      grid_sizer.SetCols( 1 )
+    elif wc is None:
+#      self.CloseAllWidgets()
+#      grid_sizer = self.grid.GetSizer()
+#      grid_sizer.SetRows( 1 )
+#      grid_sizer.SetCols( 1 )
 
       widget_list = []
 
@@ -1368,7 +1391,13 @@ Must be called from the UI thread.
         self.SetSize( fr_size )
       else:
         self._Refit( False )  # True
-    #end if-else session
+
+    elif wc == 'empty':
+      pass
+
+    else:
+      self._AddWidgetContainer( wc, False )
+    #end if-elif-else session
 
 #		-- Set bean ranges and values
 #		--
@@ -1491,6 +1520,8 @@ Note this defines a new State as well as widgets in the grid.
     else:
       frame = ev.GetEventObject()
       self.app.RemoveFrame( frame )
+      frame.Bind( wx.EVT_CLOSE, None )
+      frame.Close()
       self._UpdateWindowMenus( remove_frame = frame )
   #end OnCloseFrame
 
@@ -1705,14 +1736,15 @@ Note this defines a new State as well as widgets in the grid.
   #	METHOD:		VeraViewFrame._OnNewWindow()			-
   #----------------------------------------------------------------------
   def _OnNewWindow( self, ev ):
-    ev.Skip()
+    if ev:
+      ev.Skip()
 
     new_frame = VeraViewFrame( self.app, self.state )
     self.app.AddFrame( new_frame )
     new_frame.Show()
 
     self._UpdateWindowMenus( add_frame = new_frame )
-    wx.CallAfter( new_frame.LoadDataModel, self.filePath )
+    wx.CallAfter( new_frame.LoadDataModel, self.filePath, wc = 'empty' )
   #end _OnNewWindow
 
 
@@ -2421,6 +2453,49 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._UpdateWindowMenus()		-
   #----------------------------------------------------------------------
   def _UpdateWindowMenus( self, **kwargs ):
+    titles = []
+    frames = []
+    for frame_rec in self.app.GetFrames().values():
+      frame = frame_rec.get( 'frame' )
+      if frame is not None:
+	frames.append( frame )
+        titles.append( frame.GetTitle() )
+    #end for frame_rec
+
+#		-- Process menu for each frame
+#		--
+    for frame in frames:
+#			-- Find items to remove
+#			--
+      removes = []
+      for i in xrange( frame.windowMenu.GetMenuItemCount() ):
+        item = frame.windowMenu.FindItemByPosition( i )
+	if item:
+	  label = item.GetItemLabelText()
+	  if label and label != 'Tile Windows':
+	    removes.append( item )
+      #end for i
+#			-- Remove items
+#			--
+      for item in removes:
+        frame.windowMenu.DestroyItem( item )
+
+#			-- Add new items
+#			--
+      for title in titles:
+        item = wx.MenuItem( frame.windowMenu, wx.ID_ANY, title )
+	frame.Bind( wx.EVT_MENU, frame._OnWindowMenuItem, item )
+	frame.windowMenu.AppendItem( item )
+	#frame.windowMenu.UpdateUI()
+      #end for title
+    #end for frame
+  #end _UpdateWindowMenus
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateWindowMenus_1()		-
+  #----------------------------------------------------------------------
+  def _UpdateWindowMenus_1( self, **kwargs ):
     add_frame = kwargs.get( 'add_frame' )
     remove_frame = kwargs.get( 'remove_frame' )
 
@@ -2433,15 +2508,17 @@ Must be called on the UI event thread.
         item = wx.MenuItem( frame.windowMenu, wx.ID_ANY, frame.GetTitle() )
 	frame.Bind( wx.EVT_MENU, frame._OnWindowMenuItem, item )
 	frame.windowMenu.AppendItem( item )
+	frame.windowMenu.UpdateUI()
 
       elif remove_frame:
         #for i in frame.windowMenu.GetMenuItemCount():
 	item = frame.windowMenu.FindItem( frame.GetTitle() )
 	if item != wx.NOT_FOUND:
 	  frame.windowMenu.DestroyItem( item )
+	  frame.windowMenu.UpdateUI()
       #if-elif
     #end for frame
-  #end _UpdateWindowMenus
+  #end _UpdateWindowMenus_1
 
 #end VeraViewFrame
 
