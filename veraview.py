@@ -148,7 +148,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.72'
+TITLE = 'VERAView Version 1.0.73'
 
 TOOLBAR_ITEMS = \
   [
@@ -316,13 +316,14 @@ class VeraViewApp( wx.App ):
           break
         n += 1
 
-      cur_title = frame.GetTitle()
-      if not cur_title:
-        cur_title = TITLE
-      title = '%d: %s' % ( n, cur_title )
-      frame.SetTitle( title )
+      #cur_title = frame.GetTitle()
+      #if not cur_title:
+        #cur_title = TITLE
+      #title = '%d: %s' % ( n, cur_title )
+      frame.SetFrameId( n )
+      frame.UpdateTitle()
 
-      self.frames[ n ] = { 'frame': frame, 'n': n, 'title': title }
+      self.frames[ n ] = { 'frame': frame, 'n': n, 'title': frame.GetTitle() }
     #end if frame
   #end AddFrame
 
@@ -602,7 +603,7 @@ class VeraViewFrame( wx.Frame ):
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.__init__()			-
   #----------------------------------------------------------------------
-  def __init__( self, app, state ):
+  def __init__( self, app, state, file_path = '' ):
     super( VeraViewFrame, self ).__init__( None, -1 )
 
     self.app = app
@@ -610,7 +611,8 @@ class VeraViewFrame( wx.Frame ):
     self.config = None
 #    self.dataSetDefault = ds_default
     self.eventLocks = State.CreateLocks()
-    self.filePath = ''
+    self.filepath = file_path
+    self.frameId = 0
     self.logger = logging.getLogger( 'root' )
     self.state = state
     self.windowMenu = None
@@ -838,6 +840,17 @@ WIDGET_MAP and TOOLBAR_ITEMS
     #return  None if self.state is None else self.state.GetDataModel()
     return  State.FindDataModel( self.state )
   #end GetDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.GetFrameId()			-
+  #----------------------------------------------------------------------
+  def GetFrameId( self ):
+    """Accessor for the frameId property.
+@return			1-based ordinal number
+"""
+    return  self.frameId
+  #end GetFrameId
 
 
   #----------------------------------------------------------------------
@@ -1198,7 +1211,7 @@ Must be called from the UI thread.
       self.logger.debug( 'file_path=%s', file_path )
 
     data = self.state.GetDataModel()
-    self.filePath = file_path
+    self.filepath = file_path
     self.SetRepresentedFilename( file_path )
 
     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
@@ -1266,10 +1279,10 @@ Must be called from the UI thread.
 #		-- Update title
 #		--
     #title = TITLE
-    title = self.GetTitle()
-    if file_path is not None:
-      title += (': %s' % os.path.basename( file_path ))
-    self.SetTitle( title )
+    #if file_path is not None:
+      #title += (': %s' % os.path.basename( file_path ))
+    #self.SetTitle( title )
+    self.UpdateTitle()
 
 #		-- Determine axial plot types
 #		--
@@ -1739,12 +1752,12 @@ Note this defines a new State as well as widgets in the grid.
     if ev:
       ev.Skip()
 
-    new_frame = VeraViewFrame( self.app, self.state )
+    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
     self.app.AddFrame( new_frame )
     new_frame.Show()
 
     self._UpdateWindowMenus( add_frame = new_frame )
-    wx.CallAfter( new_frame.LoadDataModel, self.filePath, wc = 'empty' )
+    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = 'empty' )
   #end _OnNewWindow
 
 
@@ -2355,6 +2368,17 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.SetFrameId()			-
+  #----------------------------------------------------------------------
+  def SetFrameId( self, value ):
+    """Accessor for the frameId property.
+@param  value		1-based ordinal number
+"""
+    self.frameId = value
+  #end SetFrameId
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.ShowMessageDialog()		-
   #----------------------------------------------------------------------
   def ShowMessageDialog( self, message, title ):
@@ -2378,6 +2402,19 @@ Must be called on the UI event thread.
     self.config.SetFramePosition( fr_pos[ 0 ], fr_pos[ 1 ] )
     self.config.SetFrameSize( fr_size[ 0 ], fr_size[ 1 ] )
   #end _UpdateConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.UpdateTitle()			-
+  #----------------------------------------------------------------------
+  def UpdateTitle( self ):
+    """
+"""
+    title = '%d: %s' % ( self.frameId, TITLE )
+    if self.filepath:
+      title += ':: %s' % os.path.basename( self.filepath )
+    self.SetTitle( title )
+  #end UpdateTitle
 
 
   #----------------------------------------------------------------------
