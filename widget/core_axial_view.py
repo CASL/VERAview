@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-30	leerw@ornl.gov				-
+#	  Drawing node boundary lines and forcing value size to fit in
+#	  all axial mesh vertical sizes.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -316,6 +319,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     +
     assemblyWidth
     axialLevelsDy	list of pixel offsets in y dimension
+    axialLevelsMinDy
     axialPixPerCm	used?
     coreRegion
     lineWidth
@@ -420,11 +424,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    axials_dy_min = sys.float_info.max
     axials_dy = []
     for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
       ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
       dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
       axials_dy.insert( 0, dy )
+      axials_dy_min = min( axials_dy_min, dy )
     #end for
 
     value_font_size = assy_wd >> 1
@@ -434,6 +440,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'axialLevelsDy' ] = axials_dy
+    config[ 'axialLevelsDyMin' ] = axials_dy_min
     config[ 'axialPixPerCm' ] = axial_pix_per_cm
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
@@ -470,6 +477,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     if config is not None:
       assy_wd = config[ 'assemblyWidth' ]
       axial_levels_dy = config[ 'axialLevelsDy' ]
+      axial_levels_dy_min = config[ 'axialLevelsDyMin' ]
       im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       font_size = config[ 'fontSize' ]
@@ -551,6 +559,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       im_draw = PIL.ImageDraw.Draw( im )
 
       assy_pen = ( 155, 155, 155, 255 )
+      node_pen = ( 100, 100, 100, 255 )
 
 #			-- Loop on axial levels
 #			--
@@ -618,7 +627,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	          im_draw.rectangle(
 		      [ node_x, axial_y,
 		        node_x + node_wd + 1, axial_y + cur_dy + 1 ],
-		      fill = brush_color, outline = pen_color
+		      fill = brush_color, outline = node_pen
+		      #fill = brush_color, outline = pen_color
 		      )
 		  node_value_draw_list.append((
 		      self._CreateValueString( value, 3 ),

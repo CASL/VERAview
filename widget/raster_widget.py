@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-10-30	leerw@ornl.gov				-
+#	  Checking smallest_ht in _DrawValues().
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-20	leerw@ornl.gov				-
@@ -1019,11 +1021,14 @@ be displayed in a cell.
 #			-- Find widest string
 #			--
       smallest_wd = sys.maxint
+      smallest_ht = sys.maxint
       widest_str = ""
       widest_len = 0
       for item in draw_list:
 	if item[ -2 ] < smallest_wd:
 	  smallest_wd = item[ -2 ]
+	if item[ -3 ] < smallest_ht:
+	  smallest_ht = item[ -3 ]
 	cur_len = len( item[ 0 ] )
         if cur_len > widest_len:
 	  widest_str = item[ 0 ]
@@ -1037,7 +1042,8 @@ be displayed in a cell.
 #			--
     font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
     value_size = font.getsize( widest_str )
-    while value_size[ 0 ] >= smallest_wd:
+    #while value_size[ 0 ] >= smallest_wd:
+    while value_size[ 0 ] >= smallest_wd or value_size[ 1 ] >= smallest_ht:
       font_size = int( font_size * 0.8 )
       if font_size < 6:
 	value_size = ( 0, 0 )

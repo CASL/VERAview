@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-30	leerw@ornl.gov				-
+#	  Drawing node boundary lines and forcing value size to fit in
+#	  all axial mesh vertical sizes.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -543,6 +546,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       im_draw = PIL.ImageDraw.Draw( im )
 
       assy_pen = ( 155, 155, 155, 255 )
+      node_pen = ( 100, 100, 100, 255 )
 
 #			-- Loop on axial levels
 #			--
@@ -614,7 +618,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	          im_draw.rectangle(
 		      [ node_x, axial_y,
 		        node_x + node_wd + 1, axial_y + cur_dy + 1 ],
-		      fill = brush_color, outline = pen_color
+		      fill = brush_color, outline = node_pen
+		      #fill = brush_color, outline = pen_color
 		      )
 		  node_value_draw_list.append((
 		      self._CreateValueString( value, 3 ),
