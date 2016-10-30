@@ -1027,8 +1027,8 @@ be displayed in a cell.
       for item in draw_list:
 	if item[ -2 ] < smallest_wd:
 	  smallest_wd = item[ -2 ]
-	if item[ -3 ] < smallest_ht:
-	  smallest_ht = item[ -3 ]
+	if item[ -1 ] < smallest_ht:
+	  smallest_ht = item[ -1 ]
 	cur_len = len( item[ 0 ] )
         if cur_len > widest_len:
 	  widest_str = item[ 0 ]

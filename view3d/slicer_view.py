@@ -502,15 +502,6 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
       #self.pinDataSet = self.state.pinDataSet
       self.stateIndex = self.state.stateIndex
 
-#      if DataModel.IsExtra( self.state.pinDataSet ):
-#        self.pinDataSet = 'pin_powers'
-#        wx.MessageBox(
-#	    'Extra datasets not supported in the 3D Volume Slicer.\n' +
-#	    'Loading "pin_powers" instead.',
-#	    'View 3D Volume Slicer',
-#	    wx.ICON_INFORMATION | wx.OK_DEFAULT
-#	    )
-#      else:
       self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
 
       self._UpdateData()

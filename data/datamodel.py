@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-10-30	leerw@ornl.gov				-
+#	  Removing dependence on pin_powers.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -516,8 +518,8 @@ Properties:
     if self.pinVolumes is None:
       pass
 #      missing.append( 'PIN_VOLUMES not found' )
-    elif self.pinVolumes.shape[ 0 ] != self.npin or \
-        self.pinVolumes.shape[ 1 ] != self.npin or \
+    elif self.pinVolumes.shape[ 0 ] != self.npiny or \
+        self.pinVolumes.shape[ 1 ] != self.npinx or \
         self.pinVolumes.shape[ 2 ] != self.nax or \
         self.pinVolumes.shape[ 3 ] != self.nass:
       missing.append( 'PIN_VOLUMES shape is not consistent with NPIN, NAX, and NASS' )
@@ -870,14 +872,15 @@ to be column and row labels, respectively, and the order is forced such that
     self.coreLabels = self._InferCoreLabelsSimply( core_group, in_core_group )
     #self#.coreLabels = self._InferCoreLabelsSmartly( core_group, in_core_group )
 
-#		-- Other datasets
+#		-- Other datasets: apitch
 #		--
     item = self._FindInGroup( 'apitch', core_group, in_core_group )
     if item is not None:
-      self.apitch = item.value.item() if len( item.shape ) > 0 else item.value
-#      self.apitch = item.value[ 0 ]
+      self.apitch = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+      #self.apitch = item.value.item() if len( item.shape ) > 0 else item.value
 
-#		-- Create axialMeshCenters
+#		-- Other datasets: axial_mesh
+#		--
     #item = self._FindInGroup( 'axial_mesh', core_group, in_core_group )
     #if item is not None:
     self.axialMesh = axial_mesh_item.value
@@ -887,20 +890,54 @@ to be column and row labels, respectively, and the order is forced such that
     t2 = np.r_[ t, np.roll( t, -1 ) ]
     self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
 
+#		-- Other datasets: core_sym
+#		--
     item = self._FindInGroup( 'core_sym', core_group, in_core_group )
     if item is None:
       self.coreSym = 1
     else:
-      self.coreSym = item.value.item() if len( item.shape ) > 0 else item.value
+      self.coreSym = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+      #self.coreSym = item.value.item() if len( item.shape ) > 0 else item.value
 
+#		-- Other datasets: nass
+#		--
+    item = self._FindInGroup( 'nass', core_group, in_core_group )
+    if item is not None:
+      self.nass = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+
+#		-- Other datasets: nax
+#		--
+    item = self._FindInGroup( 'nax', core_group, in_core_group )
+    if item is not None:
+      self.nax = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+
+#		-- Other datasets: npin{,x,y}
+#		--
+    item = self._FindInGroup( 'npin', core_group, in_core_group )
+    if item is not None:
+      self.npin = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+      self.npinx = self.npiny = self.npin
+
+    item = self._FindInGroup( 'npinx', core_group, in_core_group )
+    if item is not None:
+      self.npinx = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+
+    item = self._FindInGroup( 'npiny', core_group, in_core_group )
+    if item is not None:
+      self.npiny = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+
+
+#		-- Other datasets: pin_volumes
+#		--
     self.pinVolumesSum = 0
     item = self._FindInGroup( 'pin_volumes', core_group, in_core_group )
     if item is not None:
       self.pinVolumes = item.value
       self.pinVolumesSum = np.sum( item.value )
-      self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
-      self.npiny = self.pinVolumes.shape[ 0 ]
-      self.npinx = self.pinVolumes.shape[ 1 ]
+      if self.npin == 0:
+        self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
+        self.npiny = self.pinVolumes.shape[ 0 ]
+        self.npinx = self.pinVolumes.shape[ 1 ]
       if self.nax == 0:
         self.nax = self.pinVolumes.shape[ 2 ]
       if self.nass == 0:
@@ -908,13 +945,13 @@ to be column and row labels, respectively, and the order is forced such that
 
     item = self._FindInGroup( 'rated_flow', core_group, in_core_group )
     if item is not None:
-      self.ratedFlow = item.value.item() if len( item.shape ) > 0 else item.value
-      #self.ratedFlow = item.value[ 0 ]
+      self.ratedFlow = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+      #self.ratedFlow = item.value.item() if len( item.shape ) > 0 else item.value
 
     item = self._FindInGroup( 'rated_power', core_group, in_core_group )
     if item is not None:
-      self.ratedPower = item.value.item() if len( item.shape ) > 0 else item.value
-      #self.ratedPower = item.value[ 0 ]
+      self.ratedPower = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+      #self.ratedPower = item.value.item() if len( item.shape ) > 0 else item.value
 
 #		-- Optional detector_map
 #		--
@@ -966,23 +1003,20 @@ to be column and row labels, respectively, and the order is forced such that
     if self.npin == 0 and input_group is not None:
       num_pins_ds = input_group.get( 'CASEID/ASSEMBLIES/Assembly_1/num_pins' )
       if num_pins_ds is not None:
-        self.npin = num_pins_ds.value.item() if len( num_pins_ds.shape ) > 0 else num_pins_ds.value
+        self.npin = num_pins_ds[ 0 ] \
+	    if len( num_pins_ds.shape ) > 0 else \
+	    num_pins_ds[ () ]
+        #self.npin = num_pins_ds.value.item() if len( num_pins_ds.shape ) > 0 else num_pins_ds.value
 	self.npinx = self.npin
 	self.npiny = self.npin
         #self.npin = num_pins_ds.value[ 0 ]
     #end if
 
 #		-- Assert NAX match b/w axial_mesh and pin_volumes
-#		--
-    if self.nax > 0 and self.pinVolumes is not None and \
-        self.pinVolumes.shape[ 2 ] != self.nax:
-      raise Exception( 'NAX dimension mismatch between "axial_mesh" and "pin_volumes"' )
-
-#		-- Assert on NPIN
-#		--
-#x No: channel files don't have pin_volumes.
-#x    if self.npin == 0:
-#x      raise Exception( 'NPIN could not be determined from "num_pins" or "pin_volumes"' )
+#		--  Rely on call to Check() after DataModel.Read()
+#    if self.nax > 0 and self.pinVolumes is not None and \
+#        self.pinVolumes.shape[ 2 ] != self.nax:
+#      raise Exception( 'NAX dimension mismatch between "axial_mesh" and "pin_volumes"' )
   #end _ReadImpl
 
 
@@ -1452,10 +1486,9 @@ are initialized.
 	  der_name = from_group.name.replace( '/', '' )
 	  der_group = derived_file.create_group( der_name )
 	  if 'exposure' in from_group:
-	    exp_ds = der_group.create_dataset(
-	        'exposure',
-		data = from_group[ 'exposure' ].value
-		)
+	    exp_value = np.array( from_group[ 'exposure' ] )
+	    exp_ds = der_group.create_dataset( 'exposure', data = exp_value )
+		#data = from_group[ 'exposure' ].value
 
 	  derived_states.append( DerivedState( n, der_name, der_group ) )
 	#end if state h5py group exists
@@ -3051,8 +3084,9 @@ the properties construct for this class soon.
 """
     return \
         None if ds is None else \
-	ds.value if len( ds.shape ) == 0 else \
-	ds.value.item()
+	ds.value[ () ] if len( ds.shape ) == 0 else ds[ 0 ]
+#	ds.value if len( ds.shape ) == 0 else \
+#	ds.value.item()
   #end GetScalarValue
 
 
@@ -3118,7 +3152,9 @@ a 4D array if necessary.
 	      exec_str = 'copy_data' + ds_def[ 'copy_expr' ] + ' = dset'
 
 	      if copy_data.size == 1:
-	        copy_data[ 0, 0, 0, 0 ] = np.array( dset ).item()
+	        copy_data[ 0, 0, 0, 0 ] = \
+		    dset[ 0 ] if len( dset.shape ) > 0 else dset[ () ]
+	        #copy_data[ 0, 0, 0, 0 ] = np.array( dset ).item()
 	      else:
 	        globals_env = {}
 	        locals_env = { 'copy_data': copy_data, 'dset': dset }
@@ -3631,21 +3667,29 @@ being one greater in each dimension.
 
 #		-- Assert on pin_powers
 #		--
-    if 'pin_powers' not in st_group:
-      raise  Exception( '"pin_powers" dataset not found' )
-    pin_powers_shape = st_group[ 'pin_powers' ].shape
+#orig
+#    if 'pin_powers' not in st_group:
+#      raise  Exception( '"pin_powers" dataset not found' )
+#    pin_powers_shape = st_group[ 'pin_powers' ].shape
+#orig
+    pin_powers_shape = None
+    if 'pin_powers' in st_group:
+      pin_powers_shape = st_group[ 'pin_powers' ].shape
 
 #		-- Special check to get core.npin if pin_volumes
 #		-- missing from CORE
     #if self.core.npin == 0 and 'pin_powers' in st_group:
-    if self.core.npin == 0:
+    if self.core.npin == 0 and pin_powers_shape is not None:
       self.core.npinx = self.core.npiny = \
       self.core.npin = pin_powers_shape[ 0 ]
 
 #		-- Assert on pin_powers shape
 #		--
-    if pin_powers_shape[ 0 ] != self.core.npin or \
-        pin_powers_shape[ 1 ] != self.core.npin or \
+    #xxxxx Needed here, since in Core.Check()?
+    if pin_powers_shape is None:
+      pass
+    elif pin_powers_shape[ 0 ] != self.core.npiny or \
+        pin_powers_shape[ 1 ] != self.core.npinx or \
         pin_powers_shape[ 2 ] != self.core.nax or \
         pin_powers_shape[ 3 ] != self.core.nass:
       raise  Exception( 'pin_powers shape inconsistent with npin, nax, and nass' )
@@ -3688,11 +3732,16 @@ being one greater in each dimension.
 #		--
     if 'pin' in self.averagers:
       avg = self.averagers[ 'pin' ]
-      avg.load(
-          self.core,
-          self.GetStateDataSet( 0, 'pin_powers' ).value,
-	  pin_factors
-	  )
+      ref_pin_powers = None
+      pin_powers_ds = self.GetStateDataSet( 0, 'pin_powers' )
+      if pin_powers_ds is not None:
+        ref_pin_powers = np.array( pin_powers_ds )
+      else:
+	pp_shape = \
+	    ( self.core.npiny, self.core.npinx, self.core.nax, self.core.nass )
+        ref_pin_powers = np.ones( pp_shape )
+
+      avg.load( self.core, ref_pin_powers, pin_factors )
       if pin_factors is None and avg.pinWeights is not None:
         pin_factors = avg.pinWeights
       node_factors = avg.nodeWeights
@@ -4392,10 +4441,8 @@ ds_names	dict of dataset names by dataset type
 
 #			-- Detector is special case
 #			--
-	#elif cur_name == 'detector_response' and \
-	    #cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
-#xxx message about shape inconsistency?
-	elif cur_name == 'detector_response':
+#	elif cur_name == 'detector_response':
+	elif cur_name.find( 'response' ) >= 0:
 	  if cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
 	    ds_names[ 'detector' ].append( cur_name )
 	    ds_names[ 'axial' ].append( cur_name )
@@ -4416,8 +4463,11 @@ ds_names	dict of dataset names by dataset type
 	  cat_item_maybe = None
 	  cat_item = None
 	  for def_name, def_item in ds_defs.iteritems():
-	    if cur_shape == def_item[ 'shape' ] and \
-	      (def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is None):
+#	    if cur_shape == def_item[ 'shape' ] and \
+#	      (def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is None):
+	    if def_name in ( 'detector', 'fixed_detector' ):
+	      pass
+	    elif cur_shape == def_item[ 'shape' ]:
 	      if 'ds_prefix' not in def_item:
 	        cat_item = def_item
 	      else:
@@ -4826,13 +4876,13 @@ Fields:
 #      missing.append( '%s missing KEFF' % self.name )
 
 # Redundant, caught in DataModel.Read()
-    if self.pinPowers is None:
-      missing.append( '%s missing PIN_POWERS' % self.name )
-    elif self.pinPowers.shape[ 0 ] != core.npin or \
-        self.pinPowers.shape[ 1 ] != core.npin or \
-        self.pinPowers.shape[ 2 ] != core.nax or \
-        self.pinPowers.shape[ 3 ] != core.nass:
-      missing.append( '%s PIN_POWERS shape is not consistent with NPIN, NAX, and NASS' % self.name )
+#    if self.pinPowers is None:
+#      missing.append( '%s missing PIN_POWERS' % self.name )
+#    elif self.pinPowers.shape[ 0 ] != core.npin or \
+#        self.pinPowers.shape[ 1 ] != core.npin or \
+#        self.pinPowers.shape[ 2 ] != core.nax or \
+#        self.pinPowers.shape[ 3 ] != core.nass:
+#      missing.append( '%s PIN_POWERS shape is not consistent with NPIN, NAX, and NASS' % self.name )
 
     if 'detector_operable' in self.group and \
         self.group[ 'detector_operable' ].shape[ 0 ] != core.ndet:
@@ -4910,12 +4960,14 @@ NOT process derived datasets as does DataModel.GetStateDataSet().
       if 'exposure' in state_group:
         #self.exposure = state_group[ 'exposure' ].value[ 0 ]
 	item = state_group[ 'exposure' ]
-        self.exposure = item.value.item() if len( item.shape ) > 0 else item.value
+        self.exposure = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+        #self.exposure = item.value.item() if len( item.shape ) > 0 else item.value
 
       if 'keff' in state_group:
         #self.keff = state_group[ 'keff' ].value[ 0 ]
 	item = state_group[ 'keff' ]
-        self.keff = item.value.item() if len( item.shape ) > 0 else item.value
+        self.keff = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+        #self.keff = item.value.item() if len( item.shape ) > 0 else item.value
 
       if 'pin_powers' in state_group:
         self.pinPowers = state_group[ 'pin_powers' ].value
@@ -4953,9 +5005,9 @@ NOT process derived datasets as does DataModel.GetStateDataSet().
 #      }
     obj = {}
     if self.exposure is not None:
-      obj[ 'exposure' ] = self.exposure.item()
+      obj[ 'exposure' ] = self.exposure
     if self.keff is not None:
-      obj[ 'keff' ] = self.keff.item()
+      obj[ 'keff' ] = self.keff
 
     if self.pinPowers is not None:
       obj[ 'pinPowers' ] = self.pinPowers.tolist()
