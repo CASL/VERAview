@@ -1530,6 +1530,11 @@ be overridden by subclasses.
 	elif node_addr != self.nodeAddr:
 	  state_args[ 'node_addr' ] = node_addr
 	  state_args[ 'aux_node_addrs' ] = []
+	elif ev.GetClickCount() > 1:
+	  sub_addr = self.data.GetSubAddrFromNode( node_addr, 'channel' )
+	  if sub_addr != self.subAddr:
+	    state_args[ 'sub_addr' ] = sub_addr
+	#end if-elif is_aux
 
       #if ev.GetClickCount() > 1:
       elif ev.GetClickCount() > 1:
