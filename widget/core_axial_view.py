@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-31	leerw@ornl.gov				-
+#	  Added nodeAddr attribute, selection of node_addr in
+#	  _FindPinNodal(), and firing of node_addr changes.
 #		2016-10-30	leerw@ornl.gov				-
 #	  Drawing node boundary lines and forcing value size to fit in
 #	  all axial mesh vertical sizes.
@@ -107,6 +110,7 @@ Properties:
     self.avgValues = {}
 
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
+    self.nodeAddr = -1
     self.nodalMode = False
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.subAddr = ( -1, -1 )
@@ -803,7 +807,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
     """
-@return  ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row )
+@return  ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row, node_addr )
 """
     result = None
     if self.config is not None and self.data is not None and \
@@ -811,6 +815,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = self.config[ 'assemblyWidth' ]
       axials_dy = self.config[ 'axialLevelsDy' ]
       core_region = self.config[ 'coreRegion' ]
+      node_addr = -1
       #pin_wd = self.config[ 'pinWidth' ]
 
       off_x = ev_x - core_region[ 0 ]
@@ -827,9 +832,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	#pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
 	pin_offset = off_x % assy_wd
-	pin_col_or_row = \
-	    self._FindPinNodal( pin_offset ) if self.nodalMode else \
-	    self._FindPinNonNodal( pin_offset )
+	if self.nodalMode:
+	  pin_col_or_row, node_addr = self._FindPinNodal( pin_offset )
+	else:
+	  pin_col_or_row = self._FindPinNonNodal( pin_offset )
 	if pin_col_or_row >= self.data.core.npinx: pin_col_or_row = -1
 
       else:
@@ -843,9 +849,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	#pin_col_or_row = int( (off_x % assy_wd) / pin_wd )
 	pin_offset = off_x % assy_wd
-	pin_col_or_row = \
-	    self._FindPinNodal( pin_offset ) if self.nodalMode else \
-	    self._FindPinNonNodal( pin_offset )
+	if self.nodalMode:
+	  pin_col_or_row, node_addr = self._FindPinNodal( pin_offset )
+	else:
+	  pin_col_or_row = self._FindPinNonNodal( pin_offset )
 	if pin_col_or_row >= self.data.core.npiny: pin_col_or_row = -1
       #end if-else
 
@@ -859,7 +866,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       #end for
 
       assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-      result = ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row )
+      result = \
+          ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row, node_addr )
     #end if we have data
 
     return  result
@@ -867,92 +875,39 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.FindCellAll()			-
-  #----------------------------------------------------------------------
-  def FindCellAll( self, ev_x, ev_y ):
-    """Not used.
-@return  ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
-"""
-    result = None
-    if self.config is not None and self.data is not None and \
-        self.data.core is not None and self.data.core.coreMap is not None:
-      assy_wd = self.config[ 'assemblyWidth' ]
-      axials_dy = self.config[ 'axialLevelsDy' ]
-      core_region = self.config[ 'coreRegion' ]
-      pin_wd = self.config[ 'pinWidth' ]
-
-      off_x = ev_x - core_region[ 0 ]
-      off_y = ev_y - core_region[ 1 ]
-
-      if self.mode == 'xz':
-	assy_row = self.assemblyAddr[ 2 ]
-        pin_row = self.subAddr[ 1 ]
-        assy_col = min(
-            int( off_x / assy_wd ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-        assy_col = max( self.cellRange[ 0 ], assy_col )
-	pin_col = int( (off_x % assy_wd) / pin_wd )
-	if pin_col >= self.data.core.npinx: pin_col = -1
-
-      else:
-        assy_col = self.assemblyAddr[ 1 ]
-	pin_col = self.subAddr[ 0 ]
-	assy_row = min(
-	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-	assy_row = max( self.cellRange[ 0 ], assy_row )
-	pin_row = int( (off_x % assy_wd) / pin_wd )
-	if pin_row >= self.data.core.npiny: pin_row = -1
-
-      axial_level = 0
-      ax_y = 0
-      for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-	ax_y += axials_dy[ ax ]
-        if off_y <= ax_y:
-	  axial_level = ax
-	  break
-      #end for
-
-      assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-      result = ( assy_ndx, assy_col, assy_row, pin_col, pin_row, axial_level )
-    #end if we have data
-
-    return  result
-  #end FindCellAll
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._FindPinNodal()			-
   #----------------------------------------------------------------------
   def _FindPinNodal( self, pin_offset ):
     """
-@return  0-based pin_col_or_row
+@return  0-based pin_col_or_row, node_addr
 """
     pin_col_or_row = -1
     node_wd = self.config[ 'nodeWidth' ]
 
-    node_addr = self.data.GetNodeAddr( self.subAddr )
+    node_base_ndx = self.data.GetNodeAddr( self.subAddr )
+    node_col_or_row = min( 1, pin_offset / node_wd )
 
-    node_col_or_row = pin_offset / node_wd
     if self.mode == 'xz':
-      if node_col_or_row > (self.data.core.npinx >> 1):
-	node_addr = 3 if node_addr >= 2 else 1
-      else:
-	node_addr = 2 if node_addr >= 2 else 0
+      node_pair = ( 0, 1 ) if node_base_ndx in ( 0, 1 ) else ( 2, 3 )
+      node_addr = node_pair[ node_col_or_row ]
+#      if node_col_or_row > (self.data.core.npinx >> 1):
+#	node_addr = 3 if node_addr >= 2 else 1
+#      else:
+#	node_addr = 2 if node_addr >= 2 else 0
       sub_addr = self.data.GetSubAddrFromNode( node_addr )
       pin_col_or_row = sub_addr[ 0 ]
 
     else:
-      if node_col_or_row > (self.data.core.npiny >> 1):
-	node_addr = 3 if node_addr in ( 1, 3 ) else 2
-      else:
-	node_addr = 1 if node_addr in ( 1, 3 ) else 0
+      node_pair = ( 0, 2 ) if node_base_ndx in ( 0, 2 ) else ( 1, 3 )
+      node_addr = node_pair[ node_col_or_row ]
+#      if node_col_or_row > (self.data.core.npiny >> 1):
+#	node_addr = 3 if node_addr in ( 1, 3 ) else 2
+#      else:
+#	node_addr = 1 if node_addr in ( 1, 3 ) else 0
       sub_addr = self.data.GetSubAddrFromNode( node_addr )
       pin_col_or_row = sub_addr[ 1 ]
 
-    return  pin_col_or_row
+    return  pin_col_or_row, node_addr
   #end _FindPinNodal
 
 
@@ -1219,6 +1174,10 @@ be overridden by subclasses.
       if assy_ndx != self.assemblyAddr:
 	state_args[ 'assembly_addr' ] = assy_ndx
 
+      node_addr = cell_info[ 4 ]
+      if node_addr != self.nodeAddr:
+	state_args[ 'node_addr' ] = node_addr
+
       if pin_addr != self.subAddr:
 	state_args[ 'sub_addr' ] = pin_addr
 
@@ -1438,6 +1397,11 @@ method via super.SaveProps().
         self.pinDataSet = kwargs[ 'cur_dataset' ]
         self.avgValues.clear()
 	self.container.GetDataSetMenu().Reset()
+
+    if 'node_addr' in kwargs:
+      node_addr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
+      if node_addr != self.nodeAddr:
+        self.nodeAddr = node_addr
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
       if kwargs[ 'sub_addr' ][ pin_ndx ] != self.subAddr[ pin_ndx ]:

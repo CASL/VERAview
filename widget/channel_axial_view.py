@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-10-31	leerw@ornl.gov				-
+#	  Added nodeAddr attribute, selection of node_addr in
+#	  _FindChannelNodal(), and firing of node_addr changes.
 #		2016-10-30	leerw@ornl.gov				-
 #	  Drawing node boundary lines and forcing value size to fit in
 #	  all axial mesh vertical sizes.
@@ -82,6 +85,7 @@ Properties:
     self.assemblyAddr = ( -1, -1, -1 )
     self.channelDataSet = kwargs.get( 'dataset', 'channel_liquid_temps [C]' )
     self.mode = kwargs.get( 'mode', 'xz' )  # 'xz' and 'yz'
+    self.nodeAddr = -1
     self.nodalMode = False
     self.subAddr = None
 
@@ -800,6 +804,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       axials_dy = self.config[ 'axialLevelsDy' ]
       core_region = self.config[ 'coreRegion' ]
       chan_wd = self.config[ 'channelWidth' ]
+      node_addr = -1
 
       off_x = ev_x - core_region[ 0 ]
       off_y = ev_y - core_region[ 1 ]
@@ -815,9 +820,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	#chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
 	chan_offset = off_x % assy_wd
-	chan_col_or_row = \
-	    self._FindChannelNodal( chan_offset ) if self.nodalMode else \
-	    self._FindChannelNonNodal( chan_offset )
+	if self.nodalMode:
+	  chan_col_or_row, node_addr = self._FindChannelNodal( chan_offset )
+	else:
+	  chan_col_or_row = self._FindChannelNonNodal( chan_offset )
 	if chan_col_or_row >= self.data.core.npinx + 1: chan_col_or_row = -1
 
       else:
@@ -831,9 +837,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	#chan_col_or_row = int( (off_x % assy_wd) / chan_wd )
 	chan_offset = off_x % assy_wd
-	chan_col_or_row = \
-	    self._FindChannelNodal( chan_offset ) if self.nodalMode else \
-	    self._FindChannelNonNodal( chan_offset )
+	if self.nodalMode:
+	  chan_col_or_row, node_addr = self._FindChannelNodal( chan_offset )
+	else:
+	  chan_col_or_row = self._FindChannelNonNodal( chan_offset )
 	if chan_col_or_row >= self.data.core.npiny + 1: chan_col_or_row = -1
       #end if-else
 
@@ -847,7 +854,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       #end for
 
       assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-      result = ( assy_ndx, assy_col_or_row, axial_level, chan_col_or_row )
+      result = \
+          ( assy_ndx, assy_col_or_row, axial_level, chan_col_or_row, node_addr )
     #end if we have data
 
     return  result
@@ -855,92 +863,39 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		ChannelAxial2DView.FindCellAll()		-
-  #----------------------------------------------------------------------
-  def FindCellAll( self, ev_x, ev_y ):
-    """Not used.
-@return  ( assy_ndx, assy_col, assy_row, chan_col, chan_row, axial_level )
-"""
-    result = None
-    if self.config is not None and self.data is not None and \
-        self.data.core is not None and self.data.core.coreMap is not None:
-      assy_wd = self.config[ 'assemblyWidth' ]
-      axials_dy = self.config[ 'axialLevelsDy' ]
-      core_region = self.config[ 'coreRegion' ]
-      chan_wd = self.config[ 'channelWidth' ]
-
-      off_x = ev_x - core_region[ 0 ]
-      off_y = ev_y - core_region[ 1 ]
-
-      if self.mode == 'xz':
-	assy_row = self.assemblyAddr[ 2 ]
-        chan_row = self.subAddr[ 1 ]
-        assy_col = min(
-            int( off_x / assy_wd ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-        assy_col = max( self.cellRange[ 0 ], assy_col )
-	chan_col = int( (off_x % assy_wd) / chan_wd )
-	if chan_col >= self.data.core.npinx: chan_col = -1
-
-      else:
-        assy_col = self.assemblyAddr[ 1 ]
-	chan_col = self.subAddr[ 0 ]
-	assy_row = min(
-	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-	assy_row = max( self.cellRange[ 0 ], assy_row )
-	chan_row = int( (off_x % assy_wd) / chan_wd )
-	if chan_row >= self.data.core.npiny: chan_row = -1
-
-      axial_level = 0
-      ax_y = 0
-      for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
-	ax_y += axials_dy[ ax ]
-        if off_y <= ax_y:
-	  axial_level = ax
-	  break
-      #end for
-
-      assy_ndx = self.data.core.coreMap[ assy_row, assy_col ] - 1
-      result = ( assy_ndx, assy_col, assy_row, chan_col, chan_row, axial_level )
-    #end if we have data
-
-    return  result
-  #end FindCellAll
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._FindChannelNodal()		-
   #----------------------------------------------------------------------
   def _FindChannelNodal( self, chan_offset ):
     """
-@return  0-based chan_col_or_row
+@return  0-based chan_col_or_row, node_addr
 """
     chan_col_or_row = -1
     node_wd = self.config[ 'nodeWidth' ]
 
-    node_addr = self.data.GetNodeAddr( self.subAddr, 'channel' )
+    node_base_ndx = self.data.GetNodeAddr( self.subAddr, 'channel' )
+    node_col_or_row = min( 1, chan_offset / node_wd )
 
-    node_col_or_row = chan_offset / node_wd
     if self.mode == 'xz':
-      if node_col_or_row > ((self.data.core.npinx + 1) >> 1):
-	node_addr = 3 if node_addr >= 2 else 1
-      else:
-	node_addr = 2 if node_addr >= 2 else 0
+      node_pair = ( 0, 1 ) if node_base_ndx in ( 0, 1 ) else ( 2, 3 )
+      node_addr = node_pair[ node_col_or_row ]
+#      if node_col_or_row > ((self.data.core.npinx + 1) >> 1):
+#	node_addr = 3 if node_addr >= 2 else 1
+#      else:
+#	node_addr = 2 if node_addr >= 2 else 0
       sub_addr = self.data.GetSubAddrFromNode( node_addr, 'channel' )
       chan_col_or_row = sub_addr[ 0 ]
 
     else:
-      if node_col_or_row > ((self.data.core.npiny + 1) >> 1):
-	node_addr = 3 if node_addr in ( 1, 3 ) else 2
-      else:
-	node_addr = 1 if node_addr in ( 1, 3 ) else 0
+      node_pair = ( 0, 2 ) if node_base_ndx in ( 0, 2 ) else ( 1, 3 )
+      node_addr = node_pair[ node_col_or_row ]
+#      if node_col_or_row > ((self.data.core.npiny + 1) >> 1):
+#	node_addr = 3 if node_addr in ( 1, 3 ) else 2
+#      else:
+#	node_addr = 1 if node_addr in ( 1, 3 ) else 0
       sub_addr = self.data.GetSubAddrFromNode( node_addr, 'channel' )
       chan_col_or_row = sub_addr[ 1 ]
 
-    return  chan_col_or_row
+    return  chan_col_or_row, node_addr
   #end _FindChannelNodal
 
 
@@ -1210,6 +1165,10 @@ be overridden by subclasses.
 
       if chan_addr != self.subAddr:
 	state_args[ 'sub_addr' ] = chan_addr
+
+      node_addr = cell_info[ 4 ]
+      if node_addr != self.nodeAddr:
+	state_args[ 'node_addr' ] = node_addr
 
       axial_level = cell_info[ 2 ]
       if axial_level != self.axialValue[ 1 ]:
