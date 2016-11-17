@@ -1061,53 +1061,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #		--
     # wx.{NO,RAISED,SIMPLE,SUNKEN}_BORDER
     tbar_panel = wx.Panel( self )
-    widget_tbar = \
-      wx.ToolBar( tbar_panel, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
-        #wx.ToolBar( self, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
+    widget_tbar = wx.ToolBar(
+        tbar_panel, -1,
+	style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER
+	)
     self.widgetToolBar = widget_tbar
-    self._UpdateToolBar( widget_tbar )
-
-#    ti_count = 1
-#    for ti in TOOLBAR_ITEMS:
-#      widget_icon = ti.get( 'icon' )
-#      if widget_icon is None:
-#        widget_tbar.AddSeparator()
-#
-#      else:
-#        self._CreateToolBarItem( widget_tbar, ti_count, ti )
-##works if not needing to change the bitmap
-##x	widget_icon_disabled = ti.get( 'iconDisabled' )
-##x        widget_name = ti[ 'widget' ]
-##x        widget_im = wx.Image(
-##x            os.path.join( Config.GetResDir(), widget_icon ),
-##x	    wx.BITMAP_TYPE_PNG
-##x	    )
-##x        widget_im_disabled = wx.Image(
-##x            os.path.join( Config.GetResDir(), widget_icon_disabled ),
-##x	    wx.BITMAP_TYPE_PNG
-##x	    )
-##x        tb_item = widget_tbar.AddTool(
-##x            ti_count, widget_im.ConvertToBitmap(),
-##x	    shortHelpString = widget_name
-##x	    )
-##x        tb_item.SetDisabledBitmap( widget_im_disabled.ConvertToBitmap() )
-##x	tb_item.Enable( False )
-##x        self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
-#      #end if-else
-#
-#      ti_count += 1
-#    #end for
-#
-##    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
-##    #widget_tbar.AddSeparator()
-##    widget_tbar.AddStretchableSpace()
-##    widget_tbar.AddTool(
-##	ID_REFIT_WINDOW, im.ConvertToBitmap(),
-##	shortHelpString = 'Refit window'
-##        )
-##    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
-#
-#    widget_tbar.Realize()
+    #self._UpdateToolBar( widget_tbar )
 
     logo_im = wx.Image(
         os.path.join( Config.GetResDir(), 'casl-logo.32.png' ),
@@ -2431,6 +2390,7 @@ Must be called on the UI event thread.
         self.Unbind( wx.EVT_TOOL, item )
         #self.Unbind( wx.EVT_TOOL, self._OnWidgetTool, id = i + 1 )
     tbar.ClearTools()
+    print >> sys.stderr, '\n[_UpdateToolBar] tbar.toolsCount=', tbar.GetToolsCount()
 
     if data is not None:
       ds_names = data.GetDataSetNames()
@@ -2468,6 +2428,7 @@ Must be called on the UI event thread.
 	  tb_item.Enable( enabled )
           self.Bind( wx.EVT_TOOL, self._OnWidgetTool, tb_item )
           #self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+	  print >> sys.stderr, '[_UpdateToolBar] ti_count=%d, widget=%s' % ( ti_count, ti[ 'widget' ] )
         #end if-else separator
 
         ti_count += 1
