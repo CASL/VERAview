@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2016-11-19	leerw@ornl.gov				-
+#	  Added static methods CreateWidgetProps(), Decode(), Encode().
 #		2016-08-20	leerw@ornl.gov				-
 #	  Added framePosition property.
 #		2016-07-08	leerw@ornl.gov				-
@@ -97,6 +99,7 @@ class WidgetConfig( object ):
     """
 """
     for w in widget_list:
+      #CreateWidgetProps()
       module_path = w.__module__ + '.' + w.__class__.__name__
       rec = { 'classpath': module_path }
       w.SaveProps( rec )
@@ -257,6 +260,48 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.CreateWidgetProps()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CreateWidgetProps( widget ):
+    """Creates widget properties with classpath.
+@param  widget		widget to be encoded
+@return			widget properties as a JSON string
+"""
+    module_path = widget.__module__ + '.' + widget.__class__.__name__
+    widget_props = { 'classpath': module_path }
+    widget.SaveProps( widget_props )
+    return  widget_props
+  #end CreateWidgetProps
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.Decode()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def Decode( json_str ):
+    """Decodes/deserializes obj to JSON.
+@param  json_str	JSON string to be decoded
+@return			Python object
+"""
+    return  json.loads( json_str )
+  #end Decode
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.Encode()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def Encode( obj ):
+    """Encodes/serializes obj to JSON.
+@param  obj		Python object to be encoded
+@return			JSON string
+"""
+    return  json.dumps( obj, cls = NumpyEncoder, indent = 2 )
+  #end Encode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.GetPlatformAppDataDir()		-
   #----------------------------------------------------------------------
   @staticmethod
@@ -319,4 +364,5 @@ class WidgetConfig( object ):
 
     return  config
   #end ReadUserSession
+
 #end WidgetConfig

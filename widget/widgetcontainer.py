@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-11-19	leerw@ornl.gov				-
+#	  Added Show in New Window item and Reparent().
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-09-14	leerw@ornl.gov				-
@@ -85,6 +87,7 @@ from bean.events_chooser import *
 from data.config import Config
 from event.state import *
 import widget
+from widget_config import *
 
 
 ## Now using events_chooser
@@ -477,6 +480,7 @@ definition array for a pullright.
         control_panel, -1,
 	label = self.widget.GetTitle(), size = ( -1, 22 )
 	)
+    widget_title.Bind( wx.EVT_LEFT_DOWN, self._OnLeftDown )
     widget_title.SetFont( widget_title.GetFont().Italic() )
     cp_sizer.Add(
         widget_title, 0,
@@ -939,6 +943,26 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnLeftDown()					-
+  #----------------------------------------------------------------------
+  def _OnLeftDown( self, ev ):
+    """
+"""
+    widget_props = WidgetConfig.CreateWidgetProps( self.widget )
+    widget_json = WidgetConfig.Encode( widget_props )
+    #print >> sys.stderr, '[begin]\n', widget_json, '\n[end]'
+
+    drag_source = wx.DropSource( ev.GetEventObject() )
+    drag_data = wx.TextDataObject( widget_json )
+    drag_source.SetData( drag_data )
+
+    result = drag_source.DoDragDrop()
+    if result == wx.DragCopy:
+      wx.CallAfter( self.OnClose, None )
+  #end _OnLeftDown
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnPopupMenu()					-
   #----------------------------------------------------------------------
   def _OnPopupMenu( self, button, menu, ev ):
@@ -1006,7 +1030,10 @@ definition array for a pullright.
   def _OnShowInNewWindow( self, ev ):
     """
 """
-    self.GetTopLevelParent().CreateWindow( self )
+    #self.GetTopLevelParent().CreateWindow( self )
+    widget_props = WidgetConfig.CreateWidgetProps( self.widget )
+    self.GetTopLevelParent().CreateWindow( widget_props )
+    wx.CallAfter( self.OnClose, None )
   #end _OnShowInNewWindow
 
 

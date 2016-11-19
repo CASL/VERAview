@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-11-19	leerw@ornl.gov				-
+#	  Added CreateWindow() and modified LoadDataModel() to have a
+#	  widget_props param in support of widgets-to-window and dragging
+#	  widgets to a different window.
 #		2016-10-25	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-02	leerw@ornl.gov				-
@@ -631,9 +635,9 @@ class VeraViewFrame( wx.Frame ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._AddWidgetContainer()		-
+  #	METHOD:		VeraViewFrame.AddWidgetContainer()		-
   #----------------------------------------------------------------------
-  def _AddWidgetContainer( self, wc, refit_flag = True ):
+  def AddWidgetContainer( self, wc, refit_flag = True ):
     """Called by Create[23]DWidget() to add a grid with the container.
 The hackit deal is pure ugliness but seems necessary given the weirdess
 in GridSizer when adding grids.
@@ -673,7 +677,7 @@ in GridSizer when adding grids.
       wx.CallAfter( self._Refit, False, self.grid._FreezeWidgets, False )
     else:
       self.grid._FreezeWidgets( False )
-  #end _AddWidgetContainer
+  #end AddWidgetContainer
 
 
   #----------------------------------------------------------------------
@@ -699,7 +703,7 @@ in GridSizer when adding grids.
 @return		widget container object
 """
     wc = WidgetContainer( self.grid, widget_class, self.state )
-    self._AddWidgetContainer( wc, refit_flag )
+    self.AddWidgetContainer( wc, refit_flag )
     return  wc
   #end Create2DWidget
 
@@ -721,7 +725,7 @@ in GridSizer when adding grids.
 	    )
       elif loaded:
         wc = WidgetContainer( self.grid, widget_class, self.state )
-        self._AddWidgetContainer( wc, refit_flag )
+        self.AddWidgetContainer( wc, refit_flag )
     #end check_and_show
 
     Environment3D.LoadAndCall( check_3d_env )
@@ -809,14 +813,31 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.CreateWindow()			-
   #----------------------------------------------------------------------
-  def CreateWindow( self, wc = 'emtpy' ):
+  def CreateWindow( self, widget_props ):
     new_frame = VeraViewFrame( self.app, self.state, self.filepath )
     self.app.AddFrame( new_frame )
     new_frame.Show()
 
     self._UpdateWindowMenus( add_frame = new_frame )
-    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = wc )
+
+    wx.CallAfter(
+        new_frame.LoadDataModel,
+	self.filepath, widget_props = widget_props
+	)
   #end CreateWindow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.CreateWindow()			-
+  #----------------------------------------------------------------------
+#  def CreateWindow( self, wc = 'emtpy' ):
+#    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
+#    self.app.AddFrame( new_frame )
+#    new_frame.Show()
+#
+#    self._UpdateWindowMenus( add_frame = new_frame )
+#    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = wc )
+#  #end CreateWindow
 
 
 #  #----------------------------------------------------------------------
@@ -1081,16 +1102,19 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.widgetToolBar = widget_tbar
     #self._UpdateToolBar( widget_tbar )
 
+    tbar_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    tbar_sizer.Add( widget_tbar, 1, wx.ALL | wx.EXPAND )
     logo_im = wx.Image(
         os.path.join( Config.GetResDir(), 'casl-logo.32.png' ),
 	wx.BITMAP_TYPE_PNG
 	)
-    tbar_sizer = wx.BoxSizer( wx.HORIZONTAL )
-    tbar_sizer.Add( widget_tbar, 1, wx.ALL | wx.EXPAND )
-    tbar_sizer.Add(
-	wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() ),
-	0, wx.ALL | wx.ALIGN_RIGHT
-        )
+#    tbar_sizer.Add(
+#	wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() ),
+#	0, wx.ALL | wx.ALIGN_RIGHT
+#        )
+    casl_icon = wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() )
+    casl_icon.SetDropTarget( VeraViewFrameDropTarget( self ) )
+    tbar_sizer.Add( casl_icon, 0, wx.ALL | wx.ALIGN_RIGHT )
     tbar_panel.SetSizer( tbar_sizer )
 
 #		-- Status Bar
@@ -1169,15 +1193,16 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, session = None, wc = None ):
+  def LoadDataModel( self, file_path, session = None, widget_props = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
 @param  session		optional WidgetConfig instance for session restoration
-@param  wc		None = for default processing to load all applicable
+@param  widget_props	None = for default processing to load all applicable
 			widgets;
 			'empty' = no widgets
-			widget = single widget container to add
+			widget = properties for widget to add
+			#widget = single widget container to add
 """
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'file_path=%s', file_path )
@@ -1289,7 +1314,7 @@ Must be called from the UI thread.
 
 #		-- Or determine default initial widgets
 #		--
-    elif wc is None:
+    elif widget_props is None:
 #      self.CloseAllWidgets()
 #      grid_sizer = self.grid.GetSizer()
 #      grid_sizer.SetRows( 1 )
@@ -1377,12 +1402,15 @@ Must be called from the UI thread.
       else:
         self._Refit( False )  # True
 
-    elif wc == 'empty':
+    elif widget_props == 'empty':
       pass
 
-    else:
-      wc.Reparent( self.grid )
-      self._AddWidgetContainer( wc, True )
+    elif 'classpath' in widget_props:
+      wc = self.CreateWidget( widget_props[ 'classpath' ] )
+      wc.LoadProps( widget_props )
+#    else:
+#      wc.Reparent( self.grid )
+#      self.AddWidgetContainer( wc, True )
     #end if-elif-else session
 
 #		-- Set bean ranges and values
@@ -1724,13 +1752,6 @@ Note this defines a new State as well as widgets in the grid.
   def _OnNewWindow( self, ev ):
     if ev:
       ev.Skip()
-
-#    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
-#    self.app.AddFrame( new_frame )
-#    new_frame.Show()
-#
-#    self._UpdateWindowMenus( add_frame = new_frame )
-#    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = 'empty' )
     self.CreateWindow()
   #end _OnNewWindow
 
@@ -2534,6 +2555,47 @@ Must be called on the UI event thread.
   #end _UpdateWindowMenus_1
 
 #end VeraViewFrame
+
+
+#------------------------------------------------------------------------
+#	CLASS:		VeraViewFrameDropTarget				-
+#------------------------------------------------------------------------
+class VeraViewFrameDropTarget( wx.TextDropTarget ):
+  """Processes widget drags."""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrameDropTarget.__init__()		-
+  #----------------------------------------------------------------------
+  def __init__( self, frame ):
+    super( VeraViewFrameDropTarget, self ).__init__()
+
+    self.frame = frame
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrameDropTarget.OnDropText()		-
+  #----------------------------------------------------------------------
+  def OnDropText( self, x, y, data ):
+    result = False
+    print >> sys.stderr, '[VeraViewFrameDropTarget] ', data, '\n[end]'
+    if data:
+      widget_props = WidgetConfig.Decode( data )
+      if 'classpath' in widget_props:
+        wc = self.frame.CreateWidget( widget_props[ 'classpath' ] )
+	wc.LoadProps( widget_props )
+	result = True
+    #end if
+
+    return  result
+  #end OnDropText
+
+#end VeraViewFrameDropTarget
 
 
 #------------------------------------------------------------------------
