@@ -806,6 +806,19 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #end CreateWidget
 
 
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.CreateWindow()			-
+  #----------------------------------------------------------------------
+  def CreateWindow( self, wc = 'emtpy' ):
+    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
+    self.app.AddFrame( new_frame )
+    new_frame.Show()
+
+    self._UpdateWindowMenus( add_frame = new_frame )
+    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = wc )
+  #end CreateWindow
+
+
 #  #----------------------------------------------------------------------
 #  #	METHOD:		VeraViewFrame.FireStateChange()			-
 #  #----------------------------------------------------------------------
@@ -901,7 +914,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
     #for k in WIDGET_MAP:
     for k in widget_keys:
       item = wx.MenuItem( new_menu, wx.ID_ANY, k )
-      self.Bind( wx.EVT_MENU, self._OnNew, item )
+      self.Bind( wx.EVT_MENU, self._OnNewWidget, item )
       new_menu.AppendItem( item )
     file_menu.AppendSubMenu( new_menu, '&New' )
 
@@ -1368,7 +1381,8 @@ Must be called from the UI thread.
       pass
 
     else:
-      self._AddWidgetContainer( wc, False )
+      wc.Reparent( self.grid )
+      self._AddWidgetContainer( wc, True )
     #end if-elif-else session
 
 #		-- Set bean ranges and values
@@ -1689,9 +1703,9 @@ Note this defines a new State as well as widgets in the grid.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnNew()				-
+  #	METHOD:		VeraViewFrame._OnNewWidget()			-
   #----------------------------------------------------------------------
-  def _OnNew( self, ev ):
+  def _OnNewWidget( self, ev ):
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'entered' )
     ev.Skip()
@@ -1701,7 +1715,7 @@ Note this defines a new State as well as widgets in the grid.
     item = menu.FindItemById( ev.GetId() )
     if item is not None and item.GetLabel() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetItemLabelText() ] )
-  #end _OnNew
+  #end _OnNewWidget
 
 
   #----------------------------------------------------------------------
@@ -1711,12 +1725,13 @@ Note this defines a new State as well as widgets in the grid.
     if ev:
       ev.Skip()
 
-    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
-    self.app.AddFrame( new_frame )
-    new_frame.Show()
-
-    self._UpdateWindowMenus( add_frame = new_frame )
-    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = 'empty' )
+#    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
+#    self.app.AddFrame( new_frame )
+#    new_frame.Show()
+#
+#    self._UpdateWindowMenus( add_frame = new_frame )
+#    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = 'empty' )
+    self.CreateWindow()
   #end _OnNewWindow
 
 

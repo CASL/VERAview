@@ -666,6 +666,11 @@ definition array for a pullright.
 	  )
     #end if anim_indexes for this widget
 
+#			-- Save image
+    show_item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Show in New Window' )
+    self.Bind( wx.EVT_MENU, self._OnShowInNewWindow, show_item )
+    self.widgetMenu.AppendItem( show_item )
+
 #			-- Widget-defined items
     widget_menu_def = self.widget.GetMenuDef( data_model )
     if widget_menu_def is not None:
@@ -996,6 +1001,16 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnShowInNewWindow()				-
+  #----------------------------------------------------------------------
+  def _OnShowInNewWindow( self, ev ):
+    """
+"""
+    self.GetTopLevelParent().CreateWindow( self )
+  #end _OnShowInNewWindow
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_OnWidgetMenu()					-
   #----------------------------------------------------------------------
   def _OnWidgetMenu( self, ev ):
@@ -1008,6 +1023,15 @@ definition array for a pullright.
 
     self.widgetMenuButton.PopupMenu( self.widgetMenu )
   #end _OnWidgetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Reparent()					-
+  #----------------------------------------------------------------------
+  def Reparent( self, parent ):
+    self.parent = parent
+    super( WidgetContainer, self ).Reparent( parent )
+  #end Reparent
 
 
   #----------------------------------------------------------------------
