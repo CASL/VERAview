@@ -813,17 +813,18 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.CreateWindow()			-
   #----------------------------------------------------------------------
-  def CreateWindow( self, widget_props ):
+  def CreateWindow( self, widget_props = None ):
     new_frame = VeraViewFrame( self.app, self.state, self.filepath )
     self.app.AddFrame( new_frame )
     new_frame.Show()
 
     self._UpdateWindowMenus( add_frame = new_frame )
 
-    wx.CallAfter(
-        new_frame.LoadDataModel,
-	self.filepath, widget_props = widget_props
-	)
+    if widget_props:
+      wx.CallAfter(
+          new_frame.LoadDataModel,
+	  self.filepath, widget_props = widget_props
+	  )
   #end CreateWindow
 
 
@@ -2426,7 +2427,7 @@ Must be called on the UI event thread.
         self.Unbind( wx.EVT_TOOL, item )
         #self.Unbind( wx.EVT_TOOL, self._OnWidgetTool, id = i + 1 )
     tbar.ClearTools()
-    print >> sys.stderr, '\n[_UpdateToolBar] tbar.toolsCount=', tbar.GetToolsCount()
+    #print >> sys.stderr, '\n[_UpdateToolBar] tbar.toolsCount=', tbar.GetToolsCount()
 
     if data is not None:
       ds_names = data.GetDataSetNames()
@@ -2464,20 +2465,12 @@ Must be called on the UI event thread.
 	  tb_item.Enable( enabled )
           self.Bind( wx.EVT_TOOL, self._OnWidgetTool, tb_item )
           #self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
-	  print >> sys.stderr, '[_UpdateToolBar] ti_count=%d, widget=%s' % ( ti_count, ti[ 'widget' ] )
+	  #print >> sys.stderr, '[_UpdateToolBar] ti_count=%d, widget=%s' % ( ti_count, ti[ 'widget' ] )
         #end if-else separator
 
         ti_count += 1
       #end for ti
     #end if data
-
-#    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
-#    tbar.AddStretchableSpace()
-#    bar.AddTool(
-#	ID_REFIT_WINDOW, im.ConvertToBitmap(),
-#	shortHelpString = 'Refit window'
-#        )
-#    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
 
     tbar.Realize()
   #end _UpdateToolBar

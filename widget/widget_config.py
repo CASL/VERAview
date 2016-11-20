@@ -284,7 +284,7 @@ class WidgetConfig( object ):
 @param  json_str	JSON string to be decoded
 @return			Python object
 """
-    return  json.loads( json_str )
+    return  json.loads( json_str.rstrip( '\r\n' ) )
   #end Decode
 
 
