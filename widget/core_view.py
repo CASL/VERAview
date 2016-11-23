@@ -2544,9 +2544,6 @@ If neither are specified, a default 'scale' value of 4 is used.
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys needed by _CreateRasterImage().
 """
-#    dset = self.data.GetStateDataSet( 0, self.pinDataSet )
-#    if dset is not None and dset.shape[ 0 ] == 1 and dset.shape[ 1 ] == 4:
-#      kwargs[ 'nodal' ] = True
     return \
         self._CreateAssyDrawConfig( **kwargs ) if self.mode == 'assy' else \
 	self._CreateCoreDrawConfig( **kwargs )

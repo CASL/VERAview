@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_axial_view.py				-
 #	HISTORY:							-
+#		2016-11-23	leerw@ornl.gov				-
+#	  Fixed _CreateDrawConfig() in scale mode where axial mesh was
+#	  not adequately rendered.
 #		2016-10-31	leerw@ornl.gov				-
 #	  Added nodeAddr attribute, selection of node_addr in
 #	  _FindChannelNodal(), and firing of node_addr changes.
@@ -386,6 +389,12 @@ If neither are specified, a default 'scale' value of 4 is used.
     else:
       chan_wd = kwargs.get( 'scale', 4 )
       axial_pix_per_cm = chan_wd / cm_per_pin
+
+      if len( axial_mesh ) > 1:
+        if (axial_range_cm * axial_pix_per_cm) / (len( axial_mesh ) - 1) < 2.0:
+	  axial_pix_per_cm = 2.0 * (len( axial_mesh) - 1) / axial_range_cm
+	  chan_wd = int( math.ceil( axial_pix_per_cm * cm_per_pin ) )
+
       if self.nodalMode:
         node_wd = chan_wd << 2
 
@@ -989,7 +998,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 @return		8
 """
-    return  4
+    return  8
   #end GetPrintScale
 
 

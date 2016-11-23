@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-11-19	leerw@ornl.gov				-
+#	  Added CreateWindow() and modified LoadDataModel() to have a
+#	  widget_props param in support of widgets-to-window and dragging
+#	  widgets to a different window.
 #		2016-10-25	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-02	leerw@ornl.gov				-
@@ -148,7 +152,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.74'
+TITLE = 'VERAView Version 1.0.75'
 
 TOOLBAR_ITEMS = \
   [
@@ -287,7 +291,8 @@ class VeraViewApp( wx.App ):
     #self.dataSetDefault = 'pin_powers'
     self.filepath = None
     self.firstLoop = True
-    self.frame = None
+    #self.frame = None
+    self.frames = {}
     self.logger = logging.getLogger( 'root' )
     self.skipSession = False
     self.state = None
@@ -297,6 +302,72 @@ class VeraViewApp( wx.App ):
     wx.ToolTip.SetDelay( 500 )
     wx.ToolTip.SetReshow( 100 )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.AddFrame()				-
+  # These noworky
+  #----------------------------------------------------------------------
+  def AddFrame( self, frame ):
+    """Adds a new VeraViewFrame.
+"""
+    if frame is not None:
+#			-- Resolve Title
+#			--
+      n = 1
+      while True:
+        if n not in self.frames:
+          break
+        n += 1
+
+      #cur_title = frame.GetTitle()
+      #if not cur_title:
+        #cur_title = TITLE
+      #title = '%d: %s' % ( n, cur_title )
+      frame.SetFrameId( n )
+      frame.UpdateTitle()
+
+      self.frames[ n ] = { 'frame': frame, 'n': n, 'title': frame.GetTitle() }
+    #end if frame
+  #end AddFrame
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.FindFrameByTitle()			-
+  #----------------------------------------------------------------------
+  def FindFrameByTitle( self, title ):
+    """Finds the specified frame
+@return			frame rec or None if not found
+"""
+    match = None
+    title_n = 0
+    if title:
+      ndx = title.find( ':' )
+      if ndx > 0:
+        title_n = int( title[ 0 : ndx ] )
+
+    if title_n > 0:
+      for n, rec in self.frames.iteritems():
+        #if rec[ 'title' ] == title:
+	if n == title_n:
+	  match = rec
+	  break
+      #end for n, rec
+    #end if frame
+
+    return  match
+  #end FindFrameByTitle
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.GetFrames()				-
+  #----------------------------------------------------------------------
+  def GetFrames( self ):
+    """Removes a new VeraViewFrame.
+@return			frames dict
+"""
+    return  self.frames
+  #end GetFrames
 
 
   #----------------------------------------------------------------------
@@ -332,7 +403,10 @@ unnecessary.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'entered' )
 
-    if self.frame is None:
+    frame_rec = self.frames.get( 1 )
+    frame = frame_rec.get( 'frame' ) if frame_rec else None
+    #if self.frame is None:
+    if frame is None:
       self.logger.critical( '* No frame to show *' )
       self.ExitMainLoop()
 
@@ -342,7 +416,8 @@ unnecessary.
 
       opened = False
       session = WidgetConfig.ReadUserSession()
-      self.frame.SetConfig( session )
+      #self.frame.SetConfig( session )
+      frame.SetConfig( session )
 
       if self.filepath is None:
         #session = None if self.skipSession else WidgetConfig.ReadUserSession()
@@ -357,11 +432,13 @@ unnecessary.
                 )
             if ans == wx.YES:
 	      opened = True
-	      self.frame.OpenFile( data_path, session )
+	      #self.frame.OpenFile( data_path, session )
+	      frame.OpenFile( data_path, session )
 
       elif os.path.exists( self.filepath ):
 	if self.filepath.lower().endswith( '.vview' ):
-	  data_path, session = self.frame._ResolveFile( self.filepath )
+	  #data_path, session = self.frame._ResolveFile( self.filepath )
+	  data_path, session = frame._ResolveFile( self.filepath )
 	  if data_path is None:
 	    wx.MessageBox(
 		'Error reading session file: ' + self.filepath,
@@ -369,30 +446,16 @@ unnecessary.
 	        )
 	  else:
             opened = True
-	    self.frame.OpenFile( data_path, session )
+	    #self.frame.OpenFile( data_path, session )
+	    frame.OpenFile( data_path, session )
 	else:
 	  opened = True
-	  self.frame.OpenFile( self.filepath )
+	  #self.frame.OpenFile( self.filepath )
+	  frame.OpenFile( self.filepath )
 
       if not opened:
-        self.frame._OnOpenFile( None )
-
-#      if self.filepath is not None and os.path.exists( self.filepath ):
-#        #self.frame.OpenFile( self.filepath )
-#        widget_config = WidgetConfig.ReadUserFile()
-#        if widget_config is not None:
-#          ans = wx.MessageBox(
-#              'Load widget configuration?',
-#	      'Load Configuration',
-#	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
-#	      None
-#              )
-#          if ans != wx.YES:
-#            widget_config = None
-#        self.frame.OpenFile( self.filepath, widget_config )
-#      else:
-#        self.frame._OnOpenFile( None )
-###      self.frame.Raise()
+        #self.frame._OnOpenFile( None )
+        frame._OnOpenFile( None )
     #end elif self.firstLoop:
   #end OnEventLoopEnter
 
@@ -403,6 +466,21 @@ unnecessary.
 #  def OnInit( self ):
 #    pass  # create and show frame here?
 #  #end OnInit
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.RemoveFrame()			-
+  #----------------------------------------------------------------------
+  def RemoveFrame( self, frame ):
+    """Removes a new VeraViewFrame.
+"""
+    rec = self.FindFrameByTitle( frame.GetTitle() )
+    if rec:
+      n = rec.get( 'n' )
+      if n in self.frames:
+        del self.frames[ n ]
+    #end if
+  #end RemoveFrame
 
 
 #		-- Static Methods
@@ -486,9 +564,12 @@ unnecessary.
       app.skipSession = args.skip_startup_session_check
       app.state = state
 
-      app.frame = VeraViewFrame( app, state )
+      #app.frame = VeraViewFrame( app, state )
+      frame = VeraViewFrame( app, state )
+      app.AddFrame( frame )
 #			-- If MDI on Mac, don't show
-      app.frame.Show()
+      #app.frame.Show()
+      frame.Show()
       app.MainLoop()
 
     except Exception, ex:
@@ -526,7 +607,7 @@ class VeraViewFrame( wx.Frame ):
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.__init__()			-
   #----------------------------------------------------------------------
-  def __init__( self, app, state ):
+  def __init__( self, app, state, file_path = '' ):
     super( VeraViewFrame, self ).__init__( None, -1 )
 
     self.app = app
@@ -534,9 +615,11 @@ class VeraViewFrame( wx.Frame ):
     self.config = None
 #    self.dataSetDefault = ds_default
     self.eventLocks = State.CreateLocks()
+    self.filepath = file_path
+    self.frameId = 0
     self.logger = logging.getLogger( 'root' )
     self.state = state
-#    self.windowMenu = None
+    self.windowMenu = None
 
     self.axialBean = None
     self.dataSetMenu = None
@@ -552,9 +635,9 @@ class VeraViewFrame( wx.Frame ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._AddWidgetContainer()		-
+  #	METHOD:		VeraViewFrame.AddWidgetContainer()		-
   #----------------------------------------------------------------------
-  def _AddWidgetContainer( self, wc, refit_flag = True ):
+  def AddWidgetContainer( self, wc, refit_flag = True ):
     """Called by Create[23]DWidget() to add a grid with the container.
 The hackit deal is pure ugliness but seems necessary given the weirdess
 in GridSizer when adding grids.
@@ -594,7 +677,7 @@ in GridSizer when adding grids.
       wx.CallAfter( self._Refit, False, self.grid._FreezeWidgets, False )
     else:
       self.grid._FreezeWidgets( False )
-  #end _AddWidgetContainer
+  #end AddWidgetContainer
 
 
   #----------------------------------------------------------------------
@@ -620,7 +703,7 @@ in GridSizer when adding grids.
 @return		widget container object
 """
     wc = WidgetContainer( self.grid, widget_class, self.state )
-    self._AddWidgetContainer( wc, refit_flag )
+    self.AddWidgetContainer( wc, refit_flag )
     return  wc
   #end Create2DWidget
 
@@ -642,7 +725,7 @@ in GridSizer when adding grids.
 	    )
       elif loaded:
         wc = WidgetContainer( self.grid, widget_class, self.state )
-        self._AddWidgetContainer( wc, refit_flag )
+        self.AddWidgetContainer( wc, refit_flag )
     #end check_and_show
 
     Environment3D.LoadAndCall( check_3d_env )
@@ -727,6 +810,37 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #end CreateWidget
 
 
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.CreateWindow()			-
+  #----------------------------------------------------------------------
+  def CreateWindow( self, widget_props = None ):
+    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
+    self.app.AddFrame( new_frame )
+    new_frame.Show()
+
+    self._UpdateWindowMenus( add_frame = new_frame )
+
+    if widget_props:
+      wx.CallAfter(
+          new_frame.LoadDataModel,
+	  self.filepath, widget_props = widget_props
+	  )
+  #end CreateWindow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.CreateWindow()			-
+  #----------------------------------------------------------------------
+#  def CreateWindow( self, wc = 'emtpy' ):
+#    new_frame = VeraViewFrame( self.app, self.state, self.filepath )
+#    self.app.AddFrame( new_frame )
+#    new_frame.Show()
+#
+#    self._UpdateWindowMenus( add_frame = new_frame )
+#    wx.CallAfter( new_frame.LoadDataModel, self.filepath, wc = wc )
+#  #end CreateWindow
+
+
 #  #----------------------------------------------------------------------
 #  #	METHOD:		VeraViewFrame.FireStateChange()			-
 #  #----------------------------------------------------------------------
@@ -761,6 +875,17 @@ WIDGET_MAP and TOOLBAR_ITEMS
     #return  None if self.state is None else self.state.GetDataModel()
     return  State.FindDataModel( self.state )
   #end GetDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.GetFrameId()			-
+  #----------------------------------------------------------------------
+  def GetFrameId( self ):
+    """Accessor for the frameId property.
+@return			1-based ordinal number
+"""
+    return  self.frameId
+  #end GetFrameId
 
 
   #----------------------------------------------------------------------
@@ -801,12 +926,17 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
 #			-- File->New Submenu
     new_menu = wx.Menu()
+    new_window_item = wx.MenuItem( new_menu, wx.ID_ANY, '&Window' )
+    self.Bind( wx.EVT_MENU, self._OnNewWindow, new_window_item )
+    new_menu.AppendItem( new_window_item )
+    new_menu.AppendSeparator()
+
     widget_keys = WIDGET_MAP.keys()
     widget_keys.sort()
     #for k in WIDGET_MAP:
     for k in widget_keys:
       item = wx.MenuItem( new_menu, wx.ID_ANY, k )
-      self.Bind( wx.EVT_MENU, self._OnNew, item )
+      self.Bind( wx.EVT_MENU, self._OnNewWidget, item )
       new_menu.AppendItem( item )
     file_menu.AppendSubMenu( new_menu, '&New' )
 
@@ -853,14 +983,6 @@ WIDGET_MAP and TOOLBAR_ITEMS
     quit_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Quit\tCtrl+Q' )
     self.Bind( wx.EVT_MENU, self._OnQuit, quit_item )
     file_menu.AppendItem( quit_item )
-
-#		-- Window Menu
-#		--
-#    self.windowMenu = wx.Menu()
-#    raise_all_item = wx.MenuItem( self.windowMenu, wx.ID_ANY, 'Bring All To Front' )
-#    self.Bind( wx.EVT_MENU, self.RaiseAllWidgets, raise_all_item )
-#    self.windowMenu.AppendItem( raise_all_item )
-#    self.windowMenu.AppendSeparator()
 
 #		-- Edit Menu
 #		--
@@ -949,77 +1071,51 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #    self.Bind( wx.EVT_MENU, self._OnView3D, view3d_item )
 #    view_menu.AppendItem( view3d_item )
 
+#		-- Window Menu
+#		--
+    self.windowMenu = wx.Menu()
+    tile_item = wx.MenuItem( self.windowMenu, wx.ID_ANY, 'Tile Windows' )
+    self.Bind( wx.EVT_MENU, self._OnTileWindows, tile_item )
+    self.windowMenu.AppendItem( tile_item )
+    self.windowMenu.AppendSeparator()
+#    raise_all_item = wx.MenuItem( self.windowMenu, wx.ID_ANY, 'Bring All To Front' )
+#    self.Bind( wx.EVT_MENU, self.RaiseAllWidgets, raise_all_item )
+#    self.windowMenu.AppendItem( raise_all_item )
+#    self.windowMenu.AppendSeparator()
+
 #		-- Menu Bar
 #		--
     mbar = wx.MenuBar()
     mbar.Append( file_menu, '&File' )
     mbar.Append( edit_menu, '&Edit' )
 #    mbar.Append( view_menu, '&View' )
-#    mbar.Append( self.windowMenu, '&Window' )
+    mbar.Append( self.windowMenu, '&Window' )
     self.SetMenuBar( mbar )
 
 #		-- Widget Tool Bar
 #		--
     # wx.{NO,RAISED,SIMPLE,SUNKEN}_BORDER
     tbar_panel = wx.Panel( self )
-    widget_tbar = \
-      wx.ToolBar( tbar_panel, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
-        #wx.ToolBar( self, -1, style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER )
+    widget_tbar = wx.ToolBar(
+        tbar_panel, -1,
+	style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER
+	)
     self.widgetToolBar = widget_tbar
-    self._UpdateToolBar( widget_tbar )
+    #self._UpdateToolBar( widget_tbar )
 
-#    ti_count = 1
-#    for ti in TOOLBAR_ITEMS:
-#      widget_icon = ti.get( 'icon' )
-#      if widget_icon is None:
-#        widget_tbar.AddSeparator()
-#
-#      else:
-#        self._CreateToolBarItem( widget_tbar, ti_count, ti )
-##works if not needing to change the bitmap
-##x	widget_icon_disabled = ti.get( 'iconDisabled' )
-##x        widget_name = ti[ 'widget' ]
-##x        widget_im = wx.Image(
-##x            os.path.join( Config.GetResDir(), widget_icon ),
-##x	    wx.BITMAP_TYPE_PNG
-##x	    )
-##x        widget_im_disabled = wx.Image(
-##x            os.path.join( Config.GetResDir(), widget_icon_disabled ),
-##x	    wx.BITMAP_TYPE_PNG
-##x	    )
-##x        tb_item = widget_tbar.AddTool(
-##x            ti_count, widget_im.ConvertToBitmap(),
-##x	    shortHelpString = widget_name
-##x	    )
-##x        tb_item.SetDisabledBitmap( widget_im_disabled.ConvertToBitmap() )
-##x	tb_item.Enable( False )
-##x        self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
-#      #end if-else
-#
-#      ti_count += 1
-#    #end for
-#
-##    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
-##    #widget_tbar.AddSeparator()
-##    widget_tbar.AddStretchableSpace()
-##    widget_tbar.AddTool(
-##	ID_REFIT_WINDOW, im.ConvertToBitmap(),
-##	shortHelpString = 'Refit window'
-##        )
-##    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
-#
-#    widget_tbar.Realize()
-
+    tbar_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    tbar_sizer.Add( widget_tbar, 1, wx.ALL | wx.EXPAND )
     logo_im = wx.Image(
         os.path.join( Config.GetResDir(), 'casl-logo.32.png' ),
 	wx.BITMAP_TYPE_PNG
 	)
-    tbar_sizer = wx.BoxSizer( wx.HORIZONTAL )
-    tbar_sizer.Add( widget_tbar, 1, wx.ALL | wx.EXPAND )
-    tbar_sizer.Add(
-	wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() ),
-	0, wx.ALL | wx.ALIGN_RIGHT
-        )
+#    tbar_sizer.Add(
+#	wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() ),
+#	0, wx.ALL | wx.ALIGN_RIGHT
+#        )
+    casl_icon = wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() )
+    casl_icon.SetDropTarget( VeraViewFrameDropTarget( self ) )
+    tbar_sizer.Add( casl_icon, 0, wx.ALL | wx.ALIGN_RIGHT )
     tbar_panel.SetSizer( tbar_sizer )
 
 #		-- Status Bar
@@ -1072,11 +1168,13 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.SetTitle( TITLE )
 
 #    self.Center()
-    pos = ( 5, 35 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
-    self.SetPosition( pos )
-    #self.SetSize( ( 640, 480 ) )
+    #pos = ( 5, 35 ) if 'wxMac' in wx.PlatformInfo else ( 5, 5 )
+    #self.SetPosition( pos )
+    client_rect = wx.GetClientDisplayRect()
+    self.SetPosition( client_rect.GetPosition() )
 
-    display_size = wx.DisplaySize()
+    #display_size = wx.DisplaySize()
+    display_size = client_rect.GetSize()
     #if display_size[ 0 ] >= 1200 and display_size[ 1 ] >= 800:
     if display_size[ 0 ] >= 1024 and display_size[ 1 ] >= 768:
       self.SetSize( ( 1024, 768 ) )
@@ -1096,16 +1194,22 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, session = None ):
+  def LoadDataModel( self, file_path, session = None, widget_props = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  file_path	path to VERAOutput file
 @param  session		optional WidgetConfig instance for session restoration
+@param  widget_props	None = for default processing to load all applicable
+			widgets;
+			'empty' = no widgets
+			widget = properties for widget to add
+			#widget = single widget container to add
 """
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'file_path=%s', file_path )
 
     data = self.state.GetDataModel()
+    self.filepath = file_path
     self.SetRepresentedFilename( file_path )
 
     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
@@ -1172,10 +1276,11 @@ Must be called from the UI thread.
 
 #		-- Update title
 #		--
-    title = TITLE
-    if file_path is not None:
-      title += (': %s' % os.path.basename( file_path ))
-    self.SetTitle( title )
+    #title = TITLE
+    #if file_path is not None:
+      #title += (': %s' % os.path.basename( file_path ))
+    #self.SetTitle( title )
+    self.UpdateTitle()
 
 #		-- Determine axial plot types
 #		--
@@ -1196,6 +1301,13 @@ Must be called from the UI thread.
     #if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
       #self.axialPlotTypes.add( 'vanadium' )
 
+#		-- Initialize
+#		--
+    self.CloseAllWidgets()
+    grid_sizer = self.grid.GetSizer()
+    grid_sizer.SetRows( 1 )
+    grid_sizer.SetCols( 1 )
+
 #		-- Load Config
 #		--
     if session is not None:
@@ -1203,11 +1315,11 @@ Must be called from the UI thread.
 
 #		-- Or determine default initial widgets
 #		--
-    else:
-      self.CloseAllWidgets()
-      grid_sizer = self.grid.GetSizer()
-      grid_sizer.SetRows( 1 )
-      grid_sizer.SetCols( 1 )
+    elif widget_props is None:
+#      self.CloseAllWidgets()
+#      grid_sizer = self.grid.GetSizer()
+#      grid_sizer.SetRows( 1 )
+#      grid_sizer.SetCols( 1 )
 
       widget_list = []
 
@@ -1290,7 +1402,17 @@ Must be called from the UI thread.
         self.SetSize( fr_size )
       else:
         self._Refit( False )  # True
-    #end if-else session
+
+    elif widget_props == 'empty':
+      pass
+
+    elif 'classpath' in widget_props:
+      wc = self.CreateWidget( widget_props[ 'classpath' ] )
+      wc.LoadProps( widget_props )
+#    else:
+#      wc.Reparent( self.grid )
+#      self.AddWidgetContainer( wc, True )
+    #end if-elif-else session
 
 #		-- Set bean ranges and values
 #		--
@@ -1402,14 +1524,34 @@ Note this defines a new State as well as widgets in the grid.
   #	METHOD:		VeraViewFrame.OnCloseFrame()			-
   #----------------------------------------------------------------------
   def OnCloseFrame( self, ev ):
+    if len( self.app.GetFrames() ) == 1:
+#			-- Windows focus hack
+      win = wx.Window_FindFocus()
+      if win is not None:
+        win.Disconnect( -1, -1, wx.wxEVT_KILL_FOCUS )
+
+      self._OnQuit( None )
+
+    else:
+      frame = ev.GetEventObject()
+      self.app.RemoveFrame( frame )
+      frame.Bind( wx.EVT_CLOSE, None )
+      frame.Close()
+      self._UpdateWindowMenus( remove_frame = frame )
+  #end OnCloseFrame
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.OnCloseFrame_singleWindow()	-
+  #----------------------------------------------------------------------
+  def OnCloseFrame_singleWindow( self, ev ):
 #	-- Windows focus hack
     win = wx.Window_FindFocus()
     if win is not None:
       win.Disconnect( -1, -1, wx.wxEVT_KILL_FOCUS )
 #
-
-    self._OnQuit( None )
-  #end OnCloseFrame
+    #self._OnQuit( None )
+  #end OnCloseFrame_singleWindow
 
 
   #----------------------------------------------------------------------
@@ -1590,9 +1732,9 @@ Note this defines a new State as well as widgets in the grid.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnNew()				-
+  #	METHOD:		VeraViewFrame._OnNewWidget()			-
   #----------------------------------------------------------------------
-  def _OnNew( self, ev ):
+  def _OnNewWidget( self, ev ):
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'entered' )
     ev.Skip()
@@ -1602,7 +1744,17 @@ Note this defines a new State as well as widgets in the grid.
     item = menu.FindItemById( ev.GetId() )
     if item is not None and item.GetLabel() in WIDGET_MAP:
       self.CreateWidget( WIDGET_MAP[ item.GetItemLabelText() ] )
-  #end _OnNew
+  #end _OnNewWidget
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnNewWindow()			-
+  #----------------------------------------------------------------------
+  def _OnNewWindow( self, ev ):
+    if ev:
+      ev.Skip()
+    self.CreateWindow()
+  #end _OnNewWindow
 
 
   #----------------------------------------------------------------------
@@ -1706,6 +1858,66 @@ Must be called on the UI event thread.
 #      self.dataSetMenu._UpdateMenu( ev )
 #      self.widgetToolBar.PopupMenu( self.dataSetMenu )
 #  #end _OnSelectDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnTileWindows()			-
+  #----------------------------------------------------------------------
+  def _OnTileWindows( self, ev ):
+    ev.Skip()
+
+#		-- Determine number of tile rows
+#		--
+    #display_size = wx.DisplaySize()
+    display_rect = wx.GetClientDisplayRect()
+    display_left = display_rect.GetLeft()
+    display_top = display_rect.GetTop()
+    display_wd = display_rect.GetWidth()
+    display_ht = display_rect.GetHeight()
+#Not necessary
+#    if 'wxMac' in wx.PlatformInfo:
+#      display_ht -= 32
+#      display_top += 32
+
+    count = len( self.app.GetFrames() )
+    frows = math.sqrt( count * display_ht / float( display_wd ) )
+    rows100 = int( frows * 100.0 )
+    rounder = rows100 % 100
+    if rounder >= 50:
+      rows100 += 100
+    nrows = max( 1, rows100 / 100 )
+    ncols = (count + nrows - 1) / nrows
+
+#		-- Window size
+#		--
+    win_wd = int( display_wd / ncols )
+    win_ht = int( display_ht / nrows )
+    win_size = ( win_wd, win_ht )
+
+    col = row = 0
+    win_x = display_left
+    win_y = display_top
+
+    for frame_rec in self.app.GetFrames().values():
+      fr = frame_rec.get( 'frame' )
+      if fr:
+        fr.SetPosition( ( win_x, win_y ) )
+	fr.SetSize( win_size )
+	fr.Iconize( False )
+	fr.Raise()
+
+	col += 1
+	if col > ncols:
+	  win_x = display_left
+	  col = 0
+	  row += 1
+	  win_y += win_ht
+	else:
+	  win_x += win_wd
+	#end if-else ncols exceeded
+      #end if fr
+    #end for
+  #end _OnTileWindows
 
 
   #----------------------------------------------------------------------
@@ -1888,21 +2100,30 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnWindowMenuItem()		-
   #----------------------------------------------------------------------
-#  def _OnWindowMenuItem( self, ev ):
-#    ev.Skip()
-#    menu = ev.GetEventObject()
-#    item = menu.FindItemById( ev.GetId() )
-#
-#    if item is not None:
-#      title = item.GetLabel()
+  def _OnWindowMenuItem( self, ev ):
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+
+    if item is not None:
+      title = item.GetLabel()
+      frame_rec = self.app.FindFrameByTitle( title )
+      if frame_rec:
+        frame = frame_rec.get( 'frame' )
+	if frame:
+	  frame.Iconize( False )
+	  frame.Raise()
+      #end if frame_rec
+    #end if item
+
 #      for child in self.GetChildren():
 #        if isinstance( child, WidgetContainer ) and child.GetTitle() == title:
 #	  child.Iconize( False )
 #          child.Raise()
 #	  break
 #      #end for
-#    #end if
-#  #end _OnWindowMenuItem
+    #end if
+  #end _OnWindowMenuItem
 
 
   #----------------------------------------------------------------------
@@ -2143,6 +2364,17 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.SetFrameId()			-
+  #----------------------------------------------------------------------
+  def SetFrameId( self, value ):
+    """Accessor for the frameId property.
+@param  value		1-based ordinal number
+"""
+    self.frameId = value
+  #end SetFrameId
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.ShowMessageDialog()		-
   #----------------------------------------------------------------------
   def ShowMessageDialog( self, message, title ):
@@ -2169,6 +2401,19 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.UpdateTitle()			-
+  #----------------------------------------------------------------------
+  def UpdateTitle( self ):
+    """
+"""
+    title = '%d: %s' % ( self.frameId, TITLE )
+    if self.filepath:
+      title += ':: %s' % os.path.basename( self.filepath )
+    self.SetTitle( title )
+  #end UpdateTitle
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._UpdateToolBar()			-
   #----------------------------------------------------------------------
   def _UpdateToolBar( self, tbar, enable_all = False ):
@@ -2182,6 +2427,7 @@ Must be called on the UI event thread.
         self.Unbind( wx.EVT_TOOL, item )
         #self.Unbind( wx.EVT_TOOL, self._OnWidgetTool, id = i + 1 )
     tbar.ClearTools()
+    #print >> sys.stderr, '\n[_UpdateToolBar] tbar.toolsCount=', tbar.GetToolsCount()
 
     if data is not None:
       ds_names = data.GetDataSetNames()
@@ -2219,24 +2465,130 @@ Must be called on the UI event thread.
 	  tb_item.Enable( enabled )
           self.Bind( wx.EVT_TOOL, self._OnWidgetTool, tb_item )
           #self.Bind( wx.EVT_TOOL, self._OnWidgetTool, id = ti_count )
+	  #print >> sys.stderr, '[_UpdateToolBar] ti_count=%d, widget=%s' % ( ti_count, ti[ 'widget' ] )
         #end if-else separator
 
         ti_count += 1
       #end for ti
     #end if data
 
-#    im = wx.Image( os.path.join( Config.GetResDir(), 'fit_32x32.png' ), wx.BITMAP_TYPE_PNG )
-#    tbar.AddStretchableSpace()
-#    bar.AddTool(
-#	ID_REFIT_WINDOW, im.ConvertToBitmap(),
-#	shortHelpString = 'Refit window'
-#        )
-#    self.Bind( wx.EVT_TOOL, self._OnControlTool, id = ID_REFIT_WINDOW )
-
     tbar.Realize()
   #end _UpdateToolBar
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateWindowMenus()		-
+  #----------------------------------------------------------------------
+  def _UpdateWindowMenus( self, **kwargs ):
+    titles = []
+    frames = []
+    for frame_rec in self.app.GetFrames().values():
+      frame = frame_rec.get( 'frame' )
+      if frame is not None:
+	frames.append( frame )
+        titles.append( frame.GetTitle() )
+    #end for frame_rec
+
+#		-- Process menu for each frame
+#		--
+    for frame in frames:
+#			-- Find items to remove
+#			--
+      removes = []
+      for i in xrange( frame.windowMenu.GetMenuItemCount() ):
+        item = frame.windowMenu.FindItemByPosition( i )
+	if item:
+	  label = item.GetItemLabelText()
+	  if label and label != 'Tile Windows':
+	    removes.append( item )
+      #end for i
+#			-- Remove items
+#			--
+      for item in removes:
+        frame.windowMenu.DestroyItem( item )
+
+#			-- Add new items
+#			--
+      for title in titles:
+        item = wx.MenuItem( frame.windowMenu, wx.ID_ANY, title )
+	frame.Bind( wx.EVT_MENU, frame._OnWindowMenuItem, item )
+	frame.windowMenu.AppendItem( item )
+	#frame.windowMenu.UpdateUI()
+      #end for title
+    #end for frame
+  #end _UpdateWindowMenus
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateWindowMenus_1()		-
+  #----------------------------------------------------------------------
+  def _UpdateWindowMenus_1( self, **kwargs ):
+    add_frame = kwargs.get( 'add_frame' )
+    remove_frame = kwargs.get( 'remove_frame' )
+
+    for frame_rec in self.app.GetFrames().values():
+      frame = frame_rec.get( 'frame' )
+      if frame is None:
+        pass
+
+      elif add_frame:
+        item = wx.MenuItem( frame.windowMenu, wx.ID_ANY, frame.GetTitle() )
+	frame.Bind( wx.EVT_MENU, frame._OnWindowMenuItem, item )
+	frame.windowMenu.AppendItem( item )
+	frame.windowMenu.UpdateUI()
+
+      elif remove_frame:
+        #for i in frame.windowMenu.GetMenuItemCount():
+	item = frame.windowMenu.FindItem( frame.GetTitle() )
+	if item != wx.NOT_FOUND:
+	  frame.windowMenu.DestroyItem( item )
+	  frame.windowMenu.UpdateUI()
+      #if-elif
+    #end for frame
+  #end _UpdateWindowMenus_1
+
 #end VeraViewFrame
+
+
+#------------------------------------------------------------------------
+#	CLASS:		VeraViewFrameDropTarget				-
+#------------------------------------------------------------------------
+class VeraViewFrameDropTarget( wx.TextDropTarget ):
+  """Processes widget drags."""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrameDropTarget.__init__()		-
+  #----------------------------------------------------------------------
+  def __init__( self, frame ):
+    super( VeraViewFrameDropTarget, self ).__init__()
+
+    self.frame = frame
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrameDropTarget.OnDropText()		-
+  #----------------------------------------------------------------------
+  def OnDropText( self, x, y, data ):
+    result = False
+    print >> sys.stderr, '[VeraViewFrameDropTarget] ', data, '\n[end]'
+    if data:
+      widget_props = WidgetConfig.Decode( data )
+      if 'classpath' in widget_props:
+        wc = self.frame.CreateWidget( widget_props[ 'classpath' ] )
+	wc.LoadProps( widget_props )
+	result = True
+    #end if
+
+    return  result
+  #end OnDropText
+
+#end VeraViewFrameDropTarget
 
 
 #------------------------------------------------------------------------
