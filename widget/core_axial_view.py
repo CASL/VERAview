@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2016-11-23	leerw@ornl.gov				-
+#	  Fixed _CreateDrawConfig() in scale mode where axial mesh was
+#	  not adequately rendered.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -403,6 +406,12 @@ If neither are specified, a default 'scale' value of 4 is used.
     else:
       pin_wd = kwargs.get( 'scale', 4 )
       axial_pix_per_cm = pin_wd / cm_per_pin
+
+      if len( axial_mesh ) > 1:
+        if (axial_range_cm * axial_pix_per_cm) / (len( axial_mesh ) - 1) < 2.0:
+	  axial_pix_per_cm = 2.0 * (len( axial_mesh) - 1) / axial_range_cm
+	  pin_wd = int( math.ceil( axial_pix_per_cm * cm_per_pin ) )
+
       if self.nodalMode:
         node_wd = pin_wd << 2
 

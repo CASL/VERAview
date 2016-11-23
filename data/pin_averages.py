@@ -1,6 +1,8 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2016-11-23	godfreyat@ornl.gov			-
+#	  New calc_pin_radial_node_avg() implementation.
 #		2016-10-04	leerw@ornl.gov				-
 #	  Adding radialNodeWeights and and calc_pin_radial_node_avg()
 #	  to pin_averages.py.
@@ -329,6 +331,25 @@ be called before use.
   #	METHOD:		calc_pin_radial_node_avg()			-
   #----------------------------------------------------------------------
   def calc_pin_radial_node_avg( self, dset ):
+    errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
+
+    try:
+      node = self.calc_pin_node_avg( dset )
+      avg = np.sum( node * self.nodeWeights, axis = 2 ) / self.radialNodeWeights
+
+      avg[ avg == np.inf ] = 0.0
+      avg = np.nan_to_num( avg )
+    finally:
+      np.seterr( **errors_save )
+
+    return  avg
+  #end calc_pin_radial_node_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_node_avg_wrong()		-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_node_avg_wrong( self, dset ):
     avg = np.zeros( ( 1, 4, 1, self.core.nass ), dtype = np.float64 )
 
     errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
@@ -352,7 +373,7 @@ be called before use.
       np.seterr( **errors_save )
 
     return  avg
-  #end calc_pin_radial_node_avg
+  #end calc_pin_radial_node_avg_wrong
 
 
   #----------------------------------------------------------------------
