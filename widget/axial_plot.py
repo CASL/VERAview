@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-11-26	leerw@ornl.gov				-
+#	  Changing plot_type based on dataset being derived or not.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -576,20 +578,21 @@ configuring the grid, plotting, and creating self.axline.
 	marker_size = None
 	ds_type = self.data.GetDataSetType( ds_name )
 	axial_values = self.data.core.axialMeshCenters
+	plot_type = '--' if self.data.IsDerivedDataSet( ds_name ) else '-'
 	if ds_type.startswith( 'detector' ):
 	  axial_values = self.data.core.detectorMesh
 	  marker_size = 12
-	  plot_type = '.'
-	elif ds_type.startswith( 'channel' ):
-	  plot_type = '--'
-	elif ds_type.startswith( 'pin' ):
-	  plot_type = '-'
+#	  plot_type = '.'
+#	elif ds_type.startswith( 'channel' ):
+#	  plot_type = '--'
+#	elif ds_type.startswith( 'pin' ):
+#	  plot_type = '-'
 	elif ds_type.startswith( 'fixed_detector' ):
 	  axial_values = self.data.core.fixedDetectorMeshCenters
 	  marker_size = 12
 	  plot_type = 'x'
-	else:
-	  plot_type = ':'
+#	else:
+#	  plot_type = ':'
 
 	if axial_values is not None:
 	  data_set_item = self.dataSetValues[ k ]

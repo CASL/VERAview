@@ -3334,6 +3334,20 @@ a 4D array if necessary.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.IsDerivedDataSet()			-
+  #----------------------------------------------------------------------
+  def IsDerivedDataSet( self, ds_name ):
+    """
+@param  ds_name		dataset name
+@return			True if derived, false otherwise
+"""
+    derived_st = self.GetDerivedState( 0 )
+    dset = derived_st.GetDataSet( ds_name ) if derived_st is not None else None
+    return  dset is not None
+  #end IsDerivedDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.IsDerivedType()			-
   #----------------------------------------------------------------------
   def IsDerivedType( self, ds_type ):
