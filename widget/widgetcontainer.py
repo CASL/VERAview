@@ -480,7 +480,8 @@ definition array for a pullright.
         control_panel, -1,
 	label = self.widget.GetTitle(), size = ( -1, 22 )
 	)
-    widget_title.Bind( wx.EVT_LEFT_DOWN, self._OnLeftDown )
+    if Config.CanDragNDrop():
+      widget_title.Bind( wx.EVT_LEFT_DOWN, self._OnLeftDown )
     widget_title.SetFont( widget_title.GetFont().Italic() )
     cp_sizer.Add(
         widget_title, 0,
@@ -671,9 +672,11 @@ definition array for a pullright.
     #end if anim_indexes for this widget
 
 #			-- Save image
-    show_item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Show in New Window' )
-    self.Bind( wx.EVT_MENU, self._OnShowInNewWindow, show_item )
-    self.widgetMenu.AppendItem( show_item )
+    if Config.CanDragNDrop():
+      show_item = \
+          wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Show in New Window' )
+      self.Bind( wx.EVT_MENU, self._OnShowInNewWindow, show_item )
+      self.widgetMenu.AppendItem( show_item )
 
 #			-- Widget-defined items
     widget_menu_def = self.widget.GetMenuDef( data_model )
@@ -771,7 +774,7 @@ definition array for a pullright.
     if self.state is not None and self.widget is not None:
       self.state.RemoveListener( self )
 
-    self.Close()
+#    self.Close()
     self.Destroy()
   #end OnClose
 

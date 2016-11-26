@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-11-26	leerw@ornl.gov				-
+#	  Using Config.CanDragNDrop() as a gate for the "Window" menubar
+#	  item.
 #		2016-11-19	leerw@ornl.gov				-
 #	  Added CreateWindow() and modified LoadDataModel() to have a
 #	  widget_props param in support of widgets-to-window and dragging
@@ -152,7 +155,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.75'
+TITLE = 'VERAView Version 1.0.76'
 
 TOOLBAR_ITEMS = \
   [
@@ -818,7 +821,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.app.AddFrame( new_frame )
     new_frame.Show()
 
-    self._UpdateWindowMenus( add_frame = new_frame )
+    if Config.CanDragNDrop():
+      self._UpdateWindowMenus( add_frame = new_frame )
 
     if widget_props:
       wx.CallAfter(
@@ -1073,11 +1077,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
 #		-- Window Menu
 #		--
-    self.windowMenu = wx.Menu()
-    tile_item = wx.MenuItem( self.windowMenu, wx.ID_ANY, 'Tile Windows' )
-    self.Bind( wx.EVT_MENU, self._OnTileWindows, tile_item )
-    self.windowMenu.AppendItem( tile_item )
-    self.windowMenu.AppendSeparator()
+    if Config.CanDragNDrop():
+      self.windowMenu = wx.Menu()
+      tile_item = wx.MenuItem( self.windowMenu, wx.ID_ANY, 'Tile Windows' )
+      self.Bind( wx.EVT_MENU, self._OnTileWindows, tile_item )
+      self.windowMenu.AppendItem( tile_item )
+      self.windowMenu.AppendSeparator()
 #    raise_all_item = wx.MenuItem( self.windowMenu, wx.ID_ANY, 'Bring All To Front' )
 #    self.Bind( wx.EVT_MENU, self.RaiseAllWidgets, raise_all_item )
 #    self.windowMenu.AppendItem( raise_all_item )
@@ -1089,7 +1094,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
     mbar.Append( file_menu, '&File' )
     mbar.Append( edit_menu, '&Edit' )
 #    mbar.Append( view_menu, '&View' )
-    mbar.Append( self.windowMenu, '&Window' )
+    if self.windowMenu:
+      mbar.Append( self.windowMenu, '&Window' )
     self.SetMenuBar( mbar )
 
 #		-- Widget Tool Bar
@@ -1537,7 +1543,8 @@ Note this defines a new State as well as widgets in the grid.
       self.app.RemoveFrame( frame )
       frame.Bind( wx.EVT_CLOSE, None )
       frame.Close()
-      self._UpdateWindowMenus( remove_frame = frame )
+      if Config.CanDragNDrop():
+        self._UpdateWindowMenus( remove_frame = frame )
   #end OnCloseFrame
 
 
@@ -2480,6 +2487,9 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._UpdateWindowMenus()		-
   #----------------------------------------------------------------------
   def _UpdateWindowMenus( self, **kwargs ):
+    """Assume this will only be called if the 'Window' menubar item has
+been created.
+"""
     titles = []
     frames = []
     for frame_rec in self.app.GetFrames().values():
@@ -2518,35 +2528,6 @@ Must be called on the UI event thread.
     #end for frame
   #end _UpdateWindowMenus
 
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._UpdateWindowMenus_1()		-
-  #----------------------------------------------------------------------
-  def _UpdateWindowMenus_1( self, **kwargs ):
-    add_frame = kwargs.get( 'add_frame' )
-    remove_frame = kwargs.get( 'remove_frame' )
-
-    for frame_rec in self.app.GetFrames().values():
-      frame = frame_rec.get( 'frame' )
-      if frame is None:
-        pass
-
-      elif add_frame:
-        item = wx.MenuItem( frame.windowMenu, wx.ID_ANY, frame.GetTitle() )
-	frame.Bind( wx.EVT_MENU, frame._OnWindowMenuItem, item )
-	frame.windowMenu.AppendItem( item )
-	frame.windowMenu.UpdateUI()
-
-      elif remove_frame:
-        #for i in frame.windowMenu.GetMenuItemCount():
-	item = frame.windowMenu.FindItem( frame.GetTitle() )
-	if item != wx.NOT_FOUND:
-	  frame.windowMenu.DestroyItem( item )
-	  frame.windowMenu.UpdateUI()
-      #if-elif
-    #end for frame
-  #end _UpdateWindowMenus_1
-
 #end VeraViewFrame
 
 
@@ -2576,7 +2557,7 @@ class VeraViewFrameDropTarget( wx.TextDropTarget ):
   #----------------------------------------------------------------------
   def OnDropText( self, x, y, data ):
     result = False
-    print >> sys.stderr, '[VeraViewFrameDropTarget] ', data, '\n[end]'
+    #print >> sys.stderr, '[VeraViewFrameDropTarget] ', data, '\n[end]'
     if data:
       widget_props = WidgetConfig.Decode( data )
       if 'classpath' in widget_props:

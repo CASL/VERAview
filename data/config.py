@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2016-11-26	leerw@ornl.gov				-
+#	  Added canDragNDrop class property.
 #		2016-10-25	leerw@ornl.gov				-
 #	  Configuring logging.
 #		2016-03-17	leerw@ornl.gov				-
@@ -15,7 +17,7 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import logging, logging.config, os, platform, subprocess
+import logging, logging.config, os, platform, subprocess, sys
 from distutils.spawn import find_executable
 import pdb
 
@@ -36,6 +38,7 @@ Static properties (use accessors):
 #		-- Class Attributes
 #		--
 
+  canDragNDrop_ = None
   defaultDataSetName_ = 'pin_powers'
   haveGifsicle_ = None
   #haveImageMagick_ = None
@@ -45,6 +48,27 @@ Static properties (use accessors):
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CanDragNDrop()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CanDragNDrop():
+    """Basically, this doesn't work for Anaconda under Mac OSX, so we
+return false in that case.
+@return			True or False
+"""
+    if Config.canDragNDrop_ is None:
+      Config.canDragNDrop_ = True
+      platform = sys.platform.lower()
+      prefix = sys.prefix.lower()
+      if prefix.find( 'anaconda' ) >= 0 and platform == 'darwin':
+        Config.canDragNDrop_ = False
+    #end if
+
+    return  Config.canDragNDrop_
+  #end CanDragNDrop
 
 
   #----------------------------------------------------------------------
