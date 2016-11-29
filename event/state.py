@@ -447,7 +447,10 @@ Keys passed and the corresponding state bit are:
     if reason != STATE_CHANGE_noop:
       for listener in self.listeners:
 	try:
-          listener.HandleStateChange( reason )
+	  if hasattr( listener, 'HandleStateChange' ):
+            listener.HandleStateChange( reason )
+	  elif hasattr( listener, '__call__' ):
+	    listener( reason )
 	except Exception, ex:
 	  self.logger.error( str( ex ) )
       #end for listeners

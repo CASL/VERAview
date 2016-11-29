@@ -1209,23 +1209,24 @@ passed, Read() must be called.
 
       #self.dataSetNamesVersion += 1
       DataModel.dataSetNamesVersion_ += 1
-      self.FireEvent( 'newDataSet', ds_name )
+      self._FireEvent( 'newDataSet', self, ds_name )
     #end if ds_name is new
   #end AddDataSetName
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.AddListeners()			-
+  #	METHOD:		DataModel.AddListener()				-
   #----------------------------------------------------------------------
-  def AddListeners( self, *listeners ):
-    """Adds listeners for dataset change events.
-@param  listeners	one or more listeners
+  def AddListener( self, event_name, listener ):
+    """
+@param  event_name	'newDataSet'
+@param  listener	listener with OnXxx() method or callable
 """
-    if listeners:
-      for l in listeners:
-        if l not in self.listeners:
-	  self.listeners.append( l )
-  #end AddListeners
+    if event_name in self.listeners:
+      if listener not in self.listeners[ event_name ]:
+        self.listeners[ event_name ].append( listener )
+    #end if event_name
+  #end AddListener
 
 
   #----------------------------------------------------------------------
@@ -1258,28 +1259,13 @@ passed, Read() must be called.
     self.derivedLabelsByType = {}
     self.derivedStates = None
     self.h5File = None
-    self.listeners = { 'newDataSet': [], 'newFile': [] }
+    self.listeners = { 'newDataSet': [] }
     self.ranges = {}
     self.rangesByStatePt = []
     self.states = []
 
     #DataModel.dataSetNamesVersion_ += 1
   #end Clear
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.AddListener()				-
-  #----------------------------------------------------------------------
-  def AddListener( self, event_name, listener ):
-    """
-@param  event_name	either 'newDataSet' or 'newFile'
-@param  listener	listener with OnXxx() method or callable
-"""
-    if event_name in self.listeners:
-      if listener not in self.listeners[ event_name ]:
-        self.listeners[ event_name ].append( listener )
-    #end if event_name
-  #end AddListener
 
 
   #----------------------------------------------------------------------
@@ -2571,11 +2557,11 @@ returned.  Calls FindMinMaxValueAddr().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.FireEvent()				-
+  #	METHOD:		DataModel._FireEvent()				-
   #----------------------------------------------------------------------
-  def FireEvent( self, event_name, *params ):
+  def _FireEvent( self, event_name, *params ):
     """
-@param  event_name	either 'newDataSet' or 'newFile'
+@param  event_name	'newDataSet'
 @param  params		event params
 """
     if event_name in self.listeners:
@@ -2587,7 +2573,7 @@ returned.  Calls FindMinMaxValueAddr().
 	  listener( *params )
       #end for listener
     #end if event_name
-  #end FireEvent
+  #end _FireEvent
 
 
   #----------------------------------------------------------------------
@@ -4425,11 +4411,11 @@ at a time for better performance.
   #----------------------------------------------------------------------
   def RemoveListener( self, event_name, listener ):
     """
-@param  event_name	either 'newDataSet' or 'newFile'
+@param  event_name	'newDataSet'
 @param  listener	listener with OnXxx() method or callable
 """
     if event_name in self.listeners:
-      for listener in self.listeners[ event_name ]:
+      if listener in self.listeners[ event_name ]:
         del self.listeners[ event_name ][ listener ]
     #end if event_name
   #end RemoveListener

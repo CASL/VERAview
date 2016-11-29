@@ -58,10 +58,27 @@ Properties:
     self.dataModelIds = []
     self.dataModels = {}
     self.dataSetNamesVersion = 0
+    self.listeners = \
+        { 'dataSetAdded': [], 'modelAdded': [], 'modelRemoved': [] }
     self.maxAxialValue = 0.0
-    self.timeDataSetName = None
+    self.timeDataSet = 'state'
     self.timeValues = []
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.AddListener()			-
+  #----------------------------------------------------------------------
+  def AddListener( self, event_name, listener ):
+    """
+@param  event_name	'dataSetAdded', 'modelAdded', or 'modelRemoved'
+@param  listener	listener with OnXxx() method or callable
+"""
+    if event_name in self.listeners:
+      if listener not in self.listeners[ event_name ]:
+        self.listeners[ event_name ].append( listener )
+    #end if event_name
+  #end AddListener
 
 
   #----------------------------------------------------------------------
@@ -95,7 +112,8 @@ Properties:
 
     if id in self.dataModels:
       dm = self.dataModels[ id ]
-      dm.RemoveListeners( self )
+      model_name = dm.GetName()
+      dm.RemoveListener( 'newDataSet', self )
       dm.Close()
 
       del self.dataModels[ id ]
@@ -105,11 +123,32 @@ Properties:
         self._UpdateMaxAxialValue()
         self._UpdateTimeValues()
         self.dataSetNamesVersion += 1
+	self._FireEvent( 'modelRemoved', model_name )
 
       result = True
 
     return  result
   #end CloseModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr._FireEvent()			-
+  #----------------------------------------------------------------------
+  def _FireEvent( self, event_name, *params ):
+    """
+@param  event_name	'dataSetAdded', 'modelAdded', or 'modelRemoved'
+@param  params		event params
+"""
+    if event_name in self.listeners:
+      for listener in self.listeners[ event_name ]:
+        method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+	if hasattr( listener, method_name ):
+	  getattr( listener, method_name )( *params )
+	elif hasattr( listener, '__call__' ):
+	  listener( *params )
+      #end for listener
+    #end if event_name
+  #end _FireEvent
 
 
   #----------------------------------------------------------------------
@@ -166,15 +205,14 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetTimeDataSetName()		-
+  #	METHOD:		DataModelMgr.GetTimeDataSet()			-
   #----------------------------------------------------------------------
-  def GetTimeDataSetName( self ):
-    """
-@return			name of the dataset used to resolve time between
-			models
+  def GetTimeDataSet( self ):
+    """Accessor for the timeDataSet property.
+@return			dataset used for time
 """
-    return  len( self.timeDataSetName )
-  #end GetTimeDataSetName
+    return  self.timeDataSet
+  #end GetTimeDataSet
 
 
   #----------------------------------------------------------------------
@@ -197,13 +235,14 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.OnDataSetsChanged()		-
+  #	METHOD:		DataModelMgr._OnNewDataSet()			-
   #----------------------------------------------------------------------
-  def OnDataSetsChanged( self, model ):
-    """Callback for model dataset changes.
+  def _OnNewDataSet( self, model, ds_name ):
+    """Callback for model 'newDataSet' events.
 """
     self.dataSetNamesVersion += 1
-  #end OnDataSetsChanged
+    self._FireEvent( 'dataSetAdded', model, ds_name )
+  #end _OnNewDataSet
 
 
   #----------------------------------------------------------------------
@@ -224,16 +263,44 @@ lists that must be rebuilt when the sets of available datasets change.
       if not dm.HasData():
         raise  Exception( 'Required VERA data not found' )
 
-      dm.AddListeners( self )
+      dm.AddListener( 'newDataSet', self._OnNewDataSet )
       self.dataModels[ id ] = dm
       self._UpdateMaxAxialValue()
       self.dataSetNamesVersion += 1
+      self._FireEvent( 'modelAdded', dm.GetName() )
 
       return  dm
 
     except Exception, ex:
       raise  IOError( 'Error reading "%s": %s' % ( h5f_param, ex.message ) )
   #end OpenModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.RemoveListener()			-
+  #----------------------------------------------------------------------
+  def RemoveListener( self, event_name, listener ):
+    """
+@param  event_name	'dataSetAdded', 'modelAdded', or 'modelRemoved'
+@param  listener	listener with OnXxx() method or callable
+"""
+    if event_name in self.listeners:
+      if listener in self.listeners[ event_name ]:
+        del self.listeners[ event_name ][ listener ]
+    #end if event_name
+  #end RemoveListener
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.SetTimeDataSet()			-
+  #----------------------------------------------------------------------
+  def SetTimeDataSet( self, ds_name ):
+    """Accessor for the timeDataSet property.
+@param  ds_name		dataset used for time
+"""
+    self.timeDataSet = ds_name
+    self._UpdateTimeValues()
+  #end SetTimeDataSet
 
 
   #----------------------------------------------------------------------
@@ -264,22 +331,27 @@ lists that must be rebuilt when the sets of available datasets change.
   #----------------------------------------------------------------------
   def _UpdateTimeValues( self ):
     """Updates the 'timeValues' property based on the remaining DataModels
-and the already-set 'timeDataSetName' property.
+and the 'timeDataSet' property.
 @return			'timeValues' property value
 """
     #xxxxx todo
-    range_min = sys.float_info.max
-    range_max = -sys.float_info.max
     result = []
-    if self.timeDataSetName:
-      values_by_id = {}
-      spec = dict( ds_name = self.timeDataSetName )
-      for id, dm in self.dataModels.iteritems():
-	values_by_id[ id ] = cur_values = dm.ReadDataSetValues2( spec )
-	range_min = min( range_min, cur_values[ 0 ] )
-	range_max = max( range_max, cur_values[ -1 ] )
-      #end for id, dm
-    #end if self.timeDataSetName
+
+    if self.timeDataSet == 'state':
+      cur_count = 0
+      for dm in self.dataModels.values():
+        cur_count = max( cur_count, dm.GetStatesCount() )
+      result = range( cur_count )
+
+    elif self.timeDataSet:
+      cur_set = set()
+      spec = dict( ds_name = self.timeDataSet )
+      for dm in self.dataModels.values():
+	cur_values = dm.ReadDataSetValues2( spec )
+	if cur_values:
+	  cur_set.union( set( cur_values ) )
+      result = list( cur_set )
+    #end if-elif
 
     self.timeValues = result
     return  result
