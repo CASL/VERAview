@@ -48,6 +48,8 @@
 #		2016-08-20	leerw@ornl.gov				-
 #	  Fixed bug in FindMultiDataSetMaxValue() finding axial value for
 #	  a fixed_detector dataset and setting 'assembly_addr' in results.
+#		2016-08-19	leerw@ornl.gov				-
+#	  Added "id" property.
 #		2016-08-18	leerw@ornl.gov				-
 #	  Redefining axial levels in preparation for multiple files.
 #	  Renaming detectorMeshCenters to proper detectorMesh
@@ -1084,8 +1086,10 @@ Properties:
   derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
   h5File		h5py.File
+  id			unique ID string for this model
   listeners		map of listeners by event type
   maxAxialValue		maximum axial value (cm) 
+  name			display name, the base name of the HDF5 file
   nodeFactors		node weight factors ( 1, 4, nax, nass )
   pinFactors		pin weight factors ( npiny, npinx, nax, nass )
   ranges		dict of ranges ( min, max ) by dataset
@@ -1105,7 +1109,7 @@ Properties:
 #		-- Class Attributes
 #		--
 
-  dataSetNamesVersion_ = 0
+  #dataSetNamesVersion_ = 0
 
 
 #		-- Object Methods
@@ -1125,11 +1129,12 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.__init__()				-
   #----------------------------------------------------------------------
-  def __init__( self, h5f_param = None ):
+  def __init__( self, h5f_param = None, id = None ):
     """Constructor with optional HDF5 file or filename.  If neither are
 passed, Read() must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
+@param  id		unique identifier
 """
     self.averagers = {}
     self.logger = logging.getLogger( 'data' )
@@ -1163,6 +1168,7 @@ passed, Read() must be called.
     self.dataSetDefsLock = threading.RLock()
     self.rangesLock = threading.RLock()
 
+    self.id = id
     self.Clear()
     if h5f_param is not None:
       self.Read( h5f_param )
@@ -1209,6 +1215,20 @@ passed, Read() must be called.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.AddListeners()			-
+  #----------------------------------------------------------------------
+  def AddListeners( self, *listeners ):
+    """Adds listeners for dataset change events.
+@param  listeners	one or more listeners
+"""
+    if listeners:
+      for l in listeners:
+        if l not in self.listeners:
+	  self.listeners.append( l )
+  #end AddListeners
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.Check()				-
   #----------------------------------------------------------------------
   def Check( self ):
@@ -1243,7 +1263,7 @@ passed, Read() must be called.
     self.rangesByStatePt = []
     self.states = []
 
-    DataModel.dataSetNamesVersion_ += 1
+    #DataModel.dataSetNamesVersion_ += 1
   #end Clear
 
 
@@ -2687,13 +2707,13 @@ returned.  Calls FindMinMaxValueAddr().
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetNamesVersion()		-
   #----------------------------------------------------------------------
-  def GetDataSetNamesVersion( self ):
-    """Used to determine the generation of dataset changes for menus and
-lists that must be rebuilt when the sets of available datasets change.
-"""
-    return  DataModel.dataSetNamesVersion_
-    #return  self.dataSetNamesVersion
-  #end GetDataSetNamesVersion
+#  def GetDataSetNamesVersion( self ):
+#    """Used to determine the generation of dataset changes for menus and
+#lists that must be rebuilt when the sets of available datasets change.
+#"""
+#    return  DataModel.dataSetNamesVersion_
+#    #return  self.dataSetNamesVersion
+#  #end GetDataSetNamesVersion
 
 
   #----------------------------------------------------------------------
@@ -2930,6 +2950,17 @@ derived datasets.  Lazily created and cached.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetId()				-
+  #----------------------------------------------------------------------
+  def GetId( self ):
+    """Accessor for the 'id' property.
+@return			ID string
+"""
+    return  self.id
+  #end GetId
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetNodeAddr()				-
   #----------------------------------------------------------------------
   def GetNodeAddr( self, sub_addr, mode = 'pin' ):
@@ -2987,6 +3018,17 @@ derived datasets.  Lazily created and cached.
   def GetPinFactors( self ):
     return  self.pinFactors
   #end GetPinFactors
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetName()				-
+  #----------------------------------------------------------------------
+  def GetName( self ):
+    """Accessor for the 'name' property.
+@return			name
+"""
+    return  self.name
+  #end GetName
 
 
   #----------------------------------------------------------------------
@@ -3667,6 +3709,7 @@ being one greater in each dimension.
       self.h5File = h5f_param
     else:
       self.h5File = h5py.File( str( h5f_param ) )
+    self.name = os.path.splitext( os.path.basename( self.h5File.filename ))[ 0 ]
 
     #xxxx special read of state_0001 for detector_response
     self.core = Core( self.h5File )

@@ -1198,23 +1198,6 @@ Must be called from the UI event thread
 	  ndx += 1
         #end for
 
-#				-- Other 4-tuple shapes?
-#				--
-#        if self.widget.GetAllow4DDataSets():
-#          if data_model.HasDataSetCategory( 'other' ):
-#	    self.dataSetMenu.AppendSeparator()
-#	    for name in data_model.GetDataSetNames( 'other' ):
-#	      item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name )
-#	      self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-#	      #self.dataSetMenu.AppendItem( item )
-#	      self.dataSetMenu.InsertItem( 0, item )
-#	  #end if other datasets exists
-#        #end if 4d datasets allowed
-
-        #item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, 'Extra...' )
-	#self.Bind( wx.EVT_MENU, self._OnDataSetMenuExtraItem, item )
-	#self.dataSetMenu.AppendItem( item )
-
 #				-- Derived pullright
 #				--
 	if self.derivedDataSetMenu is not None:

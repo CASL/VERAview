@@ -291,6 +291,7 @@ class DataSetMenu( wx.Menu ):
 
 #		-- Process datamodel to determine if there are derive-ables
 #		--
+    #xxxxx
     data_model = State.FindDataModel( self.state )
     if data_model is not None:
       data_model.AddListener( 'newDataSet', self._OnNewDataSet )

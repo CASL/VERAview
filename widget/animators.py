@@ -290,7 +290,6 @@ class Animator( object ):
   def _DoNextStep( self ):
     """
 Must not be called on the UI thread.
-@param  w               widget on which to act
 @return			True if there are further steps, False if finished
 """
     return  False
@@ -303,9 +302,8 @@ Must not be called on the UI thread.
   def Run( self, file_path ):
     """
 Must be called from the UI event thread.
-Creates a separate thread with the _Run() method as target.
+Creates a worker thread with the _RunBegin() and _Runend() methods.
 @param  file_path	path to gif file to create
-@return			thread that was started
 """
     dialog = wx.ProgressDialog(
 	'Save Animated Image',
@@ -416,7 +414,6 @@ class DetectorAxialAnimator( Animator ):
   def _DoNextStep( self ):
     """
 Must be called on the UI thread.
-@param  w               widget on which to act
 @return			True if there are further steps, False if finished
 """
     #continue_flag = self.nextStep < self.data.GetCore().ndetax
