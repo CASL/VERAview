@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-11-29	leerw@ornl.gov				-
+#	  Review and clean-up.
 #		2016-08-19	leerw@ornl.gov				-
 #		2016-08-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
@@ -57,6 +59,8 @@ Properties:
     self.dataModels = {}
     self.dataSetNamesVersion = 0
     self.maxAxialValue = 0.0
+    self.timeDataSetName = None
+    self.timeValues = []
   #end __init__
 
 
@@ -64,19 +68,23 @@ Properties:
   #	METHOD:		DataModelMgr.Close()				-
   #----------------------------------------------------------------------
   def Close( self ):
-    #for id, dm in self.dataModels.iteritems():
-    for dm in self.dataModels.values():
-      self.dataModelIds.remove( name )
-      dm.Close()
+    for dm_id in self.dataModels:
+      self.CloseModel( dm_id, True )
+#    for dm in self.dataModels.values():
+#      dm.Close()
+#    del self.dataModelIds[ : ]
+#    self.dataModels.clear()
   #end Close
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.CloseModel()			-
   #----------------------------------------------------------------------
-  def CloseModel( self, param ):
+  def CloseModel( self, param, closing_all = False ):
     """Opens the HDF5 file or filename.
 @param  param		either a DataModel instance or an ID string
+@param  closing_all	if True, no local state updates are performed
+@param  update_flag	True to update 
 @return			True if removed, False if not found
 """
     result = False
@@ -93,8 +101,10 @@ Properties:
       del self.dataModels[ id ]
       self.dataModelIds.remove( id )
 
-      self._UpdateMaxAxialValue()
-      self.dataSetNamesVersion += 1
+      if not closing_all:
+        self._UpdateMaxAxialValue()
+        self._UpdateTimeValues()
+        self.dataSetNamesVersion += 1
 
       result = True
 
@@ -153,6 +163,29 @@ lists that must be rebuilt when the sets of available datasets change.
   def GetModelCount( self ):
     return  len( self.dataModels )
   #end GetModelCount
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetTimeDataSetName()		-
+  #----------------------------------------------------------------------
+  def GetTimeDataSetName( self ):
+    """
+@return			name of the dataset used to resolve time between
+			models
+"""
+    return  len( self.timeDataSetName )
+  #end GetTimeDataSetName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetTimeValues()			-
+  #----------------------------------------------------------------------
+  def GetTimeValues( self ):
+    """
+@return			list of time values identifying state points
+"""
+    return  len( self.timeValues )
+  #end GetTimeValues
 
 
   #----------------------------------------------------------------------
@@ -224,6 +257,33 @@ lists that must be rebuilt when the sets of available datasets change.
     self.maxAxialValue = result
     return  result
   #end _UpdateMaxAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr._UpdateTimeValues()		-
+  #----------------------------------------------------------------------
+  def _UpdateTimeValues( self ):
+    """Updates the 'timeValues' property based on the remaining DataModels
+and the already-set 'timeDataSetName' property.
+@return			'timeValues' property value
+"""
+    #xxxxx todo
+    range_min = sys.float_info.max
+    range_max = -sys.float_info.max
+    result = []
+    if self.timeDataSetName:
+      values_by_id = {}
+      spec = dict( ds_name = self.timeDataSetName )
+      for id, dm in self.dataModels.iteritems():
+	values_by_id[ id ] = cur_values = dm.ReadDataSetValues2( spec )
+	range_min = min( range_min, cur_values[ 0 ] )
+	range_max = max( range_max, cur_values[ -1 ] )
+      #end for id, dm
+    #end if self.timeDataSetName
+
+    self.timeValues = result
+    return  result
+  #end _UpdateTimeValues
 
 
 #		-- Static Methods

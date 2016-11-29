@@ -4250,7 +4250,11 @@ at a time for better performance.
 	if ds_type == 'scalar':
 	  if ds_name not in result:
 	    result[ ds_name ] = []
-	  value = 0.0  if dset is None else  dset_value.item()
+	  #value = 0.0  if dset is None else  dset_value.item()
+	  value = \
+	      0.0 if dset is None else \
+	      dset_value[ 0 ] if len( dset_value.shape ) > 0 else \
+	      dset_value[ () ]
 	  result[ ds_name ].append( value )
 
 #			-- Detector
