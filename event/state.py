@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-11-30	leerw@ornl.gov				-
+#	  Added timeValue property.
 #		2016-11-29	leerw@ornl.gov				-
 #	  Modfied {Add,Remove}Listeners() to accept multiple params.
 #		2016-10-26	leerw@ornl.gov				-
@@ -91,7 +93,8 @@ STATE_CHANGE_dataModelMgr = 0x1 << 4
 STATE_CHANGE_scaleMode = 0x1 << 5
 STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
-STATE_CHANGE_weightsMode = 0x1 << 8
+STATE_CHANGE_timeValue = 0x1 << 8
+STATE_CHANGE_weightsMode = 0x1 << 9
 
 STATE_CHANGE_ALL = 0xffffffff
 
@@ -128,6 +131,7 @@ LOCKABLE_STATES = \
     ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
     ( STATE_CHANGE_stateIndex, 'State Point' )
+    ( STATE_CHANGE_timeValue, 'Time' )
   ]
 
 ##  LOCKABLE_STATES = \
@@ -217,6 +221,9 @@ All indices are 0-based.
 +-------------+----------------+----------------+------------------------------+
 | timeDataSet | timeDataSet    | time_dataset   | dataset to use for "time"    |
 +-------------+----------------+----------------+------------------------------+
+| timeValue   | timeValue      | time_value     | time dataset value           |
+|             |                |                | (replaces stateIndex)        |
++-------------+----------------+----------------+------------------------------+
 | weightsMode | weightsMode    | weights_mode   | 'on' or 'off'                |
 +-------------+----------------+----------------+------------------------------+
 """
@@ -268,6 +275,7 @@ All indices are 0-based.
     self.stateIndex = -1
     self.subAddr = ( -1, -1 )
     self.timeDataSet = 'state'
+    self.timeValue = 0.0
     self.weightsMode = 'on'
 
     self.Change( State.CreateLocks(), **kwargs )
@@ -281,12 +289,12 @@ All indices are 0-based.
     """This needs to be updated.  Perhaps dump the JSON sans dataModelMgr.
 """
     coord = self.assemblyAddr + self.colRow + tuple( self.auxColRows )
-    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,state=%d,time=%s,weights=%s' % \
+    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,state=%d,timeDataSet=%s,time=%f,weights=%s' % \
         (
 	str( self.axialValue ), str( coord ),
 	self.curDataSet, self.scaleMode,
 	self.stateIndex, self.timeDataSet,
-	self.weightsMode
+	self.timeValue, self.weightsMode
         )
     return  result
   #end __str__
@@ -326,16 +334,13 @@ Keys passed and the corresponding state bit are:
   aux_sub_addrs		STATE_CHANGE_coordinates
   axial_value		STATE_CHANGE_axialValue
   cur_dataset		STATE_CHANGE_curDataSet
-<<<<<<< HEAD
-  data_model		STATE_CHANGE_dataModel
-  node_addr		STATE_CHANGE_coordinates
-=======
   data_model_mgr	STATE_CHANGE_dataModelMgr
->>>>>>> multiple_files
+  node_addr		STATE_CHANGE_coordinates
   scale_mode		STATE_CHANGE_scaleMode
   state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
   time_dataset		STATE_CHANGE_timeDataSet
+  time_value		STATE_CHANGE_timeValue
   weights_mode		STATE_CHANGE_weightsMode
 @return			change reason mask
 """
@@ -389,6 +394,10 @@ Keys passed and the corresponding state bit are:
         self.timeDataSet = kwargs[ 'time_dataset' ]
         reason |= STATE_CHANGE_timeDataSet
 
+    if 'time_value' in kwargs and locks[ STATE_CHANGE_timeValue ]:
+      self.timeValue = kwargs[ 'time_value' ]
+      reason |= STATE_CHANGE_timeValue
+
     if 'weights_mode' in kwargs:
       self.weightsMode = kwargs[ 'weights_mode' ]
       reason |= STATE_CHANGE_weightsMode
@@ -429,6 +438,9 @@ Keys passed and the corresponding state bit are:
 
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self.timeDataSet
+
+    if (reason & STATE_CHANGE_timeValue) > 0:
+      update_args[ 'time_value' ] = self.timeValue
 
     if (reason & STATE_CHANGE_weightsMode) > 0:
       update_args[ 'weights_mode' ] = self.weightsMode
@@ -616,6 +628,17 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetTimeValue()					-
+  #----------------------------------------------------------------------
+  def GetTimeValue( self ):
+    """Accessor for the timeValue property.
+@return			current timeDataSet value
+"""
+    return  self.timeValue
+  #end GetTimeValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetWeightsMode()				-
   #----------------------------------------------------------------------
   def GetWeightsMode( self ):
@@ -661,18 +684,11 @@ has already been added to dataModelMgr.
         ndx = core.coreMap[ row, col ] - 1
       self.assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
 
-      ##self.axialValue = data_model.NormalizeAxialValue( undefined_ax )
       self.axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
 
-      #self.channelDataSet = data_model.GetFirstDataSet( 'channel' )
-
-      #self.detectorDataSet = data_model.GetFirstDataSet( 'detector' )
-      #self.detectorIndex = data_model.NormalizeDetectorIndex( undefined3 )
-      #self.fixedDetectorDataSet = data_model.GetFirstDataSet( 'fixed_detector' )
       self.curDataSet = 'pin_powers' \
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
 	  data_model.GetFirstDataSet( 'pin' )
-      #self.scalarDataSet = data_model.GetDefaultScalarDataSet()
       self.stateIndex = data_model.NormalizeStateIndex( -1 )
 
       ##self.colRow = data_model.NormalizeColRow( undefined2 )
@@ -684,6 +700,12 @@ has already been added to dataModelMgr.
           if 'exposure' in data_model.GetDataSetNames( 'time' ) else \
 	  'state'
       ##self.timeDataSet = data_model.ResolveTimeDataSetName()
+      if self.timeDataSet == 'state':
+        self.timeValue = 0.0
+      else:
+        time_dset = data_model.GetStateDataSet( 0, self.timeDataSet )
+	self.timeValue = \
+	    time_dset[ 0 ] if len( time_dset.shape ) > 0 else time_dset[ () ]
 
     else:
       self.assemblyAddr = undefined3
@@ -693,6 +715,7 @@ has already been added to dataModelMgr.
       self.stateIndex = -1
       self.subAddr = undefined2
       self.timeDataSet = 'state'
+      self.timeValue = 0.0
 
     self.auxColRows = []
   #end Init

@@ -9,7 +9,7 @@
 #		2016-08-19	leerw@ornl.gov				-
 #		2016-08-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, cStringIO, h5py, json, math, os, sys, \
+import bisect, copy, cStringIO, h5py, logging, json, math, os, sys, \
     tempfile, threading, traceback, uuid
 import numpy as np
 import pdb
@@ -65,6 +65,7 @@ Properties:
     self.fixedDetectorMeshCenters = None
     self.listeners = \
         { 'dataSetAdded': [], 'modelAdded': [], 'modelRemoved': [] }
+    self.logger = logging.getLogger( 'data' )
     self.maxAxialValue = 0.0
     self.timeDataSet = 'state'
     self.timeValues = []
@@ -85,6 +86,64 @@ Properties:
         self.listeners[ event_name ].append( listener )
     #end if event_name
   #end AddListener
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.AssembleQDataSetName()		-
+  #----------------------------------------------------------------------
+  def AssembleQDataSetName( self, ds_name, model_id = '' ):
+    """Assembles the "qualified" dataset name.
+@param  ds_name		dataset name (which might have a tag prefix)
+@param  model_id	model id
+@return			qualified name
+"""
+    return \
+        '%s|%s' % ( model_id, ds_name )  if model_id else \
+	ds_name
+  #end AssembleQDataSetName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CheckDataModelIsCompatible()	-
+  #----------------------------------------------------------------------
+  def CheckDataModelIsCompatible( self, dm ):
+    """Checks dm for a compatible core geometry.
+@param  dm		DataModel to check
+@throws			Exception with message if incompatible
+"""
+    if dm:
+      if not dm.HasData():
+        raise  Exception( 'Required VERA data not found' )
+
+      if len( self.dataModelIds ) > 0:
+        cur_dm = self.dataModels[ self.dataModelIds[ 0 ] ]
+        cur_core = cur_dm.GetCore()
+	dm_core = dm.GetCore()
+	if cur_core.nass != dm_core.nass or \
+	    cur_core.nassx != dm_core.nassx or \
+	    cur_core.npinx != dm_core.npinx or \
+	    cur_core.npiny != dm_core.npiny:
+	  msg_fmt = \
+	      'Incompatible core geometry:\n' + \
+	      '\tnass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d\n' + \
+	      'is not compatible with\n' + \
+	      '\tnass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d'
+	  msg = msg_fmt % (
+	      dm_core.nass, dm_core.nassx, dm_core.nassy,
+	      dm_core.npinx, dm_core.npiny,
+	      cur_core.nass, cur_core.nassx, cur_core.nassy,
+	      cur_core.npinx, cur_core.npiny
+	      )
+          raise  Exception( msg )
+
+        if cur_cure.coreSym != dm_core.coreSym:
+	  msg = \
+	      'Core symmetry mismatch: %d versus %d' % \
+	      ( dm_core.coreSym, cur_core.coresym )
+          raise  Exception( msg )
+      #end if len
+    #end if dm
+  #end CheckDataModelIsCompatible
 
 
   #----------------------------------------------------------------------
@@ -396,17 +455,27 @@ is not None, otherwise retrieves the union of values across all models.
     """Opens the HDF5 file or filename.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
-@return			new DataModel object or None if not opened
+@return			new DataModel object
+@throws			Exception with error or incompatibility message
 """
+#		-- Assert on file read
+#		--
+    dm = None
     try:
-#		-- Open
       id = str( uuid.uuid4() )
       dm = DataModel( h5f_param, id )
+    except Exception, ex:
+      msg = 'Error reading "%s": %s' % ( h5f_param, ex.message )
+      self.logger.error( msg )
+      raise  IOError( msg )
 
-#		-- Assert on data
-      if not dm.HasData():
-        raise  Exception( 'Required VERA data not found' )
+#		-- Assert on compatibility
+#		--
+    self._CheckDataModelIsCompatible( dm )
 
+#		-- Process
+#		--
+    try:
       dm.AddListener( 'newDataSet', self._OnNewDataSet )
       self.dataModelIds.append( id )
       self.dataModels[ id ] = dm
@@ -418,8 +487,45 @@ is not None, otherwise retrieves the union of values across all models.
       return  dm
 
     except Exception, ex:
-      raise  IOError( 'Error reading "%s": %s' % ( h5f_param, ex.message ) )
+      msg = 'Error processing "%s": %s' % ( h5f_param, ex.message )
+      self.logger.error( msg )
+      raise  IOError( msg )
   #end OpenModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.ParseQDataSetName()		-
+  #----------------------------------------------------------------------
+  def ParseQDataSetName( self, qds_name ):
+    """Parses the "qualified" dataset name into a tuple containing the
+display_name, model_id, and tag (e.g., 'copy').
+@param  qds_name	qualified dataset name
+@return			display_name, model_id, tag
+"""
+    display_name = ''
+    model_id = ''
+    tag = ''
+
+    if qds_name:
+      bar_ndx = qds_name.find( '|' )
+      if bar_ndx < 0:
+        remainder = qds_name
+      else:
+        model_id = qds_name[ 0 : bar_ndx ]
+	remainder = qds_name[ bar_ndx + 1 : ]
+
+      if remainder.startswith( 'copy:' ):
+        display_name = remainder[ 5 : ]
+	tag = 'copy'
+      elif remainder.startswith( 'derived:' ):
+        display_name = remainder[ 8 : ]
+	tag = 'derived'
+      else:
+        display_name = remainder
+    #end if qds_name
+
+    return  display_name, model_id, tag
+  #end ParseQDataSetName
 
 
   #----------------------------------------------------------------------

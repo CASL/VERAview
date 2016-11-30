@@ -51,14 +51,14 @@ class DataModelMgrITest( object ):
     if mesh_values:
       print '\n[DataModelMgrITest] mesh value indexes:'
       for mesh_value in mesh_values:
-	print '  [mesh=%f]' % mesh_value
+	print '[mesh=%f]' % mesh_value
         for id in self.fMgr.GetDataModelIds():
 	  axial_value = \
 	      self.fMgr.GetDataModel( id ).CreateAxialValue( cm = mesh_value )
-          print '    %s=%s' % ( id, str( axial_value ) )
+          print '  %s=%s' % ( id, str( axial_value ) )
 
 	axial_value = self.fMgr.GetAxialValue( cm = mesh_value )
-        print '    ALL=%s' % str( axial_value )
+        print '  ALL=%s' % str( axial_value )
       #end for mesh_value
     #end if mesh_values
   #end CheckMeshIndexes
@@ -71,14 +71,18 @@ class DataModelMgrITest( object ):
     if mesh_ndxs:
       print '\n[DataModelMgrITest] mesh index values:'
       for ndx in mesh_ndxs:
-	print '  [core_ndx=%d]' % ndx
-        for id in self.fMgr.GetDataModelIds():
-	  axial_value = \
-	      self.fMgr.GetDataModel( id ).CreateAxialValue( core_ndx = ndx )
-          print '    %s=%s' % ( id, str( axial_value ) )
-
+	print '[core_ndx=%d]' % ndx
 	axial_value = self.fMgr.GetAxialValue( core_ndx = ndx )
-        print '    ALL=%s' % str( axial_value )
+        print '  ALL=%s' % str( axial_value )
+
+	axial_cm = axial_value[ 0 ]
+        for id in self.fMgr.GetDataModelIds():
+	  dm = self.fMgr.GetDataModel( id )
+	  axial_value = dm.CreateAxialValue( cm = axial_cm )
+          print '  %s=%s (%f)' % (
+	      id, str( axial_value ),
+	      dm.GetCore().GetAxialMeshCenters()[ axial_value[ 1 ] ]
+	      )
       #end for mesh_value
     #end if mesh_ndxs
   #end CheckMeshValues
@@ -91,13 +95,13 @@ class DataModelMgrITest( object ):
     if time_values:
       print '\n[DataModelMgrITest] time value indexes:'
       for time_value in time_values:
-	print '  [time=%f]' % time_value
+	print '[time=%f]' % time_value
         for id in self.fMgr.GetDataModelIds():
 	  ndx = self.fMgr.GetTimeValueIndex( time_value, id )
-          print '    %s=%d (%f)' % \
+          print '  %s=%d (%f)' % \
 	      ( id, ndx, self.fMgr.GetTimeValues( id )[ ndx ] )
 	ndx = self.fMgr.GetTimeValueIndex( time_value )
-        print '    ALL=%d (%f)' % \
+        print '  ALL=%d (%f)' % \
 	    ( ndx, self.fMgr.GetTimeValues()[ ndx ] )
       #end for time_value
     #end if time_values
@@ -175,40 +179,40 @@ class DataModelMgrITest( object ):
   def PrintSummary( self ):
     print '\n[DataModelMgrITest] data models:'
     for id, dm in self.fMgr.GetDataModels().iteritems():
-      print '  %s=%s' % ( id, dm.GetName() )
+      print '%s=%s' % ( id, dm.GetName() )
 
     print '\n[DataModelMgrITest]'
-    print '  available time datasets=%s' % \
+    print 'available time datasets=%s' % \
         str( self.fMgr.ResolveAvailableTimeDataSets() )
 
-    print '  maxAxialValue=%f\n  timeDataSet=%s' % \
+    print 'maxAxialValue=%f\ntimeDataSet=%s' % \
         ( self.fMgr.GetMaxAxialValue(), self.fMgr.GetTimeDataSet() )
 
     print '\n[DataModelMgrITest] axialMeshCenters:'
     for id in self.fMgr.GetDataModelIds():
       dm = self.fMgr.GetDataModel( id )
       values = dm.GetCore().GetAxialMeshCenters() if dm.GetCore() else None
-      print '  %s=%s' % ( id, str( values ) )
-    print '  ALL=%s' % str( self.fMgr.GetAxialMeshCenters() )
+      print '%s=\n%s' % ( id, str( values ) )
+    print 'ALL=\n%s' % str( self.fMgr.GetAxialMeshCenters() )
 
     print '\n[DataModelMgrITest] detectorMesh:'
     for id in self.fMgr.GetDataModelIds():
       dm = self.fMgr.GetDataModel( id )
       values = dm.GetCore().GetDetectorMesh() if dm.GetCore() else None
-      print '  %s=%s' % ( id, str( values ) )
-    print '  ALL=%s' % str( self.fMgr.GetDetectorMesh() )
+      print '%s=\n%s' % ( id, str( values ) )
+    print 'ALL=\n%s' % str( self.fMgr.GetDetectorMesh() )
 
     print '\n[DataModelMgrITest] fixedDetectorMeshCenters:'
     for id in self.fMgr.GetDataModelIds():
       dm = self.fMgr.GetDataModel( id )
       values = dm.GetCore().GetFixedDetectorMeshCenters() if dm.GetCore() else None
-      print '  %s=%s' % ( id, str( values ) )
-    print '  ALL=%s' % str( self.fMgr.GetFixedDetectorMeshCenters() )
+      print '%s=\n%s' % ( id, str( values ) )
+    print 'ALL=\n%s' % str( self.fMgr.GetFixedDetectorMeshCenters() )
 
     print '\n[DataModelMgrITest] time values:'
     for id in self.fMgr.GetDataModelIds():
-      print '  %s=%s' % ( id, str( self.fMgr.GetTimeValues( id ) ) )
-    print '  ALL=%s' % str( self.fMgr.GetTimeValues() )
+      print '%s=%s' % ( id, str( self.fMgr.GetTimeValues( id ) ) )
+    print 'ALL=%s' % str( self.fMgr.GetTimeValues() )
   #end PrintSummary
 
 
@@ -269,7 +273,7 @@ class DataModelMgrITest( object ):
 
       test.CheckTimeIndexes( *args.time_values )
       test.CheckMeshIndexes( *args.mesh_values )
-      test.CheckMeshValues( *args.mesh_values )
+      test.CheckMeshValues( *args.mesh_indexes )
 
     except Exception, ex:
       print >> sys.stderr, str( ex )
@@ -281,40 +285,6 @@ class DataModelMgrITest( object ):
         tb = tb.tb_next
       #end while
   #end main
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgrITest.tofloats()			-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def tofloats( *values ):
-    result = []
-    if values:
-      for v in values:
-        try:
-	  result.append( float( v ) )
-	except:
-	  pass
-
-    return  result
-  #end tofloats
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgrITest.toints()			-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def toints( *values ):
-    result = []
-    if values:
-      for v in values:
-        try:
-	  result.append( int( v ) )
-	except:
-	  pass
-
-    return  result
-  #end toints
 
 #end DataModelMgrITest
 

@@ -459,6 +459,8 @@ Properties:
   ndetax		number of detector axial levels
   nfdetax		number of fixed_detector axial levels
   npin			number of pins in each assembly
+  npinx			number of pin columns
+  npiny			number of pin rows
   pinVolumes		np.ndarray, row-major, origin top,left
   pinVolumesSum		sum of all pin volumes
   fixedDetectorMesh		np.ndarray of mesh values
@@ -1388,8 +1390,8 @@ Parameters:
   core_ndx		0-based core axial index
   detector_ndx		0-based detector axial index
   fixed_detector_ndx	0-based fixed_detector axial index
-  pin_ndx		0-based core axial index, alias for 'core_ndx'
-  value			axial value in cm, alias for 'cm'
+  pin_ndx		alias for 'core_ndx'
+  value			alias for 'cm'
 @return			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx )
 """
     core_ndx = -1
@@ -2685,7 +2687,6 @@ returned.  Calls FindMinMaxValueAddr().
         ds_name[ 5 : ]  if ds_name.startswith( 'copy:' ) else \
         ds_name[ 8 : ]  if ds_name.startswith( 'derived:' ) else \
 	ds_name
-#        ds_name[ 6 : ]  if ds_name.startswith( 'extra:' ) else
   #end GetDataSetDisplayName
 
 
