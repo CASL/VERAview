@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-11-30	leerw@ornl.gov				-
 #		2016-11-29	leerw@ornl.gov				-
 #	  Review and clean-up.
 #		2016-08-19	leerw@ornl.gov				-
@@ -14,6 +15,7 @@ import numpy as np
 import pdb
 
 from data.datamodel import *
+from data.utils import *
 from event.event import *
 
 
@@ -55,14 +57,18 @@ Properties:
   def __init__( self ):
     """
 """
+    self.axialMeshCenters = None
     self.dataModelIds = []
     self.dataModels = {}
     self.dataSetNamesVersion = 0
+    self.detectorMesh = None
+    self.fixedDetectorMeshCenters = None
     self.listeners = \
         { 'dataSetAdded': [], 'modelAdded': [], 'modelRemoved': [] }
     self.maxAxialValue = 0.0
     self.timeDataSet = 'state'
     self.timeValues = []
+    self.timeValuesById = {}
   #end __init__
 
 
@@ -117,10 +123,11 @@ Properties:
       dm.Close()
 
       del self.dataModels[ id ]
+      del self.timeValuesById[ id ]
       self.dataModelIds.remove( id )
 
       if not closing_all:
-        self._UpdateMaxAxialValue()
+        self._UpdateMeshValues()
         self._UpdateTimeValues()
         self.dataSetNamesVersion += 1
 	self._FireEvent( 'modelRemoved', model_name )
@@ -152,6 +159,80 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetAxialMeshCenters()		-
+  #----------------------------------------------------------------------
+  def GetAxialMeshCenters( self, id = None ):
+    """Accessor for the axialMeshCenters property, which is all the mesh
+values across all models.
+@return			mesh values as a list
+"""
+    return  self.axialMeshCenters
+  #end GetAxialMeshCenters
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetAxialValue()			-
+  #----------------------------------------------------------------------
+  def GetAxialValue( self, id = None, **kwargs ):
+    """Retrieves the axial value tuple ( axial_cm, core_ndx, detector_ndx,
+fixed_detector_ndx ) for the model with 'id' if specified.  Otherwise, the
+cross-model levels are used and can be applied only with 'cm' and 'core_ndx'
+arguments.  Calls CreateAxialValue() on the identified DataModel.
+@param  id		id to identify model, or None for across all models
+@param  kwargs		arguments
+    cm				axial value in cm
+    core_ndx			0-based core axial index
+    detector_ndx		0-based detector axial index
+    fixed_detector_ndx		0-based fixed_detector axial index
+    pin_ndx			0-based core axial index, alias for 'core_ndx'
+    value			axial value in cm, alias for 'cm'
+@return			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx )
+"""
+    core_ndx = -1
+    det_ndx = -1
+    fdet_ndx = -1
+    axial_cm = 0.0
+
+    if id:
+      if id in self.dataModels:
+	axial_cm, core_ndx, det_ndx, fdet_ndx = \
+        self.dataModels[ id ].CreateAxialValue( kwargs )
+
+    elif 'cm' in kwargs or 'value' in kwargs:
+      axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )
+      core_ndx = DataUtils.FindListIndex( self.axialMeshCenters, axial_cm )
+      det_ndx = DataUtils.FindListIndex( self.detectorMesh, axial_cm )
+      fdet_ndx = DataUtils.FindListIndex( self.fixedDetectorMeshCenters, axial_cm )
+
+    elif 'core_ndx' in kwargs or 'pin_ndx' in kwargs:
+      if self.axialMeshCenters:
+        core_ndx = kwargs.get( 'core_ndx', kwargs.get( 'pin_ndx', 0 ) )
+        core_ndx = max( 0, min( core_ndx, len( self.axialMeshCenters ) - 1 ) )
+        axial_cm = self.axialMeshCenters[ core_ndx ]
+        det_ndx = DataUtils.FindListIndex( self.detectorMesh, axial_cm )
+        fdet_ndx = DataUtils.FindListIndex( self.fixedDetectorMeshCenters, axial_cm )
+
+    elif 'detector_ndx' in kwargs:
+      if self.detectorMesh:
+        det_ndx = kwargs[ 'detector_ndx' ]
+        det_ndx = max( 0, min( det_ndx, len( self.detectorMesh ) - 1 ) )
+        axial_cm = self.detectorMesh[ det_ndx ]
+        core_ndx = DataUtils.FindListIndex( self.axialMeshCenters, axial_cm )
+        fdet_ndx = DataUtils.FindListIndex( self.fixedDetectorMeshCenters, axial_cm )
+
+    elif 'fixed_detector_ndx' in kwargs:
+      if self.fixedDetectorMeshCenters:
+        fdet_ndx = kwargs[ 'fixed_detector_ndx' ]
+	fdet_ndx = max( 0, min( fdet_ndx, len( self.fixedDetectorMeshCenters ) - 1 ) )
+        axial_cm = self.fixedDetectorMeshCenters[ fdet_ndx ]
+        core_ndx = DataUtils.FindListIndex( self.axialMeshCenters, axial_cm )
+        det_ndx = DataUtils.FindListIndex( self.detectorMesh, axial_cm )
+
+    return  axial_cm, core_ndx, det_ndx, fdet_ndx
+  #end GetAxialValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModel()			-
   #----------------------------------------------------------------------
   def GetDataModel( self, id ):
@@ -163,10 +244,29 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataModelCount()		-
+  #----------------------------------------------------------------------
+  def GetDataModelCount( self ):
+    return  len( self.dataModels )
+  #end GetDataModelCount
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataModelIds()			-
+  #----------------------------------------------------------------------
+  def GetDataModelIds( self ):
+    """
+@return			list of model IDs
+"""
+    return  self.dataModelIds
+  #end GetDataModelIds
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModels()			-
   #----------------------------------------------------------------------
   def GetDataModels( self ):
-    """Accessor for the 'dataModels' property.
+    """Accessor for the dataModels property.
 @return			reference
 """
     return  self.dataModels
@@ -186,22 +286,38 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDetectorMesh()			-
+  #----------------------------------------------------------------------
+  def GetDetectorMesh( self, id = None ):
+    """Accessor for the detectorMesh property, which is all the mesh
+values across all models.
+@return			mesh values as a list
+"""
+    return  self.detectorMesh
+  #end GetDetectorMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFixedDetectorMeshCenters()	-
+  #----------------------------------------------------------------------
+  def GetFixedDetectorMeshCenters( self, id = None ):
+    """Accessor for the fixedDetectorMeshCenters property, which is all the
+mesh values across all models.
+@return			mesh values as a list
+"""
+    return  self.fixedDetectorMeshCenters
+  #end GetFixedDetectorMeshCenters
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetMaxAxialValue()			-
   #----------------------------------------------------------------------
   def GetMaxAxialValue( self ):
-    """Accessor for the 'maxAxialValue' property.
+    """Accessor for the maxAxialValue property.
 @return			maximum axial value in cm
 """
     return  self.maxAxialValue
   #end GetMaxAxialValue
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetModelCount()			-
-  #----------------------------------------------------------------------
-  def GetModelCount( self ):
-    return  len( self.dataModels )
-  #end GetModelCount
 
 
   #----------------------------------------------------------------------
@@ -216,13 +332,41 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetTimeValueIndex()		-
+  #----------------------------------------------------------------------
+  def GetTimeValueIndex( self, value, id = None ):
+    """Determines the 0-based index of the value in the values list such that
+values[ ndx ] <= value < values[ ndx + 1 ].  If id is specified, only the
+list of values for the specified model are used.  Otherwise, the cross-model
+values are used.
+@param  id		optional ID to identify the model of interest
+@return			0-based index such that
+			values[ ndx ] <= value < values[ ndx + 1 ]
+"""
+    ndx = -1
+    values = self.GetTimeValues( id )
+    if values:
+      ndx = bisect.bisect_right( values, value ) - 1
+      ndx = max( 0, min( ndx, len( values ) - 1 ) )
+    #end if
+
+    return  ndx
+  #end GetTimeValueIndex
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeValues()			-
   #----------------------------------------------------------------------
-  def GetTimeValues( self ):
-    """
-@return			list of time values identifying state points
+  def GetTimeValues( self, id = None ):
+    """Retrieves the time dataset values for the specified model if 'id'
+is not None, otherwise retrieves the union of values across all models.
+@param  id		optional ID to identify the model of interest
+@return			list of time dataset values for the specified model
+			or across all models
 """
-    return  len( self.timeValues )
+    return \
+	self.timeValuesById[ id ]  if id and id in self.timeValuesById else \
+	self.timeValues
   #end GetTimeValues
 
 
@@ -264,8 +408,10 @@ lists that must be rebuilt when the sets of available datasets change.
         raise  Exception( 'Required VERA data not found' )
 
       dm.AddListener( 'newDataSet', self._OnNewDataSet )
+      self.dataModelIds.append( id )
       self.dataModels[ id ] = dm
-      self._UpdateMaxAxialValue()
+      self._UpdateMeshValues()
+      self._UpdateTimeValues()
       self.dataSetNamesVersion += 1
       self._FireEvent( 'modelAdded', dm.GetName() )
 
@@ -292,6 +438,32 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.ResolveAvailableTimeDataSets()	-
+  #----------------------------------------------------------------------
+  def ResolveAvailableTimeDataSets( self ):
+    """Determines which time datasets are available across all models.
+The fallback is 'state', meaning state point index.
+@return			list of ds names
+"""
+    time_ds_names = set([ 'state' ])
+    for name in TIME_DS_NAMES:
+      found = True
+      for dm in self.dataModels.values():
+        st = dm.GetState()
+	if not (st and st.HasDataSet( name )):
+	  found = False
+	  break
+      #end for dm
+
+      if found:
+        time_ds_names.add( name )
+    #end for name
+
+    return  list( time_ds_names )
+  #end ResolveAvailableTimeDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.SetTimeDataSet()			-
   #----------------------------------------------------------------------
   def SetTimeDataSet( self, ds_name ):
@@ -304,55 +476,79 @@ lists that must be rebuilt when the sets of available datasets change.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr._UpdateMaxAxialValue()		-
+  #	METHOD:		DataModelMgr._UpdateMeshValues()		-
   #----------------------------------------------------------------------
-  def _UpdateMaxAxialValue( self ):
-    """Calculates the maximum axial value across all models and sets the
-'maxAxialValue' property
-@return			new maximum axial value in cm
+  def _UpdateMeshValues( self ):
+    """Updates the axialMeshCenters, detectorMesh,
+fixedDetectorMeshCenters, and maxAxialValue properties.
+@return			maxAxialValue property value
 """
-    result = -1.0
+    self.maxAxialValue = -1.0
+    axial_mesh_centers = set()
+    detector_mesh = set()
+    fixed_detector_mesh_centers = set()
+
     for dm in self.dataModels.values():
       core = dm.GetCore()
-      if core.axialMeshCenters is not None:
-        result = max( result, core.axialMeshCenters[ -1 ] )
-      if core.detectorMesh is not None:
-        result = max( result, core.detectorMesh[ -1 ] )
-      if core.fixedDetectorMeshCenters is not None:
-        result = max( result, core.fixedDetectorMeshCenters[ -1 ] )
-    #end for
-    self.maxAxialValue = result
-    return  result
-  #end _UpdateMaxAxialValue
+      if core is not None:
+        if core.axialMeshCenters is not None:
+	  self.maxAxialValue = \
+	      max( self.maxAxialValue, core.axialMeshCenters[ -1 ] )
+	  axial_mesh_centers.update( set( core.axialMeshCenters ) )
+
+        if core.detectorMesh is not None:
+	  self.maxAxialValue = \
+	      max( self.maxAxialValue, core.detectorMesh[ -1 ] )
+	  detector_mesh.update( set( core.detectorMesh ) )
+
+        if core.fixedDetectorMeshCenters is not None:
+	  self.maxAxialValue = \
+	      max( self.maxAxialValue, core.fixedDetectorMeshCenters[ -1 ] )
+	  fixed_detector_mesh_centers.\
+	      update( set( core.fixedDetectorMeshCenters ) )
+      #if core
+    #end for dm
+
+    self.axialMeshCenters = list( sorted( axial_mesh_centers ) )
+    self.detectorMesh = list( sorted( detector_mesh ) )
+    self.fixedDetectorMeshCenters = list( sorted( fixed_detector_mesh_centers ) )
+
+    return  self.maxAxialValue
+  #end _UpdateMeshValues
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr._UpdateTimeValues()		-
   #----------------------------------------------------------------------
   def _UpdateTimeValues( self ):
-    """Updates the 'timeValues' property based on the remaining DataModels
-and the 'timeDataSet' property.
-@return			'timeValues' property value
+    """Updates the timeValues and timeValuesById properties based on the
+open DataModels and the timeDataSet property.
+@return			timeValues property value
 """
-    #xxxxx todo
     result = []
 
     if self.timeDataSet == 'state':
       cur_count = 0
-      for dm in self.dataModels.values():
+      for id, dm in self.dataModels.iteritems():
+	self.timeValuesById[ id ] = range( dm.GetStatesCount() )
         cur_count = max( cur_count, dm.GetStatesCount() )
       result = range( cur_count )
 
     elif self.timeDataSet:
       cur_set = set()
       spec = dict( ds_name = self.timeDataSet )
-      for dm in self.dataModels.values():
+      for id, dm in self.dataModels.iteritems():
 	cur_values = dm.ReadDataSetValues2( spec )
-	if cur_values:
-	  cur_set.union( set( cur_values ) )
+	if cur_values and self.timeDataSet in cur_values:
+	  cur_list = cur_values[ self.timeDataSet ].tolist()
+	  self.timeValuesById[ id ] = cur_list
+	  cur_set.update( set( cur_list ) )
+	else:
+	  self.timeValuesById[ id ] = []
       result = list( cur_set )
     #end if-elif
 
+    result.sort()
     self.timeValues = result
     return  result
   #end _UpdateTimeValues
@@ -392,5 +588,5 @@ and the 'timeDataSet' property.
 #------------------------------------------------------------------------
 #	NAME:		main()						-
 #------------------------------------------------------------------------
-if __name__ == '__main__':
-  DataModelMgr.main()
+#if __name__ == '__main__':
+  #DataModelMgr.main()

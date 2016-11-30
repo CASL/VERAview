@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-11-30	leerw@ornl.gov				-
+#	  Moved FindListIndex to DataUtils.
 #		2016-10-30	leerw@ornl.gov				-
 #	  Removing dependence on pin_powers.
 #		2016-10-26	leerw@ornl.gov				-
@@ -192,7 +194,7 @@ import bisect, copy, cStringIO, h5py, logging, json, math, os, sys, \
 import numpy as np
 import pdb
 
-#from deriveddata import *
+from data.utils import *
 from event.event import *
 
 
@@ -638,6 +640,28 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.GetAxialMesh()				-
+  #----------------------------------------------------------------------
+  def GetAxialMesh( self ):
+    """Getter for 'axialMesh' property.
+@return			np.ndarray
+"""
+    return  self.axialMesh
+  #end GetAxialMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetAxialMeshCenters()			-
+  #----------------------------------------------------------------------
+  def GetAxialMeshCenters( self ):
+    """Getter for 'axialMeshCenters' property.
+@return			np.ndarray
+"""
+    return  self.axialMeshCenters
+  #end GetAxialMeshCenters
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core.GetColLabel()				-
   #----------------------------------------------------------------------
   def GetColLabel( self, from_ndx, to_ndx = -1 ):
@@ -674,6 +698,39 @@ Calls _GetCoreLabel().
 
     return  result
   #end GetCoreLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetDetectorMesh()				-
+  #----------------------------------------------------------------------
+  def GetDetectorMesh( self ):
+    """Getter for 'detectorMesh' property.
+@return			np.ndarray
+"""
+    return  self.detectorMesh
+  #end GetDetectorMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetFixedDetectorMesh()			-
+  #----------------------------------------------------------------------
+  def GetFixedDetectorMesh( self ):
+    """Getter for 'fixedDetectorMesh' property.
+@return			np.ndarray
+"""
+    return  self.fixedDetectorMesh
+  #end GetFixedDetectorMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetFixedDetectorMeshCenters()		-
+  #----------------------------------------------------------------------
+  def GetFixedDetectorMeshCenters( self ):
+    """Getter for 'fixedDetectorMeshCenters' property.
+@return			np.ndarray
+"""
+    return  self.fixedDetectorMeshCenters
+  #end GetFixedDetectorMeshCenters
 
 
   #----------------------------------------------------------------------
@@ -1333,8 +1390,7 @@ Parameters:
   fixed_detector_ndx	0-based fixed_detector axial index
   pin_ndx		0-based core axial index, alias for 'core_ndx'
   value			axial value in cm, alias for 'cm'
-@return			( axial_cm, core_ndx, detector_ndx,
-			  fixed_detector_ndx )
+@return			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx )
 """
     core_ndx = -1
     det_ndx = -1
@@ -1344,45 +1400,31 @@ Parameters:
     if self.core is None:
       pass
 
-    elif 'cm' in kwargs:
-      axial_cm = kwargs[ 'cm' ]
-      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
-      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
-      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+    elif 'cm' in kwargs or 'value' in kwargs:
+      axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )
+      core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
+      fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+
+    elif 'core_ndx' in kwargs or 'pin_ndx' in kwargs:
+      core_ndx = kwargs.get( 'core_ndx', kwargs.get( 'pin_ndx', 0 ) )
+      core_ndx = max( 0, min( core_ndx, self.core.nax - 1 ) )
+      axial_cm = self.core.axialMeshCenters[ core_ndx ]
+      det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
+      fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'detector_ndx' in kwargs:
       det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], self.core.ndetax - 1 ) )
       axial_cm = self.core.detectorMesh[ det_ndx ]
-      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
-      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
-
-    elif 'core_ndx' in kwargs:
-      core_ndx = max( 0, min( kwargs[ 'core_ndx' ], self.core.nax - 1 ) )
-      axial_cm = self.core.axialMeshCenters[ core_ndx ]
-      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
-      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
-
-    elif 'pin_ndx' in kwargs: # huh?
-      core_ndx = max( 0, min( kwargs[ 'pin_ndx' ], self.core.nax - 1 ) )
-      axial_cm = self.core.axialMeshCenters[ core_ndx ]
-      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
-      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
-
-    elif 'value' in kwargs:
-      axial_cm = kwargs[ 'value' ]
-      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
-      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
-      fdet_ndx = self.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+      core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
 
     elif 'fixed_detector_ndx' in kwargs:
       fdet_ndx = max( 0, min( kwargs[ 'fixed_detector_ndx' ], self.core.nfdetax - 1 ) )
       axial_cm = self.core.fixedDetectorMeshCenters[ fdet_ndx ]
-      #core_ndx = self.FindListIndex( self.core.axialMesh, axial_cm )
-      core_ndx = self.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      det_ndx = self.FindListIndex( self.core.detectorMesh, axial_cm )
+      #core_ndx = DataUtils.FindListIndex( self.core.axialMesh, axial_cm )
+      core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
 
     return  ( axial_cm, core_ndx, det_ndx, fdet_ndx )
   #end CreateAxialValue
@@ -1858,36 +1900,14 @@ Calls FindMaxValueAddr().
   #	METHOD:		DataModel.FindListIndex()			-
   #----------------------------------------------------------------------
   def FindListIndex( self, values, value ):
-    """Values in the list are assumed to be in order, either ascending or
-descending.  Note bisect only does ascending.
+    """Calls DataUtils.FindListIndex().
 @param  values		list of values
 @param  value		value to search
 @return			0-based index N, values[ N ]
 			'a': values[ N ] <= value < values[ N + 1 ]
 			'd': values[ N ] >= value > values[ N + 1 ]
 """
-    match_ndx = -1
-
-    if values is not None and len( values ) > 0:
-#			-- Descending
-      if values[ 0 ] > values[ -1 ]:
-        lo = 0
-	hi = len( values )
-        while lo < hi:
-	  mid = ( lo + hi ) // 2
-          if value > values[ mid ]:  hi = mid
-          else:  lo = mid + 1
-        match_ndx = min( lo, len( values ) - 1 )
-
-#			-- Ascending
-      else:
-        match_ndx = min(
-            bisect.bisect_left( values, value ),
-	    len( values ) - 1
-	    )
-    #end if not empty list
-
-    return  match_ndx
+    return  DataUtils.FindListIndex( values, value )
   #end FindListIndex
 
 

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2016-11-30	leerw@ornl.gov				-
+#	  Moved FindListIndex() here from DataModel.
 #		2016-09-19	leerw@ornl.gov				-
 #	  Fixed FormatFloat{23}() to never call math.log() on zero.
 #		2015-12-22	leerw@ornl.gov				-
@@ -11,7 +13,7 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys
+import bisect, math, os, sys
 import pdb
 
 
@@ -25,6 +27,49 @@ class DataUtils( object ):
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		FindListIndex()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def FindListIndex( values, value ):
+    """Values in the list are assumed to be in order, either ascending or
+descending.  Note bisect only does ascending.
+@param  values		list of values
+@param  value		value to search
+@return			0-based index N, values[ N ]
+			'a': values[ N ] <= value < values[ N + 1 ]
+			'd': values[ N ] >= value > values[ N + 1 ]
+"""
+    match_ndx = -1
+
+    if values is not None and len( values ) > 0:
+#			-- Descending
+      if values[ 0 ] > values[ -1 ]:
+        match_ndx = \
+	    len( values ) - 1 - bisect.bisect_left( sorted( values ), value )
+        match_ndx = max( 0, min( match_ndx, len( values ) - 1 ) )
+#        lo = 0
+#	hi = len( values )
+#        while lo < hi:
+#	  mid = ( lo + hi ) // 2
+#          if value > values[ mid ]:  hi = mid
+#          else:  lo = mid + 1
+#        match_ndx = min( lo, len( values ) - 1 )
+
+#			-- Ascending
+      else:
+	match_ndx = bisect.bisect_right( values, value ) - 1
+	match_ndx = max( 0, min( match_ndx, len( values ) - 1 ) )
+#        match_ndx = min(
+#            bisect.bisect_left( values, value ),
+#	    len( values ) - 1
+#	    )
+    #end if not empty list
+
+    return  match_ndx
+  #end FindListIndex
 
 
   #----------------------------------------------------------------------
