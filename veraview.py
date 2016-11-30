@@ -1186,7 +1186,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.LoadDataModel()			-
   #----------------------------------------------------------------------
-  def LoadDataModel( self, data_model, file_path, session = None, widget_config = None ):
+  def LoadDataModel( self, data_model, file_path, session = None, widget_props = None ):
     """Called when a data file is opened and set in the state.
 Must be called from the UI thread.
 @param  data_model	data_model
@@ -2097,14 +2097,15 @@ Must be called from the UI thread.
 
       elif 'data_model' in status and 'file_path' in status:
 	dmgr = self.state.GetDataModelMgr()
-	if dmgr.GetModelCount() == 1:
+	if dmgr.GetDataModelCount() == 1:
 	  self.state.Init( status[ 'data_model' ] )
+#xxxxx debug 'empty'
 	  wx.CallAfter(
 	      self.LoadDataModel,
 	      status[ 'data_model' ],
 	      status[ 'file_path' ],
 	      status.get( 'session' ),
-	      status.get( 'widget_config' )
+	      'empty'
 	      )
 	#end if only one model
     #end if

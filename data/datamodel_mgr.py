@@ -104,9 +104,9 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.CheckDataModelIsCompatible()	-
+  #	METHOD:		DataModelMgr._CheckDataModelIsCompatible()	-
   #----------------------------------------------------------------------
-  def CheckDataModelIsCompatible( self, dm ):
+  def _CheckDataModelIsCompatible( self, dm ):
     """Checks dm for a compatible core geometry.
 @param  dm		DataModel to check
 @throws			Exception with message if incompatible
@@ -143,7 +143,7 @@ Properties:
           raise  Exception( msg )
       #end if len
     #end if dm
-  #end CheckDataModelIsCompatible
+  #end _CheckDataModelIsCompatible
 
 
   #----------------------------------------------------------------------

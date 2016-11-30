@@ -130,7 +130,7 @@ LOCKABLE_STATES = \
     ( STATE_CHANGE_coordinates, 'Coordinates' ),
     ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
-    ( STATE_CHANGE_stateIndex, 'State Point' )
+    ( STATE_CHANGE_stateIndex, 'State Point' ),
     ( STATE_CHANGE_timeValue, 'Time' )
   ]
 
@@ -303,7 +303,7 @@ All indices are 0-based.
   #----------------------------------------------------------------------
   #	METHOD:		AddListener()					-
   #----------------------------------------------------------------------
-  def AddListener( self, listeners ):
+  def AddListener( self, *listeners ):
     """Adds the listener(s) if not already added.  Listeners must implement
 a HandleStateChange( self, reason ) method.
 @param  listeners	one or more listeners to add
