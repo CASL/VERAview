@@ -159,6 +159,37 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
   def _FindMenuItem( self, ds_type, ds_name, menu = None ):
     """Finds the menu item.
 @param  ds_type		dataset category/type
+@param  ds_name		dataset name tuple
+@return			item or None if not found
+"""
+    match_item = None
+    if menu == None:
+      menu = self
+
+    for item in menu.GetMenuItems():
+      item_text = item.GetItemLabelText()
+      if item_text == ds_name[ -1 ]:
+        match_item = item
+
+      else:
+        sub = item.GetSubMenu()
+	if sub and (item_text == ds_name[ 0 ] or item_text == ds_type):
+	  match_item = self._FindMenuItem( ds_type, ds_name, sub )
+      #end if-else
+
+      if match_item != None: break
+    #end for item
+
+    return  match_item
+  #end _FindMenuItem
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetMenu._FindMenuItem_orig()		-
+  #----------------------------------------------------------------------
+  def _FindMenuItem_orig( self, ds_type, ds_name, menu = None ):
+    """Finds the menu item.
+@param  ds_type		dataset category/type
 @param  ds_name		dataset name
 @return			item or None if not found
 """
@@ -180,7 +211,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     #end for item
 
     return  match_item
-  #end _FindMenuItem
+  #end _FindMenuItem_orig
 
 
   #----------------------------------------------------------------------
@@ -228,29 +259,18 @@ otherwise returns self.state.curDataSet
         #data = self.state.GetDataModel()
 	dmgr = self.state.GetDataModelMgr()
         qds_name = self.state.GetCurDataSet()
-	dmodel = dmgr.GetDataModel( qds_name = qds_name )
+	ds_name = DATASET_NAMER.Parse( qds_name )
+	dmodel = dmgr.GetDataModel( ds_name[ 0 ] )
         ds_type = \
-	    dmodel.GetDataSetType( qds_name ) if dmodel and qds_name else None
+	    dmodel.GetDataSetType( ds_name[ 1 ] ) \
+	    if dmodel and qds_name else \
+	    None
 	item = self._FindMenuItem( ds_type, ds_name ) if ds_type else None
-	if item and item.GetItemLabelText() == ds_name and \
+	if item and item.GetItemLabelText() == ds_name[ -1 ] and \
 	    not item.IsChecked():
 	  self._CheckSingleItem( self, item )
-
-#_        if item and item.GetKind() == wx.ITEM_RADIO and \
-#_	    item.GetItemLabelText() == ds_name:
-#_          item.Check()
-
-#_    else:
-#_      changes = self.state.GetDataSetChanges( reason )
-#_      if changes:
-#_        for ds_type, ds_name in changes.iteritems():
-#_          item = self._FindMenuItem( ds_type, ds_name )
-#_          if item and item.GetKind() == wx.ITEM_RADIO and \
-#_	      item.GetItemLabelText() == self.state.GetDataSetByType( ds_type ):
-#_            item.Check()
-#_        #end for ds_type, ds_name
-#_      #end if changes
-    #if-else
+      #end if single selection
+    #end if curDataSet
   #end HandleStateChange
 
 

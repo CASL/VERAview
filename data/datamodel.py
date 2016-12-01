@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-12-01	leerw@ornl.gov				-
 #	  Added DataSetNamer and DATASET_NAMER singleton.
+#	  Removed id property from DataModel, added SetName().
 #		2016-11-30	leerw@ornl.gov				-
 #	  Moved FindListIndex to DataUtils.
 #		2016-10-30	leerw@ornl.gov				-
@@ -1154,10 +1155,10 @@ Properties:
   derivedLabelsByType	map of labels by category, lazily populated
   derivedStates		list of DerivedState instances
   h5File		h5py.File
-  id			unique ID string for this model
   listeners		map of listeners by event type
   maxAxialValue		maximum axial value (cm) 
-  name			display name, the base name of the HDF5 file
+  name			unique display name, the base name of the HDF5 file
+			with any necessary disambiguation suffixes
   nodeFactors		node weight factors ( 1, 4, nax, nass )
   pinFactors		pin weight factors ( npiny, npinx, nax, nass )
   ranges		dict of ranges ( min, max ) by dataset
@@ -1197,12 +1198,11 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.__init__()				-
   #----------------------------------------------------------------------
-  def __init__( self, h5f_param = None, id = None ):
+  def __init__( self, h5f_param = None ):
     """Constructor with optional HDF5 file or filename.  If neither are
 passed, Read() must be called.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
-@param  id		unique identifier
 """
     self.averagers = {}
     self.logger = logging.getLogger( 'data' )
@@ -1236,7 +1236,6 @@ passed, Read() must be called.
     self.dataSetDefsLock = threading.RLock()
     self.rangesLock = threading.RLock()
 
-    self.id = id
     self.Clear()
     if h5f_param is not None:
       self.Read( h5f_param )
@@ -2965,15 +2964,15 @@ derived datasets.  Lazily created and cached.
   #end GetH5File
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetId()				-
-  #----------------------------------------------------------------------
-  def GetId( self ):
-    """Accessor for the 'id' property.
-@return			ID string
-"""
-    return  self.id
-  #end GetId
+#  #----------------------------------------------------------------------
+#  #	METHOD:		DataModel.GetId()				-
+#  #----------------------------------------------------------------------
+#  def GetId( self ):
+#    """Accessor for the 'id' property.
+#@return			ID string
+#"""
+#    return  self.id
+#  #end GetId
 
 
   #----------------------------------------------------------------------
@@ -4625,6 +4624,17 @@ other derived types we pass 'pin'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.SetName()				-
+  #----------------------------------------------------------------------
+  def SetName( self, name ):
+    """Accessor for the 'name' property.
+@param  name		new name
+"""
+    self.name = name
+  #end SetName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.StoreExtraDataSet()			-
   #----------------------------------------------------------------------
 #  def StoreExtraDataSet( self, ds_name, data, src_name = 'core', state_ndx = -1 ):
@@ -4911,7 +4921,7 @@ class DataSetNamer( object ):
   #----------------------------------------------------------------------
   def Assemble(
       self,
-      model_id = '',
+      model_name = '',
       tagged_name = '',
       tag = '',
       display_name = ''
@@ -4919,7 +4929,7 @@ class DataSetNamer( object ):
     """Assembles a "qualified" dataset name from the pieces provided.
 If tagged_name is specified, tag and display_name are ignored, otherwise
 the name is built from tag and display_name.
-@param  model_id	model id
+@param  model_name	unique model name
 @param  tagged_name	tagged name, which if specified overrides tag
 			and display_name
 @param  tag		tag portion of name, ignored if tagged_name is specified
@@ -4927,8 +4937,8 @@ the name is built from tag and display_name.
 @return			qualified name
 """
     result = ''
-    if model_id:
-      result = model_id + '|'
+    if model_name:
+      result = model_name + '|'
 
     if tagged_name:
       result += tagged_name
@@ -4947,14 +4957,14 @@ the name is built from tag and display_name.
   #----------------------------------------------------------------------
   def Parse( self, qds_name ):
     """Parses the "qualified" dataset name into a 4-tuple containing the
-model_id, tagged_name, tag, display_name.  For example,
+model_name, tagged_name, tag, display_name.  For example,
 'xxx|copy:asy_powers' would be parsed as
 ( 'xxx', 'copy:asy_powers', 'copy', 'asy_powers' ).  Missing pieces are
 returned as the blank string.  The display name is always result[ -1 ].
 @param  qds_name	qualified dataset name
-@return			model_id, tagged_name, tag, display_name
+@return			model_name, tagged_name, tag, display_name
 """
-    model_id = ''
+    model_name = ''
     tagged_name = ''
     tag = ''
     display_name = ''
@@ -4964,7 +4974,7 @@ returned as the blank string.  The display name is always result[ -1 ].
       if bar_ndx < 0:
         tagged_name = qds_name
       else:
-        model_id = qds_name[ 0 : bar_ndx ]
+        model_name = qds_name[ 0 : bar_ndx ]
 	tagged_name = qds_name[ bar_ndx + 1 : ]
 
       colon_ndx = tagged_name.find( ':' )
@@ -4975,7 +4985,7 @@ returned as the blank string.  The display name is always result[ -1 ].
 	display_name = tagged_name[ colon_ndx + 1 : ]
     #end if qds_name
 
-    return  model_id, tagged_name, tag, display_name
+    return  model_name, tagged_name, tag, display_name
   #end Parse
 
 #end DataSetNamer

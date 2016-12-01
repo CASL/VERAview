@@ -13,7 +13,7 @@
 #		2016-08-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import bisect, copy, cStringIO, h5py, logging, json, math, os, sys, \
-    tempfile, threading, traceback, uuid
+    tempfile, threading, traceback
 import numpy as np
 import pdb
 
@@ -31,8 +31,8 @@ class DataModelMgr( object ):
 property.
 
 Properties:
-  dataModelIds		list of DataModel ids in order added
-  dataModels		dict of DataModel objects keyed by id
+  dataModelNames	list of DataModel names in order added
+  dataModels		dict of DataModel objects keyed by name
   dataSetNamesVersion	counter to indicate changes
   maxAxialValue		maximum axial value (cm) across all DataModels
 """
@@ -61,7 +61,7 @@ Properties:
     """
 """
     self.axialMeshCenters = None
-    self.dataModelIds = []
+    self.dataModelNames = []
     self.dataModels = {}
     self.dataSetNamesVersion = 0
     self.detectorMesh = None
@@ -103,8 +103,8 @@ Properties:
       if not dm.HasData():
         raise  Exception( 'Required VERA data not found' )
 
-      if len( self.dataModelIds ) > 0:
-        cur_dm = self.dataModels[ self.dataModelIds[ 0 ] ]
+      if len( self.dataModelNames ) > 0:
+        cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]
         cur_core = cur_dm.GetCore()
 	dm_core = dm.GetCore()
 	if cur_core.nass != dm_core.nass or \
@@ -138,12 +138,8 @@ Properties:
   #	METHOD:		DataModelMgr.Close()				-
   #----------------------------------------------------------------------
   def Close( self ):
-    for dm_id in self.dataModels:
-      self.CloseModel( dm_id, True )
-#    for dm in self.dataModels.values():
-#      dm.Close()
-#    del self.dataModelIds[ : ]
-#    self.dataModels.clear()
+    for dm_name in self.dataModels:
+      self.CloseModel( dm_name, True )
   #end Close
 
 
@@ -152,26 +148,26 @@ Properties:
   #----------------------------------------------------------------------
   def CloseModel( self, param, closing_all = False ):
     """Opens the HDF5 file or filename.
-@param  param		either a DataModel instance or an ID string
+@param  param		either a DataModel instance or a model name/ID string
 @param  closing_all	if True, no local state updates are performed
 @param  update_flag	True to update 
 @return			True if removed, False if not found
 """
     result = False
     if isinstance( param, DataModel ):
-      id = param.GetId()
+      model_name = param.GetName()
     else:
-      id = str( param )
+      model_name = str( param )
 
-    if id in self.dataModels:
-      dm = self.dataModels[ id ]
-      model_name = dm.GetName()
+    if model_name in self.dataModels:
+      dm = self.dataModels[ model_name ]
+      #model_name = dm.GetName()
       dm.RemoveListener( 'newDataSet', self )
       dm.Close()
 
-      del self.dataModels[ id ]
-      del self.timeValuesById[ id ]
-      self.dataModelIds.remove( id )
+      del self.dataModels[ model_name ]
+      del self.timeValuesById[ model_name ]
+      self.dataModelNames.remove( model_name )
 
       if not closing_all:
         self._UpdateMeshValues()
@@ -208,7 +204,7 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetAxialMeshCenters()		-
   #----------------------------------------------------------------------
-  def GetAxialMeshCenters( self, id = None ):
+  def GetAxialMeshCenters( self ):
     """Accessor for the axialMeshCenters property, which is all the mesh
 values across all models.
 @return			mesh values as a list
@@ -220,12 +216,13 @@ values across all models.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetAxialValue()			-
   #----------------------------------------------------------------------
-  def GetAxialValue( self, id = None, **kwargs ):
+  def GetAxialValue( self, model_name = None, **kwargs ):
     """Retrieves the axial value tuple ( axial_cm, core_ndx, detector_ndx,
 fixed_detector_ndx ) for the model with 'id' if specified.  Otherwise, the
 cross-model levels are used and can be applied only with 'cm' and 'core_ndx'
 arguments.  Calls CreateAxialValue() on the identified DataModel.
-@param  id		id to identify model, or None for across all models
+@param  model_name	model name, or None for global axial levels
+			across all models
 @param  kwargs		arguments
     cm				axial value in cm
     core_ndx			0-based core axial index
@@ -240,10 +237,10 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
     fdet_ndx = -1
     axial_cm = 0.0
 
-    if id:
-      if id in self.dataModels:
+    if model_name:
+      if model_name in self.dataModels:
 	axial_cm, core_ndx, det_ndx, fdet_ndx = \
-        self.dataModels[ id ].CreateAxialValue( kwargs )
+        self.dataModels[ model_name ].CreateAxialValue( kwargs )
 
     elif 'cm' in kwargs or 'value' in kwargs:
       axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )
@@ -282,21 +279,21 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModel()			-
   #----------------------------------------------------------------------
-  def GetDataModel( self, id = None, qds_name = None ):
-    """Retrieves the DataModel by ID or qualified dataset name.
-If id is None or blank and qds_name is specified, the ID is taken from
-qds_name.
-@param  id		if specified, the ID of the DataModel instance
+  def GetDataModel( self, model_name = None, qds_name = None ):
+    """Retrieves the DataModel by model name or qualified dataset name.
+If model_name is None or blank and qds_name is specified, model_name is
+derived from qds_name.
+@param  model_name	unique name for the DataModel instance
 @param  qds_name	optional qualified dataset name
 @return			DataModel or None if not found
 """
-    if not id and qds_name:
+    if not model_name and qds_name:
       t = DATASET_NAMER.Parse( qds_name )
       if t[ 0 ]:
-        id = t[ 0 ]
+        model_name = t[ 0 ]
 
-    return  self.dataModels.get( id )  if id else  None
-    #return  self.dataModels.get( id )
+    return  self.dataModels.get( model_name )  if model_name else  None
+    #return  self.dataModels.get( model_name )
   #end GetDataModel
 
 
@@ -309,14 +306,14 @@ qds_name.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetDataModelIds()			-
+  #	METHOD:		DataModelMgr.GetDataModelNames()		-
   #----------------------------------------------------------------------
-  def GetDataModelIds( self ):
+  def GetDataModelNames( self ):
     """
-@return			list of model IDs
+@return			list of model names
 """
-    return  self.dataModelIds
-  #end GetDataModelIds
+    return  self.dataModelNames
+  #end GetDataModelNames
 
 
   #----------------------------------------------------------------------
@@ -345,7 +342,7 @@ lists that must be rebuilt when the sets of available datasets change.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDetectorMesh()			-
   #----------------------------------------------------------------------
-  def GetDetectorMesh( self, id = None ):
+  def GetDetectorMesh( self ):
     """Accessor for the detectorMesh property, which is all the mesh
 values across all models.
 @return			mesh values as a list
@@ -357,7 +354,7 @@ values across all models.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetFixedDetectorMeshCenters()	-
   #----------------------------------------------------------------------
-  def GetFixedDetectorMeshCenters( self, id = None ):
+  def GetFixedDetectorMeshCenters( self ):
     """Accessor for the fixedDetectorMeshCenters property, which is all the
 mesh values across all models.
 @return			mesh values as a list
@@ -391,17 +388,17 @@ mesh values across all models.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeValueIndex()		-
   #----------------------------------------------------------------------
-  def GetTimeValueIndex( self, value, id = None ):
+  def GetTimeValueIndex( self, value, model_name = None ):
     """Determines the 0-based index of the value in the values list such that
-values[ ndx ] <= value < values[ ndx + 1 ].  If id is specified, only the
-list of values for the specified model are used.  Otherwise, the cross-model
-values are used.
-@param  id		optional ID to identify the model of interest
+values[ ndx ] <= value < values[ ndx + 1 ].  If model_name is specified,
+only the list of values for the specified model are used.  Otherwise,
+the global, cross-model values are used.
+@param  model_name	optional name for the model of interest
 @return			0-based index such that
 			values[ ndx ] <= value < values[ ndx + 1 ]
 """
     ndx = -1
-    values = self.GetTimeValues( id )
+    values = self.GetTimeValues( model_name )
     if values:
       ndx = bisect.bisect_right( values, value ) - 1
       ndx = max( 0, min( ndx, len( values ) - 1 ) )
@@ -414,15 +411,16 @@ values are used.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeValues()			-
   #----------------------------------------------------------------------
-  def GetTimeValues( self, id = None ):
+  def GetTimeValues( self, model_name = None ):
     """Retrieves the time dataset values for the specified model if 'id'
 is not None, otherwise retrieves the union of values across all models.
-@param  id		optional ID to identify the model of interest
+@param  model_name	optional name for the model of interest
 @return			list of time dataset values for the specified model
 			or across all models
 """
     return \
-	self.timeValuesById[ id ]  if id and id in self.timeValuesById else \
+	self.timeValuesById[ model_name ] \
+	if model_name and model_name in self.timeValuesById else \
 	self.timeValues
   #end GetTimeValues
 
@@ -460,8 +458,9 @@ is not None, otherwise retrieves the union of values across all models.
 #		--
     dm = None
     try:
-      id = str( uuid.uuid4() )
-      dm = DataModel( h5f_param, id )
+      #id = str( uuid.uuid4() )
+      #dm = DataModel( h5f_param, id )
+      dm = DataModel( h5f_param )
     except Exception, ex:
       msg = 'Error reading "%s": %s' % ( h5f_param, ex.message )
       self.logger.error( msg )
@@ -474,9 +473,10 @@ is not None, otherwise retrieves the union of values across all models.
 #		-- Process
 #		--
     try:
+      model_name = self._ResolveDataModelName( dm )
       dm.AddListener( 'newDataSet', self._OnNewDataSet )
-      self.dataModelIds.append( id )
-      self.dataModels[ id ] = dm
+      self.dataModelNames.append( model_name )
+      self.dataModels[ model_name ] = dm
       self._UpdateMeshValues()
       self._UpdateTimeValues()
       self.dataSetNamesVersion += 1
@@ -530,6 +530,32 @@ The fallback is 'state', meaning state point index.
 
     return  list( time_ds_names )
   #end ResolveAvailableTimeDataSets
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr._ResolveDataModelName()		-
+  #----------------------------------------------------------------------
+  def _ResolveDataModelName( self, dm ):
+    """Checks for a name clash, appending to the name as necessary to make it
+unique.  Calls dm.SetName() if necessary.
+@param  dm		DataModel to check
+@return			resulting name for dm
+"""
+    name = None
+    if dm:
+      cur_name = dm.GetName()
+      ndx = 2
+      while cur_name in self.dataModelNames:
+        cur_name = '%s_%d' % ( dm.GetName(), ndx )
+	ndx += 1
+      #end while
+
+      name = cur_name
+      if name != dm.GetName():
+        dm.SetName( name )
+
+    return  name
+  #end _ResolveDataModelName
 
 
   #----------------------------------------------------------------------
@@ -598,22 +624,22 @@ open DataModels and the timeDataSet property.
 
     if self.timeDataSet == 'state':
       cur_count = 0
-      for id, dm in self.dataModels.iteritems():
-	self.timeValuesById[ id ] = range( dm.GetStatesCount() )
+      for name, dm in self.dataModels.iteritems():
+	self.timeValuesById[ name ] = range( dm.GetStatesCount() )
         cur_count = max( cur_count, dm.GetStatesCount() )
       result = range( cur_count )
 
     elif self.timeDataSet:
       cur_set = set()
       spec = dict( ds_name = self.timeDataSet )
-      for id, dm in self.dataModels.iteritems():
+      for name, dm in self.dataModels.iteritems():
 	cur_values = dm.ReadDataSetValues2( spec )
 	if cur_values and self.timeDataSet in cur_values:
 	  cur_list = cur_values[ self.timeDataSet ].tolist()
-	  self.timeValuesById[ id ] = cur_list
+	  self.timeValuesById[ name ] = cur_list
 	  cur_set.update( set( cur_list ) )
 	else:
-	  self.timeValuesById[ id ] = []
+	  self.timeValuesById[ name ] = []
       result = list( cur_set )
     #end if-elif
 
