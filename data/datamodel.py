@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-12-01	leerw@ornl.gov				-
+#	  Added DataSetNamer and DATASET_NAMER singleton.
 #		2016-11-30	leerw@ornl.gov				-
 #	  Moved FindListIndex to DataUtils.
 #		2016-10-30	leerw@ornl.gov				-
@@ -411,6 +413,13 @@ DATASET_DEFS = \
 #    'type': 'vanadium'
 #    },
   }
+
+
+#------------------------------------------------------------------------
+#	CONST:		DATASET_NAMER					-
+# Singleton DataSetNamer instance.
+#------------------------------------------------------------------------
+DATASET_NAMER = DataSetNamer()
 
 
 #------------------------------------------------------------------------
@@ -4874,6 +4883,102 @@ other derived types we pass 'pin'.
       #end while
   #end main
 #end DataModel
+
+
+#------------------------------------------------------------------------
+#	CLASS:		DataSetNamer					-
+#------------------------------------------------------------------------
+class DataSetNamer( object ):
+  """Assembles and parses qualified and/or tagged dataset names.
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetNamer.__init__()				-
+  #----------------------------------------------------------------------
+  def __init__( self ):
+    """
+"""
+    pass
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetNamer.Assemble()				-
+  #----------------------------------------------------------------------
+  def Assemble(
+      self,
+      model_id = '',
+      tagged_name = '',
+      tag = '',
+      display_name = ''
+      ):
+    """Assembles a "qualified" dataset name from the pieces provided.
+If tagged_name is specified, tag and display_name are ignored, otherwise
+the name is built from tag and display_name.
+@param  model_id	model id
+@param  tagged_name	tagged name, which if specified overrides tag
+			and display_name
+@param  tag		tag portion of name, ignored if tagged_name is specified
+@param  display_name	name, which should be provided if tagged_name is not
+@return			qualified name
+"""
+    result = ''
+    if model_id:
+      result = model_id + '|'
+
+    if tagged_name:
+      result += tagged_name
+    else:
+      if tag:
+        result += tag + ':'
+      result += display_name
+    #end if-else tagged_name
+
+    return  result
+  #end Assemble
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.Parse()				-
+  #----------------------------------------------------------------------
+  def Parse( self, qds_name ):
+    """Parses the "qualified" dataset name into a 4-tuple containing the
+model_id, tagged_name, tag, display_name.  For example,
+'xxx|copy:asy_powers' would be parsed as
+( 'xxx', 'copy:asy_powers', 'copy', 'asy_powers' ).  Missing pieces are
+returned as the blank string.  The display name is always result[ -1 ].
+@param  qds_name	qualified dataset name
+@return			model_id, tagged_name, tag, display_name
+"""
+    model_id = ''
+    tagged_name = ''
+    tag = ''
+    display_name = ''
+
+    if qds_name:
+      bar_ndx = qds_name.find( '|' )
+      if bar_ndx < 0:
+        tagged_name = qds_name
+      else:
+        model_id = qds_name[ 0 : bar_ndx ]
+	tagged_name = qds_name[ bar_ndx + 1 : ]
+
+      colon_ndx = tagged_name.find( ':' )
+      if colon_ndx < 0:
+        display_name = tagged_name
+      else:
+        tag = tagged_name[ 0 : colon_ndx ]
+	display_name = tagged_name[ colon_ndx + 1 : ]
+    #end if qds_name
+
+    return  model_id, tagged_name, tag, display_name
+  #end Parse
+
+#end DataSetNamer
 
 
 #------------------------------------------------------------------------

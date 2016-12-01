@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-12-01	leerw@ornl.gov				-
+#	  Moving to DataModelMgr.
 #		2016-10-17	leerw@ornl.gov				-
 #	  New approach where all dataset types are "primary".
 #		2016-08-24	leerw@ornl.gov				-
@@ -24,6 +26,8 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
+from data.datamodel import *
+from data.datamodel_mgr import *
 from event.state import *
 
 
@@ -73,7 +77,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 @param  ds_types	defined allowed types, where None means all types
 			in the data model
 @param  show_derived_menu  True to show a derived submenu if applicable
-@param  widget		widget for widget mode
+@param  widget		widget for use in a widget
 """
     super( DataSetMenu, self ).__init__()
 
@@ -221,10 +225,12 @@ otherwise returns self.state.curDataSet
 
     if (reason & STATE_CHANGE_curDataSet) > 0:
       if self.IsSingleSelection():
-        data = self.state.GetDataModel()
-        ds_name = self.state.GetCurDataSet()
-        ds_type = data.GetDataSetType( ds_name ) if ds_name else None
-        #print '[HandleStateChange] ds_name=', ds_name, ', ds_type=', ds_type
+        #data = self.state.GetDataModel()
+	dmgr = self.state.GetDataModelMgr()
+        qds_name = self.state.GetCurDataSet()
+	dmodel = dmgr.GetDataModel( qds_name = qds_name )
+        ds_type = \
+	    dmodel.GetDataSetType( qds_name ) if dmodel and qds_name else None
 	item = self._FindMenuItem( ds_type, ds_name ) if ds_type else None
 	if item and item.GetItemLabelText() == ds_name and \
 	    not item.IsChecked():

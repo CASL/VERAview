@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-01	leerw@ornl.gov				-
+#	  Moved {Assemble,Parse}QDataSetName() to datamodel.DataSetNamer
+#	  class.
 #		2016-11-30	leerw@ornl.gov				-
 #		2016-11-29	leerw@ornl.gov				-
 #	  Review and clean-up.
@@ -86,21 +89,6 @@ Properties:
         self.listeners[ event_name ].append( listener )
     #end if event_name
   #end AddListener
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.AssembleQDataSetName()		-
-  #----------------------------------------------------------------------
-  def AssembleQDataSetName( self, ds_name, model_id = '' ):
-    """Assembles the "qualified" dataset name.
-@param  ds_name		dataset name (which might have a tag prefix)
-@param  model_id	model id
-@return			qualified name
-"""
-    return \
-        '%s|%s' % ( model_id, ds_name )  if model_id else \
-	ds_name
-  #end AssembleQDataSetName
 
 
   #----------------------------------------------------------------------
@@ -294,11 +282,21 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModel()			-
   #----------------------------------------------------------------------
-  def GetDataModel( self, id ):
-    """Retrieves the DataModel by ID
+  def GetDataModel( self, id = None, qds_name = None ):
+    """Retrieves the DataModel by ID or qualified dataset name.
+If id is None or blank and qds_name is specified, the ID is taken from
+qds_name.
+@param  id		if specified, the ID of the DataModel instance
+@param  qds_name	optional qualified dataset name
 @return			DataModel or None if not found
 """
-    return  self.dataModels.get( id )
+    if not id and qds_name:
+      t = DATASET_NAMER.Parse( qds_name )
+      if t[ 0 ]:
+        id = t[ 0 ]
+
+    return  self.dataModels.get( id )  if id else  None
+    #return  self.dataModels.get( id )
   #end GetDataModel
 
 
@@ -491,41 +489,6 @@ is not None, otherwise retrieves the union of values across all models.
       self.logger.error( msg )
       raise  IOError( msg )
   #end OpenModel
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.ParseQDataSetName()		-
-  #----------------------------------------------------------------------
-  def ParseQDataSetName( self, qds_name ):
-    """Parses the "qualified" dataset name into a tuple containing the
-display_name, model_id, and tag (e.g., 'copy').
-@param  qds_name	qualified dataset name
-@return			display_name, model_id, tag
-"""
-    display_name = ''
-    model_id = ''
-    tag = ''
-
-    if qds_name:
-      bar_ndx = qds_name.find( '|' )
-      if bar_ndx < 0:
-        remainder = qds_name
-      else:
-        model_id = qds_name[ 0 : bar_ndx ]
-	remainder = qds_name[ bar_ndx + 1 : ]
-
-      if remainder.startswith( 'copy:' ):
-        display_name = remainder[ 5 : ]
-	tag = 'copy'
-      elif remainder.startswith( 'derived:' ):
-        display_name = remainder[ 8 : ]
-	tag = 'derived'
-      else:
-        display_name = remainder
-    #end if qds_name
-
-    return  display_name, model_id, tag
-  #end ParseQDataSetName
 
 
   #----------------------------------------------------------------------
