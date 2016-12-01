@@ -4,6 +4,7 @@
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
 #		2016-12-01	leerw@ornl.gov				-
+#	  Added DataSetName class to use instead of DataSetNamer.
 #	  Added DataSetNamer and DATASET_NAMER singleton.
 #	  Removed id property from DataModel, added SetName().
 #		2016-11-30	leerw@ornl.gov				-
@@ -414,13 +415,6 @@ DATASET_DEFS = \
 #    'type': 'vanadium'
 #    },
   }
-
-
-#------------------------------------------------------------------------
-#	CONST:		DATASET_NAMER					-
-# Singleton DataSetNamer instance.
-#------------------------------------------------------------------------
-DATASET_NAMER = DataSetNamer()
 
 
 #------------------------------------------------------------------------
@@ -1573,7 +1567,8 @@ for each prefix defined for derived_label.
 			'radial'
 @param  ds_name		dataset name that is in ds_category, e.g.,
 			'pin_powers', 'pin_fueltemps'
-@return			( ds_type, prefix_name, replaced_name )
+@return			( ds_type, prefix_name, replaced_name
+			  [, prefix_name, replaced_name, ... ] )
 			or None if invalid params,
 			e.g. ( 'pin:axial', 'axial_pin_powers', 'axial_powers' )
 """
@@ -4896,10 +4891,143 @@ other derived types we pass 'pin'.
 
 
 #------------------------------------------------------------------------
+#	CLASS:		DataSetName					-
+#------------------------------------------------------------------------
+class DataSetName( object ):
+  """Encapsulation of a dataset name.
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__eq__()				-
+  #----------------------------------------------------------------------
+  def __eq__( self, that ):
+    return \
+        self._name == that._name  if isinstance( that, DataSetName ) else \
+	self._name == str( that )
+  #end __eq__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__hash__()				-
+  #----------------------------------------------------------------------
+  def __hash__( self ):
+    return  hash( self._name )
+  #end __hash__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__init__()				-
+  #----------------------------------------------------------------------
+  def __init__( self, qname = '', model_name = '', ds_name = '' ):
+    """The qname parameter is used if provided.
+@param  qname		qualified name, overrides other params
+@param  model_name	model name
+@param  ds_name		dataset name
+"""
+    self._modelName = ''
+    self._displayName = ''
+    self._name = ''
+
+    if qname:
+      self._name = qname
+      ndx = qname.find( '|' )
+      if ndx > 0:
+        self._modelName = qname[ 0 : ndx ]
+	self._displayName = qname[ ndx + 1 : ]
+      else:
+        self._displayName = qname
+
+    else:
+      self._modelName = model_name
+      self._displayName = ds_name
+      self._name = model_name + '|' + ds_name  if model_name else  ds_name
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__ne__()				-
+  #----------------------------------------------------------------------
+  def __ne__( self, that ):
+    return  not self.__eq__( that )
+  #end __ne__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__repr__()				-
+  #----------------------------------------------------------------------
+  def __repr__( self ):
+    return  \
+        'datamodel.DataSetName(%s, %s, %s)' % \
+	( self._name, self._modelName, self._displayName )
+  #end __repr__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__str__()				-
+  #----------------------------------------------------------------------
+  def __str__( self ):
+    return  self._name
+  #end __str__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.GetDisplayName()			-
+  #----------------------------------------------------------------------
+  def GetDisplayName( self ):
+    return  self._displayName
+  #end GetDisplayName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.GetModelName()			-
+  #----------------------------------------------------------------------
+  def GetModelName( self ):
+    return  self._modelName
+  #end GetModelName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.GetName()				-
+  #----------------------------------------------------------------------
+  def GetName( self ):
+    return  self._name
+  #end GetName
+
+
+#		-- Property Definitions
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTY:	displayName					-
+  #----------------------------------------------------------------------
+  displayName = property( GetDisplayName )
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTY:	modelName					-
+  #----------------------------------------------------------------------
+  modelName = property( GetModelName )
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTY:	name						-
+  #----------------------------------------------------------------------
+  name = property( GetName )
+
+#end DataSetName
+
+
+#------------------------------------------------------------------------
 #	CLASS:		DataSetNamer					-
 #------------------------------------------------------------------------
 class DataSetNamer( object ):
   """Assembles and parses qualified and/or tagged dataset names.
+@deprecated  Use DataSetName instances instead.
 """
 
 #		-- Object Methods
@@ -4953,7 +5081,7 @@ the name is built from tag and display_name.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.Parse()				-
+  #	METHOD:		DataSetName.Parse()				-
   #----------------------------------------------------------------------
   def Parse( self, qds_name ):
     """Parses the "qualified" dataset name into a 4-tuple containing the
@@ -5349,6 +5477,13 @@ class DerivedState( State ):
   #end Check
 
 #end DerivedState
+
+
+#------------------------------------------------------------------------
+#	CONST:		DATASET_NAMER					-
+# Singleton DataSetNamer instance.
+#------------------------------------------------------------------------
+#DATASET_NAMER = DataSetNamer()
 
 
 #------------------------------------------------------------------------

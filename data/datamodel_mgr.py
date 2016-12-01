@@ -31,7 +31,7 @@ class DataModelMgr( object ):
 property.
 
 Properties:
-  dataModelNames	list of DataModel names in order added
+  dataModelNames	list of model names in order added
   dataModels		dict of DataModel objects keyed by name
   dataSetNamesVersion	counter to indicate changes
   maxAxialValue		maximum axial value (cm) across all DataModels
@@ -107,27 +107,24 @@ Properties:
         cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]
         cur_core = cur_dm.GetCore()
 	dm_core = dm.GetCore()
-	if cur_core.nass != dm_core.nass or \
+	if cur_core.coreSym != dm_core.coreSym or \
+	    cur_core.nass != dm_core.nass or \
 	    cur_core.nassx != dm_core.nassx or \
 	    cur_core.npinx != dm_core.npinx or \
 	    cur_core.npiny != dm_core.npiny:
 	  msg_fmt = \
 	      'Incompatible core geometry:\n' + \
-	      '\tnass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d\n' + \
+	      '\tcoreSym=%d, nass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d\n' + \
 	      'is not compatible with\n' + \
-	      '\tnass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d'
+	      '\tcoreSym=%d, nass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d'
 	  msg = msg_fmt % (
-	      dm_core.nass, dm_core.nassx, dm_core.nassy,
+	      dm_core.coreSym, dm_core.nass,
+	      dm_core.nassx, dm_core.nassy,
 	      dm_core.npinx, dm_core.npiny,
-	      cur_core.nass, cur_core.nassx, cur_core.nassy,
+	      cur_core.coreSym, cur_core.nass,
+	      cur_core.nassx, cur_core.nassy,
 	      cur_core.npinx, cur_core.npiny
 	      )
-          raise  Exception( msg )
-
-        if cur_cure.coreSym != dm_core.coreSym:
-	  msg = \
-	      'Core symmetry mismatch: %d versus %d' % \
-	      ( dm_core.coreSym, cur_core.coresym )
           raise  Exception( msg )
       #end if len
     #end if dm
@@ -279,21 +276,21 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModel()			-
   #----------------------------------------------------------------------
-  def GetDataModel( self, model_name = None, qds_name = None ):
-    """Retrieves the DataModel by model name or qualified dataset name.
-If model_name is None or blank and qds_name is specified, model_name is
-derived from qds_name.
-@param  model_name	unique name for the DataModel instance
-@param  qds_name	optional qualified dataset name
+  #def GetDataModel( self, model_name = None, qds_name = None ):
+  def GetDataModel( self, param ):
+    """Retrieves the DataModel by model name.  The param can be a string
+model name or a DataSetName instance.
+@param  param		a DataSetName instance or a model name string
 @return			DataModel or None if not found
 """
-    if not model_name and qds_name:
-      t = DATASET_NAMER.Parse( qds_name )
-      if t[ 0 ]:
-        model_name = t[ 0 ]
+    dm = None
+    if param:
+      model_name = \
+          param.modelName  if isinstance( param, DataSetName ) else \
+	  str( param )
+      dm = self.dataModels.get( model_name )
 
-    return  self.dataModels.get( model_name )  if model_name else  None
-    #return  self.dataModels.get( model_name )
+    return  dm
   #end GetDataModel
 
 

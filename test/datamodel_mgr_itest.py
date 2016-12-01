@@ -5,7 +5,7 @@
 #	HISTORY:							-
 #		2016-11-30	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import argparse, h5py, os, re, sys, traceback
+import argparse, h5py, logging, logging.config, os, re, sys, traceback
 import pdb  # set_trace()
 
 sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
@@ -52,10 +52,10 @@ class DataModelMgrITest( object ):
       print '\n[DataModelMgrITest] mesh value indexes:'
       for mesh_value in mesh_values:
 	print '[mesh=%f]' % mesh_value
-        for id in self.fMgr.GetDataModelIds():
+        for name in self.fMgr.GetDataModelNames():
 	  axial_value = \
-	      self.fMgr.GetDataModel( id ).CreateAxialValue( cm = mesh_value )
-          print '  %s=%s' % ( id, str( axial_value ) )
+	      self.fMgr.GetDataModel( name ).CreateAxialValue( cm = mesh_value )
+          print '  %s=%s' % ( name, str( axial_value ) )
 
 	axial_value = self.fMgr.GetAxialValue( cm = mesh_value )
         print '  ALL=%s' % str( axial_value )
@@ -76,11 +76,11 @@ class DataModelMgrITest( object ):
         print '  ALL=%s' % str( axial_value )
 
 	axial_cm = axial_value[ 0 ]
-        for id in self.fMgr.GetDataModelIds():
-	  dm = self.fMgr.GetDataModel( id )
+        for name in self.fMgr.GetDataModelNames():
+	  dm = self.fMgr.GetDataModel( name )
 	  axial_value = dm.CreateAxialValue( cm = axial_cm )
           print '  %s=%s (%f)' % (
-	      id, str( axial_value ),
+	      name, str( axial_value ),
 	      dm.GetCore().GetAxialMeshCenters()[ axial_value[ 1 ] ]
 	      )
       #end for mesh_value
@@ -96,10 +96,10 @@ class DataModelMgrITest( object ):
       print '\n[DataModelMgrITest] time value indexes:'
       for time_value in time_values:
 	print '[time=%f]' % time_value
-        for id in self.fMgr.GetDataModelIds():
-	  ndx = self.fMgr.GetTimeValueIndex( time_value, id )
+        for name in self.fMgr.GetDataModelNames():
+	  ndx = self.fMgr.GetTimeValueIndex( time_value, name )
           print '  %s=%d (%f)' % \
-	      ( id, ndx, self.fMgr.GetTimeValues( id )[ ndx ] )
+	      ( name, ndx, self.fMgr.GetTimeValues( name )[ ndx ] )
 	ndx = self.fMgr.GetTimeValueIndex( time_value )
         print '  ALL=%d (%f)' % \
 	    ( ndx, self.fMgr.GetTimeValues()[ ndx ] )
@@ -127,10 +127,10 @@ class DataModelMgrITest( object ):
         time_value = -1.0
 
       if time_value >= 0.0:
-        for id in self.fMgr.GetDataModelIds():
-	  ndx = self.fMgr.GetTimeValueIndex( time_value, id )
+        for name in self.fMgr.GetDataModelNames():
+	  ndx = self.fMgr.GetTimeValueIndex( time_value, name )
           print '  %s=%d (%f)' % \
-	      ( id, ndx, self.fMgr.GetTimeValues( id )[ ndx ] )
+	      ( name, ndx, self.fMgr.GetTimeValues( name )[ ndx ] )
 	ndx = self.fMgr.GetTimeValueIndex( time_value )
         print '  ALL=%d (%f)' % \
 	    ( ndx, self.fMgr.GetTimeValues()[ ndx ] )
@@ -178,8 +178,8 @@ class DataModelMgrITest( object ):
   #----------------------------------------------------------------------
   def PrintSummary( self ):
     print '\n[DataModelMgrITest] data models:'
-    for id, dm in self.fMgr.GetDataModels().iteritems():
-      print '%s=%s' % ( id, dm.GetName() )
+    for name, dm in self.fMgr.GetDataModels().iteritems():
+      print '%s=%s' % ( name, dm.GetName() )
 
     print '\n[DataModelMgrITest]'
     print 'available time datasets=%s' % \
@@ -189,29 +189,29 @@ class DataModelMgrITest( object ):
         ( self.fMgr.GetMaxAxialValue(), self.fMgr.GetTimeDataSet() )
 
     print '\n[DataModelMgrITest] axialMeshCenters:'
-    for id in self.fMgr.GetDataModelIds():
-      dm = self.fMgr.GetDataModel( id )
+    for name in self.fMgr.GetDataModelNames():
+      dm = self.fMgr.GetDataModel( name )
       values = dm.GetCore().GetAxialMeshCenters() if dm.GetCore() else None
-      print '%s=\n%s' % ( id, str( values ) )
+      print '%s=\n%s' % ( name, str( values ) )
     print 'ALL=\n%s' % str( self.fMgr.GetAxialMeshCenters() )
 
     print '\n[DataModelMgrITest] detectorMesh:'
-    for id in self.fMgr.GetDataModelIds():
-      dm = self.fMgr.GetDataModel( id )
+    for name in self.fMgr.GetDataModelNames():
+      dm = self.fMgr.GetDataModel( name )
       values = dm.GetCore().GetDetectorMesh() if dm.GetCore() else None
-      print '%s=\n%s' % ( id, str( values ) )
+      print '%s=\n%s' % ( name, str( values ) )
     print 'ALL=\n%s' % str( self.fMgr.GetDetectorMesh() )
 
     print '\n[DataModelMgrITest] fixedDetectorMeshCenters:'
-    for id in self.fMgr.GetDataModelIds():
-      dm = self.fMgr.GetDataModel( id )
+    for name in self.fMgr.GetDataModelNames():
+      dm = self.fMgr.GetDataModel( name )
       values = dm.GetCore().GetFixedDetectorMeshCenters() if dm.GetCore() else None
-      print '%s=\n%s' % ( id, str( values ) )
+      print '%s=\n%s' % ( name, str( values ) )
     print 'ALL=\n%s' % str( self.fMgr.GetFixedDetectorMeshCenters() )
 
     print '\n[DataModelMgrITest] time values:'
-    for id in self.fMgr.GetDataModelIds():
-      print '%s=%s' % ( id, str( self.fMgr.GetTimeValues( id ) ) )
+    for name in self.fMgr.GetDataModelNames():
+      print '%s=%s' % ( name, str( self.fMgr.GetTimeValues( name ) ) )
     print 'ALL=%s' % str( self.fMgr.GetTimeValues() )
   #end PrintSummary
 
@@ -226,6 +226,10 @@ class DataModelMgrITest( object ):
   @staticmethod
   def main():
     try:
+      log_file = os.path.\
+          join( os.path.dirname( __file__ ), '..', 'res', 'logging.conf' )
+      logging.config.fileConfig( log_file )
+
       #parser = argparse.ArgumentParser( description = '', epilog = EPILOG )
       parser = argparse.ArgumentParser()
 #      parser.add_argument(
