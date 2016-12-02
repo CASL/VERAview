@@ -80,7 +80,8 @@ from data.datamodel import *
 from data.datamodel_mgr import *
 
 
-LABEL_selectedDataSet = 'Selected Dataset'
+#LABEL_selectedDataSet = 'Selected Dataset'
+LABEL_selectedDataSet = DataSetName( 'Selected Dataset' )
 
 
 # New, reduced set of events
@@ -210,7 +211,7 @@ All indices are 0-based.
 |             | subAddr        | sub_addr       | ( col, row )                 |
 |             |                |                | 0-based channel/pin indexes  |
 +-------------+----------------+----------------+------------------------------+
-| curDataSet  | curDataSet     | cur_dataset    | name of selected dataset     |
+| curDataSet  | curDataSet     | cur_dataset    | DataSetName instance         |
 |             |                |                | (of any type)                |
 +-------------+----------------+----------------+------------------------------+
 | dataModelMgr| dataModelMgr   | data_model_mgr | data.DataModelMgr object     |
@@ -266,7 +267,7 @@ All indices are 0-based.
     self.auxNodeAddrs = []
     self.auxSubAddrs = []
     self.axialValue = DataModel.CreateEmptyAxialValue()
-    self.curDataSet = 'pin_powers'
+    self.curDataSet = DataSetName( 'pin_powers' )
     self.dataModelMgr = DataModelMgr()
     self.listeners = []
     self.logger = logging.getLogger( 'event' )
@@ -521,7 +522,7 @@ Keys passed and the corresponding state bit are:
   #----------------------------------------------------------------------
   def GetCurDataSet( self ):
     """Accessor for the curDataSet property.
-@return			name of current/selected dataset
+@return			DataSetName instance, name of current/selected dataset
 """
     return  self.curDataSet
   #end GetCurDataSet
@@ -686,9 +687,10 @@ has already been added to dataModelMgr.
 
       self.axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
 
-      self.curDataSet = 'pin_powers' \
+      ds_display_name = 'pin_powers' \
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
 	  data_model.GetFirstDataSet( 'pin' )
+      self.curDataSet = DataSetName( data_model.GetName(), ds_display_name )
       self.stateIndex = data_model.NormalizeStateIndex( -1 )
 
       ##self.colRow = data_model.NormalizeColRow( undefined2 )
@@ -730,11 +732,15 @@ has already been added to dataModelMgr.
 """
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
-        'curDataSet', 'nodeAddr', 'scaleMode', 'stateIndex',
+        'nodeAddr', 'scaleMode', 'stateIndex',
 	'subAddr', 'timeDataSet', 'weightsMode'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
+
+    for k in ( 'curDataSet' ):
+      if k in props_dict:
+        setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
   #end LoadProps
 
 

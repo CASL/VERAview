@@ -177,11 +177,12 @@ class DataModelMgrITest( object ):
   #	METHOD:		DataModelMgrITest.PrintSummary()		-
   #----------------------------------------------------------------------
   def PrintSummary( self ):
-    print '\n[DataModelMgrITest] data models:'
-    for name, dm in self.fMgr.GetDataModels().iteritems():
-      print '%s=%s' % ( name, dm.GetName() )
+#    print '\n[DataModelMgrITest] data models:'
+#    for name, dm in self.fMgr.GetDataModels().iteritems():
+#      print '%s=%s' % ( name, dm.GetName() )
 
     print '\n[DataModelMgrITest]'
+    print 'models=%s' % str( self.fMgr.GetDataModelNames() )
     print 'available time datasets=%s' % \
         str( self.fMgr.ResolveAvailableTimeDataSets() )
 

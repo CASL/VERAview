@@ -4922,7 +4922,55 @@ class DataSetName( object ):
   #----------------------------------------------------------------------
   #	METHOD:		DataSetName.__init__()				-
   #----------------------------------------------------------------------
-  def __init__( self, qname = '', model_name = '', ds_name = '' ):
+  def __init__( self, *args ):
+    """There are three forms of valid initialization:
+__init__( qname )
+  qname		qualified name, overrides other params
+
+__init__( model_name, display_name )
+  model_name	model name
+  ds_name	dataset name
+
+__init__( dict_value )
+  dict_value	dict
+"""
+    self._modelName = ''
+    self._displayName = ''
+    self._name = ''
+
+    if args and len( args ) > 0:
+      if len( args ) >= 2:
+	self._modelName = str( args[ 0 ] )
+	self._displayName = str( args[ 1 ] )
+	self._name = \
+	    self._modelName + '|' + self._displayName \
+	    if self._modelName else \
+	    self._displayName
+
+      elif isinstance( args[ 0 ], dict ):
+        self._modelName = args[ 0 ].get( '_modelName', '' )
+        self._displayName = args[ 0 ].get( '_displayName', '' )
+	self._name = \
+	    self._modelName + '|' + self._displayName \
+	    if self._modelName else \
+	    self._displayName
+
+      else:
+        self._name = str( args[ 0 ] )
+	ndx = self._name.find( '|' )
+	if ndx > 0:
+          self._modelName = self._name[ 0 : ndx ]
+	  self._displayName = self._name[ ndx + 1 : ]
+        else:
+          self._displayName = self._name
+    #end if args
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__init__1()				-
+  #----------------------------------------------------------------------
+  def __init__1( self, qname = '', model_name = '', ds_name = '' ):
     """The qname parameter is used if provided.
 @param  qname		qualified name, overrides other params
 @param  model_name	model name
@@ -4945,7 +4993,7 @@ class DataSetName( object ):
       self._modelName = model_name
       self._displayName = ds_name
       self._name = model_name + '|' + ds_name  if model_name else  ds_name
-  #end __init__
+  #end __init__1
 
 
   #----------------------------------------------------------------------
@@ -4960,9 +5008,10 @@ class DataSetName( object ):
   #	METHOD:		DataSetName.__repr__()				-
   #----------------------------------------------------------------------
   def __repr__( self ):
-    return  \
-        'datamodel.DataSetName(%s, %s, %s)' % \
-	( self._name, self._modelName, self._displayName )
+    return  'datamodel.DataSetName(%s)' % self._name
+#    return  \
+#        'datamodel.DataSetName(%s, %s, %s)' % \
+#	( self._name, self._modelName, self._displayName )
   #end __repr__
 
 
@@ -4972,6 +5021,17 @@ class DataSetName( object ):
   def __str__( self ):
     return  self._name
   #end __str__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.tojson()				-
+  #----------------------------------------------------------------------
+  def tojson( self ):
+    """
+@return		self.__dict__
+"""
+    return  self.__dict__
+  #end tojson
 
 
   #----------------------------------------------------------------------
@@ -5018,6 +5078,23 @@ class DataSetName( object ):
   #	PROPERTY:	name						-
   #----------------------------------------------------------------------
   name = property( GetName )
+
+
+#		-- Static Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.fromjson()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def fromjson( dict_in ):
+    return  \
+    DataSetName(
+        dict_in.get( '_modelName', '' ),
+	dict_in.get( '_displayName', '' )
+	)
+  #end fromjson
 
 #end DataSetName
 

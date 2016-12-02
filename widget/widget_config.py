@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2016-12-02	leerw@ornl.gov				-
+#	  Renamed NumpyEncoder to WidgetEncoder and added WidgetDecoder.
 #		2016-11-19	leerw@ornl.gov				-
 #	  Added static methods CreateWidgetProps(), Decode(), Encode().
 #		2016-08-20	leerw@ornl.gov				-
@@ -23,32 +25,6 @@ except Exception:
   raise ImportError( "The wxPython module is required" )
 
 from event.state import *
-
-
-#------------------------------------------------------------------------
-#	CLASS:		NumpyEncoder					-
-#------------------------------------------------------------------------
-class NumpyEncoder( json.JSONEncoder ):
-  """Extension to handle numpy types.
-"""
-
-
-#		-- Object Methods
-#		--
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		NumpyEncoder.default()				-
-  #----------------------------------------------------------------------
-  def default( self, obj ):
-    result = \
-        int( obj )  if isinstance( obj, np.integer ) else \
-        float( obj )  if isinstance( obj, np.floating ) else \
-        obj.tolist()  if isinstance( obj, np.ndarray ) else \
-	super( NumpyEncoder, self ).default( obj )
-    return  result
-  #end default
-#end NumpyEncoder
 
 
 #------------------------------------------------------------------------
@@ -249,7 +225,7 @@ class WidgetConfig( object ):
 
     fp = file( file_path, 'w' )
     try:
-      fp.write( json.dumps( self.fDict, cls = NumpyEncoder, indent = 2 ) )
+      fp.write( json.dumps( self.fDict, cls = WidgetEncoder, indent = 2 ) )
     finally:
       fp.close()
   #end Write
@@ -297,7 +273,7 @@ class WidgetConfig( object ):
 @param  obj		Python object to be encoded
 @return			JSON string
 """
-    return  json.dumps( obj, cls = NumpyEncoder, indent = 2 )
+    return  json.dumps( obj, cls = WidgetEncoder, indent = 2 )
   #end Encode
 
 
@@ -366,3 +342,30 @@ class WidgetConfig( object ):
   #end ReadUserSession
 
 #end WidgetConfig
+
+
+#------------------------------------------------------------------------
+#	CLASS:		WidgetEncoder					-
+#------------------------------------------------------------------------
+class WidgetEncoder( json.JSONEncoder ):
+  """Extension to handle numpy types and objects with tojson().
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetEncoder.default()				-
+  #----------------------------------------------------------------------
+  def default( self, obj ):
+    result = \
+        int( obj )  if isinstance( obj, np.integer ) else \
+        float( obj )  if isinstance( obj, np.floating ) else \
+        obj.tolist()  if isinstance( obj, np.ndarray ) else \
+	obj.tojson()  if hasattr( obj, 'tojson' )  else \
+	super( WidgetEncoder, self ).default( obj )
+    return  result
+  #end default
+
+#end WidgetEncoder

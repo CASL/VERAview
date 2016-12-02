@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-02	leerw@ornl.gov				-
+#	  Added GetFirstDataModel().
 #		2016-12-01	leerw@ornl.gov				-
 #	  Moved {Assemble,Parse}QDataSetName() to datamodel.DataSetNamer
 #	  class.
@@ -346,6 +348,21 @@ values across all models.
 """
     return  self.detectorMesh
   #end GetDetectorMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFirstDataModel()		-
+  #----------------------------------------------------------------------
+  def GetFirstDataModel( self ):
+    """Retrieves the first DataModel.
+@return			DataModel or None if not found
+"""
+    dm = None
+    if len( self.dataModelNames ) > 0:
+      dm = self.dataModels.get( self.dataModelNames[ 0 ] )
+
+    return  dm
+  #end GetFirstDataModel
 
 
   #----------------------------------------------------------------------
