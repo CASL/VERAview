@@ -53,7 +53,8 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
   #	METHOD:		DataSetMenu.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self,
-      state, binder, mode = '',
+      state, binder,
+      data_model = None, mode = '',
       ds_listener = None, ds_types = None,
       show_derived_menu = True,
       widget = None
@@ -62,6 +63,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 @param  state		State object, required
 @param  binder		object from window containing this on which to call
 			Bind() for menu events
+@param  data_model	DataModel instance
 @param  mode		mode value: ('selected' implies 'multi')
     ''			- single selection, flat menu (default)
     'multi'		- multiple selections, flat menu
@@ -87,7 +89,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     assert binder is not None, '"binder" parameter is required'
 
     self.binder = binder
-    self.dataModel = None
+    self.dataModel = data_model
 
     self.dataSetListener = ds_listener
     self.dataSetMenuVersion = -1
@@ -712,15 +714,15 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     """Handler for State-mode events.
 """
     if (reason & STATE_CHANGE_init) > 0:
-      self._LoadDataModelMgr()
+      #self._LoadDataModelMgr()
       reason |= STATE_CHANGE_dataModelMgr
 
     if (reason & STATE_CHANGE_dataModelMgr) > 0:
-      self.UpdateMenu()
+      self._LoadDataModelMgr()
 
+    #xxxxx
     if (reason & STATE_CHANGE_curDataSet) > 0:
       if self.IsSingleSelection():
-        #data = self.state.GetDataModel()
 	dmgr = self.state.GetDataModelMgr()
         ds_name = self.state.GetCurDataSet()
 	dmodel = dmgr.GetDataModel( ds_name[ 0 ] )
@@ -774,45 +776,23 @@ requested in the constructor and there is only one DataModel.
 
       if dmgr.GetModelCount() == 1:
         self.modelSubMenus[ 'self' ] = self
-	self._LoadDataModel( dmgr.GetFirstDataModel() )
+	self.dataModel = dmgr.GetFirstDataModel()
+	self.ProcessStateChange( STATE_CHANGE_init )
 
       elif dmgr.GetModelCount() > 1:
-
-      have_derived_flag = False
-
-      if dmgr.GetModelCount() == 1:
-
-
-    self.dataSetMenuVersion = -1
-
-#		-- Process datamodel to determine if there are derive-ables
-#		--
-    dmgr = State.FindDataModelMgr( self.state )
-    if dmgr is not None:
-      dmgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
-      dmgr.AddListener( 'modelAdded', self._OnModelAdded )
-      dmgr.AddListener( 'modelRemoved', self._OnModelRemoved )
-      have_derived_flag = False
-
-      types_in = \
-          self.dataSetTypesIn if self.dataSetTypesIn is not None else \
-	  data_model.GetDataSetNames().keys()
-      del self.dataSetTypes[ : ]
-      for k in sorted( types_in ):
-	if k != 'axial':
-	  self.dataSetTypes.append( k )
-	  if k.find( ':' ) >= 0:
-	    have_derived_flag = True
-      #end for k
-
-      if self.showDerivedMenu and have_derived_flag:
-	self.derivedMenu = wx.Menu()
-	derived_item = wx.MenuItem(
-	    self, wx.ID_ANY, 'Derived',
-	    subMenu = self.derivedMenu
-	    )
-	self.AppendItem( derived_item )
-    #end if data_model
+        for name in dmgr.GetDataModelNames():
+	  dmodel = dmgr.GetDataModel( name )
+	  ds_menu = DataSetMenu(
+	      self.state, self.binder,
+	      dmodel, self.mode,
+	      self.dataSetListener, self.dataSetTypesIn,
+	      self.showDerivedMenu, self.widget
+	      )
+	  self.modelSubMenus[ name ] = ds_menu
+	  ds_menu.ProcessStateChange( STATE_CHANGE_init )
+	#end for
+      #end if-elif
+    #end if dmgr
   #end _LoadDataModelMgr
 
 #end DataModelMenu
