@@ -188,6 +188,7 @@ Properties:
 @param  event_name	'dataSetAdded', 'modelAdded', or 'modelRemoved'
 @param  params		event params
 """
+    self.dataSetNamesVersion += 1
     if event_name in self.listeners:
       for listener in self.listeners[ event_name ]:
         method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]

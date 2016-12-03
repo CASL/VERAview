@@ -173,51 +173,20 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
       menu = self
 
     for item in menu.GetMenuItems():
-      item_text = item.GetItemLabelText()
-      if item_text == ds_name.displayName:
-        match_item = item
-
-      else:
-        sub = item.GetSubMenu()
-	if sub and (item_text == ds_name.modelName or item_text == ds_type):
-	  match_item = self._FindMenuItem( ds_type, ds_name, sub )
-      #end if-else
-
-      if match_item != None: break
-    #end for item
-
-    return  match_item
-  #end _FindMenuItem
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._FindMenuItem_orig()		-
-  #----------------------------------------------------------------------
-  def _FindMenuItem_orig( self, ds_type, ds_name, menu = None ):
-    """Finds the menu item.
-@param  ds_type		dataset category/type
-@param  ds_name		dataset name
-@return			item or None if not found
-"""
-    match_item = None
-    if menu == None:
-      menu = self
-
-    for item in menu.GetMenuItems():
-      if item.GetItemLabelText() == ds_name:
+      if item.GetItemLabelText() == ds_name.displayName:
         match_item = item
 
       else:
         sub = item.GetSubMenu()
 	if sub and item.GetItemLabelText() == ds_type:
-	  match_item = self._FindMenuItem( ds_type, ds_name, sub )
+	  match_item = self._FindMenuItem( ds_type, ds_name.displayName, sub )
       #end if-else item.GetItemLabelText()
 
       if match_item != None: break
     #end for item
 
     return  match_item
-  #end _FindMenuItem_orig
+  #end _FindMenuItem
 
 
   #----------------------------------------------------------------------
@@ -248,36 +217,36 @@ otherwise returns self.state.curDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.HandleStateChange()			-
+  #	METHOD:		DataSetMenu.ProcessStateChange()		-
   #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
+  def ProcessStateChange( self, reason ):
     """Handler for State-mode events.
 """
-    if (reason & STATE_CHANGE_init) > 0:
-      self._LoadDataModel()
-      reason |= STATE_CHANGE_dataModel
+#    if (reason & STATE_CHANGE_init) > 0:
+#      self._LoadDataModel()
+#      reason |= STATE_CHANGE_dataModelMgr
+#
+#    if (reason & STATE_CHANGE_dataModelMgr) > 0:
+#      self.UpdateMenu()
 
-    if (reason & STATE_CHANGE_dataModel) > 0:
+    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModelMgr
+    if (reason & load_mask) > 0:
+      self._LoadDataModel()
       self.UpdateMenu()
 
     if (reason & STATE_CHANGE_curDataSet) > 0:
-      if self.IsSingleSelection():
+      if self.IsSingleSelection() and self.dataModel:
         #data = self.state.GetDataModel()
-	dmgr = self.state.GetDataModelMgr()
-        qds_name = self.state.GetCurDataSet()
-	ds_name = DATASET_NAMER.Parse( qds_name )
-	dmodel = dmgr.GetDataModel( ds_name[ 0 ] )
+        ds_name = self.state.GetCurDataSet()
         ds_type = \
-	    dmodel.GetDataSetType( ds_name[ 1 ] ) \
-	    if dmodel and qds_name else \
-	    None
+	    self.dataModel.GetDataSetType( ds_name.displayName ) \
+	    if ds_name else None
 	item = self._FindMenuItem( ds_type, ds_name ) if ds_type else None
-	if item and item.GetItemLabelText() == ds_name[ -1 ] and \
-	    not item.IsChecked():
+	if item and not item.IsChecked():
 	  self._CheckSingleItem( self, item )
       #end if single selection
     #end if curDataSet
-  #end HandleStateChange
+  #end ProcessStateChange
 
 
   #----------------------------------------------------------------------
@@ -385,7 +354,7 @@ derivedMenu if requested in the constructor.
       else:
 	self._CheckSingleItem( self, item )
 	#this should not happen, 'selected' implies 'multi'
-	if ds_name[ -1 ] == LABEL_selectedDataSet:
+	if ds_name == LABEL_selectedDataSet:
 	  ds_name = self.state.GetCurDataSet()
 
 	if self.widget is not None:
@@ -531,9 +500,9 @@ derivedMenu if requested in the constructor.
   def UpdateMenu( self ):
     """
 """
-    data_model = State.FindDataModel( self.state )
-    if data_model is not None and \
-        self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
+    dmgr = State.FindDataModelMgr( self.state )
+    if dmgr is not None and \
+        self.dataSetMenuVersion < dmgr.GetDataSetNamesVersion():
       single_flag = self.IsSingleSelection()
 
 #			-- Remove existing items
@@ -708,6 +677,37 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMenu._FindMenuItem_maybe_not_needed()	-
+  #----------------------------------------------------------------------
+  def _FindMenuItem_maybe_not_needed( self, ds_type, ds_name, menu = None ):
+    """Finds the menu item.
+@param  ds_type		dataset category/type
+@param  ds_name		DataSetName instance
+@return			item or None if not found
+"""
+    match_item = None
+    if menu == None:
+      menu = self
+
+    for item in menu.GetMenuItems():
+      item_text = item.GetItemLabelText()
+      if item_text == ds_name.displayName:
+        match_item = item
+
+      else:
+        sub = item.GetSubMenu()
+	if sub and (item_text == ds_name.modelName or item_text == ds_type):
+	  match_item = self._FindMenuItem( ds_type, ds_name, sub )
+      #end if-else
+
+      if match_item != None: break
+    #end for item
+
+    return  match_item
+  #end _FindMenuItem_maybe_not_needed
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMenu.HandleStateChange()		-
   #----------------------------------------------------------------------
   def HandleStateChange( self, reason ):
@@ -720,21 +720,13 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     if (reason & STATE_CHANGE_dataModelMgr) > 0:
       self._LoadDataModelMgr()
 
-    #xxxxx
     if (reason & STATE_CHANGE_curDataSet) > 0:
-      if self.IsSingleSelection():
-	dmgr = self.state.GetDataModelMgr()
-        ds_name = self.state.GetCurDataSet()
-	dmodel = dmgr.GetDataModel( ds_name[ 0 ] )
-        ds_type = \
-	    dmodel.GetDataSetType( ds_name[ 1 ] ) \
-	    if dmodel and qds_name else \
-	    None
-	item = self._FindMenuItem( ds_type, ds_name ) if ds_type else None
-	if item and item.GetItemLabelText() == ds_name[ -1 ] and \
-	    not item.IsChecked():
-	  self._CheckSingleItem( self, item )
-      #end if single selection
+      ds_name = self.state.GetCurDataSet()
+      if 'self' in self.modelSubMenus:
+        self.ProcessStateChange( STATE_CHANGE_curDataSet )
+      elif ds_name.modelName:
+        for ds_menu in self.modelSubMenus.values():
+	  ds_menu.ProcessStateChange( STATE_CHANGE_curDataSet )
     #end if curDataSet
   #end HandleStateChange
 
@@ -788,6 +780,9 @@ requested in the constructor and there is only one DataModel.
 	      self.dataSetListener, self.dataSetTypesIn,
 	      self.showDerivedMenu, self.widget
 	      )
+	  sub_item = wx.MenuItem( self, wx.ID_ANY, name, subMenu = ds_menu )
+	  self.AppendItem( sub_item )
+
 	  self.modelSubMenus[ name ] = ds_menu
 	  ds_menu.ProcessStateChange( STATE_CHANGE_init )
 	#end for

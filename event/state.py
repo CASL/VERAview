@@ -86,11 +86,11 @@ LABEL_selectedDataSet = DataSetName( 'Selected Dataset' )
 
 # New, reduced set of events
 STATE_CHANGE_noop = 0
-STATE_CHANGE_init = 0x1 << 0
+STATE_CHANGE_init = 0x1 << 0		# never generated here
 STATE_CHANGE_axialValue = 0x1 << 1
 STATE_CHANGE_coordinates = 0x1 << 2
 STATE_CHANGE_curDataSet = 0x1 << 3
-STATE_CHANGE_dataModelMgr = 0x1 << 4
+STATE_CHANGE_dataModelMgr = 0x1 << 4	# maybe should toss this, not used?
 STATE_CHANGE_scaleMode = 0x1 << 5
 STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
