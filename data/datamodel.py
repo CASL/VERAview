@@ -1126,10 +1126,8 @@ class DataModel( object ):
 property.
 
 Events:
-  newDataSet		callable( new_ds_name )
-			listener.OnNewDataSet( new_ds_name )
-  newFile		callable( new_file_name )
-			listener.OnNewFile( new_file_name )
+  newDataSet		callable( self, new_ds_name )
+			listener.OnNewDataSet( self, new_ds_name )
 
 Properties:
   averagers		dict by category of average calculators
@@ -1268,8 +1266,8 @@ passed, Read() must be called.
 	if ddef[ 'shape_expr' ].find( 'core.nax' ) >= 0:
 	  self.dataSetNames[ 'axial' ].append( ds_name )
 
-      #self.dataSetNamesVersion += 1
-      DataModel.dataSetNamesVersion_ += 1
+      self.dataSetNamesVersion += 1
+      #DataModel.dataSetNamesVersion_ += 1
       self._FireEvent( 'newDataSet', self, ds_name )
     #end if ds_name is new
   #end AddDataSetName
@@ -1314,7 +1312,7 @@ passed, Read() must be called.
     self.dataSetDefs = {}
     self.dataSetDefsByName = {}
     self.dataSetNames = []
-    #self.dataSetNamesVersion = 0
+    self.dataSetNamesVersion = 0
     self.derivableTypesByLabel = {}
     self.derivedFile = None
     self.derivedLabelsByType = {}
@@ -2585,7 +2583,7 @@ returned.  Calls FindMinMaxValueAddr().
   #	METHOD:		DataModel._FireEvent()				-
   #----------------------------------------------------------------------
   def _FireEvent( self, event_name, *params ):
-    """
+    """Calls event_name listeners passing self, and the list of params.
 @param  event_name	'newDataSet'
 @param  params		event params
 """
@@ -2593,9 +2591,9 @@ returned.  Calls FindMinMaxValueAddr().
       for listener in self.listeners[ event_name ]:
         method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
 	if hasattr( listener, method_name ):
-	  getattr( listener, method_name )( *params )
+	  getattr( listener, method_name )( self, *params )
 	elif hasattr( listener, '__call__' ):
-	  listener( *params )
+	  listener( self, *params )
       #end for listener
     #end if event_name
   #end _FireEvent
@@ -2717,13 +2715,13 @@ returned.  Calls FindMinMaxValueAddr().
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDataSetNamesVersion()		-
   #----------------------------------------------------------------------
-#  def GetDataSetNamesVersion( self ):
-#    """Used to determine the generation of dataset changes for menus and
-#lists that must be rebuilt when the sets of available datasets change.
-#"""
-#    return  DataModel.dataSetNamesVersion_
-#    #return  self.dataSetNamesVersion
-#  #end GetDataSetNamesVersion
+  def GetDataSetNamesVersion( self ):
+    """Used to determine the generation of dataset changes for menus and
+lists that must be rebuilt when the sets of available datasets change.
+"""
+    #return  DataModel.dataSetNamesVersion_
+    return  self.dataSetNamesVersion
+  #end GetDataSetNamesVersion
 
 
   #----------------------------------------------------------------------

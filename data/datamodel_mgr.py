@@ -14,7 +14,8 @@
 #		2016-08-19	leerw@ornl.gov				-
 #		2016-08-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, cStringIO, h5py, logging, json, math, os, sys, \
+import bisect, copy, cStringIO, functools, h5py, \
+    logging, json, math, os, sys, \
     tempfile, threading, traceback
 import numpy as np
 import pdb
@@ -32,10 +33,18 @@ class DataModelMgr( object ):
 'CORE' group as the 'core' property, and all the states as the 'states'
 property.
 
+Events:
+  dataSetAdded		OnDataSetAdded( self, model, ds_display_name )
+			callable( self, model, ds_display_name )
+  modelAdded		OnModelAdded( self, model_name )
+			callable( self, model_name )
+  modelRemoved		OnModelRemoved( self, model_name )
+			callable( self, model_name )
+
 Properties:
   dataModelNames	list of model names in order added
   dataModels		dict of DataModel objects keyed by name
-  dataSetNamesVersion	counter to indicate changes
+  #dataSetNamesVersion	counter to indicate changes
   maxAxialValue		maximum axial value (cm) across all DataModels
 """
 
@@ -65,7 +74,7 @@ Properties:
     self.axialMeshCenters = None
     self.dataModelNames = []
     self.dataModels = {}
-    self.dataSetNamesVersion = 0
+    #self.dataSetNamesVersion = 0
     self.detectorMesh = None
     self.fixedDetectorMeshCenters = None
     self.listeners = \
@@ -171,7 +180,7 @@ Properties:
       if not closing_all:
         self._UpdateMeshValues()
         self._UpdateTimeValues()
-        self.dataSetNamesVersion += 1
+        #self.dataSetNamesVersion += 1
 	self._FireEvent( 'modelRemoved', model_name )
 
       result = True
@@ -184,18 +193,17 @@ Properties:
   #	METHOD:		DataModelMgr._FireEvent()			-
   #----------------------------------------------------------------------
   def _FireEvent( self, event_name, *params ):
-    """
+    """Calls event_name listeners passing self and the params list.
 @param  event_name	'dataSetAdded', 'modelAdded', or 'modelRemoved'
 @param  params		event params
 """
-    self.dataSetNamesVersion += 1
     if event_name in self.listeners:
       for listener in self.listeners[ event_name ]:
         method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
 	if hasattr( listener, method_name ):
-	  getattr( listener, method_name )( *params )
+	  getattr( listener, method_name )( self, *params )
 	elif hasattr( listener, '__call__' ):
-	  listener( *params )
+	  listener( self, *params )
       #end for listener
     #end if event_name
   #end _FireEvent
@@ -330,13 +338,12 @@ model name or a DataSetName instance.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataSetNamesVersion()		-
   #----------------------------------------------------------------------
-  def GetDataSetNamesVersion( self ):
-    """Used to determine the generation of dataset changes for menus and
-lists that must be rebuilt when the sets of available datasets change.
-"""
-    return  self.dataSetNamesVersion
-    #return  self.dataSetNamesVersion
-  #end GetDataSetNamesVersion
+#  def GetDataSetNamesVersion( self ):
+#    """Used to determine the generation of dataset changes for menus and
+#lists that must be rebuilt when the sets of available datasets change.
+#"""
+#    return  self.dataSetNamesVersion
+#  #end GetDataSetNamesVersion
 
 
   #----------------------------------------------------------------------
@@ -454,7 +461,7 @@ is not None, otherwise retrieves the union of values across all models.
   def _OnNewDataSet( self, model, ds_name ):
     """Callback for model 'newDataSet' events.
 """
-    self.dataSetNamesVersion += 1
+    #self.dataSetNamesVersion += 1
     self._FireEvent( 'dataSetAdded', model, ds_name )
   #end _OnNewDataSet
 
@@ -488,13 +495,14 @@ is not None, otherwise retrieves the union of values across all models.
 #		-- Process
 #		--
     try:
+      #xxxxx check for duplicate path, dm.GetH5File().filename
       model_name = self._ResolveDataModelName( dm )
       dm.AddListener( 'newDataSet', self._OnNewDataSet )
       self.dataModelNames.append( model_name )
       self.dataModels[ model_name ] = dm
       self._UpdateMeshValues()
       self._UpdateTimeValues()
-      self.dataSetNamesVersion += 1
+      #self.dataSetNamesVersion += 1
       self._FireEvent( 'modelAdded', dm.GetName() )
 
       return  dm
