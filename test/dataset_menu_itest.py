@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu_itest.py				-
 #	HISTORY:							-
+#		2016-12-05	leerw@ornl.gov				-
 #		2016-08-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import argparse, json, os, sys, traceback
@@ -68,9 +69,11 @@ class DataSetMenuTestApp( wx.App ):
       parser = argparse.ArgumentParser()
 
       parser.add_argument(
-	  'file',
-	  #'-f', '--file',
-	  help = 'input file'
+	  #'files',
+	  '-f', '--files',
+	  default = None,
+	  help = 'input files, required',
+	  nargs = '+'
           )
       parser.add_argument(
 	  '--popup-mode',
@@ -96,13 +99,17 @@ class DataSetMenuTestApp( wx.App ):
           )
       args = parser.parse_args()
 
-      if args.file is None:
+      if args.files is None:
         parser.print_help()
 
       else:
         state = State()
-	data = DataModel( args.file )
-	state.Load( data )
+	#data = DataModel( args.file )
+	#state.Load( data )
+	dmgr = state.GetDataModelMgr()
+	for f in args.files:
+	  dmgr.OpenModel( f )
+        state.Init( dmgr.GetFirstDataModel() )
 
 	app = DataSetMenuTestApp()
 	frame = DataSetMenuTestFrame( app, state, args )
@@ -158,26 +165,27 @@ class DataSetMenuTestFrame( wx.Frame ):
   #	METHOD:		DataSetMenuTestFrame._InitUI()			-
   #----------------------------------------------------------------------
   def _InitUI( self ):
-    data = self.state.GetDataModel()
+    dmgr = self.state.GetDataModelMgr()
 
 #		-- File Menu
 #		--
     file_menu = wx.Menu()
 
-    set_menu = wx.Menu()
-    for cat, ds_names in data.GetDataSetNames().iteritems():
-      if cat != 'axial' and cat.find( ':' ) < 0 and ds_names:
-	cat_menu = wx.Menu()
-	for name in ds_names:
-	  item = wx.MenuItem( cat_menu, wx.ID_ANY, name )
-	  self.Bind( wx.EVT_MENU, self._OnDataSetItem, item )
-	  cat_menu.AppendItem( item )
-        cat_item = wx.MenuItem( set_menu, wx.ID_ANY, cat, subMenu = cat_menu )
-	set_menu.AppendItem( cat_item )
-      #end if
-    #end for cat, ds_names
-    set_item = wx.MenuItem( file_menu, wx.ID_ANY, 'Set', subMenu = set_menu )
-    file_menu.AppendItem( set_item )
+    #xxxxx
+#    set_menu = wx.Menu()
+#    for cat, ds_names in data.GetDataSetNames().iteritems():
+#      if cat != 'axial' and cat.find( ':' ) < 0 and ds_names:
+#	cat_menu = wx.Menu()
+#	for name in ds_names:
+#	  item = wx.MenuItem( cat_menu, wx.ID_ANY, name )
+#	  self.Bind( wx.EVT_MENU, self._OnDataSetItem, item )
+#	  cat_menu.AppendItem( item )
+#        cat_item = wx.MenuItem( set_menu, wx.ID_ANY, cat, subMenu = cat_menu )
+#	set_menu.AppendItem( cat_item )
+#      #end if
+#    #end for cat, ds_names
+#    set_item = wx.MenuItem( file_menu, wx.ID_ANY, 'Set', subMenu = set_menu )
+#    file_menu.AppendItem( set_item )
 
     quit_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Quit\tCtrl+Q' )
     self.Bind( wx.EVT_MENU, self._OnQuit, quit_item )
@@ -186,7 +194,7 @@ class DataSetMenuTestFrame( wx.Frame ):
 #		-- Edit Menu
 #		--
     edit_menu = wx.Menu()
-    self.dataSetPullrightMenu = DataSetMenu(
+    self.dataSetPullrightMenu = DataModelMenu(
         self.state, binder = self, ds_listener = self,
 	mode = self.args.pullright_mode,
 	ds_types = self.args.pullright_types
@@ -207,7 +215,7 @@ class DataSetMenuTestFrame( wx.Frame ):
 #		-- Panel with Button
 #		--
     button_sizer = wx.BoxSizer( wx.HORIZONTAL )
-    self.dataSetPopupMenu = DataSetMenu(
+    self.dataSetPopupMenu = DataModelMenu(
         self.state, binder = self, ds_listener = self,
 	mode = self.args.popup_mode,
 	ds_types = self.args.popup_types
@@ -254,8 +262,8 @@ class DataSetMenuTestFrame( wx.Frame ):
   #----------------------------------------------------------------------
   #	METHOD:		DataSetMenuTestFrame.IsDataSetVisible()		-
   #----------------------------------------------------------------------
-  def IsDataSetVisible( self, ds_name ):
-    return  self.dataSetToggleMap.get( ds_name, False )
+  def IsDataSetVisible( self, qds_name ):
+    return  self.dataSetToggleMap.get( qds_name, False )
   #end IsDataSetVisible
 
 
@@ -268,6 +276,7 @@ class DataSetMenuTestFrame( wx.Frame ):
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
 
+    #xxxxx
     reason = self.state.Change( None, cur_dataset = item.GetItemLabelText() )
     self.state.FireStateChange( reason )
   #end _OnDataSetItem
@@ -296,9 +305,9 @@ class DataSetMenuTestFrame( wx.Frame ):
   #----------------------------------------------------------------------
   #	METHOD:		DataSetMenuTestFrame.ToggleDataSetVisible()	-
   #----------------------------------------------------------------------
-  def ToggleDataSetVisible( self, ds_name ):
-    visible = self.dataSetToggleMap.get( ds_name, False )
-    self.dataSetToggleMap[ ds_name ] = not visible
+  def ToggleDataSetVisible( self, qds_name ):
+    visible = self.dataSetToggleMap.get( qds_name, False )
+    self.dataSetToggleMap[ qds_name ] = not visible
   #end ToggleDataSetVisible
 
 #end DataSetMenuTestFrame

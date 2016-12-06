@@ -101,7 +101,6 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     self.derivedMenu = None
     self.derivedMenuLabelMap = {}  # keyed by Menu
     self.mode = mode
-    self.menuItemNameMap = {}  # keyed by MenuItem.Id
     self.showDerivedMenu = show_derived_menu
     self.state = state
     self.widget = widget
@@ -296,27 +295,26 @@ derivedMenu if requested in the constructor.
   def _OnDataSetMenuItem( self, ev ):
     ev.Skip()
 
-    #xxxxx we need a dict of ds_name tuples by menuitem id
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item is not None:
-      #ds_name = item.GetItemLabelText()
-      ds_name = self.menuItemNameMap.get( item.GetId(), None )
+    if item is not None and self.dataModel is not None:
+      ds_display_name = item.GetItemLabelText()
+      qds_name = DataSetName( self.dataModel.GetName(), ds_display_name )
 
       if not self.IsSingleSelection():
         if self.dataSetListener and \
 	    hasattr( self.dataSetListener, 'ToggleDataSetVisible' ):
-	  self.dataSetListener.ToggleDataSetVisible( ds_name )
+	  self.dataSetListener.ToggleDataSetVisible( qds_name )
       else:
 	self._CheckSingleItem( self, item )
 	#this should not happen, 'selected' implies 'multi'
-	if ds_name == LABEL_selectedDataSet:
-	  ds_name = self.state.GetCurDataSet()
+	if qds_name == NAME_selectedDataSet:
+	  qds_name = self.state.GetCurDataSet()
 
 	if self.widget is not None:
-	  self.widget.SetDataSet( ds_name )
+	  self.widget.SetDataSet( qds_name )
 	else:
-	  reason = self.state.Change( None, cur_dataset = ds_name )
+	  reason = self.state.Change( None, cur_dataset = qds_name )
           self.state.FireStateChange( reason )
 	#end if-else self.widget
       #end if-else item.GetKind()
@@ -333,34 +331,28 @@ derivedMenu if requested in the constructor.
     try:
       menu = ev.GetEventObject()
       item = menu.FindItemById( ev.GetId() )
-      #data_model = State.FindDataModel( self.state )
-      dmgr = State.FindDataModelMgr( self.state )
 
-      if item is not None and dmgr is not None:
+      if item is not None and self.dataModel is not None:
         der_ds_name = None
-	#ds_name = item.GetItemLabelText().replace( ' *', '' )
 	item_text = item.GetItemLabelText().replace( ' *', '' )
-        ds_name = self.menuItemNameMap.get( item.GetId(), None )
 	der_label_menu = item.GetMenu()
 
-	data_model = dmgr.GetDataModel( ds_name[ 0 ] )
-	if data_model is not None:
-	  ds_category = data_model.GetDataSetType( item_text )
-	  der_label = self.derivedMenuLabelMap.get( der_label_menu )
-	  if ds_category and der_label:
-	    der_ds_name = data_model.\
-	        ResolveDerivedDataSet( ds_category, der_label, item_text )
+	ds_category = self.dataModel.GetDataSetType( item_text )
+	der_label = self.derivedMenuLabelMap.get( der_label_menu )
+	if ds_category and der_label:
+	  der_ds_name = self.dataModel.\
+	      ResolveDerivedDataSet( ds_category, der_label, item_text )
 
 	if der_ds_name:
+	  der_qds_name = DataSetName( self.dataModel.GetName(), der_ds_name )
 	  #if item.GetKind() == wx.ITEM_CHECK:
 	  if not self.IsSingleSelection():
             if self.dataSetListener and \
 	        hasattr( self.dataSetListener, 'ToggleDataSetVisible' ):
-	      self.dataSetListener.ToggleDataSetVisible( der_ds_name )
+	      self.dataSetListener.ToggleDataSetVisible( der_qds_name )
 	  elif self.widget is not None:
-	    self.widget.SetDataSet( der_ds_name )
+	    self.widget.SetDataSet( der_qds_name )
 	  else:
-	    der_qds_name = DATASET_NAMER.Assemble( ds_name[ 0 ], der_ds_name )
 	    reason = self.state.Change( None, cur_dataset = der_qds_name )
 	    self.state.FireStateChange( reason )
           #end if-else item.GetKind()
@@ -525,12 +517,12 @@ derivedMenu if requested in the constructor.
 	  for dtype, dataset_names in sorted( names_by_type.iteritems() ):
 	    dtype_menu = wx.Menu()
 	    for name in sorted( dataset_names ):
+	      qds_name = DataSetName( self.dataModel.GetName(), name )
 	      check = False
 	      if single_flag:
-	        qds_name = DataSetName( self.dataModel.GetName(), name )
 		check = qds_name == cur_selection
 	      elif self.dataSetListener:
-	        check = self.dataSetListener.IsDataSetVisible( name )
+	        check = self.dataSetListener.IsDataSetVisible( qds_name )
 
 	      item = wx.MenuItem( dtype_menu, wx.ID_ANY, name, kind = kind )
 	      dtype_menu.AppendItem( item )
@@ -546,13 +538,13 @@ derivedMenu if requested in the constructor.
 	  
 	  if selected_flag:
 	    item = wx.MenuItem(
-	        self, wx.ID_ANY, LABEL_selectedDataSet
+	        self, wx.ID_ANY, LABEL_selectedDataSet,
 		kind = kind
 		)
 	    self.AppendItem( item )
 	    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
 	    if self.dataSetListener and \
-	        self.dataSetListener.IsDataSetVisible( LABEL_selectedDataSet ):
+	        self.dataSetListener.IsDataSetVisible( NAME_selectedDataSet ):
 	      item.Check()
 	  #end if selected_flag
 
@@ -562,7 +554,7 @@ derivedMenu if requested in the constructor.
 	  selected_ds_names = []
 #	  cur_selection = None
 	  for dtype in self.dataSetTypes:
-	    dataset_names += data_model.GetDataSetNames( dtype )
+	    dataset_names += self.dataModel.GetDataSetNames( dtype )
 #	    if cur_selection is None:
 #	      cur_selection = self.state.GetDataSetByType( dtype )
 #	    if selected_flag and dtype.find( ':' ) < 0:
@@ -580,12 +572,12 @@ derivedMenu if requested in the constructor.
 
 	  ndx = 0
 	  for name in dataset_names:
+	    qds_name = DataSetName( self.dataModel.GetName(), name )
 	    check = False
 	    if single_flag:
-	      qds_name = DataSetName( self.dataModel.GetName(), name )
 	      check = qds_name == cur_selection
 	    elif self.dataSetListener:
-	      check = self.dataSetListener.IsDataSetVisible( name )
+	      check = self.dataSetListener.IsDataSetVisible( qds_name )
 
 	    item = wx.MenuItem( self, wx.ID_ANY, name, kind = kind )
 	    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
@@ -610,7 +602,7 @@ derivedMenu if requested in the constructor.
 #------------------------------------------------------------------------
 #	CLASS:		DataModelMenu					-
 #------------------------------------------------------------------------
-class DataModelMenu( wx.DataSetMenu ):
+class DataModelMenu( DataSetMenu ):
   """Common dataset menu implementation.  There are two modes: State-based
 and Widget-based.  For the former, this will listen to State and DataModel
 events, self-update based on those events, and fire events through the
@@ -655,7 +647,8 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 @param  widget		widget for use in a widget
 """
     super( DataModelMenu, self ).__init__(
-        state, binder, mode,
+        state, binder,
+	None, mode,
         ds_listener, ds_types,
         show_derived_menu, widget
         )
@@ -746,7 +739,7 @@ requested in the constructor and there is only one DataModel.
       dmgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
       dmgr.AddListener( 'modelAdded', self._OnModelAdded )
       dmgr.AddListener( 'modelRemoved', self._OnModelRemoved )
-      self.UpdateAllMenus()
+      self.UpdateAllMenus( dmgr )
     #end if dmgr
   #end _LoadDataModelMgr
 
@@ -762,7 +755,7 @@ requested in the constructor and there is only one DataModel.
     if dmodel and ds_display_name:
       if 'self' in self.modelSubMenus:
         ds_menu = self.modelSubMenus[ 'self' ]
-      else if dmodel.GetName() in self.modelSubMenus():
+      elif dmodel.GetName() in self.modelSubMenus():
         ds_menu = self.modelSubMenus[ dmodel.GetName() ]
     #end if dmodel, display_name
 
@@ -811,7 +804,7 @@ only recreate all the menus when necessary.
 only recreate all the menus when necessary.
 """
     if dmgr and model_name:
-      if dmgr.GetModelCount() == 1 and 'self' not in self.modelSubMenus:
+      if dmgr.GetDataModelCount() == 1 and 'self' not in self.modelSubMenus:
         self.UpdateAllMenus()
       elif model_name in self.modelSubMenus:
         menu_item_id = self.FindItem( model_name )
@@ -826,18 +819,22 @@ only recreate all the menus when necessary.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMenu.UpdateAllMenus()			-
   #----------------------------------------------------------------------
-  def UpdateAllMenus( self ):
+  def UpdateAllMenus( self, dmgr = None ):
+    """
+@param  dmgr		DataModelMgr instance or None to grab it from self.state
+"""
     self._ClearMenu( self )
     self.modelSubMenus = {}
 
-    dmgr = State.FindDataModelMgr( self.state )
+    if dmgr is None:
+      dmgr = State.FindDataModelMgr( self.state )
     if dmgr is not None:
-      if dmgr.GetModelCount() == 1:
+      if dmgr.GetDataModelCount() == 1:
         self.modelSubMenus[ 'self' ] = self
 	self.dataModel = dmgr.GetFirstDataModel()
 	self.ProcessStateChange( STATE_CHANGE_init )
 
-      elif dmgr.GetModelCount() > 1:
+      elif dmgr.GetDataModelCount() > 1:
         for name in dmgr.GetDataModelNames():
 	  dmodel = dmgr.GetDataModel( name )
 	  ds_menu = DataSetMenu(

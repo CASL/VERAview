@@ -81,7 +81,7 @@ from data.datamodel_mgr import *
 
 
 LABEL_selectedDataSet = 'Selected Dataset'
-#LABEL_selectedDataSet = DataSetName( 'Selected Dataset' )
+NAME_selectedDataSet = DataSetName( LABEL_selectedDataSet )
 
 
 # New, reduced set of events

@@ -1,6 +1,6 @@
  #!/bin/bash -a
  test/dataset_menu_itest.py \
-     /Users/re7x/study/casl/andrew/c1.h5_new.h5 \
+     -f /Users/re7x/study/casl/andrew/c1.h5_new.h5 \
      --pullright-mode 'subsingle' \
      --pullright-types channel detector pin pin:axial pin:radial pin:assembly pin:core scalar \
      --popup-mode 'selected' \
