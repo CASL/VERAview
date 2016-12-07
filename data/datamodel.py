@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-12-07	leerw@ornl.gov				-
+#	  Fixed _FireEvent() call in AddDataSetName() to not pass self
+#	  as self is added to the params list by _FireEvent().
 #		2016-12-01	leerw@ornl.gov				-
 #	  Added DataSetName class to use instead of DataSetNamer.
 #	  Added DataSetNamer and DATASET_NAMER singleton.
@@ -1267,8 +1270,7 @@ passed, Read() must be called.
 	  self.dataSetNames[ 'axial' ].append( ds_name )
 
       self.dataSetNamesVersion += 1
-      #DataModel.dataSetNamesVersion_ += 1
-      self._FireEvent( 'newDataSet', self, ds_name )
+      self._FireEvent( 'newDataSet', ds_name )
     #end if ds_name is new
   #end AddDataSetName
 
@@ -3316,7 +3318,7 @@ a 4D array if necessary.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.HasDataSetType()			-
   #----------------------------------------------------------------------
-  def HasDataSetType( self, ds_type = None ):
+  def HasDataSetType( self, ds_type ):
     """Tests existence of datasets in named type
 @param  ds_type		one of type names, e.g., 'axial', 'channel', 'derived',
 			'detector', 'fixed_detector', 'pin', 'scalar'

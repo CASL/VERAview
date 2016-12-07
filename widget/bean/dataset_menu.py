@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-12-07	leerw@ornl.gov				-
+#	  Modified _CheckSingleItem() to find the top DataModelMenu if
+#	  the menu param is None.
+#	  Modified UpdateMenu() to keep track of any checked item if
+#	  isSingleSelection and call _CheckSingleItem( None, ... ).
+#	  Working version with DataSetMenuITest.
 #		2016-12-02	leerw@ornl.gov				-
 #	  Trying per-DataModel menus.
 #		2016-12-01	leerw@ornl.gov				-
@@ -116,11 +122,21 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
   #----------------------------------------------------------------------
   def _CheckSingleItem( self, menu, checked_item ):
     """DFS walk through menus and items, recursively.
-@param  menu		menu to check, where None means self
+@param  menu		menu to check, where None means find the top level
+			DataModelMenu
 @param  checked_item	item to check or None to clear all checks
 """
     if menu is None:
       menu = self
+      while menu is not None and \
+          type( menu ).__name__ != 'DataModelMenu':
+        menu = menu.GetParent()
+      #end while
+
+      if menu is None:
+        menu = self
+    #end if menu
+
     for i in range( menu.GetMenuItemCount() ):
       item = menu.FindItemByPosition( i )
       sub_menu = item.GetSubMenu()
@@ -306,7 +322,7 @@ derivedMenu if requested in the constructor.
 	    hasattr( self.dataSetListener, 'ToggleDataSetVisible' ):
 	  self.dataSetListener.ToggleDataSetVisible( qds_name )
       else:
-	self._CheckSingleItem( self, item )
+	self._CheckSingleItem( None, item )
 	#this should not happen, 'selected' implies 'multi'
 	if qds_name == NAME_selectedDataSet:
 	  qds_name = self.state.GetCurDataSet()
@@ -394,7 +410,7 @@ derivedMenu if requested in the constructor.
 	    if ds_name else None
 	item = self._FindMenuItem( ds_type, ds_name ) if ds_type else None
 	if item and not item.IsChecked():
-	  self._CheckSingleItem( self, item )
+	  self._CheckSingleItem( None, item )
       #end if single selection
     #end if curDataSet
   #end ProcessStateChange
@@ -480,6 +496,8 @@ derivedMenu if requested in the constructor.
   def UpdateMenu( self ):
     """
 """
+    single_checked_item = None
+
     if self.dataModel is not None and \
         self.dataSetMenuVersion < self.dataModel.GetDataSetNamesVersion():
       single_flag = self.IsSingleSelection()
@@ -528,6 +546,9 @@ derivedMenu if requested in the constructor.
 	      dtype_menu.AppendItem( item )
 	      item.Check( check )
 	      self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+
+	      if single_flag and check:
+	        single_checked_item = item
 	    #end for name
 
 	    dtype_item = \
@@ -570,6 +591,7 @@ derivedMenu if requested in the constructor.
 	    selected_ds_names.sort()
 	    dataset_names += selected_ds_names
 
+	  #xxxxx why not just call AppendItem()?
 	  ndx = 0
 	  for name in dataset_names:
 	    qds_name = DataSetName( self.dataModel.GetName(), name )
@@ -583,6 +605,10 @@ derivedMenu if requested in the constructor.
 	    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
 	    self.InsertItem( ndx, item )
 	    item.Check( check )
+
+	    if single_flag and check:
+	      single_checked_item = item
+
 	    ndx += 1
 	  #end for name
 	#end if-else pullright_flag
@@ -593,6 +619,8 @@ derivedMenu if requested in the constructor.
 
       if single_flag:
         self.dataSetMenuVersion = self.dataModel.GetDataSetNamesVersion()
+	if single_checked_item is not None:
+	  self._CheckSingleItem( None, single_checked_item )
     #end if self.dataModel
   #end UpdateMenu
 
@@ -755,7 +783,7 @@ requested in the constructor and there is only one DataModel.
     if dmodel and ds_display_name:
       if 'self' in self.modelSubMenus:
         ds_menu = self.modelSubMenus[ 'self' ]
-      elif dmodel.GetName() in self.modelSubMenus():
+      elif dmodel.GetName() in self.modelSubMenus:
         ds_menu = self.modelSubMenus[ dmodel.GetName() ]
     #end if dmodel, display_name
 

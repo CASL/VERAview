@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-12-07	leerw@ornl.gov				-
+#	  Modified Init() to call self.dataModelMgr.GetFirstDataModel()
+#	  to get the DataModel instance to use.
 #		2016-11-30	leerw@ornl.gov				-
 #	  Added timeValue property.
 #		2016-11-29	leerw@ornl.gov				-
@@ -268,7 +271,12 @@ All indices are 0-based.
     self.auxSubAddrs = []
     self.axialValue = DataModel.CreateEmptyAxialValue()
     self.curDataSet = DataSetName( 'pin_powers' )
+
+    #xxxxx listen to events, update timeDataSet, timeValue
     self.dataModelMgr = DataModelMgr()
+    self.dataModelMgr.AddListener( 'modelAdded', self._OnDataModelMgr )
+    self.dataModelMgr.AddListener( 'modelRemoved', self._OnDataModelMgr )
+
     self.listeners = []
     self.logger = logging.getLogger( 'event' )
     self.nodeAddr = -1
@@ -462,6 +470,8 @@ Keys passed and the corresponding state bit are:
 	try:
 	  if hasattr( listener, 'HandleStateChange' ):
             listener.HandleStateChange( reason )
+	  elif hasattr( listener, 'OnStateChange' ):
+            listener.HandleStateChange( reason )
 	  elif hasattr( listener, '__call__' ):
 	    listener( reason )
 	except Exception, ex:
@@ -653,10 +663,10 @@ Keys passed and the corresponding state bit are:
   #----------------------------------------------------------------------
   #	METHOD:		Init()						-
   #----------------------------------------------------------------------
-  def Init( self, data_model ):
-    """Initializes with the specified data_model.  It is assumed data_model
-has already been added to dataModelMgr.
-@param  data_model	DataModel to use for initializing properties
+  def Init( self ):
+    """Should be called only after the first DataModel is opened via
+dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
+#@param  data_model	DataModel to use for initializing properties
 """
     undefined_ax = DataModel.CreateEmptyAxialValue()
     #undefined_ax = ( 0.0, -1, -1 )
@@ -671,6 +681,7 @@ has already been added to dataModelMgr.
     self.scaleMode = 'all'
     self.weightsMode = 'on'
 
+    data_model = self.dataModelMgr.GetFirstDataModel()
     if data_model is not None:
       core = data_model.GetCore()
 
@@ -742,6 +753,16 @@ has already been added to dataModelMgr.
       if k in props_dict:
         setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
   #end LoadProps
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnDataModelMgr()				-
+  #----------------------------------------------------------------------
+  def _OnDataModelMgr( self, *args, **kwargs ):
+    if self.dataModelMgr.GetDataModelCount() == 1:
+      self.Init()
+    #xxxxx self.FireStateChange( STATE_CHANGE_dataModelMgr )
+  #end _OnDataModelMgr
 
 
   #----------------------------------------------------------------------

@@ -109,7 +109,7 @@ class DataSetMenuTestApp( wx.App ):
 	dmgr = state.GetDataModelMgr()
 	for f in args.files:
 	  dmgr.OpenModel( f )
-        state.Init( dmgr.GetFirstDataModel() )
+        state.Init()
 
 	app = DataSetMenuTestApp()
 	frame = DataSetMenuTestFrame( app, state, args )

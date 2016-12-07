@@ -285,9 +285,21 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetCore()				-
+  #----------------------------------------------------------------------
+  def GetCore( self ):
+    """Convenience method to return the Core instance from the first
+DataModel.
+@return			Core instance or None if no models have been opened
+"""
+    dm = self.GetFirstDataModel()
+    return  dm.GetCore()  if dm else  None
+  #end GetCore
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModel()			-
   #----------------------------------------------------------------------
-  #def GetDataModel( self, model_name = None, qds_name = None ):
   def GetDataModel( self, param ):
     """Retrieves the DataModel by model name.  The param can be a string
 model name or a DataSetName instance.
@@ -333,17 +345,6 @@ model name or a DataSetName instance.
 """
     return  self.dataModels
   #end GetDataModels
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetDataSetNamesVersion()		-
-  #----------------------------------------------------------------------
-#  def GetDataSetNamesVersion( self ):
-#    """Used to determine the generation of dataset changes for menus and
-#lists that must be rebuilt when the sets of available datasets change.
-#"""
-#    return  self.dataSetNamesVersion
-#  #end GetDataSetNamesVersion
 
 
   #----------------------------------------------------------------------
@@ -453,6 +454,26 @@ is not None, otherwise retrieves the union of values across all models.
   def HasData( self ):
     return  len( self.dataModels ) > 0
   #end HasData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.HasDataSetType()			-
+  #----------------------------------------------------------------------
+  def HasDataSetType( self, ds_type ):
+    """Convenience method to call HasDataSetType() on DataModel instances until 
+True is returned.
+@param  ds_type		one of type names, e.g., 'axial', 'channel', 'derived',
+			'detector', 'fixed_detector', 'pin', 'scalar'
+@return			True if there are datasets, False otherwise
+"""
+    found = False
+    for dm in self.dataModels.values():
+      found = dm.HasDataSetType()
+      if found:
+        break
+
+    return  found
+  #end HasDataSetType
 
 
   #----------------------------------------------------------------------
