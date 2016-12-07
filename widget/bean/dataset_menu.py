@@ -235,14 +235,14 @@ otherwise returns self.state.curDataSet
   #	METHOD:		DataSetMenu.Init()				-
   #----------------------------------------------------------------------
   def Init( self, new_state = None ):
-    """Convenience method to call HandleStateChange( STATE_CHANGE_init )
+    """Convenience method to call ProcessStateChange( STATE_CHANGE_init )
 """
 #	-- Should be unneeded
     if new_state is not None:
       self.state = new_state
       new_state.AddListener( self )
 
-    self.HandleStateChange( STATE_CHANGE_init )
+    self.ProcessStateChange( STATE_CHANGE_init )
   #end Init
 
 
@@ -716,41 +716,17 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu.HandleStateChange()		-
-  #----------------------------------------------------------------------
-  def HandleStateChange( self, reason ):
-    """Handler for State-mode events.
-"""
-    if (reason & STATE_CHANGE_init) > 0:
-      #self._LoadDataModelMgr()
-      reason |= STATE_CHANGE_dataModelMgr
-
-    if (reason & STATE_CHANGE_dataModelMgr) > 0:
-      self._LoadDataModelMgr()
-
-    if (reason & STATE_CHANGE_curDataSet) > 0:
-      ds_name = self.state.GetCurDataSet()
-      if 'self' in self.modelSubMenus:
-        self.ProcessStateChange( STATE_CHANGE_curDataSet )
-      elif ds_name.modelName:
-        for ds_menu in self.modelSubMenus.values():
-	  ds_menu.ProcessStateChange( STATE_CHANGE_curDataSet )
-    #end if curDataSet
-  #end HandleStateChange
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModelMenu.Init()				-
   #----------------------------------------------------------------------
   def Init( self, new_state = None ):
-    """Convenience method to call HandleStateChange( STATE_CHANGE_init )
+    """Convenience method to call OnStateChange( STATE_CHANGE_init )
 """
 #	-- Should be unneeded
     if new_state is not None:
       self.state = new_state
       new_state.AddListener( self )
 
-    self.HandleStateChange( STATE_CHANGE_init )
+    self.OnStateChange( STATE_CHANGE_init )
   #end Init
 
 
@@ -842,6 +818,30 @@ only recreate all the menus when necessary.
       #end if-else
     #end if dmgr and model_name
   #end _OnModelRemoved
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMenu.OnStateChange()			-
+  #----------------------------------------------------------------------
+  def OnStateChange( self, reason ):
+    """Handler for State-mode events.
+"""
+    if (reason & STATE_CHANGE_init) > 0:
+      #self._LoadDataModelMgr()
+      reason |= STATE_CHANGE_dataModelMgr
+
+    if (reason & STATE_CHANGE_dataModelMgr) > 0:
+      self._LoadDataModelMgr()
+
+    if (reason & STATE_CHANGE_curDataSet) > 0:
+      ds_name = self.state.GetCurDataSet()
+      if 'self' in self.modelSubMenus:
+        self.ProcessStateChange( STATE_CHANGE_curDataSet )
+      elif ds_name.modelName:
+        for ds_menu in self.modelSubMenus.values():
+	  ds_menu.ProcessStateChange( STATE_CHANGE_curDataSet )
+    #end if curDataSet
+  #end OnStateChange
 
 
   #----------------------------------------------------------------------

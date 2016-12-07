@@ -167,14 +167,14 @@ TOOLBAR_ITEMS = \
     'icon': 'Core2DView.1.32.png',
     'iconDisabled': 'Core2DView.disabled.1.32.png',
     'type': 'pin',
-    'func': lambda d: d.core is not None and d.core.nass > 1
+    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
     },
     {
     'widget': 'Core Axial 2D View',
     'icon': 'CoreAxial2DView.1.32.png',
     'iconDisabled': 'CoreAxial2DView.disabled.1.32.png',
     'type': 'pin',
-    'func': lambda d: d.core is not None and d.core.nax > 1
+    'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
     },
     {
     'widget': 'Assembly 2D View',
@@ -188,14 +188,14 @@ TOOLBAR_ITEMS = \
     'icon': 'Channel2DView.1.32.png',
     'iconDisabled': 'Channel2DView.disabled.1.32.png',
     'type': 'channel',
-    'func': lambda d: d.core is not None and d.core.nass > 1
+    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
     },
     {
     'widget': 'Channel Axial 2D View',
     'icon': 'ChannelAxial2DView.1.32.png',
     'iconDisabled': 'ChannelAxial2DView.disabled.1.32.png',
     'type': 'channel',
-    'func': lambda d: d.core is not None and d.core.nax > 1
+    'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
     },
     {
     'widget': 'Channel Assembly 2D View',
@@ -235,7 +235,7 @@ TOOLBAR_ITEMS = \
     'icon': 'AllAxialPlot.32.png',
     'iconDisabled': 'AllAxialPlot.disabled.32.png',
     'type': '',
-    'func': lambda d: d.core is not None and d.core.nax > 1
+    'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
 #    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
     {
@@ -243,7 +243,7 @@ TOOLBAR_ITEMS = \
     'icon': 'TimePlot.32.png',
     'iconDisabled': 'TimePlot.disabled.32.png',
     'type': '',
-    'func': lambda d: d.GetStatesCount() > 1
+    'func': lambda d: len( d.GetTimeValues() ) > 1
     }
   ]
 
@@ -295,11 +295,12 @@ class VeraViewApp( wx.App ):
 
     #self.data = None
     #self.dataSetDefault = 'pin_powers'
-    self.filepath = None
+    self.filePaths = None
     self.firstLoop = True
     #self.frame = None
     self.frames = {}
     self.logger = logging.getLogger( 'root' )
+    self.sessionPath = None
     self.skipSession = False
     self.state = None
 
@@ -418,49 +419,63 @@ unnecessary.
 
     elif self.firstLoop:
       self.firstLoop = False
-      #self.frame.GetStatusBar().SetStatusText( '' )
 
       opened = False
       session = WidgetConfig.ReadUserSession()
       #self.frame.SetConfig( session )
       frame.SetConfig( session )
 
-      if self.filepath is None:
-        #session = None if self.skipSession else WidgetConfig.ReadUserSession()
-        if session is not None and not self.skipSession:
-	  data_path = session.GetFilePath()
-	  if os.path.exists( data_path ):
-            ans = wx.MessageBox(
-                'Load previous session?',
-	        'Load Session',
-	        wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
-	        None
-                )
-            if ans == wx.YES:
-	      opened = True
-	      #self.frame.OpenFile( data_path, session )
-	      frame.OpenFile( data_path, session )
-
-      elif os.path.exists( self.filepath ):
-	if self.filepath.lower().endswith( '.vview' ):
-	  #data_path, session = self.frame._ResolveFile( self.filepath )
-	  data_path, session = frame._ResolveFile( self.filepath )
-	  if data_path is None:
-	    wx.MessageBox(
-		'Error reading session file: ' + self.filepath,
-		'Open File', wx.OK | wx.CANCEL, None
-	        )
-	  else:
-            opened = True
-	    #self.frame.OpenFile( data_path, session )
-	    frame.OpenFile( data_path, session )
+      if self.sessionPath and os.path.exists( self.sessionPath ):
+        data_path, session = frame._ResolveFile( self.sessionPath )
+	if data_path is None:
+	  wx.MessageBox(
+	      'Error reading session file: ' + self.sessionPath,
+	      'Open File', wx.OK | wx.CANCEL, None
+	      )
 	else:
 	  opened = True
-	  #self.frame.OpenFile( self.filepath )
-	  frame.OpenFile( self.filepath )
+	  frame.OpenFile( data_path, session )
+
+      elif self.filePaths:
+        for f in self.filePaths:
+	  if os.path.exists( f ):
+            opened = True
+	    frame.OpenFile( f, session )
+
+      elif session is not None and not self.skipSession:
+        data_path = session.GetFilePath()
+	if os.path.exists( data_path ):
+	  ans = wx.MessageBox(
+	      'Load previous session?',
+	      'Load Session',
+	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
+	      None
+              )
+	  if ans == wx.YES:
+	    opened = True
+	    frame.OpenFile( data_path, session )
+      #end if-else
+
+#      elif os.path.exists( self.filepath ):
+#	if self.filepath.lower().endswith( '.vview' ):
+#	  #data_path, session = self.frame._ResolveFile( self.filepath )
+#	  data_path, session = frame._ResolveFile( self.filepath )
+#	  if data_path is None:
+#	    wx.MessageBox(
+#		'Error reading session file: ' + self.filepath,
+#		'Open File', wx.OK | wx.CANCEL, None
+#	        )
+#	  else:
+#            opened = True
+#	    #self.frame.OpenFile( data_path, session )
+#	    frame.OpenFile( data_path, session )
+#	else:
+#	  opened = True
+#	  #self.frame.OpenFile( self.filepath )
+#	  frame.OpenFile( self.filepath )
+#      #end if-elif self.filepaths
 
       if not opened:
-        #self.frame._OnOpenFile( None )
         frame._OnOpenFile( None )
     #end elif self.firstLoop:
   #end OnEventLoopEnter
@@ -521,8 +536,15 @@ unnecessary.
 #          )
 
       parser.add_argument(
-	  '-f', '--file-path',
-	  help = 'path to HDF5 data file'
+	  #'-f', '--file-paths',
+	  'file_path',
+	  help = 'path to HDF5 data file',
+	  nargs = '*'
+          )
+
+      parser.add_argument(
+	  '--session',
+	  help = 'path to session file to load'
           )
 
       parser.add_argument(
@@ -531,40 +553,20 @@ unnecessary.
 	  help = 'skip the check for a session on startup when no file path is specified'
           )
 
-#      parser.add_argument(
-#	  '-s', '--state',
-#	  default = 0,
-#	  type = int,
-#	  help = 'optional 1-based index of state to display' 
-#          )
-
-#      parser.add_argument(
-#	  '--scale',
-#	  type = int, default = 4,
-#	  help = 'not being used right now',
-#          )
-
       args = parser.parse_args()
 
       Config.SetRootDir( os.path.dirname( os.path.abspath( __file__ ) ) )
-#      if args.dataset is not None:
-#        Config.SetDefaultDataSet( args.dataset )
 
 #			-- Create State
 #			--
       state = State()
-#      if args.assembly is not None and args.assembly > 0:
-#        state.assemblyIndex = ( args.assembly - 1, 0, 0 )
-#      if args.axial is not None and args.axial > 0:
-#        state.axialValue = DataModel.CreateEmptyAxialValue()
-#      elif args.state is not None and args.state > 0:
-#        state.stateIndex = args.state - 1
 
 #			-- Create App
 #			--
       #app = VeraViewApp( redirect = False )  # redirect = False
       app = VeraViewApp()
-      app.filepath = args.file_path
+      app.filePaths = args.file_path
+      app.sessionPath = args.session
       app.skipSession = args.skip_startup_session_check
       app.state = state
 
@@ -955,19 +957,8 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
     edit_menu.AppendSeparator()
 
-#    datasets_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Manage Extra DataSets...' )
-#    self.Bind( wx.EVT_MENU, self._OnManageDataSets, datasets_item )
-#    edit_menu.AppendItem( datasets_item )
-
-#			-- Select dataset
-#    self.dataSetMenu = DataSetMenu(
-#        self, 'subsingle',
-#	ds_types = [ 'channel', 'detector', 'fixed_detector', 'pin', 'scalar' ]
-#	)
-#    dataset_item = wx.MenuItem( edit_menu, wx.ID_ANY, 'Select Dataset...' )
-#    self.Bind( wx.EVT_MENU, self._OnSelectDataSet, dataset_item )
     self.dataSetMenu = \
-        DataSetMenu( self.state, binder = self, mode = 'subsingle' )
+        DataModelMenu( self.state, binder = self, mode = 'subsingle' )
     dataset_item = wx.MenuItem(
         edit_menu, wx.ID_ANY, 'Select Dataset',
 	subMenu = self.dataSetMenu
@@ -1695,7 +1686,7 @@ Must be called from the UI thread.
     if ev is not None:
       ev.Skip()
 
-    if self.state.GetDataModel() is not None:
+    if self.state.GetDataModelMgr() is not None:
       self._UpdateConfig()
 
     # 'HDF5 files (*.h5)|*.h5',
@@ -1775,17 +1766,6 @@ Must be called on the UI event thread.
       self.state.FireStateChange( reason )
     #end if
   #end _OnScaleMode
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnSelectDataSet()		-
-  #----------------------------------------------------------------------
-#  def _OnSelectDataSet( self, ev ):
-#    ev.Skip()
-#    if self.dataSetMenu:
-#      self.dataSetMenu._UpdateMenu( ev )
-#      self.widgetToolBar.PopupMenu( self.dataSetMenu )
-#  #end _OnSelectDataSet
 
 
   #----------------------------------------------------------------------
@@ -2092,6 +2072,7 @@ Must be called from the UI thread.
 	  file_path = None
 
 	#self.LoadDataModel,
+	#debug wx.CallAfter( self.UpdateFrame, file_path, session )
 	wx.CallAfter( self.UpdateFrame, file_path, session, 'noop' )
       #end if-elif
     #end if status
@@ -2501,7 +2482,7 @@ Must be called from the UI thread.
   def _UpdateToolBar( self, tbar, enable_all = False ):
     """
 """
-    data = self.state.GetDataModel()
+    dmgr = self.state.GetDataModelMgr()
 
     for i in xrange( len( TOOLBAR_ITEMS ) ):
       item = tbar.FindById( i + 1 )
@@ -2511,9 +2492,7 @@ Must be called from the UI thread.
     tbar.ClearTools()
     #print >> sys.stderr, '\n[_UpdateToolBar] tbar.toolsCount=', tbar.GetToolsCount()
 
-    if data is not None:
-      ds_names = data.GetDataSetNames()
-
+    if dmgr is not None:
       ti_count = 1
       for ti in TOOLBAR_ITEMS:
         widget_icon = ti.get( 'icon' )
@@ -2522,13 +2501,12 @@ Must be called from the UI thread.
 
         else:
           ds_type = ti[ 'type' ]
-	  ds_names = data.GetDataSetNames( ds_type )
 
           enabled = \
 	      enable_all or ds_type == '' or \
-	      (ds_names is not None and len( ds_names ) > 0)
+	      dmgr.HasDataSetType( ds_type )
 	  if enabled and 'func' in ti:
-	    enabled = ti[ 'func' ]( data )
+	    enabled = ti[ 'func' ]( dmgr )
 
           widget_icon = ti.get( 'icon' if enabled else 'iconDisabled' )
           widget_im = wx.Image(

@@ -468,12 +468,29 @@ True is returned.
 """
     found = False
     for dm in self.dataModels.values():
-      found = dm.HasDataSetType()
+      found = dm.HasDataSetType( ds_type )
       if found:
         break
 
     return  found
   #end HasDataSetType
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.Is3DReady()			-
+  #----------------------------------------------------------------------
+  def Is3DReady( self ):
+    """Checks having length gt 1 in all three dimensions.
+"""
+    core = self.GetCore()
+    valid = \
+        core is not None and \
+	core.nax > 1 and \
+	(core.nassx * core.npinx) > 1 and \
+	(core.nassy * core.npiny) > 1
+
+    return  valid
+  #end Is3DReady
 
 
   #----------------------------------------------------------------------
