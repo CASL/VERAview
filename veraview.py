@@ -426,25 +426,37 @@ unnecessary.
       frame.SetConfig( session )
 
       if self.sessionPath and os.path.exists( self.sessionPath ):
-        data_path, session = frame._ResolveFile( self.sessionPath )
-	if data_path is None:
+        data_paths, session = frame._ResolveFile( self.sessionPath )
+	if not data_paths:
 	  wx.MessageBox(
 	      'Error reading session file: ' + self.sessionPath,
 	      'Open File', wx.OK | wx.CANCEL, None
 	      )
 	else:
 	  opened = True
-	  frame.OpenFile( data_path, session )
+	  frame.OpenFile( data_paths, session )
 
       elif self.filePaths:
+	paths = []
         for f in self.filePaths:
 	  if os.path.exists( f ):
-            opened = True
-	    frame.OpenFile( f, session )
+	    paths.append( f )
+	if paths:
+	  opened = True
+	  frame.OpenFile( paths, session )
 
       elif session is not None and not self.skipSession:
-        data_path = session.GetFilePath()
-	if os.path.exists( data_path ):
+        data_paths = session.GetDataModelPaths()
+	if data_paths and len( data_paths ) > 0:
+	  found = True
+	  for f in data_paths:
+	    found |= os.path.exists( f )
+	    if not found:
+	      break
+	else:
+	  found = False
+
+	if found:
 	  ans = wx.MessageBox(
 	      'Load previous session?',
 	      'Load Session',
@@ -453,27 +465,8 @@ unnecessary.
               )
 	  if ans == wx.YES:
 	    opened = True
-	    frame.OpenFile( data_path, session )
+	    frame.OpenFile( data_paths, session )
       #end if-else
-
-#      elif os.path.exists( self.filepath ):
-#	if self.filepath.lower().endswith( '.vview' ):
-#	  #data_path, session = self.frame._ResolveFile( self.filepath )
-#	  data_path, session = frame._ResolveFile( self.filepath )
-#	  if data_path is None:
-#	    wx.MessageBox(
-#		'Error reading session file: ' + self.filepath,
-#		'Open File', wx.OK | wx.CANCEL, None
-#	        )
-#	  else:
-#            opened = True
-#	    #self.frame.OpenFile( data_path, session )
-#	    frame.OpenFile( data_path, session )
-#	else:
-#	  opened = True
-#	  #self.frame.OpenFile( self.filepath )
-#	  frame.OpenFile( self.filepath )
-#      #end if-elif self.filepaths
 
       if not opened:
         frame._OnOpenFile( None )
@@ -814,7 +807,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
       self._UpdateWindowMenus( add_frame = new_frame )
 
     if widget_props:
-      wx.CallAfter( new_frame.UpdateFrame, widget_props = widget_props )
+      wx.CallAfter( new_frame._UpdateFrame, widget_props = widget_props )
   #end CreateWindow
 
 
@@ -958,7 +951,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
     edit_menu.AppendSeparator()
 
     self.dataSetMenu = \
-        DataModelMenu( self.state, binder = self, mode = 'subsingle' )
+        DataSetsMenu( self.state, binder = self, mode = 'subsingle' )
     dataset_item = wx.MenuItem(
         edit_menu, wx.ID_ANY, 'Select Dataset',
 	subMenu = self.dataSetMenu
@@ -1359,7 +1352,7 @@ Note this defines a new State as well as widgets in the grid.
 
     self.state.LoadProps( widget_config.GetStateProps() )
     if check_types:
-      data = self.state.GetDataModel()
+      dmgr = self.state.GetDataModelMgr()
 
     self.CloseAllWidgets()
     grid_sizer = self.grid.GetSizer()
@@ -1377,7 +1370,7 @@ Note this defines a new State as well as widgets in the grid.
 	  if check_types:
 	    must_remove = True
 	    for t in con.widget.GetDataSetTypes():
-	      if data.HasDataSetType( t ):
+	      if dmgr.HasDataSetType( t ):
 	        must_remove = False
 	        addit = True
 	    if must_remove:
@@ -1777,7 +1770,7 @@ Must be called on the UI event thread.
 
 #    init_mask = STATE_CHANGE_init | STATE_CHANGE_dataModelMgr
 #    if (reason & init_mask) > 0:
-#      wx.CallAfter( self.UpdateFrame, widget_props = 'noop' )
+#      wx.CallAfter( self._UpdateFrame, widget_props = 'noop' )
 
     if (reason & STATE_CHANGE_axialValue) > 0:
       if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
@@ -1853,10 +1846,10 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
-    data = self.state.GetDataModel()
+    dmgr = self.state.GetDataModelMgr()
     try:
       #if self.app.filepath is not None:
-      if data is not None:
+      if dmgr.GetDataModelCount() > 0:
         self.SaveSession()
     except Exception, ex:
       msg = 'Error saving session:' + os.linesep + str( ex )
@@ -1870,8 +1863,8 @@ Must be called on the UI event thread.
 	  None
           )
 
-    if data is not None:
-      data.Close()
+    if dmgr is not None:
+      dmgr.Close()
     #self.Close()
     wx.App.Get().ExitMainLoop()
   #end _OnQuit
@@ -1991,22 +1984,23 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.OpenFile()			-
   #----------------------------------------------------------------------
-  def OpenFile( self, file_path, session = None ):
+  def OpenFile( self, file_paths, session = None ):
     """
 Must be called from the UI thread.
 """
     self.CloseAllWidgets()
 
-    dialog = wx.ProgressDialog(
-        'Open File',
-	'Reading file "%s"' % file_path
-	)
+    msg = \
+        ', '.join( file_paths )  if hasattr( file_paths, '__iter__' ) else \
+	str( file_paths )
+
+    dialog = wx.ProgressDialog( 'Open File', 'Reading files: %s' % msg )
     dialog.Show()
 
     wxlibdr.startWorker(
 	self._OpenFileEnd,
 	self._OpenFileBegin,
-	wargs = [ dialog, file_path, session ]
+	wargs = [ dialog, file_paths, session ]
 	#wkwargs = { 'config': config, 'session': session }
         )
   #end OpenFile
@@ -2015,21 +2009,30 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OpenFileBegin()			-
   #----------------------------------------------------------------------
-  def _OpenFileBegin( self, dialog, file_path, session = None ):
+  def _OpenFileBegin( self, dialog, file_paths, session = None ):
     """
 """
     dialog.Pulse()
     status = \
       {
       'dialog': dialog,
-      'file_path': file_path,
+      'file_paths': file_paths,
       'session': session
       }
 
     try:
       dmgr = self.state.GetDataModelMgr()
-      data_model = dmgr.OpenModel( file_path )
-      messages = data_model.Check()
+      messages = []
+
+      if not hasattr( file_paths, '__iter__' ):
+        file_paths = [ file_paths ]
+
+      data_model = None
+      for f in file_paths:
+        dm = dmgr.OpenModel( f )
+	if not data_model:
+	  data_model = dm
+	messages += dm.Check()
 
       status[ 'data_model' ] = data_model
       status[ 'messages' ] = messages
@@ -2062,18 +2065,18 @@ Must be called from the UI thread.
 	    '\n  '.join( status[ 'messages' ] )
 	self.ShowMessageDialog( msg, 'Open File' )
 
-      elif 'data_model' in status and 'file_path' in status:
+      elif 'data_model' in status and 'file_paths' in status and \
+          len( status[ 'file_paths' ] ) > 0:
 	dmgr = self.state.GetDataModelMgr()
 	#if dmgr.GetDataModelCount() == 1:
 	  #self.state.Init()
 	session = status.get( 'session' )
-	file_path = status.get( 'file_path' )
-	if session is None and dmgr.GetDataModelCount() == 1:
-	  file_path = None
+	display_path = status[ 'file_paths' ][ 0 ]
+	#display_path = status[ 'data_model' ].GetH5File().filename
 
 	#self.LoadDataModel,
-	#debug wx.CallAfter( self.UpdateFrame, file_path, session )
-	wx.CallAfter( self.UpdateFrame, file_path, session, 'noop' )
+	#debug wx.CallAfter( self._UpdateFrame, display_path, session )
+	wx.CallAfter( self._UpdateFrame, display_path, session, 'noop' )
       #end if-elif
     #end if status
   #end _OpenFileEnd
@@ -2107,14 +2110,16 @@ Must be called from the UI thread.
   def _ResolveFile( self, path ):
     """Checks the path for a session (.vview) file.
 @param  path		file path
-@return			datafile_path, session
+@return			data_model_paths, session
 """
     session = None
     if path.endswith( '.vview' ):
       session = WidgetConfig( path )
-      path = session.GetFilePath()
+      data_paths = session.GetDataModelPaths()
+    else:
+      data_paths = [ path ]
 
-    return  path, session
+    return  data_paths, session
   #end _ResolveFile
 
 
@@ -2166,11 +2171,15 @@ Must be called from the UI thread.
 
     config.AddWidgets( *widget_list )
 
-    data = self.state.GetDataModel()
-    if data is not None:
-      hfp = data.GetH5File()
-      if hfp is not None:
-        config.SetFilePath( hfp.filename )
+    dmgr = self.state.GetDataModelMgr()
+    if dmgr is not None:
+      data_paths = []
+      for dm in dmgr.GetDataModels().values():
+        hfp = dm.GetH5File()
+        if hfp is not None:
+	  data_paths.append( hfp.filename )
+
+      config.SetDataModelPaths( *data_paths )
 
     config.Write( file_path )
   #end SaveSession
@@ -2268,14 +2277,14 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame.UpdateFrame()			-
+  #	METHOD:		VeraViewFrame._UpdateFrame()			-
   #----------------------------------------------------------------------
-  def UpdateFrame(
+  def _UpdateFrame(
       self, file_path = None, session = None, widget_props = None
       ):
     """Called when self.state.dataModelMgr changes.
 Must be called from the UI thread.
-@param  file_path	optioanl path to VERAOutput file
+@param  file_path	optional path to VERAOutput file
 @param  session		optional WidgetConfig instance for session restoration
 @param  widget_props	None = for default processing to load all applicable
 			  widgets,
@@ -2434,7 +2443,7 @@ Must be called from the UI thread.
     self.exposureBean.SetRange( 1, len( time_values ) )
     self.exposureBean.stateIndex = \
         dmgr.GetTimeValueIndex( self.state.GetTimeValue() )
-  #end UpdateFrame
+  #end _UpdateFrame
 
 
   #----------------------------------------------------------------------

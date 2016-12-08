@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2016-12-08	leerw@ornl.gov				-
+#	  Multiple file paths.
 #		2016-12-02	leerw@ornl.gov				-
 #	  Renamed NumpyEncoder to WidgetEncoder and added WidgetDecoder.
 #		2016-11-19	leerw@ornl.gov				-
@@ -85,14 +87,14 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.GetFilePath()			-
+  #	METHOD:		WidgetConfig.GetDataModelPaths()		-
   #----------------------------------------------------------------------
-  def GetFilePath( self ):
+  def GetDataModelPaths( self ):
     """
 @return			path to saved file or None
 """
-    return  self.fDict.get( 'filePath' )
-  #end GetFilePath
+    return  self.fDict.get( 'dataModelPaths' )
+  #end GetDataModelPaths
 
 
   #----------------------------------------------------------------------
@@ -146,8 +148,8 @@ class WidgetConfig( object ):
     """
 @param  file_path	path to file to read or None to read the user file
 """
-    if 'filePath' in self.fDict:
-      del self.fDict[ 'filePath' ]
+    #if 'dataModelPaths' in self.fDict:
+      #del self.fDict[ 'dataModelPaths' ]
     self.fDict[ 'frameSize' ] = ( 0, 0 )
     del self.fDict[ 'widgets' ][ : ]
 
@@ -166,17 +168,17 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		WidgetConfig.SetFilePath()			-
+  #	METHOD:		WidgetConfig.SetDataModelPaths()		-
   #----------------------------------------------------------------------
-  def SetFilePath( self, file_path = None ):
+  def SetDataModelPaths( self, *paths ):
     """
-@param  file_path	path to file or None
+@param  paths	path to file or None
 """
-    if file_path is None:
-      del self.fDict[ 'filePath' ]
+    if paths and len( paths ) > 0:
+      self.fDict[ 'dataModelPaths' ] = paths
     else:
-      self.fDict[ 'filePath' ] = file_path
-  #end SetFilePath
+      del self.fDict[ 'dataModelPaths' ]
+  #end SetDataModelPaths
 
 
   #----------------------------------------------------------------------

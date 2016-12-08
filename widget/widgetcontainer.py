@@ -378,21 +378,10 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   def GetDataSetMenu( self ):
     """
+@return			DataSetsMenu instance
 """
     return  self.dataSetMenu
   #end GetDataSetMenu
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		GetDerivedDataSetMenu()				-
-  #----------------------------------------------------------------------
-  def GetDerivedDataSetMenu( self ):
-    """
-@deprecated
-"""
-    #return  self.derivedDataSetMenu
-    return  None
-  #end GetDerivedDataSetMenu
 
 
   #----------------------------------------------------------------------
@@ -447,7 +436,7 @@ definition array for a pullright.
 #    dsize = wx.DisplaySize()
 #    wd = min( dsize[ 0 ], 1280 )
 #    ht = min( dsize[ 1 ], 800 )
-    data_model = State.FindDataModel( self.state )
+    dmgr = State.FindDataModelMgr( self.state )
 
 #		-- Instantiate Widget
 #		--
@@ -501,7 +490,7 @@ definition array for a pullright.
 
 #		-- Widget-defined toolbar buttons
 #		--
-    tool_button_defs = self.widget.GetToolButtonDefs( data_model )
+    tool_button_defs = self.widget.GetToolButtonDefs( dmgr )
     if tool_button_defs is not None:
       for icon, tip, handler in tool_button_defs:
 #        tool_im = wx.Image(
@@ -573,42 +562,13 @@ definition array for a pullright.
 #		-- Dataset menu button
 #		--
     dataset_types = list( self.widget.GetDataSetTypes() )
-#dm    ndx = 0
-#dm    while ndx < len( dataset_types ):
-#dm      if data_model.HasDataSetType( dataset_types[ ndx ] ):
-#dm        ndx += 1
-#dm      else:
-#dm        del dataset_types[ ndx ]
-
-    #if dataset_type is not None and data_model.HasDataSetCategory( dataset_type ):
     if len( dataset_types ) > 0:
-#dm      self.dataSetMenu = wx.Menu()
-#dm
-#dm#			-- Derived pullright
-#dm#			--
-#dm      #derived_labels = data_model.GetDerivedLabels( dataset_types[ 0 ] )
-#dm      #if derived_labels:
-#dm      have_derived_labels = False
-#dm      for ds_type in dataset_types:
-#dm        derived_labels = data_model.GetDerivedLabels( ds_type )
-#dm	if derived_labels:
-#dm	  have_derived_labels = True
-#dm	  break
-#dm      if have_derived_labels:
-#dm        self.derivedDataSetMenu = wx.Menu()
-#dm        derived_item = wx.MenuItem(
-#dm            self.dataSetMenu, wx.ID_ANY, 'Derived',
-#dm	    subMenu = self.derivedDataSetMenu
-#dm	    )
-#dm        self.dataSetMenu.AppendItem( derived_item )
-#dm      #end if
-
       display_mode = self.widget.GetDataSetDisplayMode()
       ds_menu_mode = \
           'subselected' if display_mode == 'selected' else \
 	  'submulti' if display_mode == 'multi' else \
 	  'subsingle'
-      self.dataSetMenu = DataSetMenu(
+      self.dataSetMenu = DataSetsMenu(
 	  self.state, binder = self, mode = ds_menu_mode,
 	  ds_listener = self.widget, ds_types = dataset_types,
 	  widget = self.widget
@@ -639,8 +599,8 @@ definition array for a pullright.
       self.animateMenu = wx.Menu()
 
       if 'axial:detector' in anim_indexes and \
-          data_model.GetCore().ndetax > 1 and \
-	  data_model.HasDataSetType( 'detector' ):
+          dmgr.GetCore().ndetax > 1 and \
+	  dmgr.HasDataSetType( 'detector' ):
         anim_item = wx.MenuItem(
 	    self.animateMenu, wx.ID_ANY, 'Detector Axial Levels'
 	    )
@@ -649,8 +609,8 @@ definition array for a pullright.
       #end 'axial:detector'
 
       if 'axial:pin' in anim_indexes and \
-          data_model.GetCore().nax > 1 and \
-	  data_model.HasDataSetType( 'pin' ):
+          dmgr.GetCore().nax > 1 and \
+	  dmgr.HasDataSetType( 'pin' ):
         anim_item = wx.MenuItem(
 	    self.animateMenu, wx.ID_ANY, 'Pin Axial Levels'
 	    )
@@ -658,7 +618,8 @@ definition array for a pullright.
         self.animateMenu.AppendItem( anim_item )
       #end 'axial:detector'
 
-      if 'statepoint' in anim_indexes and len( data_model.GetStates() ) > 1:
+      #if 'statepoint' in anim_indexes and len( data_model.GetStates() ) > 1:
+      if 'statepoint' in anim_indexes and len( dmgr.GetTimeValues() ) > 1:
         anim_item = wx.MenuItem(
 	    self.animateMenu, wx.ID_ANY, 'State Points'
 	    )
@@ -679,7 +640,7 @@ definition array for a pullright.
       self.widgetMenu.AppendItem( show_item )
 
 #			-- Widget-defined items
-    widget_menu_def = self.widget.GetMenuDef( data_model )
+    widget_menu_def = self.widget.GetMenuDef( dmgr )
     if widget_menu_def is not None:
       self.widgetMenu.AppendSeparator()
       self._CreateMenuFromDef( self.widgetMenu, widget_menu_def )
@@ -852,51 +813,6 @@ definition array for a pullright.
         self.widget.SetDataSet( name )
       self.widget._BusyEnd()
   #end _OnDataSetMenuItem
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnDerivedDataSetMenuItem()			-
-  #----------------------------------------------------------------------
-  def _OnDerivedDataSetMenuItem( self, ev ):
-    """
-@deprecated with use of DataSetMenu
-"""
-    ev.Skip()
-
-    try:
-      menu = ev.GetEventObject()
-      item = menu.FindItemById( ev.GetId() )
-      if item is not None:
-        self.widget._BusyBegin()
-
-	der_ds_name = None
-
-        ds_name = item.GetLabel().replace( ' *', '' )
-        ds_menu = item.GetMenu()
-
-        data_model = State.FindDataModel( self.state )
-	ds_category = data_model.GetDataSetType( ds_name )
-
-	if ds_category:
-	  der_ds_name = data_model.ResolveDerivedDataSet(
-	      #self.widget.GetDataSetTypes()[ 0 ]
-              ds_category, ds_menu._derivedLabel, ds_name
-	      )
-        if der_ds_name:
-          #self.widget.SetDataSet( name )
-	  if item.GetKind() == wx.ITEM_CHECK:
-            self.widget.ToggleDataSetVisible( der_ds_name )
-	  else:
-            self.widget.SetDataSet( der_ds_name )
-	#end if der_ds_name
-        self.widget._BusyEnd()
-
-    except Exception, ex:
-      wx.MessageBox(
-	  str( ex ), 'Calculate Derived Dataset',
-	  wx.OK_DEFAULT, self
-	  )
-  #end _OnDerivedDataSetMenuItem
 
 
   #----------------------------------------------------------------------
@@ -1125,172 +1041,5 @@ Must be called from the UI event thread
       #end if k
     #end for k
   #end SetEventLocks
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDataSetMenu()				-
-  #----------------------------------------------------------------------
-  def _UpdateDataSetMenu( self ):
-    """Handles (re)creation of the dataset menu.
-@deprecated with use of DataSetMenu
-"""
-#		-- Check need for update
-#		--
-    data_model = State.FindDataModel( self.state )
-    if data_model is not None and \
-        self.dataSetMenuVersion < data_model.GetDataSetNamesVersion():
-
-      if self.logger.isEnabledFor( logging.DEBUG ):
-        self.logger.debug(
-	    'version from=%d, to=%d',
-	    self.dataSetMenuVersion, data_model.GetDataSetNamesVersion()
-	    )
-
-#			-- Remove existing items
-#			--
-      rlist = []
-      for item in self.dataSetMenu.GetMenuItems():
-        #if item.GetLabel() not in ( 'Derived', 'Other', 'Selected' ):
-        if item.GetSubMenu() is None:
-	  rlist.append( item )
-      for item in rlist:
-        self.dataSetMenu.DestroyItem( item )
-
-#			-- Must have datasets
-#			--
-      display_mode = self.widget.GetDataSetDisplayMode()
-      selected_ds_names = []
-#_      selected_flag = display_mode == 'selected'
-      dataset_names = []
-      widget_ds_types = self.widget.GetDataSetTypes()
-      if widget_ds_types:
-        for dtype in widget_ds_types:
-	  dataset_names = dataset_names + data_model.GetDataSetNames( dtype )
-#_Back to just one selected dataset
-#_	  if selected_flag and dtype.find( ':' ) < 0 and \
-#_	      data_model.HasDataSetType( dtype ):
-#_	    selected_ds_names.append( self.widget.GetSelectedDataSetName( dtype ) )
-        #end for
-	if display_mode == 'selected':
-	  selected_ds_names = [ LABEL_selectedDataSet ]
-      #end if
-
-#				-- Populate dataset items
-#				--
-      if len( dataset_names ) > 0:
-	dataset_names.sort()
-
-	if selected_ds_names:
-	  selected_ds_names.sort()
-	  dataset_names += selected_ds_names
-
-	item_kind = \
-	    wx.ITEM_CHECK if self.widget.GetDataSetDisplayMode() else \
-	    wx.ITEM_NORMAL
-	ndx = 0
-        for name in dataset_names:
-          item = wx.MenuItem( self.dataSetMenu, wx.ID_ANY, name, kind = item_kind )
-          self.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	  #self.dataSetMenu.AppendItem( item )
-	  self.dataSetMenu.InsertItem( ndx, item )
-	  if item_kind == wx.ITEM_CHECK and self.widget.IsDataSetVisible( name ):
-	    item.Check()
-	  ndx += 1
-        #end for
-
-#				-- Derived pullright
-#				--
-	if self.derivedDataSetMenu is not None:
-	  self._UpdateDerivedDataSetMenu( data_model )
-      #end if dataset names
-
-      if not self.widget.GetDataSetDisplayMode():
-        self.dataSetMenuVersion = data_model.GetDataSetNamesVersion()
-    #end if must update
-  #end _UpdateDataSetMenu
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDerivedDataSetMenu()			-
-  #----------------------------------------------------------------------
-  def _UpdateDerivedDataSetMenu( self, data_model = None ):
-    """
-@deprecated with use of DataSetMenu
-"""
-    if data_model is None:
-      data_model = State.FindDataModel( self.state )
-
-    if data_model and self.derivedDataSetMenu:
-#		-- Clear existing items
-#		--
-      while self.derivedDataSetMenu.GetMenuItemCount() > 0:
-	item = self.derivedDataSetMenu.FindItemByPosition( 0 )
-	self.derivedDataSetMenu.DestroyItem( item )
-
-#		-- Populate derived label submenus
-#		--
-      label_cat_ds_names_map = {}
-      for ds_type in self.widget.GetDataSetTypes():
-        ndx = ds_type.find( ':' )
-	if ndx > 0:
-	  cat = ds_type[ 0 : ndx ]
-	  der_label = ds_type[ ndx + 1 : ]
-
-	  if der_label in data_model.GetDerivedLabels( cat ):
-	    cat_names_map = label_cat_ds_names_map.get( der_label )
-	    if cat_names_map is None:
-	      cat_names_map = {}
-	      label_cat_ds_names_map[ der_label ] = cat_names_map
-
-	    cat_names = cat_names_map.get( cat )
-	    if cat_names is None:
-	      cat_names = []
-	      cat_names_map[ cat ] = cat_names
-	    cat_names += data_model.GetDataSetNames( cat )
-	  #end if der_label
-	#end if ndx
-      #end for ds_type
-
-      if label_cat_ds_names_map:
-	item_kind = \
-	    wx.ITEM_CHECK if self.widget.GetDataSetDisplayMode() else \
-	    wx.ITEM_NORMAL
-        for label in sorted( label_cat_ds_names_map.keys() ):
-	  ds_menu = wx.Menu()
-	  ds_menu._derivedLabel = label
-
-	  empty = True
-	  cat_names_map = label_cat_ds_names_map[ label ]
-	  for cat, names in cat_names_map.iteritems():
-	    for name in sorted( names ):
-	      item_label = name
-	      if data_model.HasDerivedDataSet( cat, label, name ):
-	        item_label += ' *'
-	      item = wx.MenuItem( ds_menu, wx.ID_ANY, item_label, kind = item_kind )
-	      self.Bind( wx.EVT_MENU, self._OnDerivedDataSetMenuItem, item )
-	      ds_menu.AppendItem( item )
-
-	      if item_kind == wx.ITEM_CHECK:
-		der_names = data_model._CreateDerivedNames( cat, label, name )
-	        if self.widget.IsDataSetVisible( der_names[ 1 ] ) or \
-		    self.widget.IsDataSetVisible( der_names[ 2 ] ):
-	          item.Check()
-	    #end for name
-	  #end for cat, names
-
-	  if empty:
-	    empty = False
-	  else:
-	    self.derivedDataSetMenu.AppendSeparator();
-
-          label_item = wx.MenuItem(
-              self.derivedDataSetMenu, wx.ID_ANY, label,
-	      subMenu = ds_menu
-	      )
-	  self.derivedDataSetMenu.AppendItem( label_item )
-	#end for label
-      #end if label_cat_ds_names_map
-    #end if we have a derived submenu
-  #end _UpdateDerivedDataSetMenu
 
 #end WidgetContainer

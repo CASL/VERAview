@@ -4,8 +4,8 @@
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
 #		2016-12-07	leerw@ornl.gov				-
-#	  Modified _CheckSingleItem() to find the top DataModelMenu if
-#	  the menu param is None.
+#	  Modified _CheckSingleItem() to find the top DataSetsMenu
+#	  if the menu param is None.
 #	  Modified UpdateMenu() to keep track of any checked item if
 #	  isSingleSelection and call _CheckSingleItem( None, ... ).
 #	  Working version with DataSetMenuITest.
@@ -40,14 +40,11 @@ from event.state import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		DataSetMenu					-
+#	CLASS:		DataModelMenu					-
 #------------------------------------------------------------------------
-class DataSetMenu( wx.Menu ):
-  """Common dataset menu implementation.  There are two modes: State-based
-and Widget-based.  For the former, this will listen to State and DataModel
-events, self-update based on those events, and fire events through the
-State object.  In the latter, all updates are performed to the Widget,
-and the WidgetContainer or Widget is responsible for calling UpdateMenu().
+class DataModelMenu( wx.Menu ):
+  """Menu for managing datasets for a single DataModel instance.
+No event listening is done in this class.
 """
 
 
@@ -56,7 +53,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.__init__()				-
+  #	METHOD:		DataModelMenu.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self,
       state, binder,
@@ -88,7 +85,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 @param  show_derived_menu  True to show a derived submenu if applicable
 @param  widget		widget for use in a widget
 """
-    super( DataSetMenu, self ).__init__()
+    super( DataModelMenu, self ).__init__()
 
 #		-- Assertions
     assert state is not None, '"state" parameter is required'
@@ -110,26 +107,22 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
     self.showDerivedMenu = show_derived_menu
     self.state = state
     self.widget = widget
-
-    #if state is not None:
-    if widget is None:
-      state.AddListener( self )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._CheckSingleItem()			-
+  #	METHOD:		DataModelMenu._CheckSingleItem()		-
   #----------------------------------------------------------------------
   def _CheckSingleItem( self, menu, checked_item ):
     """DFS walk through menus and items, recursively.
 @param  menu		menu to check, where None means find the top level
-			DataModelMenu
+			DataSetsMenu
 @param  checked_item	item to check or None to clear all checks
 """
     if menu is None:
       menu = self
       while menu is not None and \
-          type( menu ).__name__ != 'DataModelMenu':
+          type( menu ).__name__ != 'DataSetsMenu':
         menu = menu.GetParent()
       #end while
 
@@ -152,7 +145,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._ClearMenu()			-
+  #	METHOD:		DataModelMenu._ClearMenu()			-
   #----------------------------------------------------------------------
   def _ClearMenu( self, menu, excludes = [] ):
     """Recursively removes items.
@@ -175,7 +168,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._FindMenuItem()			-
+  #	METHOD:		DataModelMenu._FindMenuItem()			-
   #----------------------------------------------------------------------
   def _FindMenuItem( self, ds_type, ds_name, menu = None ):
     """Finds the menu item.
@@ -205,7 +198,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.FireStateChange()			-
+  #	METHOD:		DataModelMenu.FireStateChange()			-
   #----------------------------------------------------------------------
   def FireStateChange( self, **kwargs ):
     if self.widget is not None:
@@ -217,7 +210,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._GetCurDataSet()			-
+  #	METHOD:		DataModelMenu._GetCurDataSet()			-
   #----------------------------------------------------------------------
   def _GetCurDataSet( self ):
     """If self.isSingleSelection and self.widget exists, returns that value,
@@ -232,7 +225,7 @@ otherwise returns self.state.curDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.Init()				-
+  #	METHOD:		DataModelMenu.Init()				-
   #----------------------------------------------------------------------
   def Init( self, new_state = None ):
     """Convenience method to call ProcessStateChange( STATE_CHANGE_init )
@@ -247,7 +240,7 @@ otherwise returns self.state.curDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.IsPullright()			-
+  #	METHOD:		DataModelMenu.IsPullright()			-
   #----------------------------------------------------------------------
   def IsPullright( self ):
     return  self.mode.startswith( 'sub' ) and len( self.dataSetTypes ) > 1
@@ -255,7 +248,7 @@ otherwise returns self.state.curDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.IsSingleSelection()			-
+  #	METHOD:		DataModelMenu.IsSingleSelection()		-
   #----------------------------------------------------------------------
   def IsSingleSelection( self ):
     return  self.mode == '' or self.mode.find( 'single' ) >= 0
@@ -263,7 +256,7 @@ otherwise returns self.state.curDataSet
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._LoadDataModel()			-
+  #	METHOD:		DataModelMenu._LoadDataModel()			-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
     """Here we determine the available dataset types and create the
@@ -306,7 +299,7 @@ derivedMenu if requested in the constructor.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._OnDataSetMenuItem()		-
+  #	METHOD:		DataModelMenu._OnDataSetMenuItem()		-
   #----------------------------------------------------------------------
   def _OnDataSetMenuItem( self, ev ):
     ev.Skip()
@@ -339,7 +332,7 @@ derivedMenu if requested in the constructor.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._OnDerivedDataSetMenuItem()		-
+  #	METHOD:		DataModelMenu._OnDerivedDataSetMenuItem()	-
   #----------------------------------------------------------------------
   def _OnDerivedDataSetMenuItem( self, ev ):
     ev.Skip()
@@ -384,7 +377,7 @@ derivedMenu if requested in the constructor.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.ProcessStateChange()		-
+  #	METHOD:		DataModelMenu.ProcessStateChange()		-
   #----------------------------------------------------------------------
   def ProcessStateChange( self, reason ):
     """Handler for State-mode events.
@@ -417,17 +410,17 @@ derivedMenu if requested in the constructor.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.Reset()				-
+  #	METHOD:		DataModelMenu.Reset()				-
   #----------------------------------------------------------------------
   def Reset( self ):
-    """Reverts dataSetMenuVersion.
+    """Rests dataSetMenuVersion to -1.
 """
     self.dataSetMenuVersion = -1
   #end Reset
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu._UpdateDerivedMenu()		-
+  #	METHOD:		DataModelMenu._UpdateDerivedMenu()		-
   #----------------------------------------------------------------------
   def _UpdateDerivedMenu( self ):
     """
@@ -491,7 +484,7 @@ derivedMenu if requested in the constructor.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetMenu.UpdateMenu()			-
+  #	METHOD:		DataModelMenu.UpdateMenu()			-
   #----------------------------------------------------------------------
   def UpdateMenu( self ):
     """
@@ -624,18 +617,18 @@ derivedMenu if requested in the constructor.
     #end if self.dataModel
   #end UpdateMenu
 
-#end DataSetMenu
+#end DataModelMenu
 
 
 #------------------------------------------------------------------------
-#	CLASS:		DataModelMenu					-
+#	CLASS:		DataSetsMenu					-
 #------------------------------------------------------------------------
-class DataModelMenu( DataSetMenu ):
-  """Common dataset menu implementation.  There are two modes: State-based
-and Widget-based.  For the former, this will listen to State and DataModel
-events, self-update based on those events, and fire events through the
-State object.  In the latter, all updates are performed to the Widget,
-and the WidgetContainer or Widget is responsible for calling UpdateMenu().
+class DataSetsMenu( DataModelMenu ):
+  """Common dataset menu implementation.  There are two uses: State-based
+and Widget-based.  For the former, this will listen to State events,
+self-update based on those events, and fire events through the State object.
+In the latter, all updates are performed to the Widget, and the WidgetContainer
+or Widget is responsible for calling UpdateMenu().
 """
 
 
@@ -644,7 +637,7 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu.__init__()			-
+  #	METHOD:		DataSetsMenu.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self,
       state, binder, mode = '',
@@ -674,64 +667,31 @@ and the WidgetContainer or Widget is responsible for calling UpdateMenu().
 @param  show_derived_menu  True to show a derived submenu if applicable
 @param  widget		widget for use in a widget
 """
-    super( DataModelMenu, self ).__init__(
+    super( DataSetsMenu, self ).__init__(
         state, binder,
 	None, mode,
         ds_listener, ds_types,
         show_derived_menu, widget
         )
     self.modelSubMenus = {}  # keyed by model name or 'self'
+
+    if widget is None:
+      state.AddListener( self )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu._FindMenuItem_maybe_not_needed()	-
+  #	METHOD:		DataSetsMenu.Init()				-
   #----------------------------------------------------------------------
-  def _FindMenuItem_maybe_not_needed( self, ds_type, ds_name, menu = None ):
-    """Finds the menu item.
-@param  ds_type		dataset category/type
-@param  ds_name		DataSetName instance
-@return			item or None if not found
-"""
-    match_item = None
-    if menu == None:
-      menu = self
-
-    for item in menu.GetMenuItems():
-      item_text = item.GetItemLabelText()
-      if item_text == ds_name.displayName:
-        match_item = item
-
-      else:
-        sub = item.GetSubMenu()
-	if sub and (item_text == ds_name.modelName or item_text == ds_type):
-	  match_item = self._FindMenuItem( ds_type, ds_name, sub )
-      #end if-else
-
-      if match_item != None: break
-    #end for item
-
-    return  match_item
-  #end _FindMenuItem_maybe_not_needed
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu.Init()				-
-  #----------------------------------------------------------------------
-  def Init( self, new_state = None ):
+  def Init( self ):
     """Convenience method to call OnStateChange( STATE_CHANGE_init )
 """
-#	-- Should be unneeded
-    if new_state is not None:
-      self.state = new_state
-      new_state.AddListener( self )
-
     self.OnStateChange( STATE_CHANGE_init )
   #end Init
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu._LoadDataModelMgr()		-
+  #	METHOD:		DataSetsMenu._LoadDataModelMgr()		-
   #----------------------------------------------------------------------
   def _LoadDataModelMgr( self ):
     """Here we determine the available dataset types, create model
@@ -749,7 +709,7 @@ requested in the constructor and there is only one DataModel.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu._OnDataSetAdded()			-
+  #	METHOD:		DataSetsMenu._OnDataSetAdded()			-
   #----------------------------------------------------------------------
   def _OnDataSetAdded( self, dmgr, dmodel, ds_display_name ):
     """Event handler for new dataset in a DataModel instance.
@@ -773,7 +733,7 @@ requested in the constructor and there is only one DataModel.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu._OnModelAdded()			-
+  #	METHOD:		DataSetsMenu._OnModelAdded()			-
   #----------------------------------------------------------------------
   def _OnModelAdded( self, dmgr, model_name ):
     """Event handler for new DataModel instance.  We try to be smart and
@@ -784,7 +744,7 @@ only recreate all the menus when necessary.
         self.UpdateAllMenus()
       else:
         dmodel = dmgr.GetDataModel( model_name )
-        ds_menu = DataSetMenu(
+        ds_menu = DataModelMenu(
 	    self.state, self.binder,
 	    dmodel, self.mode,
 	    self.dataSetListener, self.dataSetTypesIn,
@@ -801,7 +761,7 @@ only recreate all the menus when necessary.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu._OnModelRemoved()			-
+  #	METHOD:		DataSetsMenu._OnModelRemoved()			-
   #----------------------------------------------------------------------
   def _OnModelRemoved( self, dmgr, model_name ):
     """Event handler for removed DataModel instance.  We try to be smart and
@@ -821,7 +781,7 @@ only recreate all the menus when necessary.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu.OnStateChange()			-
+  #	METHOD:		DataSetsMenu.OnStateChange()			-
   #----------------------------------------------------------------------
   def OnStateChange( self, reason ):
     """Handler for State-mode events.
@@ -845,7 +805,22 @@ only recreate all the menus when necessary.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMenu.UpdateAllMenus()			-
+  #	METHOD:		DataSetsMenu.Reset()				-
+  #----------------------------------------------------------------------
+  def Reset( self ):
+    """If this is the sole menu, calls super.Reset(), otherwise calls
+Reset() on all the model submenus.
+"""
+    if 'self' in self.modelSubMenus:
+      super( DataSetsMenu, self ).Reset()
+    else:
+      for ds_menu in self.modelSubMenus.values():
+        ds_menu.Reset()
+  #end Reset
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetsMenu.UpdateAllMenus()			-
   #----------------------------------------------------------------------
   def UpdateAllMenus( self, dmgr = None ):
     """
@@ -865,7 +840,7 @@ only recreate all the menus when necessary.
       elif dmgr.GetDataModelCount() > 1:
         for name in dmgr.GetDataModelNames():
 	  dmodel = dmgr.GetDataModel( name )
-	  ds_menu = DataSetMenu(
+	  ds_menu = DataModelMenu(
 	      self.state, self.binder,
 	      dmodel, self.mode,
 	      self.dataSetListener, self.dataSetTypesIn,
@@ -881,4 +856,4 @@ only recreate all the menus when necessary.
     #end if dmgr
   #end UpdateAllMenus
 
-#end DataModelMenu
+#end DataSetsMenu

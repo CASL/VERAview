@@ -194,7 +194,7 @@ class DataSetMenuTestFrame( wx.Frame ):
 #		-- Edit Menu
 #		--
     edit_menu = wx.Menu()
-    self.dataSetPullrightMenu = DataModelMenu(
+    self.dataSetPullrightMenu = DataSetsMenu(
         self.state, binder = self, ds_listener = self,
 	mode = self.args.pullright_mode,
 	ds_types = self.args.pullright_types
@@ -215,7 +215,7 @@ class DataSetMenuTestFrame( wx.Frame ):
 #		-- Panel with Button
 #		--
     button_sizer = wx.BoxSizer( wx.HORIZONTAL )
-    self.dataSetPopupMenu = DataModelMenu(
+    self.dataSetPopupMenu = DataSetsMenu(
         self.state, binder = self, ds_listener = self,
 	mode = self.args.popup_mode,
 	ds_types = self.args.popup_types

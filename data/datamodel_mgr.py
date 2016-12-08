@@ -146,7 +146,8 @@ Properties:
   #	METHOD:		DataModelMgr.Close()				-
   #----------------------------------------------------------------------
   def Close( self ):
-    for dm_name in self.dataModels:
+    names = list( self.dataModelNames )
+    for dm_name in names:
       self.CloseModel( dm_name, True )
   #end Close
 
@@ -345,6 +346,19 @@ model name or a DataSetName instance.
 """
     return  self.dataModels
   #end GetDataModels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataSetType()			-
+  #----------------------------------------------------------------------
+  def GetDataSetType( self, qds_name ):
+    """Retrieves the type for the name dataset.
+@param  qds_name	DataSetName instance
+@return			type or None
+"""
+    dm = self.GetDataModel( qds_name )
+    return  dm.GetDataSetType( qds_name.displayName )
+  #end GetDataSetType
 
 
   #----------------------------------------------------------------------
