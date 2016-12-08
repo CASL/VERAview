@@ -2684,6 +2684,7 @@ returned.  Calls FindMinMaxValueAddr().
   #----------------------------------------------------------------------
   def GetDataSetDisplayName( self, ds_name ):
     """Removes prefixes.
+@deprecated  by DataSetName
 """
     return \
 	ds_name  if not ds_name else \
@@ -3448,16 +3449,16 @@ for NaN.  For now, we just assume 0.0 is "no data".
   def IsValid( self, **kwargs ):
     """Checks values for validity w/in ranges available for this dataset
 @param  kwargs		named values to check:
-			  'assembly_addr'
-			  'assembly_index'
-			  'axial_level'
-			  'node_addr'
-			  'sub_addr'
-			  'sub_addr_mode'
-			    (either 'channel', or 'pin', defaulting to 'pin')
-			  ('dataset_name' (requires 'state_index'))
-			  'detector_index'
-			  'state_index'
+		'assembly_addr'
+		'assembly_index'
+		'axial_level'
+		'dataset_name' (requires 'state_index')
+		'node_addr'
+		'sub_addr'
+		'sub_addr_mode'
+		  (either 'channel', or 'pin', defaulting to 'pin')
+		'detector_index'
+		'state_index'
 """
     valid = self.core is not None
 

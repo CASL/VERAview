@@ -760,68 +760,6 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_OnDataSetMenuExtraItem()			-
-  #----------------------------------------------------------------------
-#  def _OnDataSetMenuExtraItem( self, ev ):
-#    """
-#@deprecated
-#"""
-#    ev.Skip()
-#
-#    data_model = State.FindDataModel( self.state )
-#    if data_model is not None:
-#      matching_ds_names = data_model.GetExtra4DDataSets()
-#
-#      if len( matching_ds_names ) == 0:
-#        wx.MessageBox(
-#	    'No matching extra datasets',
-#	    'Save Animated Image', wx.OK_DEFAULT, self
-#	    )
-#      else:
-#        dialog = wx.SingleChoiceDialog(
-#	    self, 'Select', 'Select Extra Dataset',
-#	    matching_ds_names
-#	    )
-#        status = dialog.ShowModal()
-#	if status == wx.ID_OK:
-#	  name = dialog.GetStringSelection()
-#	  if name is not None:
-#	    self.widget.SetDataSet( 'extra:' + dialog.GetStringSelection() )
-#      #end if-else
-#    #end if data_model exists
-#  #end _OnDataSetMenuExtraItem
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnDataSetMenuItem()				-
-  #----------------------------------------------------------------------
-  def _OnDataSetMenuItem( self, ev ):
-    """
-@deprecated with use of DataSetMenu
-"""
-    ev.Skip()
-
-    menu = ev.GetEventObject()
-    item = menu.FindItemById( ev.GetId() )
-    if item is not None:
-      self.widget._BusyBegin()
-
-      #self.widget.SetDataSet( item.GetLabel() )
-      if item.GetKind() == wx.ITEM_CHECK:
-        self.widget.ToggleDataSetVisible( item.GetLabel() )
-      else:
-	name = item.GetLabel()
-	if name.startswith( 'Selected ' ):
-	  #name = name[ 9 : ]
-	  tokens = name.split( ' ' )
-	  if len( tokens > 1 ):
-	    name = tokens[ 1 ]
-        self.widget.SetDataSet( name )
-      self.widget._BusyEnd()
-  #end _OnDataSetMenuItem
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_OnEventMenuItem()				-
   #----------------------------------------------------------------------
   def _OnEventMenuItem( self, ev_id, ev ):

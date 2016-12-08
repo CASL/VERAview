@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-12-08	leerw@ornl.gov				-
+#	  Migrating to new DataModelMgr.
 #		2016-10-30	leerw@ornl.gov				-
 #	  Checking smallest_ht in _DrawValues().
 #		2016-10-26	leerw@ornl.gov				-
@@ -250,6 +252,7 @@ _CreateValueString()
     self.cellRange = None  # left, top, right+1, bottom+1, dx, dy
     self.cellRangeStack = []
     self.config = None
+    self.curDataSet = None  # DataSetName instance
     self.curSize = None
     self.dragStartCell = None
     self.dragStartPosition = None
@@ -271,6 +274,7 @@ _CreateValueString()
     self.showLabels = True
     self.showLegend = True
     self.stateIndex = -1
+    self.timeValue = -1.0
 
     self.bitmapCtrl = None
     self.bitmapPanel = None
@@ -499,8 +503,8 @@ Sets the config attribute.
       self.logger.debug( 'wd=%d, ht=%d', wd, ht )
 
     self.config = None
-    if wd > 0 and ht > 0 and self.data is not None and \
-        self.data.HasData() and self.cellRange is not None:
+    if wd > 0 and ht > 0 and \
+        self.dmgr.HasData() and self.cellRange is not None:
       self.config = self._CreateDrawConfig( size = ( wd, ht ) )
   #end _Configure
 
@@ -769,12 +773,12 @@ _CreateRasterImage().
   #	METHOD:		RasterWidget._CreateTitleFormat()		-
   #----------------------------------------------------------------------
   def _CreateTitleFormat(
-      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      self, pil_font, qds_name, ds_shape, time_ds_name = None,
       assembly_ndx = -1, axial_ndx = -1
       ):
     """Creates the title format and default string for sizing.
 @param  pil_font	PIL font to use for sizing
-@param  ds_name		dataset name
+@param  qds_name	name of dataset, DataSetName instance
 @param  ds_shape	dataset shape
 @param  time_ds_name	optional time dataset name
 @param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
@@ -782,7 +786,8 @@ _CreateRasterImage().
 			displayed
 @return			( format-string, size-tuple )
 """
-    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    #title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    title_fmt = '%s: ' % qds_name.displayName
     comma_flag = False
     size_args = []
 
@@ -838,12 +843,12 @@ _CreateRasterImage().
   #	METHOD:		RasterWidget._CreateTitleTemplate()		-
   #----------------------------------------------------------------------
   def _CreateTitleTemplate(
-      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      self, pil_font, qds_name, ds_shape, time_ds_name = None,
       assembly_ndx = -1, axial_ndx = -1
       ):
     """Creates the title template and default string for sizing.
 @param  pil_font	PIL font to use for sizing
-@param  ds_name		dataset name
+@param  qds_name	name of dataset, DataSetName instance
 @param  ds_shape	dataset shape
 @param  time_ds_name	optional time dataset name
 @param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
@@ -851,7 +856,8 @@ _CreateRasterImage().
 			displayed
 @return			( string.Template, size-tuple )
 """
-    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    #title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    title_fmt = '%s: ' % qds_name.displayName
     comma_flag = False
     size_values = {}
 
@@ -884,12 +890,12 @@ _CreateRasterImage().
   #	METHOD:		RasterWidget._CreateTitleTemplate2()		-
   #----------------------------------------------------------------------
   def _CreateTitleTemplate2(
-      self, pil_font, ds_name, ds_shape, time_ds_name = None,
+      self, pil_font, qds_name, ds_shape, time_ds_name = None,
       assembly_ndx = -1, axial_ndx = -1, additional = None
       ):
     """Creates the title template and default string for sizing.
 @param  pil_font	PIL font to use for sizing
-@param  ds_name		dataset name
+@param  qds_name	name of dataset, DataSetName instance
 @param  ds_shape	dataset shape
 @param  time_ds_name	optional time dataset name
 @param  assembly_ndx	shape index for Assembly, or -1 if Assembly should not				be displayed
@@ -898,7 +904,8 @@ _CreateRasterImage().
 @param  additional	single or tuple of items to add
 @return			( string.Template, size-tuple )
 """
-    title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    #title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
+    title_fmt = '%s: ' % qds_name.displayName
     comma_flag = False
     size_values = {}
 
@@ -1094,28 +1101,15 @@ be displayed in a cell.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget.GetData()				-
-  #----------------------------------------------------------------------
-  def GetData( self ):
-    """
-@return			data.DataModel reference or None
-"""
-    return  self.data
-  #end GetData
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.GetInitialCellRange()		-
   #----------------------------------------------------------------------
   def GetInitialCellRange( self ):
-    """This implementation returns self.data.ExtractSymmetryExtent().
+    """This implementation returns self.dmgr.ExtractSymmetryExtent().
 Subclasses should override as needed.
 @return			intial range of raster cells
 			( left, top, right, bottom, dx, dy )
 """
-    return \
-        self.data.ExtractSymmetryExtent() if self.data is not None else \
-	( 0, 0, 0, 0, 0, 0 )
+    return  self.dmgr.ExtractSymmetryExtent()
   #end GetInitialCellRange
 
 
@@ -1219,10 +1213,8 @@ Sets attributes:
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     self.logger.debug( 'entered' )
-    #self.data = State.FindDataModel( self.state )
-    super( RasterWidget, self )._LoadDataModel()
-    if self.data is not None and self.data.HasData() and \
-        not self.isLoaded:
+    #super( RasterWidget, self )._LoadDataModel()
+    if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
       self.logger.debug( 'we have data' )
 
@@ -1247,13 +1239,11 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
   #	METHOD:		RasterWidget._LoadDataModelUI()			-
   #----------------------------------------------------------------------
   def _LoadDataModelUI( self ):
-    """This implementation calls Redraw().
+    """This implementation is a noop and may be implemented by subclasses
+to perform any GUI component initialization that depends on self.state
+or self.dmgr.
 Must be called on the UI thread.
 """
-#    self.axialBean.SetRange( 1, self.data.core.nax )
-#    self.axialBean.axialLevel = 0
-#    self.exposureBean.SetRange( 1, len( self.data.states ) )
-#    self.exposureBean.stateIndex = 0
     #x self.Redraw()  # self._OnSize( None )
     pass
   #end _LoadDataModelUI
@@ -1436,12 +1426,13 @@ This implementation is a noop.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'clientSize=%d,%d', wd, ht )
 
-    if wd > 0 and ht > 0 and self.data is not None and \
-        (self.curSize is None or wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]):
-      self._BusyBegin()
-      self.curSize = ( wd, ht )
-      #wx.CallAfter( self._Configure )
-      wx.CallAfter( self.UpdateState, resized = True )
+    if wd > 0 and ht > 0:
+      if self.curSize is None or \
+          wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]:
+        self._BusyBegin()
+        self.curSize = ( wd, ht )
+        #wx.CallAfter( self._Configure )
+        wx.CallAfter( self.UpdateState, resized = True )
   #end _OnSize
 
 
@@ -1507,8 +1498,8 @@ This implementation is a noop.
 #		--
     other_menu = \
         self.GetPopupMenu() \
-	if menu == self.container.widgetMenu else \
-	self.container.widgetMenu
+	if menu == self.container.GetWidgetMenu() else \
+	self.container.GetWidgetMenu()
     if other_menu is not None:
       self._UpdateVisibilityMenuItems(
           other_menu,
@@ -1534,16 +1525,6 @@ This implementation is a noop.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget.Redraw()				-
-  #----------------------------------------------------------------------
-#  def Redraw( self ):
-#    """Calls _OnSize( None )
-#"""
-#    self._OnSize( None )
-#  #end Redraw
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.SaveProps()			-
   #----------------------------------------------------------------------
   def SaveProps( self, props_dict ):
@@ -1558,13 +1539,6 @@ method via super.SaveProps().
 	'showLabels', 'showLegend', 'stateIndex'
         ):
       props_dict[ k ] = getattr( self, k )
-
-#    props_dict[ 'axialValue' ] = self.axialValue
-#    props_dict[ 'cellRange' ] = self.cellRange
-#    props_dict[ 'cellRangeStack' ] = self.cellRangeStack
-#    props_dict[ 'showLabels' ] = self.showLabels
-#    props_dict[ 'showLegend' ] = self.showLegend
-#    props_dict[ 'stateIndex' ] = self.stateIndex
   #end SaveProps
 
 
@@ -1636,8 +1610,9 @@ Calls _UpdateStateValues().
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
     """
-In this implementation 'axial_value', 'state_index', and 'time_dataset'
-are handled.  Subclasses should override and call this first.
+In this implementation 'axial_value', (no longer 'state_index'),
+'time_dataset', and 'time_value' are handled.  Subclasses should override
+and call this first.
 @return			kwargs with 'changed' and/or 'resized'
 """
     changed = kwargs.get( 'changed', False )
@@ -1645,18 +1620,39 @@ are handled.  Subclasses should override and call this first.
 
     if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
       changed = True
-      self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
+      self.axialValue = self.mgr.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
-    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
-      #changed = True
-      if self.state.scaleMode == 'state':
-        resized = True
-      else:
-        changed = True
-      self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
+    if 'axial_value' in kwargs and \
+        kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ] and \
+	self.curDataSet:
+      changed = True
+      self.axialValue = self.dmgr.\
+          GetAxialValue( self.curDataSet, cm = kwargs[ 'axial_value' ][ 0 ] )
+    #end if 'axial_value'
+
+#    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+#      #changed = True
+#      if self.state.scaleMode == 'state':
+#        resized = True
+#      else:
+#        changed = True
+#      self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
 
     if 'time_dataset' in kwargs:
       resized = True
+
+    if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue and \
+        self.curDataSet:
+      self.timeValue = kwargs[ 'time_value' ]
+      state_index = max( 0, self.dmgr.GetTimeValueIndex( self.timeValue ) )
+      if state_index != self.stateIndex:
+	if self.state.scaleMode == 'state':
+	  resized = True
+	else:
+	  changed = True
+        self.stateIndex = state_index
+      #end if state_index
+    #end if 'time_value'
 
     if changed:
       kwargs[ 'changed' ] = True

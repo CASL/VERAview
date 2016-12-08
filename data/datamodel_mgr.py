@@ -74,6 +74,7 @@ Properties:
     """
 """
     self.axialMeshCenters = None
+    self.core = None
     self.dataModelNames = []
     self.dataModels = {}
     #self.dataSetNamesVersion = 0
@@ -181,6 +182,9 @@ Properties:
       self.dataModelNames.remove( model_name )
 
       if not closing_all:
+        if len( self.dataModelNames ) == 1:
+	  self.core = self.dataModels.get( self.dataModelNames[ 0 ] ).GetCore()
+
         self._UpdateMeshValues()
         self._UpdateTimeValues()
         #self.dataSetNamesVersion += 1
@@ -190,6 +194,52 @@ Properties:
 
     return  result
   #end CloseModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.ExtractSymmetryExtent()		-
+  #----------------------------------------------------------------------
+  def ExtractSymmetryExtent( self ):
+    """Returns the starting horizontal (left) and ending vertical (top)
+assembly 0-based indexes, inclusive, and the right and bottom indexes,
+exclusive, followed by the number of assemblies in the horizontal and vertical
+dimensions.
+@return			None if core is None, otherwise
+			( left, top, right+1, bottom+1, dx, dy )
+"""
+    #bounds = ( -1, -1, -1, -1, 0, 0 )
+    #left = -1
+    #bottom = -1
+    #right = -1
+    #top = -1
+
+    result = None
+
+    core = self.GetCore()
+    if core is not None:
+      bottom = core.nassy
+      right = core.nassx
+
+      #xxxxx decrementing on even nassx and nassy
+      if core.coreSym == 4:
+	left = core.nassx >> 1
+	top = core.nassy >> 1
+	if core.nassx % 2 == 0 and left > 0: left -= 1
+	if core.nassy % 2 == 0 and top > 0: top -= 1
+      elif core.coreSym == 8:
+	left = core.nassx >> 2
+	top = core.nassy >> 2
+	if core.nassx % 2 == 0 and left > 0: left -= 1
+	if core.nassy % 2 == 0 and top > 0: top -= 1
+      else:
+	left = 0
+	top = 0
+
+      result = ( left, top, right, bottom, right - left, bottom - top )
+    #end if
+
+    return  result  if result is not None else ( 0, 0, 0, 0, 0, 0 )
+  #end ExtractSymmetryExtent
 
 
   #----------------------------------------------------------------------
@@ -355,13 +405,13 @@ values across all models.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetAxialValue()			-
   #----------------------------------------------------------------------
-  def GetAxialValue( self, model_name = None, **kwargs ):
+  def GetAxialValue( self, param = None, **kwargs ):
     """Retrieves the axial value tuple ( axial_cm, core_ndx, detector_ndx,
 fixed_detector_ndx ) for the model with 'id' if specified.  Otherwise, the
 cross-model levels are used and can be applied only with 'cm' and 'core_ndx'
 arguments.  Calls CreateAxialValue() on the identified DataModel.
-@param  model_name	model name, or None for global axial levels
-			across all models
+@param  param		a DataSetName instance, model name, or None for
+			global axial values
 @param  kwargs		arguments
     cm				axial value in cm
     core_ndx			0-based core axial index
@@ -376,10 +426,10 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
     fdet_ndx = -1
     axial_cm = 0.0
 
-    if model_name:
-      if model_name in self.dataModels:
-	axial_cm, core_ndx, det_ndx, fdet_ndx = \
-        self.dataModels[ model_name ].CreateAxialValue( kwargs )
+    if param:
+      dm = self.GetDataModel( param )
+      if dm:
+	axial_cm, core_ndx, det_ndx, fdet_ndx = dm.CreateAxialValue( kwargs )
 
     elif 'cm' in kwargs or 'value' in kwargs:
       axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )
@@ -423,8 +473,9 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
 DataModel.
 @return			Core instance or None if no models have been opened
 """
-    dm = self.GetFirstDataModel()
-    return  dm.GetCore()  if dm else  None
+    return  self.core
+    #dm = self.GetFirstDataModel()
+    #return  dm.GetCore()  if dm else  None
   #end GetCore
 
 
@@ -517,6 +568,23 @@ values across all models.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFactors()			-
+  #----------------------------------------------------------------------
+  def GetFactors( self, qds_name ):
+    """Determines the factors from the dataset shape.
+@param  qds_name	name of dataset, DataSetName instance
+@return			factors np.ndarray or None
+"""
+    result = None
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      result = dm.GetFactors( qds_name.displayName )
+
+    return  result
+  #end GetFactors
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetFirstDataModel()		-
   #----------------------------------------------------------------------
   def GetFirstDataModel( self ):
@@ -565,6 +633,28 @@ mesh values across all models.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetH5DataSet()			-
+  #----------------------------------------------------------------------
+  def GetH5DataSet( self, qds_name, time_value ):
+    """Calls GetStateDataSet() on the corresponding DataModel.
+@param  qds_name	name of dataset, DataSetName instance
+@param  time_value	value for current timeDataSet
+@return			h5py.Dataset object if found or None
+"""
+    dset = None
+    dm = None
+    if qds_name is not None and time_value >= 0.0:
+      state_ndx = self.GetTimeValueIndex( time_value, qds_name.modelName )
+      if state_ndx >= 0:
+        dm = self.GetDataModel( qds_name )
+
+    if dm:
+      dset = dm.GetStateDataSet( state_ndx, qds_name.displayName )
+    return  dset
+  #end GetH5DataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetMaxAxialValue()			-
   #----------------------------------------------------------------------
   def GetMaxAxialValue( self ):
@@ -573,6 +663,32 @@ mesh values across all models.
 """
     return  self.maxAxialValue
   #end GetMaxAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetNodeAddr()			-
+  #----------------------------------------------------------------------
+  def GetNodeAddr( self, sub_addr, mode = 'pin' ):
+    """Get the node addr corresponding to sub_addr.
+@param  sub_addr	0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+@return			node addr in range [0,3], or -1 if sub_addr is invalid
+"""
+    node_addr = -1
+    core = self.GetCore()
+    if core is not None:
+      cx = core.npinx >> 1
+      cy = core.npiny >> 1 
+      if mode == 'channel':
+        cx += 1
+	cy += 1
+
+      node_addr = 2 if max( 0, sub_addr[ 1 ] ) >= cy else 0
+      if max( 0, sub_addr[ 0 ] ) >= cx:
+        node_addr += 1
+
+    return  node_addr
+  #end GetNodeAddr
 
 
   #----------------------------------------------------------------------
@@ -602,6 +718,33 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetSubAddrFromNode()		-
+  #----------------------------------------------------------------------
+  def GetSubAddrFromNode( self, node_addr, mode = 'pin' ):
+    """Get the node addr corresponding to sub_addr.
+@param  node_addr	0, 1, 2, or 3
+@param  mode		'channel' or 'pin', defaulting to the latter
+@return			0-based sub_addr ( col, row )
+"""
+    core = self.GetCore()
+    if core is None or node_addr < 0 or node_addr >= 4:
+      sub_addr = ( -1, -1 )
+    else:
+      npinx = core.npinx
+      npiny = core.npiny
+      if mode == 'channel':
+        npinx += 1
+        npiny += 1
+      col = 0 if node_addr in ( 0, 2 ) else npinx - 1
+      row = 0 if node_addr in ( 0, 1 ) else npiny - 1
+
+      sub_addr = ( col, row )
+
+    return  sub_addr
+  #end GetSubAddrFromNode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeDataSet()			-
   #----------------------------------------------------------------------
   def GetTimeDataSet( self ):
@@ -620,7 +763,8 @@ the properties construct for this class soon.
 values[ ndx ] <= value < values[ ndx + 1 ].  If model_name is specified,
 only the list of values for the specified model are used.  Otherwise,
 the global, cross-model values are used.
-@param  model_name	optional name for the model of interest
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
 @return			0-based index such that
 			values[ ndx ] <= value < values[ ndx + 1 ]
 """
@@ -628,6 +772,8 @@ the global, cross-model values are used.
 
     values = None
     if ndx >= 0:
+      if isinstance( model_name, DataSetName ):
+        model_name = model_name.modelName
       values = self.GetTimeValues( model_name )
       if values:
         ndx = min( ndx, len( values ) -1 )
@@ -645,11 +791,14 @@ the global, cross-model values are used.
 values[ ndx ] <= value < values[ ndx + 1 ].  If model_name is specified,
 only the list of values for the specified model are used.  Otherwise,
 the global, cross-model values are used.
-@param  model_name	optional name for the model of interest
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
 @return			0-based index such that
 			values[ ndx ] <= value < values[ ndx + 1 ]
 """
     ndx = -1
+    if isinstance( model_name, DataSetName ):
+      model_name = model_name.modelName
     values = self.GetTimeValues( model_name )
     if values:
       ndx = bisect.bisect_right( values, value ) - 1
@@ -666,10 +815,14 @@ the global, cross-model values are used.
   def GetTimeValues( self, model_name = None ):
     """Retrieves the time dataset values for the specified model if 'id'
 is not None, otherwise retrieves the union of values across all models.
-@param  model_name	optional name for the model of interest
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
 @return			list of time dataset values for the specified model
 			or across all models
 """
+    if isinstance( model_name, DataSetName ):
+      model_name = model_name.modelName
+
     return \
 	self.timeValuesById[ model_name ] \
 	if model_name and model_name in self.timeValuesById else \
@@ -723,6 +876,118 @@ True is returned.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.IsBadValue()			-
+  #----------------------------------------------------------------------
+  def IsBadValue( self, value ):
+    """Checks for nan and inf.
+@param  value		value to check
+@return			True if nan or inf, False otherwise
+"""
+    return  value is None or math.isnan( value ) or math.isinf( value )
+  #end IsBadValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.IsNodalType()			-
+  #----------------------------------------------------------------------
+  def IsNodalType( self, ds_type ):
+    """Determines if the category/type represents a nodal dataset.
+@param  ds_type		dataset category/type
+@return			True if nodal, False otherwise
+"""
+    return  \
+        ds_type and \
+        (ds_type.find( ':node' ) >= 0 or ds_type.find( ':radial_node' ) >= 0)
+  #end IsNodalType
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.IsValid()				-
+  #----------------------------------------------------------------------
+  def IsValid( self, qds_name, **kwargs ):
+    """Checks values for validity w/in ranges available for the specified
+dataset.
+@param  qds_name	name of dataset, DataSetName instance
+@param  kwargs		named values to check:
+		'assembly_addr'
+		'assembly_index'
+		'axial_level'
+		'dataset_name' (requires 'time_value')
+		'node_addr'
+		'sub_addr'
+		'sub_addr_mode'
+		  (either 'channel', or 'pin', defaulting to 'pin')
+		'detector_index'
+		'time_value'
+"""
+    valid = False
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      if 'dataset_name' in kwargs:
+        state_index = self.GetTimeValueIndex( kwargs.get( 'time_value', 0.0 ) )
+	if state_index >= 0:
+	  kwargs[ 'state_index' ] = state_index
+      valid = dm.IsValid( **kwargs )
+
+    return  valid
+  #end IsValid
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.NormalizeNodeAddr()		-
+  #----------------------------------------------------------------------
+  def NormalizeNodeAddr( self, ndx ):
+    """Here for completeness.
+@param  ndx		0-based index
+"""
+    return  max( 0, min( 3, ndx ) )
+  #end NormalizeNodeAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.NormalizeNodeAddrs()		-
+  #----------------------------------------------------------------------
+  def NormalizeNodeAddrs( self, addr_list ):
+    """Normalizes each index in the list.
+@param  addr_list	list of 0-based indexes
+"""
+    result = []
+    for addr in addr_list:
+      result.append( max( 0, min( 3, addr ) ) )
+
+    return  list( set( result ) )
+  #end NormalizeNodeAddrs
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.NormalizeSubAddr()			-
+  #----------------------------------------------------------------------
+  def NormalizeSubAddr( self, addr, mode = 'pin' ):
+    """Normalizes the address, accounting for channel shape being one greater
+in each dimension.
+@param  addr		0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+"""
+    core = self.GetCore()
+    if core is None:
+      result = ( -1, -1 )
+    else:
+      maxx = core.npinx - 1
+      maxy = core.npiny - 1
+      if mode == 'channel':
+        maxx += 1
+        maxy += 1
+
+      result = \
+        (
+        max( 0, min( addr[ 0 ], maxx ) ),
+        max( 0, min( addr[ 1 ], maxy ) )
+        )
+    return  result
+  #end NormalizeSubAddr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr._OnNewDataSet()			-
   #----------------------------------------------------------------------
   def _OnNewDataSet( self, model, ds_name ):
@@ -767,6 +1032,9 @@ True is returned.
       dm.AddListener( 'newDataSet', self._OnNewDataSet )
       self.dataModelNames.append( model_name )
       self.dataModels[ model_name ] = dm
+
+      if len( self.dataModelNames ) == 1:
+        self.core = dm.GetCore()
       self._UpdateMeshValues()
       self._UpdateTimeValues()
       #self.dataSetNamesVersion += 1
@@ -846,6 +1114,30 @@ unique.  Calls dm.SetName() if necessary.
 
     return  name
   #end _ResolveDataModelName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.RevertIfDerivedDataSet()		-
+  #----------------------------------------------------------------------
+  def RevertIfDerivedDataSet( self, qds_name ):
+    """If qds_name is a derived dataset, return the first dataset of the
+base type.  Calls GetFirstDataSet().
+Note: We are now hard-coding this to look for ':chan_xxx' for
+a derived type, in which case we pass 'channel' to GetFirstDataSet().  For all
+other derived types we pass 'pin'.
+@param  qds_name	name of dataset, DataSetName instance
+@return			ds_name if it is not derived, the first dataset from
+			the base category/type if it is derived
+"""
+    result = None
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      ds_name = dm.RevertIfDerivedDataSet( qds_name.displayName )
+      if ds_name:
+        result = DataSetName( qds_name.modelName, ds_name )
+
+    return  result
+  #end RevertIfDerivedDataSet
 
 
   #----------------------------------------------------------------------

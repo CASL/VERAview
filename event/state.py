@@ -134,9 +134,9 @@ LOCKABLE_STATES = \
     ( STATE_CHANGE_coordinates, 'Coordinates' ),
     ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
-    ( STATE_CHANGE_stateIndex, 'State Point' ),
-    ( STATE_CHANGE_timeValue, 'Time' )
+    ( STATE_CHANGE_timeValue, 'State Point/Time' )
   ]
+#    ( STATE_CHANGE_stateIndex, 'State Point' ),
 
 ##  LOCKABLE_STATES = \
 ##    (
@@ -401,6 +401,7 @@ Keys passed and the corresponding state bit are:
     if 'time_dataset' in kwargs:
       if self.timeDataSet != kwargs[ 'time_dataset' ]:
         self.timeDataSet = kwargs[ 'time_dataset' ]
+	self.dataModelMgr.SetTimeDataSet( self.timeDataSet )
         reason |= STATE_CHANGE_timeDataSet
 
     if 'time_value' in kwargs and locks[ STATE_CHANGE_timeValue ]:

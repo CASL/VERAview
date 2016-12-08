@@ -616,7 +616,7 @@ class VeraViewFrame( wx.Frame ):
     self.eventLocks = State.CreateLocks()
     self.filepath = file_path
     self.frameId = 0
-    self.initialized = False
+    #self.initialized = False
     self.logger = logging.getLogger( 'root' )
     self.state = state
     self.windowMenu = None
@@ -2379,17 +2379,18 @@ Must be called from the UI thread.
       if len( time_values ) > 1:
         widget_list.append( 'widget.time_plots.TimePlots' )
 
-      if False:
+      #xxxxx debug
+      if True:
         widget_list = [
-            'widget.core_view.Core2DView',
-            'widget.assembly_view.Assembly2DView',
-            'widget.core_axial_view.CoreAxial2DView',
-            'widget.detector_multi_view.Detector2DMultiView',
-            'widget.axial_plot.AxialPlot',
-            'widget.time_plots.TimePlots',
-	    'widget.channel_view.Channel2DView',
-	    'widget.channel_assembly_view.ChannelAssembly2DView',
-	    'widget.channel_axial_view.ChannelAxial2DView',
+            'widget.core_view.Core2DView'
+            #'widget.assembly_view.Assembly2DView',
+            #'widget.core_axial_view.CoreAxial2DView',
+            #'widget.detector_multi_view.Detector2DMultiView',
+            #'widget.axial_plot.AxialPlot',
+            #'widget.time_plots.TimePlots',
+	    #'widget.channel_view.Channel2DView',
+	    #'widget.channel_assembly_view.ChannelAssembly2DView',
+	    #'widget.channel_axial_view.ChannelAxial2DView',
             ]
 
       if self.config is None:
