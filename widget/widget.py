@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-12-08	leerw@ornl.gov				-
+#	  Migrating to new DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -347,17 +349,27 @@ Widget Class Hierarchy
   #	METHOD:		Widget.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1 ):
+    """
+"""
+#		-- Assert on container.state, container.state.dataModelMgr
+#		--
+    assert \
+        container is not None and hasattr( container, 'state' ) and \
+	getattr( container, 'state' ) is not None, \
+	'Widget container.state is not a valid State instance'
+    assert container.state.GetDataModelMgr() is not None, \
+        'State.dataModelMgr is not have a valid DataModelMgr instance'
+
+#		-- Plow on
     super( Widget, self ).__init__( container, id )
 
     self.busy = False
     #self.busyCursor = None
     self.container = container
     self.customDataRange = None
-    self.data = None
+    self.dmgr = container.state.GetDataModelMgr()
     self.logger = logging.getLogger( 'widget' )
-    self.state = \
-        getattr( container, 'state' )  if hasattr( container, 'state' ) else \
-	None
+    self.state = container.state
 
     #self.derivedLabels = None
     self.dataRangeDialog = None
@@ -651,28 +663,28 @@ The default implementation returns None.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._FindFirstDataSet()			-
   #----------------------------------------------------------------------
-  def _FindFirstDataSet( self, ds_name_in = None ):
+  def _FindFirstDataSet( self, qds_name_in = None ):
     """Finds the first dataset available from the types supported by this.
-@param  ds_name_in	optional dataset name to try first for a match against
-			supported types
-@return			dataset name or None
+@param  qds_name_in	optional dataset name (DataSetName instance) to try
+			first for a match against supported types
+@return			DataSetName instance or None
 """
-    ds_name = None
-    if self.data is not None and self.data.HasData():
+    qds_name = None
+    if self.dmgr.HasData():
       ds_types = self.GetDataSetTypes()
-      if self.data.GetDataSetType( ds_name_in ) in ds_types:
-        ds_name = ds_name_in
+      if qds_name_in and self.dmgr.GetDataSetType( qds_name_in ) in ds_types:
+        qds_name = qds_name_in
       else:
         for t in ds_types:
-	  ds_name_in = self.data.GetFirstDataSet( t )
-	  if ds_name_in:
-	    ds_name = ds_name_in
+	  qds_name_in = self.dmgr.GetFirstDataSet( t )
+	  if qds_name_in:
+	    qds_name = qds_name_in
 	    break
 	#end for
       #end if-else ds_name_in in ds_types
-    #end if self.data
+    #end if self.dmgr
 
-    return  ds_name
+    return  qds_name
   #end _FindFirstDataSet
 
 
@@ -956,7 +968,7 @@ Returning None means no tool buttons, which is the default implemented here.
   def HandleStateChange( self, reason ):
     """Note value difference checks must occur in UpdateState()
 """
-    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModel
+    load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModelMgr
     if (reason & load_mask) > 0:
       self.logger.debug( 'calling _LoadDataModel()' )
       self._LoadDataModel()
@@ -1032,10 +1044,10 @@ return True, in which case ToggleDataSetVisible() should also be overridden.
   #	METHOD:		Widget._LoadDataModel()				-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
-    """Must be implemented by extensions calling this method, which only
-initializes the data property.
+    """Must be implemented by extensions.
 """
-    self.data = State.FindDataModel( self.state )
+    #self.dmgr = State.FindDataModelMgr( self.state )
+    pass
   #end _LoadDataModel
 
 
@@ -1181,116 +1193,6 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMax()				-
-  #----------------------------------------------------------------------
-  def _OnFindMax( self, all_states_flag, ev ):
-    """Placeholder event handling method for widgets that define a "Find
-"Maximum" pullright for the widget menu.  This implementation is a noop.
-Subclasses can override to call _OnFindMaxChannel(), _OnFindMaxDetector(),
-or _OnFindMaxPin().
-@param  all_states_flag	True for all states, False for current state
-@param  ev		menu event
-"""
-    pass
-  #end _OnFindMax
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMaxChannel()			-
-  #----------------------------------------------------------------------
-  def _OnFindMaxChannel( self, ds_name, all_states_flag ):
-    """Handles 'channel' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_addr, axial_value, state_index, and/or
-sub_addr changes.
-@param  ds_name		name of dataset
-@param  all_states_flag	True for all states, False for current state
-"""
-    update_args = {}
-
-    if self.data is not None and ds_name:
-      update_args = self.data.FindChannelMaxValue(
-          ds_name,
-	  -1 if all_states_flag else self.stateIndex,
-	  self
-	  )
-
-    if update_args:
-      self.FireStateChange( **update_args )
-  #end _OnFindMaxChannel
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMaxDetector()			-
-  #----------------------------------------------------------------------
-  def _OnFindMaxDetector( self, ds_name, all_states_flag ):
-    """Handles 'detector' dataset maximum processing, resulting in a call to
-FireStateChange() with axial_value, detector_index, and/or
-state_index changes.
-@param  all_states_flag	True for all states, False for current state
-@param  ds_name		name of dataset
-"""
-    update_args = {}
-
-    if self.data is not None and ds_name:
-      update_args = self.data.FindDetectorMaxValue(
-          ds_name,
-	  -1 if all_states_flag else self.stateIndex,
-	  self
-	  )
-
-    if update_args:
-      self.FireStateChange( **update_args )
-  #end _OnFindMaxDetector
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMaxMultiDataSets()		-
-  #----------------------------------------------------------------------
-  def _OnFindMaxMultiDataSets( self, all_states_flag, *ds_names ):
-    """Handles multi-dataset dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_addr, axial_value, state_index,
-and/or sub_addr changes.
-@param  all_states_flag	True for all states, False for current state
-@param  ds_names	dataset names to search
-"""
-    update_args = {}
-
-    if self.data is not None and ds_names:
-      update_args = self.data.FindMultiDataSetMaxValue(
-	  -1 if all_states_flag else self.stateIndex,
-	  self, *ds_names
-	  )
-
-    if update_args:
-      self.FireStateChange( **update_args )
-  #end _OnFindMaxMultiDataSets
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMaxPin()				-
-  #----------------------------------------------------------------------
-  def _OnFindMaxPin( self, ds_name, all_states_flag ):
-    """Handles 'pin' dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_addr, axial_value, state_index, and/or
-sub_addr changes.
-@param  all_states_flag	True for all states, False for current state
-@param  ds_name		name of dataset
-"""
-    update_args = {}
-
-    if self.data is not None and ds_name:
-      update_args = self.data.FindPinMaxValue(
-	  ds_name,
-	  -1 if all_states_flag else self.stateIndex,
-	  self
-          )
-
-    if update_args:
-      self.FireStateChange( **update_args )
-  #end _OnFindMaxPin
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMax()				-
   #----------------------------------------------------------------------
   def _OnFindMinMax( self, mode, all_states_flag, ev ):
@@ -1298,7 +1200,7 @@ sub_addr changes.
 "Maximum" or "Find Minimum" pullright for the widget menu.
 This implementation is a noop.
 Subclasses should override to call _OnFindMinMaxChannel(),
-_OnFindMinMaxDetector(), or _OnFindMinMaxPin().
+_OnFindMinMaxMultiDataSets(), or _OnFindMinMaxPin().
 @param  mode		'min' or 'max', defaulting to the latter
 @param  all_states_flag	True for all states, False for current state
 @param  ev		menu event
@@ -1310,20 +1212,20 @@ _OnFindMinMaxDetector(), or _OnFindMinMaxPin().
   #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMaxChannel()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMaxChannel( self, mode, ds_name, all_states_flag ):
+  def _OnFindMinMaxChannel( self, mode, qds_name, all_states_flag ):
     """Handles 'channel' dataset min/max processing, resulting in a call to
 FireStateChange() with assembly_addr, axial_value, state_index, and/or
 sub_addr changes.
 @param  mode		'min' or 'max', defaulting to the latter
-@param  ds_name		name of dataset
+@param  qds_name	name of dataset, DataSetName instance
 @param  all_states_flag	True for all states, False for current state
 """
     update_args = {}
 
-    if self.data is not None and ds_name:
-      update_args = self.data.FindChannelMinMaxValue(
-	  mode, ds_name,
-	  -1 if all_states_flag else self.stateIndex,
+    if qds_name:
+      update_args = self.dmgr.FindChannelMinMaxValue(
+	  mode, qds_name,
+	  -1 if all_states_flag else self.timeValue,
 	  self,
           self.state.weightsMode == 'on'
           )
@@ -1334,21 +1236,46 @@ sub_addr changes.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMaxMultiDataSets()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxMultiDataSets( self, mode, all_states_flag, *qds_names ):
+    """Handles multi-dataset dataset maximum processing, resulting in a call to
+FireStateChange() with assembly_addr, axial_value, state_index,
+and/or sub_addr changes.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  all_states_flag	True for all states, False for current state
+@param  qds_names	dataset names to search, DataSetName instances
+"""
+    update_args = {}
+
+    if qds_names:
+      update_args = self.dmgr.FindMultiDataSetMinMaxValue(
+	  mode,
+	  -1 if all_states_flag else self.stateIndex,
+	  self, *qds_names
+	  )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMinMaxMultiDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMaxPin()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMaxPin( self, mode, ds_name, all_states_flag ):
+  def _OnFindMinMaxPin( self, mode, qds_name, all_states_flag ):
     """Handles 'pin' dataset min/max processing, resulting in a call to
 FireStateChange() with assembly_addr, axial_value, state_index, and/or
 sub_addr changes.
 @param  mode		'min' or 'max', defaulting to the latter
-@param  ds_name		name of dataset
+@param  qds_name	name of dataset, DataSetName instance
 @param  all_states_flag	True for all states, False for current state
 """
     update_args = {}
 
-    if self.data is not None and ds_name:
-      update_args = self.data.FindPinMinMaxValue(
-	  mode, ds_name,
+    if qds_name:
+      update_args = self.dmgr.FindPinMinMaxValue(
+	  mode, qds_name,
 	  -1 if all_states_flag else self.stateIndex,
 	  self,
           self.state.weightsMode == 'on'
@@ -1357,31 +1284,6 @@ sub_addr changes.
     if update_args:
       self.FireStateChange( **update_args )
   #end _OnFindMinMaxPin
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMinMaxMultiDataSets()		-
-  #----------------------------------------------------------------------
-  def _OnFindMinMaxMultiDataSets( self, mode, all_states_flag, *ds_names ):
-    """Handles multi-dataset dataset maximum processing, resulting in a call to
-FireStateChange() with assembly_addr, axial_value, state_index,
-and/or sub_addr changes.
-@param  mode		'min' or 'max', defaulting to the latter
-@param  all_states_flag	True for all states, False for current state
-@param  ds_names	dataset names to search
-"""
-    update_args = {}
-
-    if self.data is not None and ds_names:
-      update_args = self.data.FindMultiDataSetMinMaxValue(
-	  mode,
-	  -1 if all_states_flag else self.stateIndex,
-	  self, *ds_names
-	  )
-
-    if update_args:
-      self.FireStateChange( **update_args )
-  #end _OnFindMinMaxMultiDataSets
 
 
   #----------------------------------------------------------------------
@@ -1397,18 +1299,20 @@ and/or sub_addr changes.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._ResolveDataRange()			-
   #----------------------------------------------------------------------
-  def _ResolveDataRange( self, ds_name, state_ndx ):
-    """Calls self.data.GetRange() if necessary to replace NaN values in
+  #def _ResolveDataRange( self, qds_name, state_ndx ):
+  def _ResolveDataRange( self, qds_name, time_value ):
+    """Calls self.dmgr.GetRange() if necessary to replace NaN values in
 customDataRange.
-@param  ds_name		dataset name
-@param  state_ndx	explicit state index or -1 for all states
+@param  qds_name	name of dataset, DataSetName instance
+#@param  state_ndx	explicit state index or -1 for all states
+@param  time_value	explicit time value or -1 for all statepoints
 @return			( range_min, range_max )
 """
     ds_range = [ NAN, NAN ] \
         if self.customDataRange is None else \
 	list( self.customDataRange )
     if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
-      calc_range = self.data.GetRange( ds_name, state_ndx )
+      calc_range = self.dmgr.GetRange( qds_name, time_value )
       for i in xrange( len( ds_range ) ):
         if math.isnan( ds_range[ i ] ):
           ds_range[ i ] = calc_range[ i ]

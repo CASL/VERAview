@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2016-12-08	leerw@ornl.gov				-
+#	  Migrating to new DataModelMgr.
 #		2016-11-19	leerw@ornl.gov				-
 #	  Added Show in New Window item and Reparent().
 #		2016-10-26	leerw@ornl.gov				-
@@ -176,6 +178,12 @@ widget.
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, parent, widget_classpath, state, **kwargs ):
+    """
+@param  parent		parent window
+@param  widget_claspath	full module.classpath
+@param  state		State instance, cannot be None
+@param  kwargs		additional params for widget constructor
+"""
     super( WidgetContainer, self ).__init__( parent, -1, style = wx.BORDER_SIMPLE | wx.TAB_TRAVERSAL )
 
     self.animateMenu = None
@@ -433,10 +441,8 @@ definition array for a pullright.
   #	METHOD:		_InitUI()					-
   #----------------------------------------------------------------------
   def _InitUI( self, widget_classpath, **kwargs ):
-#    dsize = wx.DisplaySize()
-#    wd = min( dsize[ 0 ], 1280 )
-#    ht = min( dsize[ 1 ], 800 )
-    dmgr = State.FindDataModelMgr( self.state )
+    #dmgr = State.FindDataModelMgr( self.state )
+    dmgr = self.state.GetDataModelMgr()
 
 #		-- Instantiate Widget
 #		--

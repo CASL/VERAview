@@ -1272,15 +1272,15 @@ Must be called from the UI thread.
 
       if False:
         widget_list = [
-            'widget.core_view.Core2DView',
-            'widget.assembly_view.Assembly2DView',
-            'widget.core_axial_view.CoreAxial2DView',
-            'widget.detector_multi_view.Detector2DMultiView',
-            'widget.axial_plot.AxialPlot',
-            'widget.time_plots.TimePlots',
-	    'widget.channel_view.Channel2DView',
-	    'widget.channel_assembly_view.ChannelAssembly2DView',
-	    'widget.channel_axial_view.ChannelAxial2DView',
+            'widget.core_view.Core2DView'
+            #'widget.assembly_view.Assembly2DView',
+            #'widget.core_axial_view.CoreAxial2DView',
+            #'widget.detector_multi_view.Detector2DMultiView',
+            #'widget.axial_plot.AxialPlot',
+            #'widget.time_plots.TimePlots',
+	    #'widget.channel_view.Channel2DView',
+	    #'widget.channel_assembly_view.ChannelAssembly2DView',
+	    #'widget.channel_axial_view.ChannelAxial2DView',
             ]
 
       if self.config is None:
@@ -2074,9 +2074,8 @@ Must be called from the UI thread.
 	display_path = status[ 'file_paths' ][ 0 ]
 	#display_path = status[ 'data_model' ].GetH5File().filename
 
-	#self.LoadDataModel,
-	#debug wx.CallAfter( self._UpdateFrame, display_path, session )
-	wx.CallAfter( self._UpdateFrame, display_path, session, 'noop' )
+	wx.CallAfter( self._UpdateFrame, display_path, session )
+	#debug wx.CallAfter( self._UpdateFrame, display_path, session, 'noop' )
       #end if-elif
     #end if status
   #end _OpenFileEnd

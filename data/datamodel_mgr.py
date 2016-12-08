@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-08	leerw@ornl.gov				-
+#	  Adding support methods or widgets.
 #		2016-12-02	leerw@ornl.gov				-
 #	  Added GetFirstDataModel().
 #		2016-12-01	leerw@ornl.gov				-
@@ -191,6 +193,134 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.FindChannelMinMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindChannelMinMaxValue(
+      self,
+      mode, qds_name, time_value,
+      cur_obj = None, use_factors = False
+      ):
+    """Creates dict with channel addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'channel' dataset.
+If time_value is gt 0, only differences with the corresponding state are
+returned.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  qds_name	name of dataset, DataSetName instance
+@param  time_value	value for the current timeDataSet, or -1 for all
+			times/statepoints
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@param  use_factors	True to apply pinFactors when determining the min/max
+			address
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'sub_addr', 'time_value'
+"""
+    results = {}
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      state_ndx = \
+          -1  if time_value < 0.0 else \
+	  self.GetTimeValueIndex( time_value, qds_name.modelName )
+      results = dm.FindChannelMinMaxValue(
+	  mode, qds_name.displayName, state_ndx,
+	  cur_obj, use_factors
+          )
+      if 'state_index' in results:
+	results[ 'time_value' ] = self.\
+	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
+    #end if dm
+   
+    return  results
+  #end FindChannelMinMaxValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.FindMultiDataSetMinMaxValue()	-
+  #----------------------------------------------------------------------
+  def FindMultiDataSetMinMaxValue( self, mode, time_value, cur_obj, *qds_names ):
+    """Creates dict with dataset-type-appropriate addresses for the "first"
+(right- and bottom-most) occurence of the maximum value among all the
+specified datasets.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  time_value	value for the current timeDataSet, or -1 for all
+			times/statepoints
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@param  qds_names	dataset names to search, DataSetName instances
+@return			dict with possible keys: 'assembly_addr',
+			'axial_value', 'state_index', 'sub_addr'
+"""
+    results = {}
+    dm = self.GetDataModel( qds_names[ 0 ] )  if qds_names else  None
+    if dm:
+      model_name = qds_names[ 0 ].modelName
+      ds_names = []
+      for q in qds_names:
+        ds_names.append( q.displayName )
+
+      state_ndx = \
+          -1  if time_value < 0.0 else \
+	  self.GetTimeValueIndex( time_value, model_name )
+
+      results = \
+          dm.FindMultiDataSetMinMaxValue( mode, state_ndx, cur_obj, *ds_names )
+      if 'state_index' in results:
+	results[ 'time_value' ] = self.\
+	    GetTimeIndexValue( results[ 'state_index' ], model_name )
+    #end if dm
+
+    return  results
+  #end FindMultiDataSetMinMaxValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.FindPinMinMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindPinMinMaxValue(
+      self,
+      mode, qds_name, time_value,
+      cur_obj = None, use_factors = False
+      ):
+    """Creates dict with pin addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'pin' dataset.
+If time_value is gt 0, only differences with the corresponding state are
+returned.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  qds_name	name of dataset, DataSetName instance
+@param  time_value	value for the current timeDataSet, or -1 for all
+			times/statepoints
+@param  cur_obj		optional object with attributes/properties to
+			compare against for changes: assemblyAddr, axialValue,
+			subAddr, stateIndex
+@param  use_factors	True to apply pinFactors when determining the min/max
+			address
+@return			changes dict with possible keys: 'assembly_addr',
+			'axial_value', 'sub_addr', 'time_value'
+"""
+    results = {}
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      state_ndx = \
+          -1  if time_value < 0.0 else \
+	  self.GetTimeValueIndex( time_value, qds_name.modelName )
+      results = dm.FindPinMinMaxValue(
+	  mode, qds_name.displayName, state_ndx,
+	  cur_obj, use_factors
+          )
+      if 'state_index' in results:
+	results[ 'time_value' ] = self.\
+	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
+    #end if dm
+   
+    return  results
+  #end FindPinMinMaxValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr._FireEvent()			-
   #----------------------------------------------------------------------
   def _FireEvent( self, event_name, *params ):
@@ -338,6 +468,19 @@ model name or a DataSetName instance.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataModelDataSetNames()		-
+  #----------------------------------------------------------------------
+  def GetDataModelDataSetNames( self, param ):
+    """Retrieves the dataset types list for the specified model.
+@param  param		either a model name or a DataSetName instance
+@return			types lislt
+"""
+    dm = self.GetDataModel( qds_name )
+    return  dm.GetDataSetType( qds_name.displayName )
+  #end GetDataModelDataSetNames
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModels()			-
   #----------------------------------------------------------------------
   def GetDataModels( self ):
@@ -357,7 +500,7 @@ model name or a DataSetName instance.
 @return			type or None
 """
     dm = self.GetDataModel( qds_name )
-    return  dm.GetDataSetType( qds_name.displayName )
+    return  dm.GetDataSetType( qds_name.displayName )  if dm else  None
   #end GetDataSetType
 
 
@@ -389,6 +532,27 @@ values across all models.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFirstDataSet()			-
+  #----------------------------------------------------------------------
+  def GetFirstDataSet( self, ds_type ):
+    """Retrieves the first matching dataset.
+@param  ds_type		datset category/type
+@return			DataSetName instance or None if not found
+"""
+    qds_name = None
+    if ds_type:
+      for model_name in self.dataModelNames:
+        dm = self.dataModels.get( model_name )
+	ds_name = dm.GetFirstDataSet( ds_type )
+	if ds_name:
+	  qds_name = DataSetName( model_name, ds_name )
+	  break
+
+    return  qds_name
+  #end GetFirstDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetFixedDetectorMeshCenters()	-
   #----------------------------------------------------------------------
   def GetFixedDetectorMeshCenters( self ):
@@ -412,6 +576,32 @@ mesh values across all models.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetRange()				-
+  #----------------------------------------------------------------------
+  def GetRange( self, qds_name, time_value = -1.0 ):
+    """Gets the range for the specified dataset, calculating
+if necessary.  Note all requests for range should flow through this method,
+although Python doesn't allow us to enforce this.  We'll need to adopt
+the properties construct for this class soon.
+@param  qds_name	name of dataset, DataSetName instance
+@param  time_value	value for the current timeDataSet, or -1
+			for global range
+@return			( min, max ), possible the range of floating point values
+"""
+    result = None
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      state_ndx = \
+          -1  if time_value < 0.0 else \
+	  self.GetTimeValueIndex( time_value, qds_name.modelName )
+      result = dm.GetRange( qds_name.displayName, state_ndx )
+    #end if dm
+   
+    return  result
+  #end GetRange
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeDataSet()			-
   #----------------------------------------------------------------------
   def GetTimeDataSet( self ):
@@ -420,6 +610,31 @@ mesh values across all models.
 """
     return  self.timeDataSet
   #end GetTimeDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetTimeIndexValue()		-
+  #----------------------------------------------------------------------
+  def GetTimeIndexValue( self, ndx, model_name = None ):
+    """Determines the 0-based index of the value in the values list such that
+values[ ndx ] <= value < values[ ndx + 1 ].  If model_name is specified,
+only the list of values for the specified model are used.  Otherwise,
+the global, cross-model values are used.
+@param  model_name	optional name for the model of interest
+@return			0-based index such that
+			values[ ndx ] <= value < values[ ndx + 1 ]
+"""
+    value = -1
+
+    values = None
+    if ndx >= 0:
+      values = self.GetTimeValues( model_name )
+      if values:
+        ndx = min( ndx, len( values ) -1 )
+        value = values[ ndx ]
+
+    return  value
+  #end GetTimeIndexValue
 
 
   #----------------------------------------------------------------------
