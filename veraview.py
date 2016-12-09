@@ -1403,13 +1403,20 @@ Note this defines a new State as well as widgets in the grid.
     """Handles events from the axial slider.  Called on the UI thread.
 """
     ev.Skip()
-    #axial_value = self.state.dataModel.CreateAxialValue( core_ndx = ev.value )
-    axial_value = \
-        self.state.GetDataModel().CreateAxialValue( core_ndx = ev.value )
-    reason = self.state.Change( self.eventLocks, axial_value = axial_value )
+
+    reason = STATE_CHANGE_noop
+    dmgr = self.state.GetDataModelMgr()
+    if dmgr:
+      axial_value = dmgr.GetAxialValue( core_ndx = ev.value )
+      if axial_value and axial_value[ 0 ] >= 0.0:
+        reason = self.state.Change( self.eventLocks, axial_value = axial_value )
+    #end if dmgr
+
+#    axial_value = \
+#        self.state.GetDataModel().CreateAxialValue( core_ndx = ev.value )
+#    reason = self.state.Change( self.eventLocks, axial_value = axial_value )
     if reason != STATE_CHANGE_noop:
       self.state.FireStateChange( reason )
-      #self.grid.FireStateChange( reason )
   #end _OnAxial
 
 
@@ -1530,10 +1537,19 @@ Note this defines a new State as well as widgets in the grid.
     """Handles events from the exposure slider.  Called on the UI thread.
 """
     ev.Skip()
-    reason = self.state.Change( self.eventLocks, state_index = ev.value )
+    ev.value
+
+    reason = STATE_CHANGE_noop
+    dmgr = self.state.GetDataModelMgr()
+    if dmgr:
+      value = dmgr.GetTimeIndexValue( ev.value )
+      if value >= 0.0:
+        reason = self.state.Change( self.eventLocks, time_value = value )
+    #end if dmgr
+
+    #reason = self.state.Change( self.eventLocks, state_index = ev.value )
     if reason != STATE_CHANGE_noop:
       self.state.FireStateChange( reason )
-      #self.grid.FireStateChange( reason )
   #end _OnExposure
 
 

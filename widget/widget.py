@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
@@ -330,6 +331,8 @@ Widget Class Hierarchy
 
   bitmaps_ = {}
 
+  logger_ = logging.getLogger( 'widget' )
+
 
 #		-- Object Methods
 #		--
@@ -368,7 +371,7 @@ Widget Class Hierarchy
     self.container = container
     self.customDataRange = None
     self.dmgr = container.state.GetDataModelMgr()
-    self.logger = logging.getLogger( 'widget' )
+    self.logger = Widget.logger_
     self.state = container.state
 
     #self.derivedLabels = None
@@ -763,18 +766,20 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 named 'curDataSet', 'channelDataSet', or 'pinDataSet', in that order,
 only if GetDataSetDisplayMode is ''.  Otherwise, None is returned.
 Subclasses should override as needed.
-@return		current dataset name if dataSetDisplayMode is ''
+@return		current dataset name (DataSetName instance)
+		if dataSetDisplayMode is '', otherwise None
 """
-    ds_name = None
+    qds_name = None
     if not self.GetDataSetDisplayMode():
-      for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
-        if hasattr( self, attr ):
-          ds_name = getattr( self, attr )
-	  break
-      #end for attr
+      qds_name = self.curDataSet
+#      for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
+#        if hasattr( self, attr ):
+#          ds_name = getattr( self, attr )
+#	  break
+#      #end for attr
     #end if not
 
-    return  ds_name
+    return  qds_name
   #end GetCurDataSet
 
 
@@ -854,15 +859,14 @@ be overridden by subclasses.
   #	METHOD:		Widget.GetEventLockSet()			-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
-    """By default, assemblyIndex, axialValue, and stateIndex changes are
+    """By default, assemblyIndex, axialValue, and timeValue changes are
 captured.
 """
     locks = set([
         STATE_CHANGE_assemblyIndex,
         STATE_CHANGE_axialValue,
-#        STATE_CHANGE_axialLevel,
         STATE_CHANGE_scale,
-        STATE_CHANGE_stateIndex
+        STATE_CHANGE_timeValue
         ])
     return  locks
   #end GetEventLockSet

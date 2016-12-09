@@ -201,7 +201,7 @@ widget.
     self.eventsMenuButton = None
     self.eventsMenuItems = {}
     self.led = None
-    self.logger = logging.getLogger( 'widget' )
+    self.logger = widget.Widget.logger_
     self.parent = parent
     self.state = state
     self.widget = None

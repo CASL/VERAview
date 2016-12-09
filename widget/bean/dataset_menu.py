@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-12-09	leerw@ornl.gov				-
+#	  Fixed event handling.
 #		2016-12-07	leerw@ornl.gov				-
 #	  Modified _CheckSingleItem() to find the top DataSetsMenu
 #	  if the menu param is None.
@@ -25,7 +27,7 @@
 #		2016-07-21	leerw@ornl.gov				-
 #		2016-07-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import os, sys
+import logging, os, sys
 import pdb  #pdb.set_trace()
 
 try:
@@ -46,6 +48,8 @@ class DataModelMenu( wx.Menu ):
   """Menu for managing datasets for a single DataModel instance.
 No event listening is done in this class.
 """
+
+  logger_ = logging.getLogger( 'widgetBean' )
 
 
 #		-- Object Methods
@@ -103,6 +107,7 @@ No event listening is done in this class.
 
     self.derivedMenu = None
     self.derivedMenuLabelMap = {}  # keyed by Menu
+    self.logger = DataModelMenu.logger_
     self.mode = mode
     self.showDerivedMenu = show_derived_menu
     self.state = state
@@ -170,10 +175,10 @@ No event listening is done in this class.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMenu._FindMenuItem()			-
   #----------------------------------------------------------------------
-  def _FindMenuItem( self, ds_type, ds_name, menu = None ):
+  def _FindMenuItem( self, ds_type, qds_name, menu = None ):
     """Finds the menu item.
 @param  ds_type		dataset category/type
-@param  ds_name		DataSetName instance
+@param  qds_name	DataSetName instance
 @return			item or None if not found
 """
     match_item = None
@@ -181,13 +186,13 @@ No event listening is done in this class.
       menu = self
 
     for item in menu.GetMenuItems():
-      if item.GetItemLabelText() == ds_name.displayName:
+      if item.GetItemLabelText() == qds_name.displayName:
         match_item = item
 
       else:
         sub = item.GetSubMenu()
 	if sub and item.GetItemLabelText() == ds_type:
-	  match_item = self._FindMenuItem( ds_type, ds_name.displayName, sub )
+	  match_item = self._FindMenuItem( ds_type, qds_name, sub )
       #end if-else item.GetItemLabelText()
 
       if match_item != None: break
@@ -217,26 +222,26 @@ No event listening is done in this class.
 otherwise returns self.state.curDataSet
 """
     if self.IsSingleSelection() and self.widget is not None:
-      ds_name = self.widget.GetCurDataSet()
+      qds_name = self.widget.GetCurDataSet()
     else:
-      ds_name = self.state.GetCurDataSet()
-    return  ds_name
+      qds_name = self.state.GetCurDataSet()
+    return  qds_name
   #end _GetCurDataSet
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMenu.Init()				-
   #----------------------------------------------------------------------
-  def Init( self, new_state = None ):
-    """Convenience method to call ProcessStateChange( STATE_CHANGE_init )
-"""
-#	-- Should be unneeded
-    if new_state is not None:
-      self.state = new_state
-      new_state.AddListener( self )
-
-    self.ProcessStateChange( STATE_CHANGE_init )
-  #end Init
+#  def Init( self, new_state = None ):
+#    """Convenience method to call ProcessStateChange( STATE_CHANGE_init )
+#"""
+##	-- Should be unneeded
+#    if new_state is not None:
+#      self.state = new_state
+#      new_state.AddListener( self )
+#
+#    self.ProcessStateChange( STATE_CHANGE_init )
+#  #end Init
 
 
   #----------------------------------------------------------------------
@@ -397,11 +402,16 @@ derivedMenu if requested in the constructor.
     if (reason & STATE_CHANGE_curDataSet) > 0:
       if self.IsSingleSelection() and self.dataModel:
         #data = self.state.GetDataModel()
-        ds_name = self.state.GetCurDataSet()
+        qds_name = self.state.GetCurDataSet()
         ds_type = \
-	    self.dataModel.GetDataSetType( ds_name.displayName ) \
-	    if ds_name else None
-	item = self._FindMenuItem( ds_type, ds_name ) if ds_type else None
+	    self.dataModel.GetDataSetType( qds_name.displayName ) \
+	    if qds_name else None
+
+	item = None
+	if ds_type:
+	  item = self._FindMenuItem(
+	      self.dataModel.GetDataSetTypeDisplayName( ds_type ), qds_name
+	      )
 	if item and not item.IsChecked():
 	  self._CheckSingleItem( None, item )
       #end if single selection
@@ -686,6 +696,8 @@ or Widget is responsible for calling UpdateMenu().
   def Init( self ):
     """Convenience method to call OnStateChange( STATE_CHANGE_init )
 """
+    self.logger.debug( 'initializing' )
+    self.state.AddListener( self )
     self.OnStateChange( STATE_CHANGE_init )
   #end Init
 
@@ -794,10 +806,11 @@ only recreate all the menus when necessary.
       self._LoadDataModelMgr()
 
     if (reason & STATE_CHANGE_curDataSet) > 0:
-      ds_name = self.state.GetCurDataSet()
+      qds_name = self.state.GetCurDataSet()
       if 'self' in self.modelSubMenus:
         self.ProcessStateChange( STATE_CHANGE_curDataSet )
-      elif ds_name.modelName:
+      #elif qds_name.modelName:
+      else:
         for ds_menu in self.modelSubMenus.values():
 	  ds_menu.ProcessStateChange( STATE_CHANGE_curDataSet )
     #end if curDataSet

@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Adding support methods or widgets.
 #		2016-12-02	leerw@ornl.gov				-
@@ -424,12 +425,12 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
     core_ndx = -1
     det_ndx = -1
     fdet_ndx = -1
-    axial_cm = 0.0
+    axial_cm = -1.0  # 0.0
 
     if param:
       dm = self.GetDataModel( param )
       if dm:
-	axial_cm, core_ndx, det_ndx, fdet_ndx = dm.CreateAxialValue( kwargs )
+	axial_cm, core_ndx, det_ndx, fdet_ndx = dm.CreateAxialValue( **kwargs )
 
     elif 'cm' in kwargs or 'value' in kwargs:
       axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )

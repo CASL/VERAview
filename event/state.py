@@ -95,36 +95,12 @@ STATE_CHANGE_coordinates = 0x1 << 2
 STATE_CHANGE_curDataSet = 0x1 << 3
 STATE_CHANGE_dataModelMgr = 0x1 << 4	# maybe should toss this, not used?
 STATE_CHANGE_scaleMode = 0x1 << 5
-STATE_CHANGE_stateIndex = 0x1 << 6
+#STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
 STATE_CHANGE_timeValue = 0x1 << 8
 STATE_CHANGE_weightsMode = 0x1 << 9
 
 STATE_CHANGE_ALL = 0xffffffff
-
-# These are in the order of being added
-##  STATE_CHANGE_noop = 0
-##  STATE_CHANGE_init = 0x1 << 0
-##  STATE_CHANGE_dataModel = 0x1 << 1
-##  STATE_CHANGE_assemblyIndex = 0x1 << 2
-##  ##STATE_CHANGE_axialLevel = 0x1 << 3
-##  STATE_CHANGE_axialValue = 0x1 << 3
-##  STATE_CHANGE_stateIndex = 0x1 << 4
-##  #STATE_CHANGE_pinColRow = 0x1 << 5
-##  STATE_CHANGE_colRow = 0x1 << 5
-##  STATE_CHANGE_pinDataSet = 0x1 << 6
-##  STATE_CHANGE_scalarDataSet = 0x1 << 7
-##  STATE_CHANGE_detectorDataSet = 0x1 << 8
-##  STATE_CHANGE_detectorIndex = 0x1 << 9
-##  STATE_CHANGE_channelDataSet = 0x1 << 10
-##  #STATE_CHANGE_channelColRow = 0x1 << 11
-##  STATE_CHANGE_timeDataSet = 0x1 << 12
-##  STATE_CHANGE_scaleMode = 0x1 << 13
-##  #STATE_CHANGE_auxChannelColRows = 0x1 << 14
-##  #STATE_CHANGE_auxPinColRows = 0x1 << 15
-##  STATE_CHANGE_auxColRows = 0x1 << 15
-##  STATE_CHANGE_fixedDetectorDataSet = 0x1 << 16
-##  #STATE_CHANGE_ALL = 0x1fff
 
 
 # New, reduced set of events
@@ -134,30 +110,9 @@ LOCKABLE_STATES = \
     ( STATE_CHANGE_coordinates, 'Coordinates' ),
     ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
+    #( STATE_CHANGE_stateIndex, 'State Point' ),
     ( STATE_CHANGE_timeValue, 'State Point/Time' )
   ]
-#    ( STATE_CHANGE_stateIndex, 'State Point' ),
-
-##  LOCKABLE_STATES = \
-##    (
-##    STATE_CHANGE_assemblyIndex,
-##  #  STATE_CHANGE_auxChannelColRows,
-##    STATE_CHANGE_auxColRows,
-##  #  STATE_CHANGE_auxPinColRows,
-##    STATE_CHANGE_axialValue,
-##  #  STATE_CHANGE_channelColRow,
-##    STATE_CHANGE_channelDataSet,
-##    STATE_CHANGE_colRow,
-##    STATE_CHANGE_detectorDataSet,
-##    STATE_CHANGE_detectorIndex,
-##  #  STATE_CHANGE_pinColRow,
-##    STATE_CHANGE_pinDataSet,
-##    STATE_CHANGE_scalarDataSet,
-##    STATE_CHANGE_scaleMode,
-##    STATE_CHANGE_stateIndex,
-##    STATE_CHANGE_timeDataSet,
-##    STATE_CHANGE_fixedDetectorDataSet
-##    )
 
 
 # New, reduced set of events
@@ -221,7 +176,7 @@ All indices are 0-based.
 +-------------+----------------+----------------+------------------------------+
 | scaleMode   | scaleMode      | scale_mode     | 'all' or 'state'             |
 +-------------+----------------+----------------+------------------------------+
-| stateIndex  | stateIndex     | state_index    | 0-based state-point index    |
+| #stateIndex | stateIndex     | state_index    | 0-based state-point index    |
 +-------------+----------------+----------------+------------------------------+
 | timeDataSet | timeDataSet    | time_dataset   | dataset to use for "time"    |
 +-------------+----------------+----------------+------------------------------+
@@ -346,7 +301,7 @@ Keys passed and the corresponding state bit are:
   data_model_mgr	STATE_CHANGE_dataModelMgr
   node_addr		STATE_CHANGE_coordinates
   scale_mode		STATE_CHANGE_scaleMode
-  state_index		STATE_CHANGE_stateIndex
+  #state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
   time_dataset		STATE_CHANGE_timeDataSet
   time_value		STATE_CHANGE_timeValue
@@ -389,9 +344,9 @@ Keys passed and the corresponding state bit are:
       self.scaleMode = kwargs[ 'scale_mode' ]
       reason |= STATE_CHANGE_scaleMode
 
-    if 'state_index' in kwargs and locks[ STATE_CHANGE_stateIndex ]:
-      self.stateIndex = kwargs[ 'state_index' ]
-      reason |= STATE_CHANGE_stateIndex
+#    if 'state_index' in kwargs and locks[ STATE_CHANGE_stateIndex ]:
+#      self.stateIndex = kwargs[ 'state_index' ]
+#      reason |= STATE_CHANGE_stateIndex
 
     if 'sub_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
       self.subAddr = kwargs[ 'sub_addr' ]
@@ -443,8 +398,8 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_scaleMode) > 0:
       update_args[ 'scale_mode' ] = self.scaleMode
 
-    if (reason & STATE_CHANGE_stateIndex) > 0:
-      update_args[ 'state_index' ] = self.stateIndex
+#    if (reason & STATE_CHANGE_stateIndex) > 0:
+#      update_args[ 'state_index' ] = self.stateIndex
 
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self.timeDataSet
@@ -472,7 +427,7 @@ Keys passed and the corresponding state bit are:
 	  if hasattr( listener, 'HandleStateChange' ):
             listener.HandleStateChange( reason )
 	  elif hasattr( listener, 'OnStateChange' ):
-            listener.HandleStateChange( reason )
+            listener.OnStateChange( reason )
 	  elif hasattr( listener, '__call__' ):
 	    listener( reason )
 	except Exception, ex:
@@ -853,11 +808,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
   @staticmethod
   def CreateLocks():
     """
-@return		dict with all True for
-    STATE_CHANGE_axialValue
-    STATE_CHANGE_coordinates
-    STATE_CHANGE_curDataSet
-    STATE_CHANGE_stateIndex
+@return		dict with all True for LOCKABLE_STATES
 """
     locks = {}
     for mask, name in LOCKABLE_STATES:

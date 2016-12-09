@@ -152,7 +152,6 @@ If neither are specified, a default 'scale' value of 4 is used.
     lineWidth
     mode = 'assy'
 """
-    #ds_range = self.data.GetRange
     ds_range = self._ResolveDataRange(
         self.channelDataSet,
 	self.stateIndex if self.state.scaleMode == 'state' else -1
@@ -276,11 +275,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         cur_nxpin = min( self.data.core.npinx, dset_shape[ 1 ] )
         cur_nypin = min( self.data.core.npiny, dset_shape[ 0 ] )
 
-#      ds_range = self.data.GetRange(
-#          self.channelDataSet,
-#	  state_ndx if self.state.scaleMode == 'state' else -1
-#	  )
-      ds_range = self.config[ 'dataRange' ]
+      ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
@@ -598,7 +593,6 @@ If neither are specified, a default 'scale' value of 4 is used.
     valueFont
     valueFontSize
 """
-    #ds_range = self.data.GetRange
     ds_range = self._ResolveDataRange(
         self.channelDataSet,
 	self.stateIndex if self.state.scaleMode == 'state' else -1
@@ -724,11 +718,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         cur_nxpin = min( self.data.core.npinx + 1, dset_shape[ 1 ] )
         cur_nypin = min( self.data.core.npiny + 1, dset_shape[ 0 ] )
 
-#      ds_range = self.data.GetRange(
-#          self.channelDataSet,
-#	  state_ndx if self.state.scaleMode == 'state' else -1
-#	  )
-      ds_range = self.config[ 'dataRange' ]
+      ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(

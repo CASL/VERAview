@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
@@ -364,7 +365,7 @@ If neither are specified, a default 'scale' value of 24 is used.
         cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
         cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
 
-      ds_range = self.config[ 'dataRange' ]
+      ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
@@ -795,6 +796,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       config = self.config
     if config is not None and self.dmgr.HasData():
       if 'coreRegion' not in config:
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug( 'coreRegion missing from config, reconfiguring' )
 	if 'clientSize' in config:
           config = self._CreateCoreDrawConfig( size = config[ 'clientSize' ] )
 	else:
@@ -829,12 +832,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	dset_shape = ( 0, 0, 0, 0 )
 	cur_nxpin = cur_nypin = 0
       else:
-        dset_array = dset.value
+        dset_array = np.array( dset )
         dset_shape = dset.shape
         cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
         cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
 
-      ds_range = self.config[ 'dataRange' ]
+      ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
@@ -1039,7 +1042,6 @@ If neither are specified, a default 'scale' value of 4 is used.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
-    #return  im
     return  im if im is not None else self.emptyPilImage
   #end _CreateCoreImage
 
@@ -1883,9 +1885,6 @@ method via super.SaveProps().
 
     if 'weights_mode' in kwargs:
       kwargs[ 'resized' ] = True
-
-    #if (changed or resized) and self.config is not None:
-      #self._UpdateAvgValues( self.stateIndex )
 
     if changed:
       kwargs[ 'changed' ] = True

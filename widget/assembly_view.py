@@ -618,7 +618,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #          self.pinDataSet,
 #	  state_ndx if self.state.scaleMode == 'state' else -1
 #	  )
-      ds_range = self.config[ 'dataRange' ]
+      ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(

@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
 #		2016-10-30	leerw@ornl.gov				-
@@ -51,7 +52,7 @@
 #		2015-06-17	leerw@ornl.gov				-
 #	  Generalization of the 2D raster view widgets.
 #------------------------------------------------------------------------
-import functools, logging, math, os, string, sys, threading, time
+import functools, logging, math, os, string, sys, traceback, threading, time
 import numpy as np
 import pdb  #pdb.set_trace()
 #import time, traceback
@@ -236,6 +237,12 @@ _CreateValueString()
 """
 
 
+#		-- Class Attributes
+#		--
+
+  jobid_ = 0
+
+
 #		-- Object Methods
 #		--
 
@@ -295,83 +302,31 @@ _CreateValueString()
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget._BitmapThreadFinish_0()		-
-  #----------------------------------------------------------------------
-  def _BitmapThreadFinish_0( self, result ):
-    """Background thread completion method called in the UI thread.
-Paired to _BitmapThreadStart().
-"""
-    if result is None:
-      cur_tuple = pil_im = None
-      try_count = 0
-    else:
-      cur_tuple, pil_im, try_count = result.get()
-
-    if cur_tuple is None:
-      self.logger.warning( '* cur_tuple is None *' )
-    if pil_im is None:
-      self.logger.warning( '* pil_im is None *' )
-
-    if cur_tuple is not None:
-#			-- Create bitmap
-#			--
-      if pil_im is None:
-	if try_count < 2:
-          if self.logger.isEnabledFor( logging.DEBUG ):
-            self.logger.debug(
-	        'retrying image thread, try_count=%d',
-		try_count
-		)
-	  th = wxlibdr.startWorker(
-	      self._BitmapThreadFinish,
-	      self._BitmapThreadStart,
-	      wargs = [ cur_tuple, try_count + 1 ]
-	      )
-	else:
-          bmap = self.blankBitmap
-
-      else:
-        wx_im = wx.EmptyImage( *pil_im.size )
-
-        pil_im_data_str = pil_im.convert( 'RGB' ).tobytes()
-        wx_im.SetData( pil_im_data_str )
-
-        pil_im_data_str = pil_im.convert( 'RGBA' ).tobytes()
-        wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
-
-        bmap = wx.BitmapFromImage( wx_im )
-
-#	with self.bitmapsLock:
-#	  self.bitmaps[ cur_tuple ] = bmap
-	self.bitmapsLock.acquire()
-	try:
-	  self.bitmaps[ cur_tuple ] = bmap
-	  self.bitmapThreadArgs = None
-	finally:
-	  self.bitmapsLock.release()
-      #end else pil_im not None
-
-      if self.IsTupleCurrent( cur_tuple ):
-        self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
-        self.bitmapCtrl.Update()
-    #end if cur_pair is not None:
-
-    self._BusyEnd()
-  #end _BitmapThreadFinish_0
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._BitmapThreadFinish()		-
   #----------------------------------------------------------------------
   def _BitmapThreadFinish( self, result ):
     """Background thread completion method called in the UI thread.
 Paired to _BitmapThreadStart().
 """
-    if result is None:
-      cur_tuple = pil_im = None
-      try_count = 0
-    else:
-      cur_tuple, pil_im, try_count = result.get()
+#    if result is None:
+#      cur_tuple = pil_im = None
+#      try_count = 0
+#    else:
+#      cur_tuple, pil_im, try_count = result.get()
+    cur_tuple = pil_im = None
+    try_count = job_id = -1
+    if result is not None:
+      try:
+        cur_tuple, pil_im, try_count = result.get()
+	job_id = result.getJobID()
+      except:
+        pass
+
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug(
+          'cur_tuple=%s, try_count=%d, job_id=%d',
+	  cur_tuple, try_count, job_id
+	  )
 
 #		-- Log these conditions
 #		--
@@ -385,10 +340,12 @@ Paired to _BitmapThreadStart().
     if cur_tuple is not None and pil_im is None and try_count < 2:
       if self.logger.isEnabledFor( logging.DEBUG ):
         self.logger.debug( 'retrying image thread, try_count=%d', try_count )
+      RasterWidget.jobid_ += 1
       th = wxlibdr.startWorker(
           self._BitmapThreadFinish,
 	  self._BitmapThreadStart,
-	  wargs = [ cur_tuple, try_count + 1 ]
+	  wargs = [ cur_tuple, try_count + 1, RasterWidget.jobid_ ],
+	  jobID = RasterWidget.jobid_
 	  )
 
 #		-- No, normal processing
@@ -404,6 +361,7 @@ Paired to _BitmapThreadStart().
   def _BitmapThreadFinishImpl( self, cur_tuple, pil_im ):
     """Called from _BitmapThreadFinish().
 """
+
 #		-- No tuple, give up
 #		--
     if cur_tuple is not None:
@@ -445,12 +403,18 @@ Paired to _BitmapThreadStart().
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._BitmapThreadStart()		-
   #----------------------------------------------------------------------
-  def _BitmapThreadStart( self, next_tuple, try_count = 0 ):
+  def _BitmapThreadStart( self, next_tuple, try_count, job_id ):
     """Background thread task to create the wx.Bitmap for the next
 tuple in the queue.  Paired with _BitmapThreadFinish().
 Calls _CreateRasterImage().
 @return			( next_tuple, PIL_image )
 """
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug(
+	  'next_tuple=%s, try_count=%d, job_id=%d',
+	  next_tuple, try_count, job_id
+          )
+
     pil_im = None
 
     if next_tuple is not None and self.config is not None:
@@ -464,7 +428,9 @@ Calls _CreateRasterImage().
 # Hence, we add a short sleep.
       time.sleep( 0.001 )
 
-    return  ( next_tuple, pil_im, try_count )
+    #return  ( next_tuple, pil_im, try_count )
+    result_tpl = ( next_tuple, pil_im, try_count )
+    return  result_tpl
   #end _BitmapThreadStart
 
 
@@ -1212,11 +1178,9 @@ Sets attributes:
 
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
-    self.logger.debug( 'entered' )
     #super( RasterWidget, self )._LoadDataModel()
     if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
-      self.logger.debug( 'we have data' )
 
 #		-- Do here what is not dependent on size
 #		--
@@ -1431,7 +1395,8 @@ This implementation is a noop.
           wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]:
         self._BusyBegin()
         self.curSize = ( wd, ht )
-        #wx.CallAfter( self._Configure )
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug( 'calling UpdateState' )
         wx.CallAfter( self.UpdateState, resized = True )
   #end _OnSize
 
@@ -1575,26 +1540,43 @@ Calls _UpdateStateValues().
       self.bitmapsLock.acquire()
       try:
         if tpl in self.bitmaps:
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug( '%s cache hit', self.GetTitle() )
           self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
 	  must_create_image = False
+
         elif bitmap_args == self.bitmapThreadArgs:
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug(
+	        '%s cache miss, already have thread',
+	        self.GetTitle()
+	        )
 	  must_create_image = False
+
         else:
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug(
+	        '%s cache miss, creating thread',
+	        self.GetTitle()
+	        )
 	  self.bitmapThreadArgs = bitmap_args
+
       finally:
         self.bitmapsLock.release()
 
       if must_create_image:
 	end_busy = False
+        RasterWidget.jobid_ += 1
         if self.logger.isEnabledFor( logging.DEBUG ):
           self.logger.debug(
-	      '%s starting worker, args=%s',
-	      self.GetTitle(), str( tpl + self.curSize )
+	      '%s starting worker, args=%s, jobid=%d',
+	      self.GetTitle(), str( tpl + self.curSize ), RasterWidget.jobid_
 	      )
 	th = wxlibdr.startWorker(
 	    self._BitmapThreadFinish,
 	    self._BitmapThreadStart,
-	    wargs = [ tpl, 0 ]
+	    wargs = [ tpl, 0, RasterWidget.jobid_ ],
+	    jobID = RasterWidget.jobid_
 	    )
       #else:
         #self._BusyEnd()
@@ -1618,9 +1600,9 @@ and call this first.
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
-    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
-      changed = True
-      self.axialValue = self.mgr.NormalizeAxialValue( kwargs[ 'axial_value' ] )
+#    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+#      changed = True
+#      self.axialValue = self.mgr.NormalizeAxialValue( kwargs[ 'axial_value' ] )
 
     if 'axial_value' in kwargs and \
         kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ] and \
