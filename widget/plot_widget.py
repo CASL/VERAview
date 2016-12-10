@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-12-10	leerw@ornl.gov				-
+#	  Adapting to new DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-20	leerw@ornl.gov				-
@@ -100,8 +102,11 @@ fig
 refAxis
   reference or non-magnitude axis, either 'y' (default) or 'x'
 
-stateIndex
-  0-based state point index, getter is GetStateIndex()
+#stateIndex
+  #0-based state point index, getter is GetStateIndex()
+
+timeValue
+  value of current time dataset
 
 Framework Methods
 -----------------
@@ -181,14 +186,14 @@ Support Methods
     self.canvas = None
     self.cursor = None
     self.cursorLine = None  # axis line following the cursor
-    self.data = None
     self.fig = None
     self.toolbar = None
 
     self.callbackIds = {}
     self.isLoaded = False
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
-    self.stateIndex = -1
+    #self.stateIndex = -1
+    self.timeValue = -1.0
     self.titleFontSize = 16
 
     super( PlotWidget, self ).__init__( container, id )
@@ -285,29 +290,6 @@ calls self.ax.grid() and can be called by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_FindAxialDataSetValue()			-
-  #----------------------------------------------------------------------
-  def _FindAxialDataSetValue( self, axial_cm, axial_values, ds_values ):
-    """Find matching dataset value for the axial.
-are axial values.
-@param  axial_cm	axial value
-@param  axial_values	axial values in which to find axial level index
-@param  ds_values	dataset values indexed by axial level index
-@return			dataset value or None if no match
-"""
-
-    value = None
-    if len( axial_values ) == len( ds_values ):
-      ndx = self.data.FindListIndex( axial_values, axial_cm )
-      if ndx >= 0:
-        value = ds_values[ ndx ]
-    #end if array lengths match
-
-    return  value
-  #end _FindAxialDataSetValue
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		GetStateIndex()					-
   #----------------------------------------------------------------------
   def GetStateIndex( self ):
@@ -315,6 +297,16 @@ are axial values.
 """
     return  self.stateIndex
   #end GetStateIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetTimeValue()					-
+  #----------------------------------------------------------------------
+  def GetTimeValue( self ):
+    """@return		0-based state/time index
+"""
+    return  self.timeValue
+  #end GetTimeValue
 
 
   #----------------------------------------------------------------------
@@ -374,9 +366,8 @@ model.
 xxx need loaded flag set when LoadProps() is called so you don't call
 _LoadDataModelValues()
 """
-    super( PlotWidget, self )._LoadDataModel()
-    if self.data is not None and self.data.HasData() and \
-        not self.isLoaded:
+    #super( PlotWidget, self )._LoadDataModel()
+    if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
       update_args = self._LoadDataModelValues()
       #x wx.CallAfter( self.UpdateState, **update_args )
@@ -388,7 +379,7 @@ _LoadDataModelValues()
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
     """This noop version should be implemented in subclasses to create a dict
-to be passed to UpdateState().  Assume self.data is valid.
+to be passed to UpdateState().  Assume self.dmgr is valid.
 @return			dict to be passed to UpdateState()
 """
     return  {}
@@ -405,7 +396,7 @@ be overridden by subclasses.
 """
     self.isLoaded = True
 
-    for k in ( 'stateIndex', ):
+    for k in ( 'timeValue', ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -540,7 +531,7 @@ with super.
 
     wd, ht = self.GetClientSize()
 
-    if wd > 0 and ht > 0 and self.data is not None:
+    if wd > 0 and ht > 0:
       self.UpdateState( replot = True )
   #end _OnSize
 
@@ -580,7 +571,7 @@ method via super.SaveProps().
 """
     super( PlotWidget, self ).SaveProps( props_dict )
 
-    for k in ( 'stateIndex', ):
+    for k in ( 'timeValue', ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -618,7 +609,7 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-    if self.ax is not None and self.data is not None:
+    if self.ax is not None:
       self.axline = None
       self.cursorLine = None
 
@@ -687,10 +678,14 @@ Must be called from the UI thread.
     replot = kwargs.get( 'replot', False )
     redraw = kwargs.get( 'redraw', False )
 
-    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+#    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+#      replot = True
+#      self.stateIndex = kwargs[ 'state_index' ]
+#    #end if
+
+    if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue:
       replot = True
-      self.stateIndex = kwargs[ 'state_index' ]
-    #end if
+      self.timeValue = kwargs[ 'time_value' ]
 
     if redraw:
       kwargs[ 'redraw' ] = True

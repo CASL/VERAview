@@ -185,8 +185,6 @@ Properties:
     self.mode = ''  # 'assy', 'core'
     self.nodalMode = False
     self.nodeAddr = -1
-			# overridden in _LoadDataModelValues()
-    #self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.subAddr = ( -1, -1 )
 
     super( Core2DView, self ).__init__( container, id )
@@ -1840,6 +1838,18 @@ method via super.SaveProps().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._UpdateDataSetStateValues()		-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetStateValues( self, ds_type ):
+    """
+@param  ds_type		dataset category/type
+Updates the nodalMode property.
+"""
+    self.nodalMode = self.dmgr.IsNodalType( ds_type )
+  #end _UpdateDataSetStateValues
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._UpdateStateValues()			-
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
@@ -1862,13 +1872,15 @@ method via super.SaveProps().
         changed = True
 	self.auxNodeAddrs = aux_node_addrs
 
-    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
-      ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
-      if ds_type and ds_type in self.GetDataSetTypes():
-        resized = True
-	self.nodalMode = self.dmgr.IsNodalType( ds_type )
-        self.curDataSet = kwargs[ 'cur_dataset' ]
-	self.container.GetDataSetMenu().Reset()
+# Now handled in RasterWidget
+#    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
+#      ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
+#      if ds_type and ds_type in self.GetDataSetTypes():
+#        resized = True
+#	self.nodalMode = self.dmgr.IsNodalType( ds_type )
+#        self.curDataSet = kwargs[ 'cur_dataset' ]
+#	self._UpdateAxialValue()
+#	self.container.GetDataSetMenu().Reset()
 
     if 'node_addr' in kwargs:
       node_addr = self.dmgr.NormalizeNodeAddr( kwargs[ 'node_addr' ] )

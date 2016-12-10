@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-12-10	leerw@ornl.gov				-
+#	  In Change(), cur_dataset implies axial_value and time_value,
+#	  and time_dataset implies time_value.
 #		2016-12-07	leerw@ornl.gov				-
 #	  Modified Init() to call self.dataModelMgr.GetFirstDataModel()
 #	  to get the DataModel instance to use.
@@ -312,6 +315,8 @@ Keys passed and the corresponding state bit are:
     if locks is None:
       locks = State.CreateLocks()
 
+#		-- Changes with no side effects
+#		--
     if 'assembly_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
       reason |= STATE_CHANGE_coordinates
@@ -327,10 +332,6 @@ Keys passed and the corresponding state bit are:
     if 'axial_value' in kwargs and locks[ STATE_CHANGE_axialValue ]:
       self.axialValue = kwargs[ 'axial_value' ]
       reason |= STATE_CHANGE_axialValue
-
-    if 'cur_dataset' in kwargs and locks[ STATE_CHANGE_curDataSet ]:
-      self.curDataSet = kwargs[ 'cur_dataset' ]
-      reason |= STATE_CHANGE_curDataSet
 
     if 'data_model_mgr' in kwargs:
       self.dataModelMgr = kwargs[ 'data_model_mgr' ]
@@ -352,13 +353,6 @@ Keys passed and the corresponding state bit are:
       self.subAddr = kwargs[ 'sub_addr' ]
       reason |= STATE_CHANGE_coordinates
 
-    #if 'time_dataset' in kwargs and locks[ STATE_CHANGE_timeDataSet ]:
-    if 'time_dataset' in kwargs:
-      if self.timeDataSet != kwargs[ 'time_dataset' ]:
-        self.timeDataSet = kwargs[ 'time_dataset' ]
-	self.dataModelMgr.SetTimeDataSet( self.timeDataSet )
-        reason |= STATE_CHANGE_timeDataSet
-
     if 'time_value' in kwargs and locks[ STATE_CHANGE_timeValue ]:
       self.timeValue = kwargs[ 'time_value' ]
       reason |= STATE_CHANGE_timeValue
@@ -366,6 +360,36 @@ Keys passed and the corresponding state bit are:
     if 'weights_mode' in kwargs:
       self.weightsMode = kwargs[ 'weights_mode' ]
       reason |= STATE_CHANGE_weightsMode
+
+#		-- Changes with side effects
+#		--
+    if 'cur_dataset' in kwargs and locks[ STATE_CHANGE_curDataSet ]:
+      self.curDataSet = kwargs[ 'cur_dataset' ]
+      reason |= STATE_CHANGE_curDataSet
+      if 'axial_value' not in kwargs:
+        reason |= STATE_CHANGE_axialValue
+      if 'time_value' not in kwargs:
+        reason |= STATE_CHANGE_timeValue
+    #end 'cur_dataset'
+
+    #if 'time_dataset' in kwargs and 
+        #self.timeDataSet != kwargs[ 'time_dataset' ]:
+    if 'time_dataset' in kwargs:
+      if self.timeDataSet != kwargs[ 'time_dataset' ]:
+        cur_ndx = -1
+        if 'time_value' not in kwargs:
+          cur_ndx = self.dataModelMgr.GetTimeValueIndex( self.timeValue )
+
+        self.timeDataSet = kwargs[ 'time_dataset' ]
+	self.dataModelMgr.SetTimeDataSet( self.timeDataSet )
+
+	if cur_ndx >= 0:
+	  self.timeValue = self.dataModelMgr.GetTimeIndexValue( cur_ndx )
+	  reason |= STATE_CHANGE_timeValue
+      #end if different self.timeDataSet
+
+      reason |= STATE_CHANGE_timeDataSet
+    #end 'time_dataset'
 
     return  reason
   #end Change

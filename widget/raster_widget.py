@@ -125,6 +125,9 @@ data
 stateIndex
   0-based state point index, getter is GetStateIndex()
 
+timeValue
+  current time value
+
 Framework Methods
 -----------------
 
@@ -1174,7 +1177,7 @@ Sets attributes:
   cellRange
   cellRangeStack
   data
-  stateIndex
+  timeValue
 
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
@@ -1188,7 +1191,8 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
       del self.cellRangeStack[ : ]
 
       self.axialValue = self.state.axialValue
-      self.stateIndex = self.state.stateIndex
+      #self.stateIndex = self.state.stateIndex
+      self.timeValue = self.state.timeValue
 
       with self.bitmapsLock:
         self.bitmapThreadArgs = None
@@ -1238,7 +1242,7 @@ be overridden by subclasses.
 
     for k in (
 	'axialValue', 'cellRange', 'cellRangeStack',
-	'showLabels', 'showLegend', 'stateIndex'
+	'showLabels', 'showLegend', 'timeValue'
         ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1501,10 +1505,22 @@ method via super.SaveProps().
 
     for k in (
 	'axialValue', 'cellRange', 'cellRangeStack',
-	'showLabels', 'showLegend', 'stateIndex'
+	'showLabels', 'showLegend', 'timeValue'
         ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._UpdateDataSetStateValues()	-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetStateValues( self ):
+    """
+Performs any additional state value updates after self.curDataSet has
+been updated.
+"""
+    pass
+  #end _UpdateDataSetStateValues
 
 
   #----------------------------------------------------------------------
@@ -1592,9 +1608,10 @@ Calls _UpdateStateValues().
   #----------------------------------------------------------------------
   def _UpdateStateValues( self, **kwargs ):
     """
-In this implementation 'axial_value', (no longer 'state_index'),
+In this implementation 'axial_value', (no longer 'state_index'), 'cur_dataset',
 'time_dataset', and 'time_value' are handled.  Subclasses should override
-and call this first.
+and call this first.  If 'cur_dataset' is in kwargs, _UpdateDataSetStateValues()
+will be called.
 @return			kwargs with 'changed' and/or 'resized'
 """
     changed = kwargs.get( 'changed', False )
@@ -1635,6 +1652,17 @@ and call this first.
         self.stateIndex = state_index
       #end if state_index
     #end if 'time_value'
+
+#		-- Special handling for cur_dataset
+    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
+      ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
+      if ds_type and ds_type in self.GetDataSetTypes():
+        resized = True
+        self.curDataSet = kwargs[ 'cur_dataset' ]
+	self.container.GetDataSetMenu().Reset()
+        self.axialValue = self.dmgr.\
+            GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
+        self.stateIndex = max( 0, self.dmgr.GetTimeValueIndex( self.timeValue ) )
 
     if changed:
       kwargs[ 'changed' ] = True

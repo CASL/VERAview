@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2016-12-10	leerw@ornl.gov				-
+#	  Adapting to new DataModelMgr.
 #		2016-11-26	leerw@ornl.gov				-
 #	  Changing plot_type based on dataset being derived or not.
 #		2016-10-26	leerw@ornl.gov				-
@@ -192,78 +194,6 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateCsvDataRows()				-
-  #----------------------------------------------------------------------
-  def _CreateCsvDataRows(
-      self, axial_mesh_type, cur_selection_flag, dataset_dict
-      ):
-    """Creates CSV rows for the specified mesh type and associated
-dataset names and ( rc, values ) pairs.
-@param  axial_mesh_type	'axial', 'detector', or 'fixed_detector'
-@param  cur_selection_flag  True to only show data for the current selection
-@param  dataset_dict	dict by dataset name of [ ( rc, values ) ]
-@return			CSV text
-"""
-    csv_text = ''
-    core = self.data.GetCore()
-
-#		-- Write header row
-#		--
-    if axial_mesh_type == 'detector':
-      header = 'Detector'
-      cur_axial_index = self.axialValue[ 2 ]
-      mesh_centers = core.detectorMesh
-    elif axial_mesh_type == 'fixed_detector':
-      header = 'Fixed Detector'
-      cur_axial_index = self.axialValue[ 3 ]
-      mesh_centers = core.fixedDetectorMeshCenters
-    else:
-      header = 'Axial'
-      cur_axial_index = self.axialValue[ 1 ]
-      mesh_centers = core.axialMeshCenters
-    header += ' Mesh Center'
-
-    for name, item in sorted( dataset_dict.iteritems() ):
-      for rc in sorted( item.keys() ):
-        header += ',"' + name
-	if rc:
-          header += '@' + DataModel.ToAddrString( *rc )
-        header += '"'
-    csv_text += header + '\n'
-
-    if cur_selection_flag:
-      j_range = ( cur_axial_index, )
-    else:
-      j_range = range( len( mesh_centers ) - 1, -1, -1 )
-
-    for j in j_range:
-      row = '%.7g' % mesh_centers[ j ]
-
-      for name, item in sorted( dataset_dict.iteritems() ):
-        for rc, values in sorted( item.iteritems() ):
-	  cur_val = 0
-	  if not hasattr( values, '__len__' ):
-	    if j == cur_axial_index:
-	      cur_val = values
-	  elif len( values ) > j:
-	    cur_val = values[ j ]
-
-	  if cur_val != 0:
-	    row += ',%.7g' % cur_val
-	  else:
-	    row += ',0'
-        #end for rc, values
-      #end for name, values
-
-      csv_text += row + '\n'
-    #end for j
-
-    csv_text += '\n'
-    return  csv_text
-  #end _CreateCsvDataRows
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardData()				-
   #----------------------------------------------------------------------
   def _CreateClipboardData( self, mode = 'displayed' ):
@@ -275,12 +205,14 @@ dataset names and ( rc, values ) pairs.
 
 #		-- Must be valid state
 #		--
-    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-      core = self.data.GetCore()
-
+    #if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+      #core = self.data.GetCore()
+    core = self.dmgr.GetCore()
+    if core:
       title = '%s=%.3g' % (
 	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	  self.state.timeValue
+	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
 
       title_set = set( [] )
@@ -291,12 +223,12 @@ dataset names and ( rc, values ) pairs.
 #		 	-- Collate by mesh type
 #		 	--
       for k in self.dataSetValues:
-	ds_name = self._GetDataSetName( k )
+	qds_name = self._GetDataSetName( k )
 	ds_rec = self.dataSetSelections[ k ]
 
-        if ds_rec[ 'visible' ] and ds_name is not None:
-	  ds_display_name = self.data.GetDataSetDisplayName( ds_name )
-	  ds_type = self.data.GetDataSetType( ds_name )
+        if ds_rec[ 'visible' ] and qds_name is not None:
+	  #ds_display_name = self.data.GetDataSetDisplayName( ds_name )
+	  ds_type = self.dmgr.GetDataSetType( qds_name )
 
           data_set_item = self.dataSetValues[ k ]
 	  if not isinstance( data_set_item, dict ):
@@ -308,19 +240,19 @@ dataset names and ( rc, values ) pairs.
 	      title += '; Channel=(%d,%d)' % ( 
 	          self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1
 		  )
-	    axial_mesh_datasets[ ds_display_name ] = data_set_item
+	    axial_mesh_datasets[ qds_name ] = data_set_item
 
 	  elif ds_type.startswith( 'detector' ):
 	    if 'detector' not in title_set:
 	      title_set.add( 'detector' )
 	      title += '; Detector=%d' % ( self.assemblyAddr[ 0 ] + 1 )
-	    detector_mesh_datasets[ ds_display_name ] = data_set_item
+	    detector_mesh_datasets[ qds_name ] = data_set_item
 
 	  elif ds_type.startswith( 'fixed_detector' ):
 	    if 'detector' not in title_set:
 	      title_set.add( 'detector' )
 	      title += '; Detector=%d' % ( self.assemblyAddr[ 0 ] + 1 )
-	    fixed_detector_mesh_datasets[ ds_display_name ] = data_set_item
+	    fixed_detector_mesh_datasets[ qds_name ] = data_set_item
 
 	  else:
 	    if 'pin' not in title_set:
@@ -328,7 +260,7 @@ dataset names and ( rc, values ) pairs.
 	      title += '; Pin=(%d,%d)' % ( 
 	          self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1
 		  )
-	    axial_mesh_datasets[ ds_display_name ] = data_set_item
+	    axial_mesh_datasets[ qds_name ] = data_set_item
           #end if-else type
 	#end if visible
       #end for k
@@ -351,10 +283,90 @@ dataset names and ( rc, values ) pairs.
 	csv_text += self._CreateCsvDataRows( 
 	    'fixed_detector', cur_selection_flag, fixed_detector_mesh_datasets
 	    )
-    #end if valid state
+    #end if core
 
     return  csv_text
   #end _CreateClipboardData
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_CreateCsvDataRows()				-
+  #----------------------------------------------------------------------
+  def _CreateCsvDataRows(
+      self, axial_mesh_type, cur_selection_flag, dataset_dict
+      ):
+    """Creates CSV rows for the specified mesh type and associated
+dataset names and ( rc, values ) pairs.
+@param  axial_mesh_type	'axial', 'detector', or 'fixed_detector'
+@param  cur_selection_flag  True to only show data for the current selection
+@param  dataset_dict	dict by qds_name of [ ( rc, values ) ]
+@return			CSV text
+"""
+    csv_text = ''
+
+    core = self.dmgr.GetCore()
+    if core:
+#			-- Write header row
+#			--
+      if axial_mesh_type == 'detector':
+        header = 'Detector'
+        cur_axial_index = self.axialValue[ 2 ]
+        #mesh_centers = core.detectorMesh
+        mesh_centers = self.dmgr.GetDetectorMesh()
+      elif axial_mesh_type == 'fixed_detector':
+        header = 'Fixed Detector'
+        cur_axial_index = self.axialValue[ 3 ]
+        #mesh_centers = core.fixedDetectorMeshCenters
+        mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      else:
+        header = 'Axial'
+        cur_axial_index = self.axialValue[ 1 ]
+        #mesh_centers = core.axialMeshCenters
+        mesh_centers = self.dmgr.GetAxialMeshCenters()
+      header += ' Mesh Center'
+
+      for name, item in sorted( dataset_dict.iteritems() ):
+        for rc in sorted( item.keys() ):
+          header += ',"' + name
+	  if rc:
+            header += '@' + DataModel.ToAddrString( *rc )
+          header += '"'
+      csv_text += header + '\n'
+
+#			-- Write data rows
+#			--
+      if cur_selection_flag:
+        j_range = ( cur_axial_index, )
+      else:
+        j_range = range( len( mesh_centers ) - 1, -1, -1 )
+
+      for j in j_range:
+        row = '%.7g' % mesh_centers[ j ]
+
+        for name, item in sorted( dataset_dict.iteritems() ):
+          for rc, values in sorted( item.iteritems() ):
+	    cur_val = 0
+	    if not hasattr( values, '__len__' ):
+	      if j == cur_axial_index:
+	        cur_val = values
+	    elif len( values ) > j:
+	      cur_val = values[ j ]
+
+	    if cur_val != 0:
+	      row += ',%.7g' % cur_val
+	    else:
+	      row += ',0'
+          #end for rc, values
+        #end for name, values
+
+        csv_text += row + '\n'
+      #end for j
+
+      csv_text += '\n'
+    #end if core
+
+    return  csv_text
+  #end _CreateCsvDataRows
 
 
   #----------------------------------------------------------------------
@@ -728,13 +740,15 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		_GetDataSetName()				-
   #----------------------------------------------------------------------
-  def _GetDataSetName( self, name ):
+  def _GetDataSetName( self, qds_name ):
     """Determines actual dataset name if a pseudo name is provided.
+@param  name		DataSetName instance
+@return			name to use, None if qds_name is None
 """
     return \
-        None  if name is None else \
-	self.curDataSet  if name == LABEL_selectedDataSet else \
-	name
+        None  if qds_name is None else \
+	self.curDataSet  if qds_name == LABEL_selectedDataSet else \
+	qds_name
 
 #    return \
 #	None  if name is None else \
@@ -1258,9 +1272,16 @@ Must be called from the UI thread.
       self.auxSubAddrs = \
           self.data.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'channel' )
 
-    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+#    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+#      replot = True
+#      self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
+#    #end if
+
+    if 'axial_value' in kwargs and \
+        kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ]:
       replot = True
-      self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
+      self.axialValue = self.dmgr.\
+          GetAxialValue( cm = kwargs[ 'axial_value' ][ 0 ] )
     #end if
 
     if 'cur_dataset' in kwargs and \
@@ -1268,7 +1289,7 @@ Must be called from the UI thread.
 	kwargs[ 'cur_dataset' ] in self.data.GetDataSetNames( 'axial' ):
       self.curDataSet = kwargs[ 'cur_dataset' ]
       #select_name = self.GetSelectedDataSetName( 'channel' )
-      select_name = self.GetSelectedDataSetName()
+      select_name = self.GetSelectedDataSetName()  # LABEL_selectedDataSet
       if select_name in self.dataSetSelections and \
           self.dataSetSelections[ select_name ][ 'visible' ]:
         replot = True

@@ -159,18 +159,18 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.CloseModel()			-
   #----------------------------------------------------------------------
-  def CloseModel( self, param, closing_all = False ):
+  def CloseModel( self, model_param, closing_all = False ):
     """Opens the HDF5 file or filename.
-@param  param		either a DataModel instance or a model name/ID string
+@param  model_param	either a DataModel instance or a model name/ID string
 @param  closing_all	if True, no local state updates are performed
 @param  update_flag	True to update 
 @return			True if removed, False if not found
 """
     result = False
-    if isinstance( param, DataModel ):
-      model_name = param.GetName()
+    if isinstance( model_param, DataModel ):
+      model_name = model_param.GetName()
     else:
-      model_name = str( param )
+      model_name = str( model_param )
 
     if model_name in self.dataModels:
       dm = self.dataModels[ model_name ]
@@ -406,12 +406,12 @@ values across all models.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetAxialValue()			-
   #----------------------------------------------------------------------
-  def GetAxialValue( self, param = None, **kwargs ):
+  def GetAxialValue( self, model_name = None, **kwargs ):
     """Retrieves the axial value tuple ( axial_cm, core_ndx, detector_ndx,
 fixed_detector_ndx ) for the model with 'id' if specified.  Otherwise, the
 cross-model levels are used and can be applied only with 'cm' and 'core_ndx'
 arguments.  Calls CreateAxialValue() on the identified DataModel.
-@param  param		a DataSetName instance, model name, or None for
+@param  model_name	a DataSetName instance, model name, or None for
 			global axial values
 @param  kwargs		arguments
     cm				axial value in cm
@@ -427,8 +427,8 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
     fdet_ndx = -1
     axial_cm = -1.0  # 0.0
 
-    if param:
-      dm = self.GetDataModel( param )
+    if model_name:
+      dm = self.GetDataModel( model_name )
       if dm:
 	axial_cm, core_ndx, det_ndx, fdet_ndx = dm.CreateAxialValue( **kwargs )
 
@@ -483,17 +483,18 @@ DataModel.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModel()			-
   #----------------------------------------------------------------------
-  def GetDataModel( self, param ):
+  def GetDataModel( self, model_param ):
     """Retrieves the DataModel by model name.  The param can be a string
 model name or a DataSetName instance.
-@param  param		a DataSetName instance or a model name string
+@param  model_param	a DataSetName instance or a model name string
 @return			DataModel or None if not found
 """
     dm = None
-    if param:
+    if model_param:
       model_name = \
-          param.modelName  if isinstance( param, DataSetName ) else \
-	  str( param )
+          model_param.modelName \
+	  if isinstance( model_param, DataSetName ) else \
+	  str( model_param )
       dm = self.dataModels.get( model_name )
 
     return  dm
@@ -522,13 +523,13 @@ model name or a DataSetName instance.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModelDataSetNames()		-
   #----------------------------------------------------------------------
-  def GetDataModelDataSetNames( self, param ):
+  def GetDataModelDataSetNames( self, qds_name ):
     """Retrieves the dataset types list for the specified model.
-@param  param		either a model name or a DataSetName instance
-@return			types lislt
+@param  qds_name	DataSetName instance
+@return			types list
 """
     dm = self.GetDataModel( qds_name )
-    return  dm.GetDataSetType( qds_name.displayName )
+    return  dm.GetDataSetType( qds_name.displayName )  if dm else []
   #end GetDataModelDataSetNames
 
 
@@ -576,12 +577,8 @@ values across all models.
 @param  qds_name	name of dataset, DataSetName instance
 @return			factors np.ndarray or None
 """
-    result = None
     dm = self.GetDataModel( qds_name )
-    if dm:
-      result = dm.GetFactors( qds_name.displayName )
-
-    return  result
+    return  dm.GetFactors( qds_name.displayName )  if dm else  None
   #end GetFactors
 
 
@@ -592,11 +589,15 @@ values across all models.
     """Retrieves the first DataModel.
 @return			DataModel or None if not found
 """
-    dm = None
-    if len( self.dataModelNames ) > 0:
-      dm = self.dataModels.get( self.dataModelNames[ 0 ] )
-
-    return  dm
+    return \
+        self.dataModels.get( self.dataModelNames[ 0 ] ) \
+	if len( self.dataModelNames ) > 0 else \
+	None
+#    dm = None
+#    if len( self.dataModelNames ) > 0:
+#      dm = self.dataModels.get( self.dataModelNames[ 0 ] )
+#
+#    return  dm
   #end GetFirstDataModel
 
 
@@ -787,20 +788,20 @@ the global, cross-model values are used.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeValueIndex()		-
   #----------------------------------------------------------------------
-  def GetTimeValueIndex( self, value, model_name = None ):
+  def GetTimeValueIndex( self, value, model_param = None ):
     """Determines the 0-based index of the value in the values list such that
-values[ ndx ] <= value < values[ ndx + 1 ].  If model_name is specified,
+values[ ndx ] <= value < values[ ndx + 1 ].  If model_param is specified,
 only the list of values for the specified model are used.  Otherwise,
 the global, cross-model values are used.
-@param  model_name	optional name for the model of interest,
-			can be a DataSetName
+@param  model_param	optional name for the model of interest,
+			can be a DataSetName, None for global index
 @return			0-based index such that
 			values[ ndx ] <= value < values[ ndx + 1 ]
 """
     ndx = -1
-    if isinstance( model_name, DataSetName ):
-      model_name = model_name.modelName
-    values = self.GetTimeValues( model_name )
+    if isinstance( model_param, DataSetName ):
+      model_param = model_param.modelName
+    values = self.GetTimeValues( model_param )
     if values:
       ndx = bisect.bisect_right( values, value ) - 1
       ndx = max( 0, min( ndx, len( values ) - 1 ) )
@@ -813,20 +814,20 @@ the global, cross-model values are used.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetTimeValues()			-
   #----------------------------------------------------------------------
-  def GetTimeValues( self, model_name = None ):
+  def GetTimeValues( self, model_param = None ):
     """Retrieves the time dataset values for the specified model if 'id'
 is not None, otherwise retrieves the union of values across all models.
-@param  model_name	optional name for the model of interest,
-			can be a DataSetName
+@param  model_param	optional name for the model of interest,
+			can be a DataSetName, None for global time values
 @return			list of time dataset values for the specified model
 			or across all models
 """
-    if isinstance( model_name, DataSetName ):
-      model_name = model_name.modelName
+    if isinstance( model_param, DataSetName ):
+      model_param = model_param.modelName
 
     return \
-	self.timeValuesById[ model_name ] \
-	if model_name and model_name in self.timeValuesById else \
+	self.timeValuesById[ model_param ] \
+	if model_param and model_param in self.timeValuesById else \
 	self.timeValues
   #end GetTimeValues
 
@@ -1146,7 +1147,7 @@ other derived types we pass 'pin'.
   #----------------------------------------------------------------------
   def SetTimeDataSet( self, ds_name ):
     """Accessor for the timeDataSet property.
-@param  ds_name		dataset used for time
+@param  ds_name		cross-model dataset used for time
 """
     self.timeDataSet = ds_name
     self._UpdateTimeValues()
