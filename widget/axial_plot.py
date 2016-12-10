@@ -203,6 +203,8 @@ Properties:
     csv_text = None
     cur_selection_flag = mode != 'displayed'
 
+    #xxxxx must collate by DataModel
+
 #		-- Must be valid state
 #		--
     #if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
@@ -683,22 +685,29 @@ configuring the grid, plotting, and creating self.axline.
 """
     results = {}
     for k in self.dataSetValues:
-      ds_name = self._GetDataSetName( k )
+      qds_name = self._GetDataSetName( k )
 
       data_set_item = self.dataSetValues[ k ]
       if not isinstance( data_set_item, dict ):
         data_set_item = { '': data_set_item }
 
       ndx = -1
-      #x call data.CreateAxialValue() here?
-      if ds_name in self.data.GetDataSetNames( 'detector' ):
-        if self.data.core.detectorMesh is not None:
-	  ndx = self.data.FindListIndex( self.data.core.detectorMesh, axial_cm )
-      elif ds_name in self.data.GetDataSetNames( 'fixed_detector' ):
-        if self.data.core.fixedDetectorMeshCenters is not None:
-	  ndx = self.data.FindListIndex( self.data.core.fixedDetectorMeshCenters, axial_cm )
+#      if ds_name in self.data.GetDataSetNames( 'detector' ):
+#        if self.data.core.detectorMesh is not None:
+#	  ndx = self.data.FindListIndex( self.data.core.detectorMesh, axial_cm )
+#      elif ds_name in self.data.GetDataSetNames( 'fixed_detector' ):
+#        if self.data.core.fixedDetectorMeshCenters is not None:
+#	  ndx = self.data.FindListIndex( self.data.core.fixedDetectorMeshCenters, axial_cm )
+#      else:
+#        ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
+      if qds_name.displayName in \
+          self.dmgr.GetDataModelDataSetNames( qds_name, 'detector' ):
+        ndx = self.axialValue[ 2 ]
+      elif qds_name.displayName in \
+          self.dmgr.GetDataModelDataSetNames( qds_name, 'fixed_detector' ):
+        ndx = self.axialValue[ 3 ]
       else:
-        ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
+        ndx = self.axialValue[ 1 ]
 
       sample = data_set_item.itervalues().next()
       if ndx >= 0 and len( sample ) > ndx:
@@ -730,7 +739,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		GetAxialValue()					-
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
-    """@return		( value, 0-based core index, 0-based detector index
+    """@return		( cm value, 0-based core index, 0-based detector index
 			  0-based fixed_detector index )
 """
     return  self.axialValue
@@ -765,10 +774,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     return \
-      [
+      (
       'channel', 'detector', 'fixed_detector', 'pin',
       ':assembly', ':axial', ':node'
-      ]
+      )
   #end GetDataSetTypes
 
 
@@ -793,7 +802,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_axialValue,
 	STATE_CHANGE_coordinates,
 	STATE_CHANGE_curDataSet,
-	STATE_CHANGE_stateIndex
+	STATE_CHANGE_timeValue
 	])
     return  locks
   #end GetEventLockSet
@@ -842,9 +851,9 @@ XXX size according to how many datasets selected?
   #----------------------------------------------------------------------
   #	METHOD:		AxialPlot.IsDataSetVisible()			-
   #----------------------------------------------------------------------
-  def IsDataSetVisible( self, ds_name ):
+  def IsDataSetVisible( self, qds_name ):
     """True if the specified dataset is currently displayed, False otherwise.
-@param  ds_name		dataset name
+@param  qds_name	dataset name, DataSetName instance
 @return			True if visible, else False
 """
     visible = \
@@ -862,21 +871,24 @@ XXX size according to how many datasets selected?
 to be passed to UpdateState().  Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
+    update_args = {}
+
     self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
         { 'axis': 'bottom', 'scale': 1.0, 'visible': True }
     self.dataSetDialog = None
 
-    if self.data is not None and self.data.HasData():
-      assy_addr = self.data.NormalizeAssemblyAddr( self.state.assemblyAddr )
-      aux_node_addrs = self.data.NormalizeNodeAddrs( self.state.auxNodeAddrs )
-      aux_sub_addrs = self.data.\
+    #if self.data is not None and self.data.HasData():
+    if self.dmgr.HasData():
+      assy_addr = self.dmgr.NormalizeAssemblyAddr( self.state.assemblyAddr )
+      aux_node_addrs = self.dmgr.NormalizeNodeAddrs( self.state.auxNodeAddrs )
+      aux_sub_addrs = self.dmgr.\
           NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
-      axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
-      node_addr = self.data.NormalizeNodeAddr( self.state.nodeAddr )
+      axial_value = self.dmgr.NormalizeAxialValue( None, self.state.axialValue )
+      node_addr = self.dmgr.NormalizeNodeAddr( self.state.nodeAddr )
       sub_addr = \
-          self.data.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
+          self.dmgr.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
       #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )
-      state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
+      #state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
 	'assembly_addr': assy_addr,
@@ -885,13 +897,12 @@ to be passed to UpdateState().  Assume self.data is valid.
 	'axial_value': axial_value,
 	'cur_dataset': self.state.curDataSet,
 	'node_addr': node_addr,
-	'state_index': state_ndx,
+	#'state_index': state_ndx,
 	'sub_addr': sub_addr,
-	'time_dataset': self.state.timeDataSet
+	'time_dataset': self.state.timeDataSet,
+	'time_value': self.state.timeValue
 	}
-
-    else:
-      update_args = {}
+    #end if self.dmgr.HasData()
 
     return  update_args
   #end _LoadDataModelValues
@@ -907,7 +918,8 @@ be overridden by subclasses.
 """
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr'
+	'curDataSet', 'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr',
+	'timeValue'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -966,7 +978,8 @@ be overridden by subclasses.
 
     button = ev.button or 1
     if button == 1 and self.cursor is not None:
-      axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
+      #axial_value = self.data.CreateAxialValue( value = self.cursor[ 1 ] )
+      axial_value = self.dmgr.GetAxialValue( cm = self.cursor[ 1 ] )
       self.UpdateState( axial_value = axial_value )
       self.FireStateChange( axial_value = axial_value )
   #end _OnMplMouseRelease
@@ -1052,7 +1065,8 @@ method via super.SaveProps().
 
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr'
+	'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr',
+	'timeValue'
 	):
       props_dict[ k ] = getattr( self, k )
 
@@ -1065,19 +1079,19 @@ method via super.SaveProps().
   #----------------------------------------------------------------------
   #	METHOD:		AxialPlot.ToggleDataSetVisible()		-
   #----------------------------------------------------------------------
-  def ToggleDataSetVisible( self, ds_name ):
+  def ToggleDataSetVisible( self, qds_name ):
     """Toggles the visibility of the named dataset.
 Must be called from the event thread.
-@param  ds_name		dataset name, possibly with 'Selected ' prefix
+@param  qds_name	dataset name, DataSetName instance
 """
-    if ds_name in self.dataSetSelections:
-      rec = self.dataSetSelections[ ds_name ]
+    if qds_name in self.dataSetSelections:
+      rec = self.dataSetSelections[ qds_name ]
       if rec[ 'visible' ]:
         rec[ 'axis' ] = ''
       rec[ 'visible' ] = not rec[ 'visible' ]
 
     else:
-      self.dataSetSelections[ ds_name ] = \
+      self.dataSetSelections[ qds_name ] = \
         { 'axis': '', 'scale': 1.0, 'visible': True }
 
     self._ResolveDataSetAxes()
@@ -1096,34 +1110,41 @@ Must be called from the event thread.
 
 #		-- Must have data
 #		--
-    #if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
-    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-      axial_ds_names = self.data.GetDataSetNames( 'axial' )
+    #if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+    if self.dmgr.HasData():
+      axial_qds_names = self.dmgr.GetDataSetQNames( 'axial' )
 
       node_addr_list = None
       sub_addr_list = None
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
+	qds_name = self._GetDataSetName( k )
 
 #				-- Must be visible and an "axial" dataset
 #				--
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name in axial_ds_names:
+        if ds_rec[ 'visible' ] and qds_name is not None and \
+	    qds_name in axial_qds_names:
 	  ds_values = None
-	  ds_type = self.data.GetDataSetType( ds_name )
+	  ds_type = self.dmgr.GetDataSetType( qds_name )
 
-	  if ds_name in self.dataSetValues:
-	    ds_values = self.dataSetValues[ ds_name ]
+	  if qds_name in self.dataSetValues:
+	    ds_values = self.dataSetValues[ qds_name ]
 
 #					-- Detector, fixed detector
 	  if ds_type == 'detector' or ds_type == 'fixed_detector':
-	    ds_values = self.data.ReadDataSetAxialValues(
-	        ds_name,
+#	    ds_values = self.data.ReadDataSetAxialValues(
+#	        ds_name,
+#		detector_index = self.assemblyAddr[ 0 ],
+#		state_index = self.stateIndex
+#		)
+	    #xxxxx return the mesh values as well
+	    ds_values = self.dmgr.ReadDataSetAxialValues(
+	        qds_name,
 		detector_index = self.assemblyAddr[ 0 ],
-		state_index = self.stateIndex
+		time_value = self.timeValue
 		)
+
             self.dataSetTypes.add( ds_type )
 
 #					-- Not scalar
@@ -1150,96 +1171,8 @@ Must be called from the event thread.
 	    self.dataSetValues[ k ] = ds_values
         #end if visible
       #end for each dataset
-    #end if valid state
+    #end if self.dmgr.HasData()
   #end _UpdateDataSetValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_UpdateDataSetValues_old()			-
-  #----------------------------------------------------------------------
-  def _UpdateDataSetValues_old( self ):
-    """Rebuild dataset arrays to plot.
-"""
-    self.dataSetTypes.clear()
-    self.dataSetValues.clear()
-
-#		-- Must have data
-#		--
-    #if self.data is not None and self.data.IsValid( state_index = self.stateIndex ):
-    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-      axial_ds_names = self.data.GetDataSetNames( 'axial' )
-
-      sub_addr_list = None
-
-      for k in self.dataSetSelections:
-        ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
-
-#				-- Must be visible and an "axial" dataset
-#				--
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name in axial_ds_names:
-	  ds_values = None
-	  ds_type = self.data.GetDataSetType( ds_name )
-
-	  if ds_name in self.dataSetValues:
-	    ds_values = self.dataSetValues[ ds_name ]
-
-#					-- Channel
-	  elif ds_type.startswith( 'channel' ):
-#						-- Lazy creation
-	    if sub_addr_list is None:
-              sub_addr_list = list( self.auxSubAddrs )
-              sub_addr_list.insert( 0, self.subAddr )
-
-	    ds_values = self.data.ReadDataSetAxialValues(
-	        ds_name,
-		assembly_index = self.assemblyAddr[ 0 ],
-		sub_addrs = sub_addr_list,
-		state_index = self.stateIndex
-		)
-            self.dataSetTypes.add( 'channel' )
-
-#					-- Detector
-	  elif ds_type.startswith( 'detector' ):
-	    ds_values = self.data.ReadDataSetAxialValues(
-	        ds_name,
-		detector_index = self.assemblyAddr[ 0 ],
-		state_index = self.stateIndex
-		)
-            self.dataSetTypes.add( 'detector' )
-
-#					-- Pin
-	  elif ds_type.startswith( 'pin' ):
-#						-- Lazy creation
-	    if sub_addr_list is None:
-              sub_addr_list = list( self.auxSubAddrs )
-              sub_addr_list.insert( 0, self.subAddr )
-
-	    ds_values = self.data.ReadDataSetAxialValues(
-	        ds_name,
-		assembly_index = self.assemblyAddr[ 0 ],
-		sub_addrs = sub_addr_list,
-		state_index = self.stateIndex
-		)
-            self.dataSetTypes.add( 'pin' )
-
-#					-- Fixed detector
-	  elif ds_type.startswith( 'fixed_detector' ):
-	    ds_values = self.data.ReadDataSetAxialValues(
-	        ds_name,
-		detector_index = self.assemblyAddr[ 0 ],
-		state_index = self.stateIndex
-		)
-            self.dataSetTypes.add( 'fixed_detector' )
-	  #end if ds_type match
-
-	  if ds_values is not None:
-	    self.dataSetValues[ k ] = ds_values
-        #end if visible
-      #end for each dataset
-    #end if valid state
-  #end _UpdateDataSetValues_old
 
 
   #----------------------------------------------------------------------
@@ -1280,8 +1213,8 @@ Must be called from the UI thread.
     if 'axial_value' in kwargs and \
         kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ]:
       replot = True
-      self.axialValue = self.dmgr.\
-          GetAxialValue( cm = kwargs[ 'axial_value' ][ 0 ] )
+      self.axialValue = \
+          self.dmgr.GetAxialValue( cm = kwargs[ 'axial_value' ][ 0 ] )
     #end if
 
     if 'cur_dataset' in kwargs and \

@@ -523,13 +523,21 @@ model name or a DataSetName instance.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataModelDataSetNames()		-
   #----------------------------------------------------------------------
-  def GetDataModelDataSetNames( self, qds_name ):
-    """Retrieves the dataset types list for the specified model.
+  def GetDataModelDataSetNames( self, qds_name, ds_type = None ):
+    """Calls GetDataSetNames() on the model specified by qds_name.
+    Retrieves the dataset types list for the specified model.
 @param  qds_name	DataSetName instance
-@return			types list
+@param  ds_type		optional type name
+@return			empty list if model name found, else
+			if ds_type is not None, list of datasets in that
+			ds_type, empty if not found, else
+			if ds_type is None, copy of dict of dataset name lists
+			by ds_type
+			( 'axial', 'channel', 'detector', 'fixed_detector',
+			  'pin', 'scalar', etc. )
 """
     dm = self.GetDataModel( qds_name )
-    return  dm.GetDataSetType( qds_name.displayName )  if dm else []
+    return  dm.GetDataSetNames( ds_type )  if dm else []
   #end GetDataModelDataSetNames
 
 
@@ -542,6 +550,47 @@ model name or a DataSetName instance.
 """
     return  self.dataModels
   #end GetDataModels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataSetQNames()			-
+  #----------------------------------------------------------------------
+  def GetDataSetQNames( self, model_param, ds_type = None ):
+    """Returns the qualified names (DataSetName instances) for ds_type,
+for a single DataModel if model_param is specified or across all models.
+If ds_type is None or empty, all types are matched.
+@param  model_param	optional name for the model of interest,
+			can be a DataSetName, None for all models
+@param  ds_type		optional type name, where None matches all types
+@return			empty list if model_param specified and not found,
+			list of qualified names (DataSetName instances)
+			otherwise
+"""
+    result = set()
+    dm_list = []
+
+    if model_param:
+      dm = self.GetDataModel( model_param )
+      if dm:
+        dm_list.append( dm )
+    else:
+      dm_list = self.dataModels.values()
+
+    for dm in dm_list:
+      if ds_type:
+        names = dm.GetDataSetNames( ds_type )
+      else:
+        names_dict = dm.GetDataSetNames()
+	names = []
+	for cur_names in names_dict.values():
+	  names += cur_names
+
+      for n in names:
+        result.add( DataSetName( dm.GetName(), n ) )
+    #end for dm
+
+    return  sorted( list( result ) )
+  #end GetDataSetQNames
 
 
   #----------------------------------------------------------------------
@@ -936,6 +985,58 @@ dataset.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.NormalizeAssemblyAddr()		-
+  #----------------------------------------------------------------------
+  def NormalizeAssemblyAddr( self, assy_ndx ):
+    core = self.GetCore()
+    if core is None:
+      result = ( -1, -1, -1 )
+    else:
+      result = \
+        (
+        max( 0, min( assy_ndx[ 0 ], nass - 1 ) ),
+        max( 0, min( assy_ndx[ 1 ], nassx - 1 ) ),
+        max( 0, min( assy_ndx[ 2 ], nassy - 1 ) )
+        )
+    return  result
+  #end NormalizeAssemblyAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.NormalizeAxialValue()		-
+  #----------------------------------------------------------------------
+  def NormalizeAxialValue( self, model_param, axial_value ):
+    """Normalizes against meshes specified by model_param or the global
+cross-model meshes if model_param is None
+@param  model_param	None for cross-model meshes, either a DataModel
+			instance or a model name/ID string for
+			model-specific meshes
+@param  axial_value	( cm, core_ndx, det_ndx, fdet_ndx )
+"""
+    dm = None
+    if model_param:
+      dm = self.GetDataModel( model_param )
+    if dm:
+      core = dm.GetCore()
+      axial_mesh_centers = core.GetAxialMeshCenters()
+      detector_mesh = core.GetDetectorMesh()
+      fdet_mesh_centers = core.GetFixedDetectorMeshCenters()
+    else:
+      axial_mesh_centers = self.GetAxialMeshCenters()
+      detector_mesh = self.GetDetectorMesh()
+      fdet_mesh_centers = self.GetFixedDetectorMeshCenters()
+
+    result = (
+        axial_value[ 0 ],
+        max( 0, min( axial_value[ 1 ], len( axial_mesh_centers ) -1 ) ),
+        max( 0, min( axial_value[ 2 ], len( detector_mesh ) -1 ) ),
+        max( 0, min( axial_value[ 3 ], len( fdet_mesh_centers ) -1 ) )
+        )
+    return  result
+  #end NormalizeAxialValue
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.NormalizeNodeAddr()		-
   #----------------------------------------------------------------------
   def NormalizeNodeAddr( self, ndx ):
@@ -987,6 +1088,36 @@ in each dimension.
         )
     return  result
   #end NormalizeSubAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.NormalizeSubAddrs()		-
+  #----------------------------------------------------------------------
+  def NormalizeSubAddrs( self, addr_list, mode = 'pin' ):
+    """Normalizes each address in the list, accounting for channel shape
+being one greater in each dimension.
+@param  addr_list	list of 0-based ( col, row )
+@param  mode		'channel' or 'pin', defaulting to the latter
+"""
+    core = self.GetCore()
+    if core is None:
+      maxx = maxy = -1
+    else:
+      maxx = npinx - 1
+      maxy = npiny - 1
+      if mode == 'channel':
+        maxx += 1
+        maxy += 1
+
+    result = []
+    for addr in addr_list:
+      result.append( (
+          max( 0, min( addr[ 0 ], maxx ) ),
+          max( 0, min( addr[ 1 ], maxy ) )
+	  ) )
+
+    return  list( set( result ) )
+  #end NormalizeSubAddrs
 
 
   #----------------------------------------------------------------------
@@ -1049,6 +1180,111 @@ in each dimension.
       self.logger.error( msg )
       raise  IOError( msg )
   #end OpenModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.ReadDataSetAxialValues()		-
+  #----------------------------------------------------------------------
+  def ReadDataSetAxialValues( self,
+      qds_name,
+      assembly_index = 0,
+      node_addrs = None,
+      sub_addrs = None,
+      detector_index = 0,
+      time_value = 0.0
+      ):
+    """Reads axial values for a dataset for a specified time value.  Note the
+returned values are over the approach mesh (axial mesh centers, detector
+mesh, fixed detector mesh centers) for the DataModel.
+Calls ReadDataSetAxialValues on the matching DataModel if found.
+@param  qds_name	name of dataset, DataSetName instance, cannot be None
+@param  assembly_index	0-based assembly index
+@param  detector_index	0-based detector index
+@param  node_addrs	list of node indexes
+@param  sub_addrs	list of sub_addr pairs
+@param  time_value	timeDataSet value
+@return			None if the model or dataset cannot be found,
+			dict by sub_addr of np.ndarray for datasets that vary
+			by sub_addr,
+			np.ndarray for other datasets
+"""
+    result = None
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      state_index = self.GetTimeValueIndex( time_value, qds_name )
+      #xxxxx return the mesh values as well
+      result = dm.ReadDataSetAxialValues(
+          qds_name.displayName, assembly_index,
+	  node_addrs, sub_addrs,
+	  detector_index, state_index
+	  )
+    #end if dm
+
+    return  result
+  #end ReadDataSetAxialValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.ReadDataSetValues()		-
+  #----------------------------------------------------------------------
+  def ReadDataSetValues( self, *ds_specs_in ):
+    """Reads values for datasets across time, axial values for a dataset for a specified time value.  Note the
+
+    Reads values for a dataset across all state points, one state point
+at a time for better performance.
+@param  ds_specs_in	list of dataset specifications with the following keys:
+	  assembly_addr		0-based assembly index
+	  assembly_index	0-based assembly index
+	  axial_cm		axial value in cm
+	  detector_index	0-based detector index for detector datasets
+	  qds_name		required DataSetName instance
+	  node_addrs		list of node addrs
+	  sub_addrs		list of sub_addr pairs
+@return			dict keyed by found qds_name of:
+			  dict with keys 'data' and 'times', where 'data value
+			  is
+			    dict keyed by sub_addr of np.ndarray for pin-based
+			    datasets,
+			    np.ndarray for datasets that are not pin-based
+
+@return			dict keyed by found ds_name of:
+			  dict keyed by sub_addr of np.ndarray for pin-based
+			  datasets,
+			  np.ndarray for datasets that are not pin-based
+"""
+    results = {}
+
+#		-- Collate specs by model name
+#		--
+    specs_by_model = {}
+    for spec in ds_specs_in:
+      if spec is not None and 'qds_name' in spec:
+	model_name = spec[ 'qds_name' ].modelName
+	if model_name in self.dataModels:
+          spec_list = specs_by_model.get( model_name )
+	  if spec_list is None:
+	    spec_list = []
+	    specs_by_model[ model_name ] = spec_list
+          spec_list.append( spec )
+	#end if model_name
+      #end if value spec
+    #end for spec
+
+    for model_name, spec_list in specs_by_model.iteritems():
+      time_values = self.timeValuesById.get( model_name )
+      dm = self.dataModels.get( model_name )
+      if dm and time_values:
+        model_results = dm.ReadDataSetValues( *spec_list )
+	for ds_name, item in model_results.iteritems():
+	  qds_name = DataSetName( model_name, ds_name )
+	  # this is either a dict or a np.ndarray
+	  item = model_results[ ds_name ]
+	  results[ qds_name ] = dict( data = item, times = time_values )
+	#end for ds_name
+    #end for model_name, spec_list
+
+    return  results
+  #end ReadDataSetValues
 
 
   #----------------------------------------------------------------------
@@ -1217,7 +1453,7 @@ open DataModels and the timeDataSet property.
       cur_set = set()
       spec = dict( ds_name = self.timeDataSet )
       for name, dm in self.dataModels.iteritems():
-	cur_values = dm.ReadDataSetValues2( spec )
+	cur_values = dm.ReadDataSetValues( spec )
 	if cur_values and self.timeDataSet in cur_values:
 	  cur_list = cur_values[ self.timeDataSet ].tolist()
 	  self.timeValuesById[ name ] = cur_list

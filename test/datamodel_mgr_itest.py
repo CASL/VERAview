@@ -160,7 +160,7 @@ class DataModelMgrITest( object ):
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgrITest.OnModelAdded()		-
   #----------------------------------------------------------------------
-  def OnModelAdded( self, model_name ):
+  def OnModelAdded( self, dmgr, model_name ):
     print '[DataModelMgrITest] added model "%s"' % model_name
   #end OnModelAdded
 
@@ -168,7 +168,7 @@ class DataModelMgrITest( object ):
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgrITest.OnModelRemoved()		-
   #----------------------------------------------------------------------
-  def OnModelRemoved( self, model_name ):
+  def OnModelRemoved( self, dmgr, model_name ):
     print '[DataModelMgrITest] removed model "%s"' % model_name
   #end OnModelRemoved
 

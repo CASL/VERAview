@@ -3866,7 +3866,9 @@ being one greater in each dimension.
 			by sub_addr,
 			np.ndarray for other datasets
 """
-    result = None
+    #result = None
+    mesh_values = result = None
+
     state_index = self.NormalizeStateIndex( state_index )
     ds_def = self.GetDataSetDefByDsName( ds_name ) \
 	if ds_name in self.GetDataSetNames( 'axial' ) else \
@@ -3881,6 +3883,15 @@ being one greater in each dimension.
 
       if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
         sub_addrs = [ sub_addrs ]
+
+#xxxxx
+      mesh_values = \
+          self.core.GetDetectorMesh() \
+	    if ds_type == 'detector' else \
+          self.core.GetFixedDetectorMeshCenters()  \
+	    if ds_type == 'fixed_detector' else \
+          self.core.GetDetectorMeshCenters()
+#xxxxx
 
 #			-- 'detector', 'fixed_detector'
 #			--
@@ -3947,6 +3958,7 @@ being one greater in each dimension.
     #end if dset is not None
 
     return  result
+    #xxxxx return  result, mesh_values
   #end ReadDataSetAxialValues
 
 
@@ -4015,188 +4027,7 @@ being one greater in each dimension.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.ReadDataSetValues()			-
   #----------------------------------------------------------------------
-  def ReadDataSetValues( self,
-      ds_name,
-      assembly_index = 0,
-      axial_value = 0.0,
-      sub_addrs = None,
-      detector_index = 0
-      ):
-    """Reads values for a dataset across all state points.
-@param  ds_name		dataset name
-@param  assembly_index	0-based assembly index
-@param  detector_index	0-based detector index
-@param  axial_value	axial value in cm
-@param  sub_addrs	single or iterable of sub_addr pairs
-@return			None if dataset cannot be found,
-			dict by sub_addr of np.ndarray for datasets that vary
-			by sub_addr,
-			np.ndarray for other datasets
-@deprecated  use ReadDataSetValues2()
-"""
-    result = None
-    ds_def = self.GetDataSetDefByDsName( ds_name )
-
-    if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
-      sub_addrs = [ sub_addrs ]
-
-#		-- 'state' is special
-#		--
-    if ds_name == 'state':
-      #values = range( 1, len( self.states ) + 1 )
-      result = \
-          np.array( range( 1, len( self.states ) + 1 ), dtype = np.float64 )
-
-    #elif ds_def is None:
-      #pass
-
-#		-- 'scalar'
-#		--
-    elif ds_def is None or ds_def[ 'type' ] == 'scalar':
-      values = []
-      #for st in self.states:
-        #dset = st.GetDataSet( ds_name )
-      for i in xrange( len( self.states ) ):
-	dset = self.GetStateDataSet( i, ds_name )
-	if dset is not None:
-	  dset_value = np.array( dset )
-	  values.append( dset_value.item() )
-	else:
-	  values.append( 0.0 )
-      result = np.array( values, dtype = np.float64 )
-
-#		-- 'detector'
-#		--
-    elif ds_def[ 'type' ] == 'detector':
-      values = []
-      ds_shape = ds_def[ 'shape' ]
-      ax_value = self.CreateAxialValue( value = axial_value )
-      axial_level = max( 0, min( ax_value[ 2 ], ds_shape[ 0 ] - 1 ) )
-      det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-      #for st in self.states:
-        #dset = st.GetDataSet( ds_name )
-      for i in xrange( len( self.states ) ):
-	dset = self.GetStateDataSet( i, ds_name )
-	if dset is not None:
-	  dset_value = np.array( dset )
-	  values.append( dset_value[ axial_level, det_ndx ] )
-	else:
-	  values.append( 0.0 )
-      result = np.array( values, dtype = np.float64 )
-
-#		-- 'fixed_detector'
-#		--
-    elif ds_def[ 'type' ] == 'fixed_detector':
-      values = []
-      ds_shape = ds_def[ 'shape' ]
-      ax_value = self.CreateAxialValue( value = axial_value )
-      axial_level = max( 0, min( ax_value[ 3 ], ds_shape[ 0 ] - 1 ) )
-      det_ndx = max( 0, min( detector_index, ds_shape[ 1 ] - 1 ) )
-      for i in xrange( len( self.states ) ):
-	dset = self.GetStateDataSet( i, ds_name )
-	if dset is not None:
-	  dset_value = np.array( dset )
-	  values.append( dset_value[ axial_level, det_ndx ] )
-	else:
-	  values.append( 0.0 )
-      result = np.array( values, dtype = np.float64 )
-
-#		-- ':node'
-#		--
-    elif self.IsNodalType( ds_type ):
-      if sub_addrs is not None and 'copy_shape' in ds_def:
-        result = {}
-        ds_shape = ds_def[ 'copy_shape' ]
-        assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
-	node_addr_set = set()
-        for sub_addr in sub_addrs:
-	  node_addr = self.GetNodeAddr( sub_addr )
-	  if node_addr not in node_addr_set:
-	    node_addr_set.add( node_addr )
-	    result[ node_addr ] = []
-        node_addrs_sorted = sorted( node_addr_set )
-
-        for i in xrange( len( self.states ) ):
-	  dset = self.GetStateDataSet( i, ds_name )
-	  if dset is None:
-	    for node_addr in node_addrs_sorted:
-	      result[ node_addr ].append( 0.0 )
-	  else:
-	    for node_addr in node_addrs_sorted:
-	      value = dset[ 0, node_addr, axial_level, assy_ndx ]
-	      result[ sub_addr ].append( value )
-        #end for i
-
-	for k in result:
-	  result[ k ] = np.array( result[ k ], dtype = np.float64 )
-      #end if sub_addrs and copy_shape
-
-#		-- Others
-#		--
-    else:
-      ds_shape = \
-          ds_def[ 'copy_shape' ]  if 'copy_shape' in ds_def else \
-	  ds_def[ 'shape' ]
-
-      assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
-      ax_value = self.CreateAxialValue( value = axial_value )
-      axial_level = max( 0, min( ax_value[ 1 ], ds_shape[ 2 ] - 1 ) )
-
-      if ds_shape[ 0 ] > 1 and ds_shape[ 1 ] > 1 and sub_addrs is not None:
-	result = {}
-        sub_addr_set = set()
-        for sub_addr in sub_addrs:
-	  sub_addr = (
-	      min( sub_addr[ 0 ], ds_shape[ 1 ] - 1 ),
-	      min( sub_addr[ 1 ], ds_shape[ 0 ] - 1 )
-	      )
-	  sub_addr_set.add( sub_addr )
-	  result[ sub_addr ] = []
-        sub_addrs_sorted = sorted( sub_addr_set )
-
-        #for st in self.states:
-          #dset = st.GetDataSet( ds_name )
-        for i in xrange( len( self.states ) ):
-	  dset = self.GetStateDataSet( i, ds_name )
-	  if dset is None:
-	    for sub_addr in sub_addrs_sorted:
-	      result[ sub_addr ].append( 0.0 )
-	  else:
-	    dset_value = np.array( dset )
-	    for sub_addr in sub_addrs_sorted:
-	      value = dset_value[
-	          sub_addr[ 1 ], sub_addr[ 0 ], axial_level, assy_ndx
-		  ]
-	      result[ sub_addr ].append( value )
-        #end for i
-
-	for k in result:
-	  result[ k ] = np.array( result[ k ], dtype = np.float64 )
-
-      else:
-	values = []
-	#for st in self.states:
-	#  dset = st.GetDataSet( ds_name )
-        for i in xrange( len( self.states ) ):
-	  dset = self.GetStateDataSet( i, ds_name )
-	  if dset is not None:
-	    dset_value = np.array( dset )
-	    values.append( dset_value[ 0, 0, axial_level, assy_ndx ] )
-	  else:
-	    values.append( 0.0 )
-	#end for st
-        result = np.array( values, dtype = np.float64 )
-      #end if-else ds_shape
-    #end if-else ds[ 'type' ]
-
-    return  result
-  #end ReadDataSetValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.ReadDataSetValues2()			-
-  #----------------------------------------------------------------------
-  def ReadDataSetValues2( self, *ds_specs_in ):
+  def ReadDataSetValues( self, *ds_specs_in ):
     """Reads values for a dataset across all state points, one state point
 at a time for better performance.
 @param  ds_specs_in	list of dataset specifications with the following keys:
@@ -4428,7 +4259,7 @@ at a time for better performance.
     #end for k, item
 
     return  result
-  #end ReadDataSetValues2
+  #end ReadDataSetValues
 
 
   #----------------------------------------------------------------------

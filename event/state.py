@@ -142,6 +142,10 @@ LOCKABLE_STATES = \
 ##    ]
 
 
+#xxxxx AxialValue( tuple )  with properties
+# cm, value, coreIndex, detectorIndex, fixedDetectorIndex
+
+
 #------------------------------------------------------------------------
 #	CLASS:		State						-
 #------------------------------------------------------------------------
