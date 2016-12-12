@@ -920,7 +920,7 @@ Must be called from the UI thread.
 """
     return \
         'Selected ' + ds_type + ' dataset'  if ds_type else \
-	LABEL_selectedDataSet
+	NAME_selectedDataSet
     #return  'Selected ' + ds_type + ' dataset'
   #end GetSelectedDataSetName
 

@@ -1792,9 +1792,6 @@ method via super.SaveProps().
 
     for k in ( 'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'mode' ):
       props_dict[ k ] = getattr( self, k )
-
-    for k in ( 'curDataSet', ):
-      props_dict[ k ] = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
   #end SaveProps
 
 

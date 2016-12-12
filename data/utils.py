@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2016-12-12	leerw@ornl.gov				-
+#	  Moved IsValidRange(), ToAddrString() here from DataModel.
+#	  Added NormalizeNodeAddr{s}().
 #		2016-11-30	leerw@ornl.gov				-
 #	  Moved FindListIndex() here from DataModel.
 #		2016-09-19	leerw@ornl.gov				-
@@ -164,6 +167,52 @@ descending.  Note bisect only does ascending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.IsValidRange()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsValidRange( min_value, max_value ):
+    """Companion to GetDataRange() to check for a valid range as not
+[-sys.float_info.max or sys.float_info.max] and min_value ne max_value.
+@param  min_value	minimum value in range
+@param  max_value	maximum value in range
+@return			True if valid, False otherwise
+"""
+    return  \
+        min_value != -sys.float_info.max and \
+	max_value != sys.float_info.max and \
+	min_value != max_value
+  #end IsValidRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		NormalizeNodeAddr()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def NormalizeNodeAddr( ndx ):
+    """Here for completeness.
+@param  ndx		0-based index
+"""
+    return  max( 0, min( 3, ndx ) )
+  #end NormalizeNodeAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		NormalizeNodeAddrs()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def NormalizeNodeAddrs( addr_list ):
+    """Normalizes each index in the list.
+@param  addr_list	list of 0-based indexes
+"""
+    result = []
+    for addr in addr_list:
+      result.append( max( 0, min( 3, addr ) ) )
+
+    return  list( set( result ) )
+  #end NormalizeNodeAddrs
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		NormalizeValueLabels()				-
   #----------------------------------------------------------------------
   @staticmethod
@@ -221,5 +270,23 @@ descending.  Note bisect only does ascending.
       #end for
     #end if we have labels
   #end NormalizeValueLabels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.ToAddrString()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ToAddrString( col, row ):
+    """Convenience method to convert from 0-based indices to Fortran
+1-based indices.
+@param  col		0-based column index
+@param  row		0-based row index
+@return			"( col + 1, row + 1 )"
+"""
+    #return  '(%d,%d)' % ( col + 1, row + 1 )
+    return  \
+        '(%d,%d)' % ( col + 1, row + 1 )  if row >= 0 else \
+        '(%d)' % (col + 1)
+  #end ToAddrString
 
 #end DataUtils

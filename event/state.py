@@ -249,7 +249,8 @@ All indices are 0-based.
     self.timeValue = 0.0
     self.weightsMode = 'on'
 
-    self.Change( State.CreateLocks(), **kwargs )
+    #self.Change( State.ALL_LOCKS, **kwargs )
+    self.Change( **kwargs )
   #end __init__
 
 
@@ -595,6 +596,7 @@ Keys passed and the corresponding state bit are:
   def GetStateIndex( self ):
     """Accessor for the stateIndex property.
 @return			0-based state-point index
+@deprecated  use timeValue instead of stateIndex
 """
     return  self.stateIndex
   #end GetStateIndex
@@ -647,7 +649,7 @@ Keys passed and the corresponding state bit are:
   #----------------------------------------------------------------------
   #	METHOD:		Init()						-
   #----------------------------------------------------------------------
-  def Init( self ):
+  def Init( self, fire_event_flag = False ):
     """Should be called only after the first DataModel is opened via
 dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 #@param  data_model	DataModel to use for initializing properties
@@ -686,23 +688,20 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
 	  data_model.GetFirstDataSet( 'pin' )
       self.curDataSet = DataSetName( data_model.GetName(), ds_display_name )
-      self.stateIndex = data_model.NormalizeStateIndex( -1 )
+      #self.stateIndex = data_model.NormalizeStateIndex( -1 )
 
       ##self.colRow = data_model.NormalizeColRow( undefined2 )
       col = max( 0, (core.npinx >> 1) - 1 )
       row = max( 0, (core.npiny >> 1) - 1 )
       self.subAddr = data_model.NormalizeSubAddr( ( col, row ) )
 
-      self.timeDataSet = 'exposure' \
-          if 'exposure' in data_model.GetDataSetNames( 'time' ) else \
+      time_ds_names = self.dataModelMgr.ResolveAvailableTimeDataSets()
+      self.timeDataSet = \
+          'exposure'  if 'exposure' in time_ds_names else \
 	  'state'
       ##self.timeDataSet = data_model.ResolveTimeDataSetName()
-      if self.timeDataSet == 'state':
-        self.timeValue = 0.0
-      else:
-        time_dset = data_model.GetStateDataSet( 0, self.timeDataSet )
-	self.timeValue = \
-	    time_dset[ 0 ] if len( time_dset.shape ) > 0 else time_dset[ () ]
+      self.dataModelMgr.SetTimeDataSet( self.timeDataSet )
+      self.timeValue = self.dataModelMgr.GetTimeIndexValue( 0 )
 
     else:
       self.assemblyAddr = undefined3
@@ -715,6 +714,9 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       self.timeValue = 0.0
 
     self.auxColRows = []
+
+    if fire_event_flag:
+      self.FireStateChange( STATE_CHANGE_init )
   #end Init
 
 
@@ -744,7 +746,18 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
   #----------------------------------------------------------------------
   def _OnDataModelMgr( self, *args, **kwargs ):
     if self.dataModelMgr.GetDataModelCount() == 1:
-      self.Init()
+      self.Init( True )
+    else:
+      new_name = ''
+      time_ds_names = self.dataModelMgr.ResolveAvailableTimeDataSets()
+      if len( time_ds_names ) == 0:
+        new_name = 'state'
+      elif self.timeDataSet not in time_ds_names:
+        new_name = time_ds_names[ 0 ]
+
+      if new_name:
+        self.FireStateChange( self.Change( time_dataset = new_name ) )
+    #end if-else
     #xxxxx self.FireStateChange( STATE_CHANGE_dataModelMgr )
   #end _OnDataModelMgr
 
@@ -856,4 +869,5 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 
     return  data_model_mgr
   #end FindDataModelMgr
+
 #end State

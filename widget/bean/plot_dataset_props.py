@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_dataset_props.py				-
 #	HISTORY:							-
+#		2016-12-12	leerw@ornl.gov				-
+#	  Updated with DataSetName keys.
 #		2016-05-27	leerw@ornl.gov				-
 #	  Accomodate left/right axis pairs as well as bottom/top.
 #	  Enforcing axis selections.
@@ -17,6 +19,8 @@ try:
   import wx.lib.agw.ultimatelistctrl as ulc
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
+
+from data.datamodel import DataSetName
 
 
 #------------------------------------------------------------------------
@@ -97,15 +101,15 @@ values.
       except ValueError:
         scale = 1.0
 
-      props[ name ] = dict( axis = axis, scale = scale )
+      props[ DataSetName( name ) ] = dict( axis = axis, scale = scale )
       #props[ name ] = { 'axis': axis, 'scale': scale }
     #end for
 
     if not have_axes[ 0 ] and len( no_axis_names ) > 0:
-      props[ no_axis_names[ 0 ] ][ 'axis' ] = self.fAxis1.lower()
+      props[ DataSetName( no_axis_names[ 0 ] ) ][ 'axis' ] = self.fAxis1.lower()
       del no_axis_names[ 0 ]
     if not have_axes[ 1 ] and len( no_axis_names ) > 0:
-      props[ no_axis_names[ 0 ] ][ 'axis' ] = self.fAxis2.lower()
+      props[ DataSetName( no_axis_names[ 0 ] ) ][ 'axis' ] = self.fAxis2.lower()
 
     return  props
   #end GetProps
@@ -181,7 +185,8 @@ values.
 
     if props:
       ndx = 0
-      for name, rec in sorted( props.iteritems() ):
+      for qds_name, rec in sorted( props.iteritems() ):
+	name = qds_name.name
         self.InsertStringItem( ndx, name )
 
 #			-- First Axis

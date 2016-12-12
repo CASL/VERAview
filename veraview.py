@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-12-12	leerw@ornl.gov				-
 #		2016-11-26	leerw@ornl.gov				-
 #	  Using Config.CanDragNDrop() as a gate for the "Window" menubar
 #	  item.
@@ -617,7 +618,8 @@ class VeraViewFrame( wx.Frame ):
     self.filepath = file_path
     self.frameId = 0
     #self.initialized = False
-    self.logger = logging.getLogger( 'root' )
+    #self.logger = logging.getLogger( 'root' )
+    self.logger = app.logger
     self.state = state
     self.windowMenu = None
 
@@ -788,6 +790,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
         else:
           wc = self.Create2DWidget( widget_class, refit_flag )
       except Exception, ex:
+	self.logger.exception( 'Error creating widget' )
         wx.MessageDialog( self, str( ex ), 'Widget Error' ).ShowWindowModal()
     #end if-else
 
@@ -1148,6 +1151,7 @@ Must be called from the UI thread.
 			  widgets,
 			'noop' = no widget processing at all,
 			widget = properties for widget to add
+@deprecated  use _UpdateFrame()
 """
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'file_path=%s', file_path )
@@ -1518,6 +1522,7 @@ Note this defines a new State as well as widgets in the grid.
 	wx.TheClipboard.SetData( wx.TextDataObject( "xxx" ) )
 
       except Exception, ex:
+	self.logger.exception( 'Clipboard copy error' )
         wx.MessageDialog(
             self, 'Could not open the clipboard', 'Copy Data',
 	    style = wx.ICON_WARNING | wx.OK
@@ -1645,6 +1650,7 @@ Note this defines a new State as well as widgets in the grid.
         config = WidgetConfig( path )
 	self._LoadWidgetConfig( config, True )
       except Exception, ex:
+	self.logger.exception( 'Error loading session' )
         msg = 'Error loading session:' + os.linesep + str( ex )
         self.ShowMessageDialog( msg, 'Load Session' )
   #end _OnLoadSession
@@ -1756,6 +1762,7 @@ Must be called on the UI event thread.
       try:
         self.SaveSession( file_path )
       except Exception, ex:
+	self.logger.exception( 'Error saving session' )
         msg = 'Error saving session:' + os.linesep + str( ex )
         self.ShowMessageDialog( msg, 'Save Session' )
   #end _OnSaveSession
@@ -1792,9 +1799,20 @@ Must be called on the UI event thread.
       if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
         self.axialBean.axialLevel = self.state.axialValue[ 1 ]
 
-    if (reason & STATE_CHANGE_stateIndex) > 0:
-      if self.state.stateIndex != self.exposureBean.stateIndex:
-        self.exposureBean.stateIndex = self.state.stateIndex
+#    if (reason & STATE_CHANGE_stateIndex) > 0:
+#      if self.state.stateIndex != self.exposureBean.stateIndex:
+#        self.exposureBean.stateIndex = self.state.stateIndex
+
+    if (reason & STATE_CHANGE_timeDataSet) > 0:
+      self._UpdateTimeDataSetMenu()
+
+    if (reason & STATE_CHANGE_timeValue) > 0:
+      dmgr = self.state.GetDataModelMgr()
+      if dmgr:
+        state_ndx = dmgr.GetTimeValueIndex( self.state.timeValue )
+	if state_ndx != self.exposureBean.stateIndex:
+	  self.exposureBean.stateIndex = state_ndx
+    #end if STATE_CHANGE_timeValue
   #end OnStateChange
 
 
@@ -1868,6 +1886,7 @@ Must be called on the UI event thread.
       if dmgr.GetDataModelCount() > 0:
         self.SaveSession()
     except Exception, ex:
+      self.logger.exception( 'Error saving session on quit' )
       msg = 'Error saving session:' + os.linesep + str( ex )
       # dialog flashes, not modal.
       #self.ShowMessageDialog( msg, 'Save Session' )
@@ -2236,6 +2255,7 @@ Must be called on the UI event thread.
 	  montager.Run( 'Save Widgets Image' )
 
 	except Exception, ex:
+	  self.logger.exception( 'Error saving widgets image' )
 	  msg = 'Error saving image:' + os.linesep + str( ex )
           self.ShowMessageDialog( msg, 'Save Image' )
       #end if
@@ -2398,11 +2418,11 @@ Must be called from the UI thread.
       #xxxxx debug
       if True:
         widget_list = [
-            'widget.core_view.Core2DView'
+            'widget.core_view.Core2DView',
             #'widget.assembly_view.Assembly2DView',
             #'widget.core_axial_view.CoreAxial2DView',
             #'widget.detector_multi_view.Detector2DMultiView',
-            #'widget.axial_plot.AxialPlot',
+            'widget.axial_plot.AxialPlot'
             #'widget.time_plots.TimePlots',
 	    #'widget.channel_view.Channel2DView',
 	    #'widget.channel_assembly_view.ChannelAssembly2DView',

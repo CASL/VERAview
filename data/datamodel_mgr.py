@@ -398,7 +398,8 @@ returned.
 """
     if event_name in self.listeners:
       for listener in self.listeners[ event_name ]:
-        method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+        #method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+        method_name = 'On' + event_name.capitalize()
 	if hasattr( listener, method_name ):
 	  getattr( listener, method_name )( self, *params )
 	elif hasattr( listener, '__call__' ):
@@ -956,6 +957,19 @@ True is returned.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.IsDerivedDataSet()			-
+  #----------------------------------------------------------------------
+  def IsDerivedDataSet( self, qds_name ):
+    """
+@param  qds_name	name of dataset, DataSetName instance
+@return			True if derived, false otherwise
+"""
+    dm = self.GetDataModel( qds_name )
+    return  dm.IsDerivedDataSet( qds_name.displayName )  if dm else  False
+  #end IsDerivedDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.IsNodalType()			-
   #----------------------------------------------------------------------
   def IsNodalType( self, ds_type ):
@@ -1011,9 +1025,9 @@ dataset.
     else:
       result = \
         (
-        max( 0, min( assy_ndx[ 0 ], nass - 1 ) ),
-        max( 0, min( assy_ndx[ 1 ], nassx - 1 ) ),
-        max( 0, min( assy_ndx[ 2 ], nassy - 1 ) )
+        max( 0, min( assy_ndx[ 0 ], core.nass - 1 ) ),
+        max( 0, min( assy_ndx[ 1 ], core.nassx - 1 ) ),
+        max( 0, min( assy_ndx[ 2 ], core.nassy - 1 ) )
         )
     return  result
   #end NormalizeAssemblyAddr
@@ -1060,7 +1074,7 @@ cross-model meshes if model_param is None
     """Here for completeness.
 @param  ndx		0-based index
 """
-    return  max( 0, min( 3, ndx ) )
+    return  DataUtils.NormalizeNodeAddr( ndx )
   #end NormalizeNodeAddr
 
 
@@ -1071,11 +1085,7 @@ cross-model meshes if model_param is None
     """Normalizes each index in the list.
 @param  addr_list	list of 0-based indexes
 """
-    result = []
-    for addr in addr_list:
-      result.append( max( 0, min( 3, addr ) ) )
-
-    return  list( set( result ) )
+    return  DataUtils.NormalizeNodeAddrs( addr_list )
   #end NormalizeNodeAddrs
 
 
@@ -1120,8 +1130,8 @@ being one greater in each dimension.
     if core is None:
       maxx = maxy = -1
     else:
-      maxx = npinx - 1
-      maxy = npiny - 1
+      maxx = core.npinx - 1
+      maxy = core.npiny - 1
       if mode == 'channel':
         maxx += 1
         maxy += 1

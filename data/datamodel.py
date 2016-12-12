@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-12-12	leerw@ornl.gov				-
+#	  Moved IsValidRange(), ToAddrString() to DataUtils.
 #		2016-12-07	leerw@ornl.gov				-
 #	  Fixed _FireEvent() call in AddDataSetName() to not pass self
 #	  as self is added to the params list by _FireEvent().
@@ -2591,7 +2593,8 @@ returned.  Calls FindMinMaxValueAddr().
 """
     if event_name in self.listeners:
       for listener in self.listeners[ event_name ]:
-        method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+        #method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+        method_name = 'On' + event_name.capitalize()
 	if hasattr( listener, method_name ):
 	  getattr( listener, method_name )( self, *params )
 	elif hasattr( listener, '__call__' ):
@@ -3549,23 +3552,6 @@ for NaN.  For now, we just assume 0.0 is "no data".
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.IsValidRange()			-
-  #----------------------------------------------------------------------
-  def IsValidRange( self, min_value, max_value ):
-    """Companion to GetDataRange() to check for a valid range as not
-[-sys.float_info.max or sys.float_info.max] and min_value ne max_value.
-@param  min_value	minimum value in range
-@param  max_value	maximum value in range
-@return			True if valid, False otherwise
-"""
-    return  \
-        min_value != -sys.float_info.max and \
-	max_value != sys.float_info.max and \
-	min_value != max_value
-  #end IsValidRange
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.NormalizeAssemblyAddr()		-
   #----------------------------------------------------------------------
   def NormalizeAssemblyAddr( self, assy_ndx ):
@@ -3886,14 +3872,12 @@ being one greater in each dimension.
       if sub_addrs is not None and not hasattr( sub_addrs, '__iter__' ):
         sub_addrs = [ sub_addrs ]
 
-#xxxxx
       mesh_values = \
           self.core.GetDetectorMesh() \
 	    if ds_type == 'detector' else \
           self.core.GetFixedDetectorMeshCenters()  \
 	    if ds_type == 'fixed_detector' else \
           self.core.GetAxialMeshCenters()
-#xxxxx
 
 #			-- 'detector', 'fixed_detector'
 #			--
@@ -4609,24 +4593,6 @@ other derived types we pass 'pin'.
 """
     return  data is not None and data.IsValid( **kwargs )
   #end IsValidObj
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModel.ToAddrString()			-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def ToAddrString( col, row ):
-    """Convenience method to convert from 0-based indices to Fortran
-1-based indices.
-@param  col		0-based column index
-@param  row		0-based row index
-@return			"( col + 1, row + 1 )"
-"""
-    #return  '(%d,%d)' % ( col + 1, row + 1 )
-    return  \
-        '(%d,%d)' % ( col + 1, row + 1 )  if row >= 0 else \
-        '(%d)' % (col + 1)
-  #end ToAddrString
 
 
   #----------------------------------------------------------------------

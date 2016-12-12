@@ -1247,6 +1247,9 @@ be overridden by subclasses.
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
+    for k in ( 'curDataSet', ):
+      props_dict[ k ] = DataSetName( getattr( self, k ) )
+
     super( RasterWidget, self ).LoadProps( props_dict )
     wx.CallAfter( self.UpdateState, resized = True )
   #end LoadProps
@@ -1508,6 +1511,11 @@ method via super.SaveProps().
 	'showLabels', 'showLegend', 'timeValue'
         ):
       props_dict[ k ] = getattr( self, k )
+
+    if self.dmgr is not None:
+      for k in ( 'curDataSet', ):
+        qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
+        props_dict[ k ] = qds_name.name
   #end SaveProps
 
 
