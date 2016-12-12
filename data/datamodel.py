@@ -3861,7 +3861,9 @@ being one greater in each dimension.
 @param  node_addrs	list of node indexes
 @param  sub_addrs	list of sub_addr pairs
 @param  state_index	0-based state point index
-@return			None if dataset cannot be found,
+			None if dataset cannot be found, otherwise
+			( mesh_values, data_results ), where data_results is a
+			dict with keys 'mesh' and 'data', where the latter is a
 			dict by sub_addr of np.ndarray for datasets that vary
 			by sub_addr,
 			np.ndarray for other datasets
@@ -3890,7 +3892,7 @@ being one greater in each dimension.
 	    if ds_type == 'detector' else \
           self.core.GetFixedDetectorMeshCenters()  \
 	    if ds_type == 'fixed_detector' else \
-          self.core.GetDetectorMeshCenters()
+          self.core.GetAxialMeshCenters()
 #xxxxx
 
 #			-- 'detector', 'fixed_detector'
@@ -3957,8 +3959,11 @@ being one greater in each dimension.
       #end if-else ds_type
     #end if dset is not None
 
-    return  result
-    #xxxxx return  result, mesh_values
+    #return  result
+    return \
+	( mesh_values, result ) \
+	if mesh_values is not None and result is not None else \
+	None
   #end ReadDataSetAxialValues
 
 
@@ -4025,13 +4030,13 @@ being one greater in each dimension.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.ReadDataSetValues()			-
+  #	METHOD:		DataModel.ReadDataSetTimeValues()		-
   #----------------------------------------------------------------------
-  def ReadDataSetValues( self, *ds_specs_in ):
+  def ReadDataSetTimeValues( self, *ds_specs_in ):
     """Reads values for a dataset across all state points, one state point
 at a time for better performance.
+required.
 @param  ds_specs_in	list of dataset specifications with the following keys:
-	  assembly_addr		0-based assembly index
 	  assembly_index	0-based assembly index
 	  axial_cm		axial value in cm
 	  detector_index	0-based detector index for detector datasets
@@ -4155,10 +4160,7 @@ at a time for better performance.
 
 	    ds_shape = ds_def[ 'copy_shape' ]
             if dset is not None:
-	      assembly_index = spec.get(
-	          'assembly_index',
-		  spec.get( 'assembly_addr', 0 )
-		  )
+	      assembly_index = spec.get( 'assembly_index', 0 )
               assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
 	      axial_cm = spec.get( 'axial_cm', 0.0 )
@@ -4196,10 +4198,7 @@ at a time for better performance.
 	        ds_def[ 'shape' ]
 
             if dset is not None:
-	      assembly_index = spec.get(
-	          'assembly_index',
-		  spec.get( 'assembly_addr', 0 )
-		  )
+	      assembly_index = spec.get( 'assembly_index', 0 )
               assy_ndx = max( 0, min( assembly_index, ds_shape[ 3 ] - 1 ) )
 
 	      axial_cm = spec.get( 'axial_cm', 0.0 )
@@ -4259,7 +4258,7 @@ at a time for better performance.
     #end for k, item
 
     return  result
-  #end ReadDataSetValues
+  #end ReadDataSetTimeValues
 
 
   #----------------------------------------------------------------------

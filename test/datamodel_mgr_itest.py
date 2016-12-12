@@ -217,6 +217,52 @@ class DataModelMgrITest( object ):
   #end PrintSummary
 
 
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgrITest.ReadDataSetAxialValues()	-
+  #----------------------------------------------------------------------
+  def ReadDataSetAxialValues( self ):
+    time_values = self.fMgr.GetTimeValues()
+    results = self.fMgr.ReadDataSetAxialValues(
+        DataSetName( 'L1_ALL_STATES', 'pin_powers' ),
+	assembly_index = self.fMgr.CreateAssemblyAddr( 3, 3 )[ 0 ],
+	sub_addrs = [ ( 3, 4 ), ( 5, 4 ) ],
+	time_value = time_values[ len( time_values ) >> 1 ]
+        )
+    print '\n[DataModelMgrITest] ReadDataSetAxialValues:'
+    print str( results )
+  #end ReadDataSetAxialValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgrITest.ReadDataSetTimeValues()	-
+  #----------------------------------------------------------------------
+  def ReadDataSetTimeValues( self ):
+    assy_ndx = self.fMgr.CreateAssemblyAddr( 3, 3 )[ 0 ]
+    axial_mesh = self.fMgr.GetAxialMeshCenters()
+    axial_cm = axial_mesh[ len( axial_mesh ) >> 1 ]
+    time_values = self.fMgr.GetTimeValues()
+    specs = \
+      [
+        {
+	'assembly_index': assy_ndx,
+	'axial_cm': axial_cm,
+	'qds_name': DataSetName( 'L1_ALL_STATES', 'pin_powers' ),
+	'sub_addrs': [ ( 3, 4 ), ( 5, 4 ) ]
+	},
+        {
+	'assembly_index': assy_ndx,
+	'axial_cm': axial_cm,
+	'qds_name': DataSetName( 'c1.h5_new', 'channel_void' ),
+	'sub_addrs': [ ( 3, 4 ), ( 5, 4 ) ]
+	}
+      ]
+
+    results = self.fMgr.ReadDataSetTimeValues( *specs )
+    print '\n[DataModelMgrITest] ReadDataSetTimeValues:'
+    print str( results )
+  #end ReadDataSetTimeValues
+
+
 #		-- Static Methods
 #		--
 
@@ -279,6 +325,8 @@ class DataModelMgrITest( object ):
       test.CheckTimeIndexes( *args.time_values )
       test.CheckMeshIndexes( *args.mesh_values )
       test.CheckMeshValues( *args.mesh_indexes )
+      test.ReadDataSetAxialValues()
+      test.ReadDataSetTimeValues()
 
     except Exception, ex:
       print >> sys.stderr, str( ex )

@@ -198,6 +198,23 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CreateAssemblyAddr()		-
+  #----------------------------------------------------------------------
+  def CreateAssemblyAddr( self, col, row ):
+    """Creates tuple from the column and row indexes.
+@param  col		0-based column index
+@param  row		0-based row index
+@return			0-based ( assy_ndx, col, row )
+"""
+    core = self.GetCore()
+    return \
+        ( core.coreMap[ row, col ], col, row ) \
+	if core is not None else \
+	( -1, -1, -1 )
+  #end CreateAssemblyAddr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.ExtractSymmetryExtent()		-
   #----------------------------------------------------------------------
   def ExtractSymmetryExtent( self ):
@@ -1203,8 +1220,9 @@ Calls ReadDataSetAxialValues on the matching DataModel if found.
 @param  node_addrs	list of node indexes
 @param  sub_addrs	list of sub_addr pairs
 @param  time_value	timeDataSet value
-@return			None if the model or dataset cannot be found,
-			dict by sub_addr of np.ndarray for datasets that vary
+@return			None if the model or dataset cannot be found, otherwise
+			dict with keys 'data' and 'mesh', where 'data value
+			is dict by sub_addr of np.ndarray for datasets that vary
 			by sub_addr,
 			np.ndarray for other datasets
 """
@@ -1212,12 +1230,13 @@ Calls ReadDataSetAxialValues on the matching DataModel if found.
     dm = self.GetDataModel( qds_name )
     if dm:
       state_index = self.GetTimeValueIndex( time_value, qds_name )
-      #xxxxx return the mesh values as well
-      result = dm.ReadDataSetAxialValues(
+      result_pair = dm.ReadDataSetAxialValues(
           qds_name.displayName, assembly_index,
 	  node_addrs, sub_addrs,
 	  detector_index, state_index
 	  )
+      if result_pair is not None:
+        result = dict( data = result_pair[ 1 ], mesh = result_pair[ 0 ] )
     #end if dm
 
     return  result
@@ -1225,15 +1244,14 @@ Calls ReadDataSetAxialValues on the matching DataModel if found.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.ReadDataSetValues()		-
+  #	METHOD:		DataModelMgr.ReadDataSetTimeValues()		-
   #----------------------------------------------------------------------
-  def ReadDataSetValues( self, *ds_specs_in ):
+  def ReadDataSetTimeValues( self, *ds_specs_in ):
     """Reads values for datasets across time, axial values for a dataset for a specified time value.  Note the
 
     Reads values for a dataset across all state points, one state point
 at a time for better performance.
 @param  ds_specs_in	list of dataset specifications with the following keys:
-	  assembly_addr		0-based assembly index
 	  assembly_index	0-based assembly index
 	  axial_cm		axial value in cm
 	  detector_index	0-based detector index for detector datasets
@@ -1259,12 +1277,14 @@ at a time for better performance.
     specs_by_model = {}
     for spec in ds_specs_in:
       if spec is not None and 'qds_name' in spec:
-	model_name = spec[ 'qds_name' ].modelName
+	qds_name = spec[ 'qds_name' ]
+	model_name = qds_name.modelName
 	if model_name in self.dataModels:
           spec_list = specs_by_model.get( model_name )
 	  if spec_list is None:
 	    spec_list = []
 	    specs_by_model[ model_name ] = spec_list
+	  spec[ 'ds_name' ] = qds_name.displayName
           spec_list.append( spec )
 	#end if model_name
       #end if value spec
@@ -1274,7 +1294,7 @@ at a time for better performance.
       time_values = self.timeValuesById.get( model_name )
       dm = self.dataModels.get( model_name )
       if dm and time_values:
-        model_results = dm.ReadDataSetValues( *spec_list )
+        model_results = dm.ReadDataSetTimeValues( *spec_list )
 	for ds_name, item in model_results.iteritems():
 	  qds_name = DataSetName( model_name, ds_name )
 	  # this is either a dict or a np.ndarray
@@ -1284,7 +1304,7 @@ at a time for better performance.
     #end for model_name, spec_list
 
     return  results
-  #end ReadDataSetValues
+  #end ReadDataSetTimeValues
 
 
   #----------------------------------------------------------------------
@@ -1453,7 +1473,7 @@ open DataModels and the timeDataSet property.
       cur_set = set()
       spec = dict( ds_name = self.timeDataSet )
       for name, dm in self.dataModels.iteritems():
-	cur_values = dm.ReadDataSetValues( spec )
+	cur_values = dm.ReadDataSetTimeValues( spec )
 	if cur_values and self.timeDataSet in cur_values:
 	  cur_list = cur_values[ self.timeDataSet ].tolist()
 	  self.timeValuesById[ name ] = cur_list

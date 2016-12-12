@@ -1162,7 +1162,7 @@ Must be called from the event thread.
 		assembly_index = self.assemblyAddr[ 0 ],
 		node_addrs = node_addr_list,
 		sub_addrs = sub_addr_list,
-		state_index = self.stateIndex
+		time_value = self.timeValue
 		)
             self.dataSetTypes.add( ds_type )
 	  #end if ds_type match
