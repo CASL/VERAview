@@ -1156,7 +1156,8 @@ Must be called from the UI thread.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'file_path=%s', file_path )
 
-    dmgr = self.state.GetDataModelMgr()
+    #dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
     self.filepath = file_path
     self.SetRepresentedFilename( file_path )  #xxxxx
 
@@ -1356,7 +1357,7 @@ Note this defines a new State as well as widgets in the grid.
 
     self.state.LoadProps( widget_config.GetStateProps() )
     if check_types:
-      dmgr = self.state.GetDataModelMgr()
+      dmgr = self.state.dataModelMgr
 
     self.CloseAllWidgets()
     grid_sizer = self.grid.GetSizer()
@@ -1409,16 +1410,14 @@ Note this defines a new State as well as widgets in the grid.
     ev.Skip()
 
     reason = STATE_CHANGE_noop
-    dmgr = self.state.GetDataModelMgr()
+    #dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
     if dmgr:
       axial_value = dmgr.GetAxialValue( core_ndx = ev.value )
       if axial_value and axial_value[ 0 ] >= 0.0:
         reason = self.state.Change( self.eventLocks, axial_value = axial_value )
     #end if dmgr
 
-#    axial_value = \
-#        self.state.GetDataModel().CreateAxialValue( core_ndx = ev.value )
-#    reason = self.state.Change( self.eventLocks, axial_value = axial_value )
     if reason != STATE_CHANGE_noop:
       self.state.FireStateChange( reason )
   #end _OnAxial
@@ -1545,7 +1544,7 @@ Note this defines a new State as well as widgets in the grid.
     ev.value
 
     reason = STATE_CHANGE_noop
-    dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
     if dmgr:
       value = dmgr.GetTimeIndexValue( ev.value )
       if value >= 0.0:
@@ -1701,7 +1700,7 @@ Must be called from the UI thread.
     if ev is not None:
       ev.Skip()
 
-    if self.state.GetDataModelMgr() is not None:
+    if self.state.dataModelMgr is not None:
       self._UpdateConfig()
 
     # 'HDF5 files (*.h5)|*.h5',
@@ -1807,7 +1806,7 @@ Must be called on the UI event thread.
       self._UpdateTimeDataSetMenu()
 
     if (reason & STATE_CHANGE_timeValue) > 0:
-      dmgr = self.state.GetDataModelMgr()
+      dmgr = self.state.dataModelMgr
       if dmgr:
         state_ndx = dmgr.GetTimeValueIndex( self.state.timeValue )
 	if state_ndx != self.exposureBean.stateIndex:
@@ -1880,7 +1879,7 @@ Must be called on the UI event thread.
   #	METHOD:		VeraViewFrame._OnQuit()				-
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
-    dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
     try:
       #if self.app.filepath is not None:
       if dmgr.GetDataModelCount() > 0:
@@ -1903,40 +1902,6 @@ Must be called on the UI event thread.
     #self.Close()
     wx.App.Get().ExitMainLoop()
   #end _OnQuit
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._OnQuit_0()			-
-  #----------------------------------------------------------------------
-  def _OnQuit_0( self, ev ):
-    data = self.state.GetDataModel()
-
-    ans = wx.MessageBox(
-        'Save widget configuration?',
-	'Save Configuration',
-	wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
-	self
-        )
-    if ans == wx.YES:
-      widget_config = WidgetConfig()
-
-      fr_size = self.GetSize()
-      widget_config.SetFrameSize( fr_size.GetWidth(), fr_size.GetHeight() )
-      widget_config.SetState( self.state )
-
-      widget_list = []
-      for wc in self.grid.GetChildren():
-        if isinstance( wc, WidgetContainer ):
-	  widget_list.append( wc.widget )
-
-      widget_config.AddWidgets( *widget_list )
-      widget_config.Write()
-
-    if data is not None:
-      data.Close()
-    #self.Close()
-    wx.App.Get().ExitMainLoop()
-  #end _OnQuit_0
 
 
   #----------------------------------------------------------------------
@@ -2056,7 +2021,7 @@ Must be called from the UI thread.
       }
 
     try:
-      dmgr = self.state.GetDataModelMgr()
+      dmgr = self.state.dataModelMgr
       messages = []
 
       if not hasattr( file_paths, '__iter__' ):
@@ -2102,7 +2067,7 @@ Must be called from the UI thread.
 
       elif 'data_model' in status and 'file_paths' in status and \
           len( status[ 'file_paths' ] ) > 0:
-	dmgr = self.state.GetDataModelMgr()
+	dmgr = self.state.dataModelMgr
 	#if dmgr.GetDataModelCount() == 1:
 	  #self.state.Init()
 	session = status.get( 'session' )
@@ -2205,7 +2170,7 @@ Must be called from the UI thread.
 
     config.AddWidgets( *widget_list )
 
-    dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
     if dmgr is not None:
       data_paths = []
       for dm in dmgr.GetDataModels().values():
@@ -2329,7 +2294,7 @@ Must be called from the UI thread.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'file_path=%s', file_path )
 
-    dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
     core = dmgr.GetCore()
     time_values = dmgr.GetTimeValues()
 
@@ -2478,7 +2443,7 @@ Must be called from the UI thread.
 
     self.exposureBean.SetRange( 1, len( time_values ) )
     self.exposureBean.stateIndex = \
-        dmgr.GetTimeValueIndex( self.state.GetTimeValue() )
+        dmgr.GetTimeValueIndex( self.state.timeValue )
   #end _UpdateFrame
 
 
@@ -2488,7 +2453,7 @@ Must be called from the UI thread.
   def _UpdateTimeDataSetMenu( self ):
     """
 """
-    dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
 
     while self.timeDataSetMenu.GetMenuItemCount() > 0:
       self.timeDataSetMenu.\
@@ -2502,7 +2467,7 @@ Must be called from the UI thread.
 	  )
       self.Bind( wx.EVT_MENU, self._OnTimeDataSet, item )
       self.timeDataSetMenu.AppendItem( item )
-      if ds == self.state.GetTimeDataSet():
+      if ds == self.state.timeDataSet:
         item.Check();
     #end for
   #end _UpdateTimeDataSetMenu
@@ -2527,7 +2492,7 @@ Must be called from the UI thread.
   def _UpdateToolBar( self, tbar, enable_all = False ):
     """
 """
-    dmgr = self.state.GetDataModelMgr()
+    dmgr = self.state.dataModelMgr
 
     for i in xrange( len( TOOLBAR_ITEMS ) ):
       item = tbar.FindById( i + 1 )

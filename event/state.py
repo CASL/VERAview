@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-12-12	leerw@ornl.gov				-
+#	  Added properties.
 #		2016-12-10	leerw@ornl.gov				-
 #	  In Change(), cur_dataset implies axial_value and time_value,
 #	  and time_dataset implies time_value.
@@ -230,26 +232,26 @@ All indices are 0-based.
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, *args, **kwargs ):
-    self.assemblyAddr = ( -1, -1, -1 )
-    self.auxNodeAddrs = []
-    self.auxSubAddrs = []
-    self.axialValue = DataModel.CreateEmptyAxialValue()
-    self.curDataSet = DataSetName( 'pin_powers' )
+    self._assemblyAddr = ( -1, -1, -1 )
+    self._auxNodeAddrs = []
+    self._auxSubAddrs = []
+    self._axialValue = DataModel.CreateEmptyAxialValue()
+    self._curDataSet = DataSetName( 'pin_powers' )
 
     #xxxxx listen to events, update timeDataSet, timeValue
-    self.dataModelMgr = DataModelMgr()
-    self.dataModelMgr.AddListener( 'modelAdded', self._OnDataModelMgr )
-    self.dataModelMgr.AddListener( 'modelRemoved', self._OnDataModelMgr )
+    self._dataModelMgr = DataModelMgr()
+    self._dataModelMgr.AddListener( 'modelAdded', self._OnDataModelMgr )
+    self._dataModelMgr.AddListener( 'modelRemoved', self._OnDataModelMgr )
 
-    self.listeners = []
-    self.logger = logging.getLogger( 'event' )
-    self.nodeAddr = -1
-    self.scaleMode = 'all'
-    self.stateIndex = -1
-    self.subAddr = ( -1, -1 )
-    self.timeDataSet = 'state'
-    self.timeValue = 0.0
-    self.weightsMode = 'on'
+    self._listeners = []
+    self._logger = logging.getLogger( 'event' )
+    self._nodeAddr = -1
+    self._scaleMode = 'all'
+    #self.stateIndex = -1
+    self._subAddr = ( -1, -1 )
+    self._timeDataSet = 'state'
+    self._timeValue = 0.0
+    self._weightsMode = 'on'
 
     self.Change( **kwargs )
   #end __init__
@@ -261,13 +263,13 @@ All indices are 0-based.
   def __str__( self ):
     """This needs to be updated.  Perhaps dump the JSON sans dataModelMgr.
 """
-    coord = self.assemblyAddr + self.colRow + tuple( self.auxColRows )
-    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,state=%d,timeDataSet=%s,time=%f,weights=%s' % \
+    coord = self._assemblyAddr + self.colRow + tuple( self.auxColRows )
+    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,timeDataSet=%s,time=%f,weights=%s' % \
         (
-	str( self.axialValue ), str( coord ),
-	self.curDataSet, self.scaleMode,
-	self.stateIndex, self.timeDataSet,
-	self.timeValue, self.weightsMode
+	str( self._axialValue ), str( coord ),
+	self._curDataSet, self._scaleMode,
+	self._timeDataSet, self._timeValue,
+	self._weightsMode
         )
     return  result
   #end __str__
@@ -281,12 +283,12 @@ All indices are 0-based.
 a HandleStateChange( self, reason ) method.
 @param  listeners	one or more listeners to add
 """
-#    if listener not in self.listeners:
-#      self.listeners.append( listener )
+#    if listener not in self._listeners:
+#      self._listeners.append( listener )
     if listeners:
       for listener in listeners:
-        if listener not in self.listeners:
-          self.listeners.append( listener )
+        if listener not in self._listeners:
+          self._listeners.append( listener )
   #end AddListener
 
 
@@ -325,31 +327,31 @@ Keys passed and the corresponding state bit are:
 #		-- Changes with no side effects
 #		--
     if 'assembly_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
-      self.assemblyAddr = kwargs[ 'assembly_addr' ]
+      self._assemblyAddr = kwargs[ 'assembly_addr' ]
       reason |= STATE_CHANGE_coordinates
 
     if 'aux_node_addrs' in kwargs and locks[ STATE_CHANGE_coordinates ]:
-      self.auxNodeAddrs = kwargs[ 'aux_node_addrs' ]
+      self._auxNodeAddrs = kwargs[ 'aux_node_addrs' ]
       reason |= STATE_CHANGE_coordinates
 
     if 'aux_sub_addrs' in kwargs and locks[ STATE_CHANGE_coordinates ]:
-      self.auxSubAddrs = kwargs[ 'aux_sub_addrs' ]
+      self._auxSubAddrs = kwargs[ 'aux_sub_addrs' ]
       reason |= STATE_CHANGE_coordinates
 
     if 'axial_value' in kwargs and locks[ STATE_CHANGE_axialValue ]:
-      self.axialValue = kwargs[ 'axial_value' ]
+      self._axialValue = kwargs[ 'axial_value' ]
       reason |= STATE_CHANGE_axialValue
 
     if 'data_model_mgr' in kwargs:
-      self.dataModelMgr = kwargs[ 'data_model_mgr' ]
+      self._dataModelMgr = kwargs[ 'data_model_mgr' ]
       reason |= STATE_CHANGE_dataModelMgr
 
     if 'node_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
-      self.nodeAddr = kwargs[ 'node_addr' ]
+      self._nodeAddr = kwargs[ 'node_addr' ]
       reason |= STATE_CHANGE_coordinates
 
     if 'scale_mode' in kwargs and locks[ STATE_CHANGE_scaleMode ]:
-      self.scaleMode = kwargs[ 'scale_mode' ]
+      self._scaleMode = kwargs[ 'scale_mode' ]
       reason |= STATE_CHANGE_scaleMode
 
 #    if 'state_index' in kwargs and locks[ STATE_CHANGE_stateIndex ]:
@@ -357,21 +359,21 @@ Keys passed and the corresponding state bit are:
 #      reason |= STATE_CHANGE_stateIndex
 
     if 'sub_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
-      self.subAddr = kwargs[ 'sub_addr' ]
+      self._subAddr = kwargs[ 'sub_addr' ]
       reason |= STATE_CHANGE_coordinates
 
     if 'time_value' in kwargs and locks[ STATE_CHANGE_timeValue ]:
-      self.timeValue = kwargs[ 'time_value' ]
+      self._timeValue = kwargs[ 'time_value' ]
       reason |= STATE_CHANGE_timeValue
 
     if 'weights_mode' in kwargs:
-      self.weightsMode = kwargs[ 'weights_mode' ]
+      self._weightsMode = kwargs[ 'weights_mode' ]
       reason |= STATE_CHANGE_weightsMode
 
 #		-- Changes with side effects
 #		--
     if 'cur_dataset' in kwargs and locks[ STATE_CHANGE_curDataSet ]:
-      self.curDataSet = kwargs[ 'cur_dataset' ]
+      self._curDataSet = kwargs[ 'cur_dataset' ]
       reason |= STATE_CHANGE_curDataSet
       if 'axial_value' not in kwargs:
         reason |= STATE_CHANGE_axialValue
@@ -380,20 +382,20 @@ Keys passed and the corresponding state bit are:
     #end 'cur_dataset'
 
     #if 'time_dataset' in kwargs and 
-        #self.timeDataSet != kwargs[ 'time_dataset' ]:
+        #self._timeDataSet != kwargs[ 'time_dataset' ]:
     if 'time_dataset' in kwargs:
-      if self.timeDataSet != kwargs[ 'time_dataset' ]:
+      if self._timeDataSet != kwargs[ 'time_dataset' ]:
         cur_ndx = -1
         if 'time_value' not in kwargs:
-          cur_ndx = self.dataModelMgr.GetTimeValueIndex( self.timeValue )
+          cur_ndx = self._dataModelMgr.GetTimeValueIndex( self._timeValue )
 
-        self.timeDataSet = kwargs[ 'time_dataset' ]
-	self.dataModelMgr.SetTimeDataSet( self.timeDataSet )
+        self._timeDataSet = kwargs[ 'time_dataset' ]
+	self._dataModelMgr.SetTimeDataSet( self._timeDataSet )
 
 	if cur_ndx >= 0:
-	  self.timeValue = self.dataModelMgr.GetTimeIndexValue( cur_ndx )
+	  self._timeValue = self._dataModelMgr.GetTimeIndexValue( cur_ndx )
 	  reason |= STATE_CHANGE_timeValue
-      #end if different self.timeDataSet
+      #end if different self._timeDataSet
 
       reason |= STATE_CHANGE_timeDataSet
     #end 'time_dataset'
@@ -411,35 +413,35 @@ Keys passed and the corresponding state bit are:
 """
     update_args = {}
     if (reason & STATE_CHANGE_axialValue) > 0:
-      update_args[ 'axial_value' ] = self.axialValue
+      update_args[ 'axial_value' ] = self._axialValue
 
     if (reason & STATE_CHANGE_coordinates) > 0:
-      update_args[ 'assembly_addr' ] = self.assemblyAddr
-      update_args[ 'aux_node_addrs' ] = self.auxNodeAddrs
-      update_args[ 'aux_sub_addrs' ] = self.auxSubAddrs
-      update_args[ 'node_addr' ] = self.nodeAddr
-      update_args[ 'sub_addr' ] = self.subAddr
+      update_args[ 'assembly_addr' ] = self._assemblyAddr
+      update_args[ 'aux_node_addrs' ] = self._auxNodeAddrs
+      update_args[ 'aux_sub_addrs' ] = self._auxSubAddrs
+      update_args[ 'node_addr' ] = self._nodeAddr
+      update_args[ 'sub_addr' ] = self._subAddr
 
     if (reason & STATE_CHANGE_curDataSet) > 0:
-      update_args[ 'cur_dataset' ] = self.curDataSet
+      update_args[ 'cur_dataset' ] = self._curDataSet
 
     if (reason & STATE_CHANGE_dataModelMgr) > 0:
-      update_args[ 'data_model_mgr' ] = self.dataModelMgr
+      update_args[ 'data_model_mgr' ] = self._dataModelMgr
 
     if (reason & STATE_CHANGE_scaleMode) > 0:
-      update_args[ 'scale_mode' ] = self.scaleMode
+      update_args[ 'scale_mode' ] = self._scaleMode
 
 #    if (reason & STATE_CHANGE_stateIndex) > 0:
 #      update_args[ 'state_index' ] = self.stateIndex
 
     if (reason & STATE_CHANGE_timeDataSet) > 0:
-      update_args[ 'time_dataset' ] = self.timeDataSet
+      update_args[ 'time_dataset' ] = self._timeDataSet
 
     if (reason & STATE_CHANGE_timeValue) > 0:
-      update_args[ 'time_value' ] = self.timeValue
+      update_args[ 'time_value' ] = self._timeValue
 
     if (reason & STATE_CHANGE_weightsMode) > 0:
-      update_args[ 'weights_mode' ] = self.weightsMode
+      update_args[ 'weights_mode' ] = self._weightsMode
 
     return  update_args
   #end CreateUpdateArgs
@@ -453,7 +455,7 @@ Keys passed and the corresponding state bit are:
 @param  reason		reason mask
 """
     if reason != STATE_CHANGE_noop:
-      for listener in self.listeners:
+      for listener in self._listeners:
 	try:
 	  if hasattr( listener, 'HandleStateChange' ):
             listener.HandleStateChange( reason )
@@ -462,7 +464,7 @@ Keys passed and the corresponding state bit are:
 	  elif hasattr( listener, '__call__' ):
 	    listener( reason )
 	except Exception, ex:
-	  self.logger.error( str( ex ) )
+	  self._logger.error( str( ex ) )
       #end for listeners
     #end if not noop
   #end FireStateChange
@@ -475,7 +477,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the assemblyAddr property.
 @return			0-based ( assembly index, col, rol )
 """
-    return  self.assemblyAddr
+    return  self._assemblyAddr
   #end GetAssemblyAddr
 
 
@@ -486,7 +488,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the auxNodeAddrs property.
 @return			list of 0-based indexes, possibly empty
 """
-    return  self.auxNodeAddrs
+    return  self._auxNodeAddrs
   #end GetAuxNodeAddrs
 
 
@@ -498,7 +500,7 @@ Keys passed and the corresponding state bit are:
 @return			list of 0-based channel/pin ( col, row ) indexes,
 			possibly empty
 """
-    return  self.auxSubAddrs
+    return  self._auxSubAddrs
   #end GetAuxSubAddrs
 
 
@@ -510,7 +512,7 @@ Keys passed and the corresponding state bit are:
 @return			( float value(cm), core-index, detector-index,
 			  fixed-detector-index ), all indexes 0-based
 """
-    return  self.axialValue
+    return  self._axialValue
   #end GetAxialValue
 
 
@@ -521,7 +523,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the curDataSet property.
 @return			DataSetName instance, name of current/selected dataset
 """
-    return  self.curDataSet
+    return  self._curDataSet
   #end GetCurDataSet
 
 
@@ -532,7 +534,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the dataModelMgr property.
 @return			DataModelMgr object
 """
-    return  self.dataModelMgr
+    return  self._dataModelMgr
   #end GetDataModelMgr
 
 
@@ -577,7 +579,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the nodeAddr property.
 @return			0-based node index in range [0,3] or [0,4)
 """
-    return  self.nodeAddr
+    return  self._nodeAddr
   #end GetNodeAddr
 
 
@@ -588,20 +590,20 @@ Keys passed and the corresponding state bit are:
     """Accessor for the scaleMode property.
 @return			'all' or 'state'
 """
-    return  self.scaleMode
+    return  self._scaleMode
   #end GetScaleMode
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		GetStateIndex()					-
-  #----------------------------------------------------------------------
-  def GetStateIndex( self ):
-    """Accessor for the stateIndex property.
-@return			0-based state-point index
-@deprecated  use timeValue instead of stateIndex
-"""
-    return  self.stateIndex
-  #end GetStateIndex
+#  #----------------------------------------------------------------------
+#  #	METHOD:		GetStateIndex()					-
+#  #----------------------------------------------------------------------
+#  def GetStateIndex( self ):
+#    """Accessor for the stateIndex property.
+#@return			0-based state-point index
+#@deprecated  use timeValue instead of stateIndex
+#"""
+#    return  self.stateIndex
+#  #end GetStateIndex
 
 
   #----------------------------------------------------------------------
@@ -611,7 +613,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the subAddr property.
 @return			0-based ( col, row ) channel/pin indexes
 """
-    return  self.subAddr
+    return  self._subAddr
   #end GetSubAddr
 
 
@@ -622,7 +624,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the timeDataSet property.
 @return			dataset used for time
 """
-    return  self.timeDataSet
+    return  self._timeDataSet
   #end GetTimeDataSet
 
 
@@ -633,7 +635,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the timeValue property.
 @return			current timeDataSet value
 """
-    return  self.timeValue
+    return  self._timeValue
   #end GetTimeValue
 
 
@@ -644,7 +646,7 @@ Keys passed and the corresponding state bit are:
     """Accessor for the weightsMode property.
 @return			'all' or 'state'
 """
-    return  self.weightsMode
+    return  self._weightsMode
   #end GetWeightsMode
 
 
@@ -661,19 +663,19 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     undefined2 = ( -1, -1 )
     undefined3 = ( -1, -1, -1 )
 
-    del self.auxNodeAddrs[ : ]
-    del self.auxSubAddrs[ : ]
+    del self._auxNodeAddrs[ : ]
+    del self._auxSubAddrs[ : ]
     #self.dataModel = data_model
-    self.nodeAddr = 0
+    self._nodeAddr = 0
 
-    self.scaleMode = 'all'
-    self.weightsMode = 'on'
+    self._scaleMode = 'all'
+    self._weightsMode = 'on'
 
-    data_model = self.dataModelMgr.GetFirstDataModel()
+    data_model = self._dataModelMgr.GetFirstDataModel()
     if data_model is not None:
       core = data_model.GetCore()
 
-      ##self.assemblyAddr = data_model.NormalizeAssemblyIndex( undefined3 )
+      ##self._assemblyAddr = data_model.NormalizeAssemblyIndex( undefined3 )
       extent = data_model.ExtractSymmetryExtent()
       col = extent[ 0 ] + (extent[ 4 ] >> 1)
       row = extent[ 1 ] + (extent[ 5 ] >> 1)
@@ -682,38 +684,38 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
         if col > 0: col -= 1
 	if row > 0: row -= 1
         ndx = core.coreMap[ row, col ] - 1
-      self.assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
+      self._assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
 
-      self.axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
+      self._axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
 
       ds_display_name = 'pin_powers' \
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
 	  data_model.GetFirstDataSet( 'pin' )
-      self.curDataSet = DataSetName( data_model.GetName(), ds_display_name )
+      self._curDataSet = DataSetName( data_model.GetName(), ds_display_name )
       #self.stateIndex = data_model.NormalizeStateIndex( -1 )
 
       ##self.colRow = data_model.NormalizeColRow( undefined2 )
       col = max( 0, (core.npinx >> 1) - 1 )
       row = max( 0, (core.npiny >> 1) - 1 )
-      self.subAddr = data_model.NormalizeSubAddr( ( col, row ) )
+      self._subAddr = data_model.NormalizeSubAddr( ( col, row ) )
 
-      time_ds_names = self.dataModelMgr.ResolveAvailableTimeDataSets()
-      self.timeDataSet = \
+      time_ds_names = self._dataModelMgr.ResolveAvailableTimeDataSets()
+      self._timeDataSet = \
           'exposure'  if 'exposure' in time_ds_names else \
 	  'state'
-      ##self.timeDataSet = data_model.ResolveTimeDataSetName()
-      self.dataModelMgr.SetTimeDataSet( self.timeDataSet )
-      self.timeValue = self.dataModelMgr.GetTimeIndexValue( 0 )
+      ##self._timeDataSet = data_model.ResolveTimeDataSetName()
+      self._dataModelMgr.SetTimeDataSet( self._timeDataSet )
+      self._timeValue = self._dataModelMgr.GetTimeIndexValue( 0 )
 
     else:
-      self.assemblyAddr = undefined3
-      self.axialValue = undefined_ax
-      self.curDataSet = None
+      self._assemblyAddr = undefined3
+      self._axialValue = undefined_ax
+      self._curDataSet = None
       self.scalarDataSet = None
-      self.stateIndex = -1
-      self.subAddr = undefined2
-      self.timeDataSet = 'state'
-      self.timeValue = 0.0
+      #self.stateIndex = -1
+      self._subAddr = undefined2
+      self._timeDataSet = 'state'
+      self._timeValue = 0.0
 
     self.auxColRows = []
 
@@ -747,14 +749,14 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
   #	METHOD:		_OnDataModelMgr()				-
   #----------------------------------------------------------------------
   def _OnDataModelMgr( self, *args, **kwargs ):
-    if self.dataModelMgr.GetDataModelCount() == 1:
+    if self._dataModelMgr.GetDataModelCount() == 1:
       self.Init( True )
     else:
       new_name = ''
-      time_ds_names = self.dataModelMgr.ResolveAvailableTimeDataSets()
+      time_ds_names = self._dataModelMgr.ResolveAvailableTimeDataSets()
       if len( time_ds_names ) == 0:
         new_name = 'state'
-      elif self.timeDataSet not in time_ds_names:
+      elif self._timeDataSet not in time_ds_names:
         new_name = time_ds_names[ 0 ]
 
       if new_name:
@@ -771,12 +773,12 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     """Removes the listener(s).
 @param  listeners	one or more listeners to remove
 """
-#    if listener in self.listeners:
-#      self.listeners.remove( listener )
+#    if listener in self._listeners:
+#      self._listeners.remove( listener )
     if listeners:
       for listener in listeners:
-        if listener in self.listeners:
-          self.listeners.remove( listener )
+        if listener in self._listeners:
+          self._listeners.remove( listener )
   #end RemoveListener
 
 
@@ -839,6 +841,24 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 #
 #    return  mask
 #  #end SetDataSetByType
+
+
+#		-- Property Definitions
+#		--
+
+
+  assemblyAddr = property( GetAssemblyAddr )
+  auxNodeAddrs = property( GetAuxNodeAddrs )
+  auxSubAddrs = property( GetAuxSubAddrs )
+  axialValue = property( GetAxialValue )
+  curDataSet = property( GetCurDataSet )
+  dataModelMgr = property( GetDataModelMgr )
+  nodeAddr = property( GetNodeAddr )
+  scaleMode = property( GetScaleMode )
+  subAddr = property( GetSubAddr )
+  timeDataSet = property( GetTimeDataSet )
+  timeValue = property( GetTimeValue )
+  weightsMode = property( GetWeightsMode )
 
 
 #		-- Static Methods
