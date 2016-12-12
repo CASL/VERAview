@@ -197,6 +197,8 @@ All indices are 0-based.
 #		-- Class Attributes
 #		--
 
+  allLocks_ = None
+
 ##    DS_ATTR_BY_TYPE = \
 ##      {
 ##      'channel':
@@ -249,7 +251,6 @@ All indices are 0-based.
     self.timeValue = 0.0
     self.weightsMode = 'on'
 
-    #self.Change( State.ALL_LOCKS, **kwargs )
     self.Change( **kwargs )
   #end __init__
 
@@ -318,7 +319,8 @@ Keys passed and the corresponding state bit are:
 """
     reason = STATE_CHANGE_noop
     if locks is None:
-      locks = State.CreateLocks()
+      locks = State.GetAllLocks()
+      #locks = State.CreateLocks()
 
 #		-- Changes with no side effects
 #		--
@@ -869,5 +871,19 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 
     return  data_model_mgr
   #end FindDataModelMgr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetAllLocks()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetAllLocks():
+    """Lazily creates
+@return		dict with all True for LOCKABLE_STATES
+"""
+    if State.allLocks_ is None:
+      State.allLocks_ = State.CreateLocks()
+    return  State.allLocks_
+  #end GetAllLocks
 
 #end State
