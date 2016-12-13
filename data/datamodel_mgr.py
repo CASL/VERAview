@@ -298,8 +298,13 @@ returned.
 	  cur_obj, use_factors
           )
       if 'state_index' in results:
-	results[ 'time_value' ] = self.\
+	time_value = self.\
 	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
+        skip = cur_obj is not None and \
+            hasattr( cur_obj, 'timeValue' ) and \
+            getattr( cur_obj, 'timeValue' ) == time_value
+        if not skip:
+	  results[ 'time_value' ] = time_value
     #end if dm
    
     return  results
@@ -338,8 +343,13 @@ specified datasets.
       results = \
           dm.FindMultiDataSetMinMaxValue( mode, state_ndx, cur_obj, *ds_names )
       if 'state_index' in results:
-	results[ 'time_value' ] = self.\
+	time_value = self.\
 	    GetTimeIndexValue( results[ 'state_index' ], model_name )
+        skip = cur_obj is not None and \
+            hasattr( cur_obj, 'timeValue' ) and \
+            getattr( cur_obj, 'timeValue' ) == time_value
+        if not skip:
+	  results[ 'time_value' ] = time_value
     #end if dm
 
     return  results
@@ -381,9 +391,17 @@ returned.
 	  mode, qds_name.displayName, state_ndx,
 	  cur_obj, use_factors
           )
+
       if 'state_index' in results:
-	results[ 'time_value' ] = self.\
+#	results[ 'time_value' ] = self.\
+#	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
+	time_value = self.\
 	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
+        skip = cur_obj is not None and \
+            hasattr( cur_obj, 'timeValue' ) and \
+            getattr( cur_obj, 'timeValue' ) == time_value
+        if not skip:
+	  results[ 'time_value' ] = time_value
     #end if dm
    
     return  results
@@ -573,6 +591,23 @@ model name or a DataSetName instance.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataSetDefByQName()		-
+  #----------------------------------------------------------------------
+  def GetDataSetDefByQName( self, qds_name ):
+    """Looks up the dataset definition dict for the type of the specified
+dataset.
+@param  qds_name	DataSetName instance
+@return			dataset definition if found, None otherwise
+"""
+    ddef = None
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      ddef = dm.GetDataSetDefByDsName( qds_name.displayName )
+    return  ddef
+  #end GetDataSetDefByQName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataSetDisplayName()		-
   #----------------------------------------------------------------------
   def GetDataSetDisplayName( self, qds_name ):
@@ -582,11 +617,42 @@ purpose.  Otherwise, we need the fully-qualified name.
 @return			qds_name.displayName if we have a single mode,
 			qds_name.name otherwise
 """
-    return \
-        qds_name.name \
-	if len( self.dataModels ) > 1 else \
-	qds_name.displayName
+    if isinstance( qds_name, DataSetName ):
+      result = \
+          qds_name.name  if len( self.dataModels ) > 1 else \
+	  qds_name.displayName
+    else:
+      result = str( qds_name )
+
+    return  result
   #end GetDataSetDisplayName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataSetHasSubAddr()		-
+  #----------------------------------------------------------------------
+  def GetDataSetHasSubAddr( self, qds_name ):
+    """Looks up the dataset definition for the type of the specified
+dataset to determine if it is addressible by sub_addr.
+@param  qds_name	DataSetName instance
+@return			True if addressible by sub_addr, False otherwise
+"""
+    result = False
+    ddef = None
+
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      ddef = dm.GetDataSetDefByDsName( qds_name.displayName )
+
+    #if ddef and 'shape' in ddef:
+    if ddef:
+      ddef_shape = ddef.get( 'shape' )
+      result = \
+          len( ddef_shape ) == 4 and  \
+	  ddef_shape[ 0 ] > 1 and ddef_shape[ 1 ] > 1
+
+    return  result
+  #end GetDataSetHasSubAddr
 
 
   #----------------------------------------------------------------------
@@ -1318,7 +1384,7 @@ at a time for better performance.
     for model_name, spec_list in specs_by_model.iteritems():
       time_values = np.array( self.timeValuesById.get( model_name ) )
       dm = self.dataModels.get( model_name )
-      if dm and time_values:
+      if dm is not None and time_values is not None:
         model_results = dm.ReadDataSetTimeValues( *spec_list )
 	for ds_name, item in model_results.iteritems():
 	  qds_name = DataSetName( model_name, ds_name )

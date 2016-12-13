@@ -150,84 +150,23 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    csv_text = 'Assy %d %s, Axial %.3f\n' % (
-        self.assemblyAddr[ 0 ] + 1,
-	self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	self.axialValue[ 0 ]
-	)
-    cur_selection_flag = mode != 'displayed'
-
-#		-- Must be valid state
-#		--
-    #if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
+    csv_text = None
     core = self.dmgr.GetCore()
     if core:
-#		 	-- Create header
-#		 	--
-      #header = self.state.timeDataSet
-      if self.refAxisDataSet is not None:
-	header = '"%s@%s"' % (
-	    self.dmgr.GetDataSetDisplayName( self.refAxisDataSet ),
-	    DataUtils.ToAddrString( *self.subAddr )
-	    )
+      header = 'Assy %d %s, Axial %.3f\n' % (
+          self.assemblyAddr[ 0 ] + 1,
+	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  self.axialValue[ 0 ]
+	  )
+      cur_selection_flag = mode != 'displayed'
+
+      #if self.refAxisDataSet is not None and self.refAxisTimes is not None:
+      if self.refAxisTimes is not None:
+        csv_text = self.\
+	    _CreateClipboardDataNonTimeXAxis( header, cur_selection_flag )
       else:
-        header = self.dmgr.GetDataSetDisplayName( self.state.timeDataSet )
-
-      for k in sorted( self.dataSetValues.keys() ):
-	qds_name = self._GetDataSetName( k )
-        data_set_pair = self.dataSetValues[ k ]
-	item = data_set_pair[ 'data' ]
-	if not isinstance( item, dict ):
-	  item = { '': item }
-        for rc in sorted( item.keys() ):
-          header += ',"' + name
-	  if rc:
-            header += '@' + DataModel.ToAddrString( *rc )
-          header += '"'
-      csv_text += header + '\n'
-
-#			-- Write values
-#			--
-      if cur_selection_flag:
-	xaxis_times = \
-	    self.refAxisTimes  if self.refAxisTimes is not None else \
-	    self.refAxisValues
-	time_ndx = DataUtils.FindIndex( xaxis_times, self.timeValue, 'a' )
-        i_range = ( time_ndx, )
-      else:
-	i_range = \
-	    range( len( self.refAxisTimes ) ) \
-	    if self.refAxisTimes is not None else \
-	    range( len( self.refAxisValues ) )
-      #end if-else cur_selection_flag
-
-      for i in i_range:
-        row = '%.7g' % self.refAxisValues[ i ]
-
-        #for name, item in sorted( self.dataSetValues ):
-        for name in sorted( self.dataSetValues.keys() ):
-	for qds_name, xx
-	  item = self.dataSetValues[ name ]
-	  if not isinstance( item, dict ):
-	    item = { '': item }
-
-          for rc, values in sorted( item.iteritems() ):
-	    cur_val = 0
-	    if not hasattr( values, '__len__' ):
-	      if i == self.stateIndex:
-	        cur_val = values
-	    elif len( values ) > i:
-	      cur_val = values[ i ]
-
-	    if cur_val != 0:
-	      row += ',%.7g' % cur_val
-	    else:
-	      row += ',0'
-          #end for rc, values
-        #end for name, values
-
-        csv_text += row + '\n'
-      #end for i
+        csv_text = self.\
+	    _CreateClipboardDataTimeXAxis( header, cur_selection_flag )
     #end if core
 
     return  csv_text
@@ -237,18 +176,12 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardDataNonTimeXAxis()		-
   #----------------------------------------------------------------------
-  def _CreateClipboardDataNonTimeXAxis( self, cur_selection_flag ):
+  def _CreateClipboardDataNonTimeXAxis( self, header_in, cur_selection_flag ):
     """Retrieves the data for the time and axial assuming both
 self.refAxisDataSet and self.refAxixTimes are not None.
 @return			text or None
 """
-    #header_in passed?
-    #csv_text = header_in
-    csv_text = 'Assy %d %s, Axial %.3f\n' % (
-        self.assemblyAddr[ 0 ] + 1,
-	self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	self.axialValue[ 0 ]
-	)
+    csv_text = header_in
 
 #		-- Must be valid state
 #		--
@@ -257,13 +190,10 @@ self.refAxisDataSet and self.refAxixTimes are not None.
     if core:
 #		 	-- Create header
 #		 	--
-      if self.refAxisDataSet is not None:
-        header = '"%s@%s"' % (
-            self.dmgr.GetDataSetDisplayName( self.refAxisDataSet ),
-	    DataUtils.ToAddrString( *self.subAddr )
-	    )
-      else:
-        header = self.dmgr.GetDataSetDisplayName( self.state.timeDataSet )
+      header = '"%s@%s"' % (
+          self.dmgr.GetDataSetDisplayName( self.refAxisDataSet ),
+	  DataUtils.ToAddrString( *self.subAddr )
+	  )
 
       for k in sorted( self.dataSetValues.keys() ):
 	qds_name = self._GetDataSetName( k )
@@ -272,34 +202,26 @@ self.refAxisDataSet and self.refAxixTimes are not None.
 	if not isinstance( item, dict ):
 	  item = { '': item }
         for rc in sorted( item.keys() ):
-          header += ',"' + name
+          header += ',"' + qds_name.name
 	  if rc:
-            header += '@' + DataModel.ToAddrString( *rc )
+            header += '@' + DataUtils.ToAddrString( *rc )
           header += '"'
       #end for k
       csv_text += header + '\n'
 
 #			-- Write values
 #			--
+      cur_time_ndx = DataUtils.\
+          FindListIndex( self.refAxisTimes, self.timeValue, 'a' )
       if cur_selection_flag:
-        time_ndx = \
-	    DataUtils.FindIndex( self.refAxisTimes, self.timeValue, 'a' ) \
-	    if self.refAxisTimes is not None else \
-	    DataUtils.FindIndex( self.refAxisValues, self.timeValue, 'a' )
-        i_range = ( time_ndx, )
+        i_range = ( cur_time_ndx, )
       else:
-	i_range = \
-	    range( len( self.refAxisTimes ) ) \
-	    if self.refAxisTimes is not None else \
-	    range( len( self.refAxisValues ) )
+	i_range = range( len( self.refAxisTimes ) )
       #end if cur_selection_flag
 
       for i in i_range:
         row = '%.7g' % self.refAxisValues[ i ]
-	time_value = \
-	    self.refAxisTimes[ i ] \
-	    if self.refAxisTimes is not None else \
-	    self.refAxisValues[ i ]
+	time_value = self.refAxisTimes[ i ]
 
         time_ndx_by_model = {}
 	for k, data_pair in sorted( self.dataSetValues.iteritems() ):
@@ -311,14 +233,14 @@ self.refAxisDataSet and self.refAxixTimes are not None.
 	  model_time_ndx = time_ndx_by_model.get( qds_name.modelName )
 	  if model_time_ndx is None:
 	    model_time_ndx = \
-	        DataUtils.FindIndex( data_pair[ 'times' ], time_value, 'a' )
+	        DataUtils.FindListIndex( data_pair[ 'times' ], time_value, 'a' )
 	    time_ndx_by_model[ qds_name.modelName ] = model_time_ndx
 	  #end if model_time_ndx
 
           for rc, values in sorted( item.iteritems() ):
 	    cur_val = 0
 	    if not hasattr( values, '__len__' ):
-	      if time_value == self.timeValue:
+	      if i == cur_time_ndx:
 	        cur_val = values
 	    elif len( values ) > i:
 	      cur_val = values[ i ]
@@ -341,30 +263,24 @@ self.refAxisDataSet and self.refAxixTimes are not None.
   #----------------------------------------------------------------------
   #	METHOD:		_CreateClipboardDataTimeXAxis()			-
   #----------------------------------------------------------------------
-  def _CreateClipboardDataTimeXAxis( self, cur_selection_flag ):
+  def _CreateClipboardDataTimeXAxis( self, header_in, cur_selection_flag ):
     """Retrieves the data for the time and axial assuming both
 self.refAxisDataSet and self.refAxixTimes are None.
 @return			text or None
 """
-    #header_in passed?
-    #csv_text = header_in
-    csv_text = 'Assy %d %s, Axial %.3f\n' % (
-        self.assemblyAddr[ 0 ] + 1,
-	self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	self.axialValue[ 0 ]
-	)
+    csv_text = header_in
 
 #		-- Must be valid state
 #		--
     #if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
     core = self.dmgr.GetCore()
     if core:
-      time_ds_display = \
-          self.dmgr.GetDataSetDisplayName( self.state.timeDataSet )
+      time_ds_display = self.state.timeDataSet
 
 #		 	-- Collate by model
 #		 	--
       datasets_by_model = {}
+      times_by_model = {}
       for k in sorted( self.dataSetValues.keys() ):
 	qds_name = self._GetDataSetName( k )
 	ds_rec = self.dataSetSelections[ k ]
@@ -373,73 +289,70 @@ self.refAxisDataSet and self.refAxixTimes are None.
 	  if ds_list is None:
 	    ds_list = []
 	    datasets_by_model[ qds_name.modelName ] = ds_list
-	  ds_list.append( qds_name )
+	  ds_list.append( k )
+
+	  if qds_name.modelName not in times_by_model:
+	    data_set_pair = self.dataSetValues[ k ]
+	    times_by_model[ qds_name.modelName ] = data_set_pair[ 'times' ]
         #end if ds_rec[ 'visible' ]
       #end for k
 
-#			-- Create per-model sets
+#			-- Create per-model blocks
 #			--
       for model_name, ds_list in sorted( datasets_by_model.iteritems() ):
+	model_times = times_by_model.get( model_name )
+	csv_text += model_name + '\n'
+#				-- Header line
         header = time_ds_display
-	for qds_name in ds_list:
-	  data_set_pair = self.dataSetValues[ qds_name ]
-	#end for qds_name
-      #end for model_name, ds_list
-      #xxxxxyyyyy
-
-#		 	-- Create header
-#		 	--
-      header = self.dmgr.GetDataSetDisplayName( self.state.timeDataSet )
-
-      for k in sorted( self.dataSetValues.keys() ):
-	qds_name = self._GetDataSetName( k )
-        data_set_pair = self.dataSetValues[ k ]
-	item = data_set_pair[ 'data' ]
-	if not isinstance( item, dict ):
-	  item = { '': item }
-        for rc in sorted( item.keys() ):
-          header += ',"' + name
-	  if rc:
-            header += '@' + DataModel.ToAddrString( *rc )
-          header += '"'
-      csv_text += header + '\n'
-
-#			-- Write values
-#			--
-      if cur_selection_flag:
-	time_ndx = \
-	    DataUtils.FindIndex( self.refAxisValues, self.timeValue, 'a' )
-        i_range = ( time_ndx, )
-      else:
-	i_range = range( len( self.refAxisValues ) )
-
-      for i in i_range:
-        row = '%.7g' % self.refAxisValues[ i ]
-
-        #for name, item in sorted( self.dataSetValues ):
-        for name in sorted( self.dataSetValues.keys() ):
-	for qds_name, xx
-	  item = self.dataSetValues[ name ]
+	for k in ds_list:
+	  qds_name = self._GetDataSetName( k )
+	  data_set_pair = self.dataSetValues[ k ]
+	  item = data_set_pair[ 'data' ]
 	  if not isinstance( item, dict ):
 	    item = { '': item }
 
-          for rc, values in sorted( item.iteritems() ):
-	    cur_val = 0
-	    if not hasattr( values, '__len__' ):
-	      if i == self.stateIndex:
-	        cur_val = values
-	    elif len( values ) > i:
-	      cur_val = values[ i ]
+          for rc in sorted( item.keys() ):
+            header += ',"' + qds_name.displayName
+	    if rc:
+              header += '@' + DataUtils.ToAddrString( *rc )
+            header += '"'
+	#end for qds_name
+        csv_text += header + '\n'
 
-	    if cur_val != 0:
-	      row += ',%.7g' % cur_val
-	    else:
-	      row += ',0'
-          #end for rc, values
-        #end for name, values
+#				-- Time value rows, cols are dataset values
+	cur_time_ndx = DataUtils.\
+	    FindListIndex( model_times, self.timeValue, 'a' )
+        if cur_selection_flag:
+          i_range = ( cur_time_ndx, )
+        else:
+	  i_range = range( len( model_times ) )
 
-        csv_text += row + '\n'
-      #end for i
+        for i in i_range:
+          row = '%.7g' % model_times[ i ]
+
+	  for qds_name in ds_list:
+            data_set_pair = self.dataSetValues[ qds_name ]
+	    item = data_set_pair[ 'data' ]
+	    if not isinstance( item, dict ):
+	      item = { '': item }
+            for rc, values in sorted( item.iteritems() ):
+	      cur_val = 0
+	      if not hasattr( values, '__len__' ):
+	        if i == cur_time_index:
+	          cur_val = values
+	      elif len( values ) > i:
+	        cur_val = values[ i ]
+
+	      if cur_val != 0:
+	        row += ',%.7g' % cur_val
+	      else:
+	        row += ',0'
+            #end for rc, values
+	  #end for qds_name
+	  
+	  csv_text += row + '\n'
+        #end for i
+      #end for model_name, ds_list
     #end if core
 
     return  csv_text
@@ -508,8 +421,8 @@ self.refAxisDataSet and self.refAxixTimes are None.
         data_set_item = ds_values[ k ]
 	for rc, value in sorted( data_set_item.iteritems() ):
 	  cur_label = \
-	      k + '@' + DataModel.ToAddrString( *rc ) \
-	      if rc else k
+	      k.name + '@' + DataUtils.ToAddrString( *rc ) \
+	      if rc else k.name
 	  tip_str += '\n%s=%.3g' % ( cur_label, value )
 	#end for rc, value
       #end for k
@@ -549,201 +462,200 @@ configuring the grid, plotting, and creating self.axline.
 #	fontsize = self.titleFontSize
 #	)
 
-#		-- Must have valid core
+#		-- Must have valid core and something to plot
 #		--
     core = self.dmgr.GetCore()
-    if core is not None:
+    if core is not None and len( self.dataSetValues ) > 0:
       if self.refAxisDataSet is not None:
-        rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
-        xaxis_label = '%s: %d %s %s' % (
+        xaxis_label = '%s: %d %s' % (
 	    self.dmgr.GetDataSetDisplayName( self.refAxisDataSet ),
-	    ref_axis_name,
 	    self.assemblyAddr[ 0 ] + 1,
-            core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	    str( rc )
+            core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
             )
+	if self.dmgr.GetDataSetHasSubAddr( self.refAxisDataSet ):
+          rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
+	  extra = ' %s' % str( rc )
+	  xaxis_label += extra
+
         self.ax.set_xlim(
 	    np.amin( self.refAxisValues ),
 	    np.amax( self.refAxisValues )
             )
         self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
       else:
-	xaxis_label = self.dmgr.GetDataSetDisplayName( self.state.timeDataSet )
+	xaxis_label = self.state.timeDataSet
       #end if-else self.refAxisDataSet
 
-#			-- Something to plot?
+#			-- Determine axis datasets
 #			--
-      if len( self.dataSetValues ) > 0:
-#				-- Determine axis datasets
-#				--
-        left_qds_name, right_qds_name = self._ResolveDataSetAxes()
+      left_qds_name, right_qds_name = self._ResolveDataSetAxes()
 
-#				-- Configure axes
-#				--
-#					-- Right
-        if right_qds_name is not None and self.ax2 is not None:
-          self.ax2.set_ylabel( right_qds_name, fontsize = label_font_size )
-	  ds_range = self.data.GetRange(
-	      self.dmgr.GetDataSetDisplayName( right_qds_name ),
-	      self.stateIndex if self.state.scaleMode == 'state' else -1
-	      )
-          if DataUtils.IsValidRange( *ds_range ):
-            self.ax2.set_ylim( *ds_range )
-	    self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
-
-#					-- Left, primary
-        #self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
-        self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
-        self.ax.set_ylabel(
-	    self.dmgr.GetDataSetDisplayName( left_qds_name ),
-	    fontsize = label_font_size
+#			-- Configure axes
+#			--
+#				-- Right
+      if right_qds_name is not None and self.ax2 is not None:
+        self.ax2.set_ylabel( right_qds_name, fontsize = label_font_size )
+	ds_range = self.dmgr.GetRange(
+	    right_qds_name,
+	    self.timeValue if self.state.scaleMode == 'state' else -1.0
 	    )
-
-        ds_range = list( self.customDataRange ) \
-            if self.customDataRange is not None else \
-	    [ NAN, NAN ]
-        if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
-          calc_range = self.data.GetRange(
-	      left_qds_name,
-	      self.timeValue if self.state.scaleMode == 'state' else -1.0
-	      )
-#					-- Scale over all plotted datasets?
-          if self.scaleMode == 'all':
-            for k in self.dataSetValues:
-	      cur_qname = self._GetDataSetName( k )
-	      if cur_qname != right_qds_name and cur_qname != left_qds_name:
-	        cur_range = self.data.GetRange(
-	            cur_qname,
-	            self.timeValue if self.state.scaleMode == 'state' else -1.0
-	            )
-	        calc_range = (
-	            min( calc_range[ 0 ], cur_range[ 0 ] ),
-		    max( calc_range[ 1 ], cur_range[ 1 ] )
-	            )
-            #end for k
-
-          for i in xrange( len( ds_range ) ):
-	    if math.isnan( ds_range[ i ] ):
-	      ds_range[ i ] = calc_range[ i ]
-        #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
-
         if DataUtils.IsValidRange( *ds_range ):
-          self.ax.set_ylim( *ds_range )
-          self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+          self.ax2.set_ylim( *ds_range )
+	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+
+#				-- Left, primary
+      self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
+      self.ax.set_ylabel(
+	  self.dmgr.GetDataSetDisplayName( left_qds_name ),
+	  fontsize = label_font_size
+	  )
+
+      ds_range = list( self.customDataRange ) \
+          if self.customDataRange is not None else \
+	  [ NAN, NAN ]
+      if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
+        calc_range = self.dmgr.GetRange(
+	    left_qds_name,
+	    self.timeValue if self.state.scaleMode == 'state' else -1.0
+	    )
+#				-- Scale over all plotted datasets?
+        if self.scaleMode == 'all':
+          for k in self.dataSetValues:
+	    cur_qname = self._GetDataSetName( k )
+	    if cur_qname != right_qds_name and cur_qname != left_qds_name:
+	      cur_range = self.dmgr.GetRange(
+	          cur_qname,
+	          self.timeValue if self.state.scaleMode == 'state' else -1.0
+	          )
+	      calc_range = (
+	          min( calc_range[ 0 ], cur_range[ 0 ] ),
+		  max( calc_range[ 1 ], cur_range[ 1 ] )
+	          )
+          #end for k
+
+        for i in xrange( len( ds_range ) ):
+	  if math.isnan( ds_range[ i ] ):
+	    ds_range[ i ] = calc_range[ i ]
+      #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
+
+      if DataUtils.IsValidRange( *ds_range ):
+        self.ax.set_ylim( *ds_range )
+        self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
 #				-- Set title
 #				--
-        show_assy_addr = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
+      show_assy_addr = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 
-        title_str = 'Assy %d %s, Axial %.3f' % \
-            ( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
+      title_str = 'Assy %d %s, Axial %.3f' % \
+          ( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
 
-        title_line2 = ''
-        chan_flag = 'channel' in self.dataSetTypes
-        pin_flag = 'pin' in self.dataSetTypes
-        if chan_flag or pin_flag:
-	  rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
-	  prefix = \
-	      'Chan/Pin'  if chan_flag and pin_flag else \
-	      'Chan'  if chan_flag else \
-	      'Pin'
-          title_line2 += '%s %s' % ( prefix, str( rc ) )
+      title_line2 = ''
+      chan_flag = 'channel' in self.dataSetTypes
+      pin_flag = 'pin' in self.dataSetTypes
+      if chan_flag or pin_flag:
+        rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
+	prefix = \
+	    'Chan/Pin'  if chan_flag and pin_flag else \
+	    'Chan'  if chan_flag else \
+	    'Pin'
+        title_line2 += '%s %s' % ( prefix, str( rc ) )
 
-        if 'detector' in self.dataSetTypes or \
-            'fixed_detector' in self.dataSetTypes:
-          if len( title_line2 ) > 0: title_line2 += ', '
-	  title_line2 += 'Det %d %s' % \
-	      ( self.assemblyAddr[ 0 ] + 1,
-	        self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ) )
+      if 'detector' in self.dataSetTypes or \
+          'fixed_detector' in self.dataSetTypes:
+        if len( title_line2 ) > 0: title_line2 += ', '
+	title_line2 += 'Det %d %s' % (
+	    self.assemblyAddr[ 0 ] + 1,
+	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
+	    )
 
-        if len( title_line2 ) > 0:
-          title_str += '\n' + title_line2
+      if len( title_line2 ) > 0:
+        title_str += '\n' + title_line2
 
 #				-- Plot each selected dataset
 #				--
-        count = 0
-	time_indices_by_model = {}
-        for k in self.dataSetValues:
-	  data_pair = self.dataSetValues[ k ]
-	  qds_name = self._GetDataSetName( k )
-	  model_time_indices = None
+      count = 0
+      time_indices_by_model = {}
+      for k in self.dataSetValues:
+        data_pair = self.dataSetValues[ k ]
+	qds_name = self._GetDataSetName( k )
+	model_time_indices = None
 #					-- Match refAxisTimes to model times
 #					--
-	  if self.refAxisTimes is not None:
-	    model_time_indices = time_indices_by_model.get( qds_name.modelName )
-	    if model_time_indices is None:
-	      model_time_indices = []
-	      model_time_values = self.dmgr.GetTimeValues( qds_name.modelName )
-	      for t in self.refAxisTimes:
-	        model_time_indices.append(
-		    DataUtils.FindListIndex( model_time_values, t, 'a' )
-		    )
-	      time_indices_by_model[ qds_name.modelName ] = model_time_indices
-	    #end if qds_name.modelName
-	  #end if self.refAxisTimes
+	if self.refAxisTimes is not None:
+	  model_time_indices = time_indices_by_model.get( qds_name.modelName )
+	  if model_time_indices is None:
+	    model_time_indices = []
+	    model_time_values = self.dmgr.GetTimeValues( qds_name.modelName )
+	    for t in self.refAxisTimes:
+	      model_time_indices.append(
+	          DataUtils.FindListIndex( model_time_values, t, 'a' )
+		  )
+	    time_indices_by_model[ qds_name.modelName ] = model_time_indices
+	  #end if qds_name.modelName
+	#end if self.refAxisTimes
 
-	  rec = self.dataSetSelections[ k ]
-	  scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
-	  legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
-	  if scale != 1.0:
-	    legend_label += '*%.3g' % scale
+	rec = self.dataSetSelections[ k ]
+	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
+	legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
+	if scale != 1.0:
+	  legend_label += '*%.3g' % scale
 
-	  marker_size = None
-	  plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
-	  ds_type = self.dmgr.GetDataSetType( qds_name )
-	  if ds_type.startswith( 'detector' ):
-	    marker_size = 12
-#	    plot_type = '.'
-#	  elif ds_type.startswith( 'channel' ):
-#	    plot_type = '--'
-#	  elif ds_type.startswith( 'pin' ):
-#	    plot_type = '-'
-	  elif ds_type.startswith( 'fixed_detector' ):
-	    marker_size = 12
-	    plot_type = 'x'
-	    #plot_type = '-.'
-#	  else:
-#	    plot_type = ':'
+	marker_size = None
+	plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
+	ds_type = self.dmgr.GetDataSetType( qds_name )
+	if ds_type.startswith( 'detector' ):
+	  marker_size = 12
+#	  plot_type = '.'
+#	elif ds_type.startswith( 'channel' ):
+#	  plot_type = '--'
+#	elif ds_type.startswith( 'pin' ):
+#	  plot_type = '-'
+	elif ds_type.startswith( 'fixed_detector' ):
+	  marker_size = 12
+	  plot_type = 'x'
+	  #plot_type = '-.'
+#	else:
+#	  plot_type = ':'
 
-	  #data_set_item = self.dataSetValues[ k ]
-	  data_set_item = data_pair[ 'data' ]
-	  if not isinstance( data_set_item, dict ):
-	    data_set_item = { '': data_set_item }
+	#data_set_item = self.dataSetValues[ k ]
+	data_set_item = data_pair[ 'data' ]
+	if not isinstance( data_set_item, dict ):
+	  data_set_item = { '': data_set_item }
 
-	  for rc, values in sorted( data_set_item.iteritems() ):
-	    if self.refAxisTimes is not None and model_time_indices is not None:
-	      cur_values = values[ model_time_indices ]
+	for rc, values in sorted( data_set_item.iteritems() ):
+	  if self.refAxisTimes is not None and model_time_indices is not None:
+	    cur_values = values[ model_time_indices ]
+	  else:
+	    if values.size == self.refAxisValues.size:
+	      cur_values = values
 	    else:
-	      if values.size == self.refAxisValues.size:
-	        cur_values = values
-	      else:
-	        cur_values = \
-	            np.ndarray( self.refAxisValues.shape, dtype = np.float64 )
-	        cur_values.fill( 0.0 )
-	        cur_values[ 0 : values.shape[ 0 ] ] = values
-	    #end if-else self.refAxisTimes
+	      cur_values = \
+	          np.ndarray( self.refAxisValues.shape, dtype = np.float64 )
+	      cur_values.fill( 0.0 )
+	      cur_values[ 0 : values.shape[ 0 ] ] = values
+	  #end if-else self.refAxisTimes
 
-	    cur_label = \
-	        legend_label + '@' + DataUtils.ToAddrString( *rc ) \
-	        if rc else legend_label
+	  cur_label = \
+	      legend_label + '@' + DataUtils.ToAddrString( *rc ) \
+	      if rc else legend_label
 
-	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
-	    cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
-	    if marker_size is not None:
-	      cur_axis.plot(
-		    self.refAxisValues, cur_values * scale, plot_mode,
-	            label = cur_label, linewidth = 2,
-		    markersize = marker_size
-	            )
-	    else:
-	      cur_axis.plot(
-		    self.refAxisValues, cur_values * scale, plot_mode,
-	            label = cur_label, linewidth = 2
-	            )
+	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
+	  if marker_size is not None:
+	    cur_axis.plot(
+	        self.refAxisValues, cur_values * scale, plot_mode,
+	        label = cur_label, linewidth = 2,
+		markersize = marker_size
+	        )
+	  else:
+	    cur_axis.plot(
+	        self.refAxisValues, cur_values * scale, plot_mode,
+	        label = cur_label, linewidth = 2
+	        )
 
-	    count += 1
-	  #end for rc, values
-        #end for k
+	  count += 1
+	#end for rc, values
+      #end for k
 
 #			-- Create legend
 #			--
@@ -759,20 +671,22 @@ configuring the grid, plotting, and creating self.axline.
 	  prop = { 'size': 'small' }
 	  )
 
-#      #xxxplacement orig=0.925, tried=0.975
+#     #xxxplacement orig=0.925, tried=0.975
       self.fig.text(
           0.1, 0.985, title_str,
 	  horizontalalignment = 'left', verticalalignment = 'top'
 	  )
 
-#			-- State/time value line
-#			--
+#				-- Time value line
+#				--
       self.axline = \
           self.ax.axvline( color = 'r', linestyle = '-', linewidth = 1 )
-      if self.stateIndex >= 0 and self.stateIndex < len( self.refAxisValues ):
-        self.axline.set_xdata( self.refAxisValues[ self.stateIndex ] )
-      #end if we have something to plot
-    #end if valid core
+      if self.refAxisTimes is not None:
+	ndx = DataUtils.FindListIndex( self.refAxisTimes, self.timeValue )
+	self.axline.set_xdata( self.refAxisValues[ ndx ] )
+      else:
+        self.axline.set_xdata( self.timeValue )
+    #end if core is not None and len( self.dataSetValues ) > 0
   #end _DoUpdatePlot
 
 
@@ -786,7 +700,7 @@ configuring the grid, plotting, and creating self.axline.
 			dataset values or None if no matches
 """
     results = {}
-    ndx = self.data.FindListIndex( self.refAxisValues, ref_ds_value, 'a' )
+    ndx = DataUtils.FindListIndex( self.refAxisValues, ref_ds_value, 'a' )
     if ndx >= 0:
       for k in self.dataSetValues:
         qds_name = self._GetDataSetName( k )
@@ -1074,7 +988,6 @@ be overridden by subclasses.
 """
     super( TimePlots, self )._OnMplMouseRelease( ev )
 
-    #if self.refAxisDataSet == '':
     if self.refAxisDataSet is None:
       button = ev.button or 1
       if button == 1 and self.cursor is not None:
@@ -1085,7 +998,7 @@ be overridden by subclasses.
 	  self.FireStateChange( time_value = self.refAxisValues[ ndx ] )
           #self.UpdateState( state_index = ndx )
           #self.FireStateChange( state_index = ndx )
-    #end if
+    #end if self.refAxisDataSet
   #end _OnMplMouseRelease
 
 
@@ -1238,18 +1151,19 @@ already read.
 #		-- Must have data
 #		--
     #if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
-    if self.dmgr.HasData():
+    if self.dmgr.HasData() and self.curDataSet:
       node_addr_list = None
       sub_addr_list = None
       ref_axis_qds_name = None
 
 #			-- Construct read specs
 #			--
+      time_values = None
       specs = []
       spec_names = set()
       if self.refAxisDataSet is not None:
 	ref_axis_qds_name = DataSetName(
-	    self.refAxisDataSet.modelName
+	    self.refAxisDataSet.modelName,
 	    '*' + self.refAxisDataSet.displayName
 	    )
         specs.append({
@@ -1259,7 +1173,8 @@ already read.
 	    'sub_addrs': [ self.subAddr ]
 	    })
       else:
-        specs.append( { 'qds_name': self.state.timeDataSet} )
+	time_values = np.array( self.dmgr.GetTimeValues() )
+        #specs.append( { 'qds_name': self.state.timeDataSet} )
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
@@ -1321,8 +1236,9 @@ already read.
 	else:
 	  self.refAxisValues = values_item
       else:
-	ref_axis_pair = results[ self.state.timeDataSet ]
-        self.refAxisValues = ref_axis_pair[ 'data' ]
+	#ref_axis_pair = results[ self.state.timeDataSet ]
+        #self.refAxisValues = ref_axis_pair[ 'data' ]
+	self.refAxisValues = time_values
 	self.refAxisTimes = None
 
       for k in self.dataSetSelections:

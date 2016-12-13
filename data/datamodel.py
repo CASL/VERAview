@@ -255,6 +255,8 @@ COL_LABELS = \
 #			  flattened dimensions
 #	ds_prefix	- tuple of prefix names to use in matching datasets
 #			  read from the VERAOutput file
+#
+#xxxxx Some day we should convert these to objects with properties.
 #------------------------------------------------------------------------
 DATASET_DEFS = \
   {
@@ -1824,11 +1826,11 @@ returned.  Calls FindMinMaxValueAddr().
       if not skip:
         results[ 'sub_addr' ] = ( addr[ 1 ], addr[ 0 ] )
 
-      skip = cur_obj is not None and \
-          hasattr( cur_obj, 'stateIndex' ) and \
-          getattr( cur_obj, 'stateIndex' ) == state_ndx
-      if not skip:
-        results[ 'state_index' ] = state_ndx
+#      skip = cur_obj is not None and \
+#          hasattr( cur_obj, 'stateIndex' ) and \
+#          getattr( cur_obj, 'stateIndex' ) == state_ndx
+#      if not skip:
+      results[ 'state_index' ] = state_ndx
     #end else cur_obj not None
    
     return  results
@@ -2429,18 +2431,18 @@ specified datasets.  Calls FindMinMaxValueAddr().
         if not skip:
           results[ 'sub_addr' ] = ( max_addr[ 1 ], max_addr[ 0 ] )
 
-        skip = cur_obj is not None and \
-	    hasattr( cur_obj, 'stateIndex' ) and \
-            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
-        if not skip:
-          results[ 'state_index' ] = max_state_ndx
+#        skip = cur_obj is not None and \
+#	    hasattr( cur_obj, 'stateIndex' ) and \
+#            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+#        if not skip:
+        results[ 'state_index' ] = max_state_ndx
 
       else:  # scalar
-        skip = cur_obj is not None and \
-	    hasattr( cur_obj, 'stateIndex' ) and \
-            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
-        if not skip:
-          results[ 'state_index' ] = max_state_ndx
+#        skip = cur_obj is not None and \
+#	    hasattr( cur_obj, 'stateIndex' ) and \
+#            getattr( cur_obj, 'stateIndex' ) == max_state_ndx
+#        if not skip:
+        results[ 'state_index' ] = max_state_ndx
     #end if
 
     return  results
@@ -2572,11 +2574,11 @@ returned.  Calls FindMinMaxValueAddr().
       if not skip:
         results[ 'sub_addr' ] = ( addr[ 1 ], addr[ 0 ] )
 
-      skip = cur_obj is not None and \
-          hasattr( cur_obj, 'stateIndex' ) and \
-          getattr( cur_obj, 'stateIndex' ) == state_ndx
-      if not skip:
-        results[ 'state_index' ] = state_ndx
+#      skip = cur_obj is not None and \
+#          hasattr( cur_obj, 'stateIndex' ) and \
+#          getattr( cur_obj, 'stateIndex' ) == state_ndx
+#      if not skip:
+      results[ 'state_index' ] = state_ndx
     #end else cur_obj not None
    
     return  results
