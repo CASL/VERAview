@@ -191,8 +191,6 @@ Properties:
     csv_text = None
     cur_selection_flag = mode != 'displayed'
 
-    #xxxxx must collate by DataModel
-
 #		-- Must be valid state
 #		--
     core = self.dmgr.GetCore()
@@ -213,20 +211,15 @@ Properties:
       model_mesh_datasets = {}
       for k in self.dataSetValues:
 	qds_name = self._GetDataSetName( k )
-	if qds_name.modelName in model_mesh_datasets:
-	  model_dict = model_mesh_datasets[ qds_name.modelName ]
-	else:
-	  model_dict = { 'Axial': {}, 'Detector': {}, 'Fixed Detector': {} }
-	  model_mesh_datasets[ qds_name.modelName ] = model_dict
-
 	ds_rec = self.dataSetSelections[ k ]
-
         if ds_rec[ 'visible' ] and qds_name is not None:
-	  ds_type = self.dmgr.GetDataSetType( qds_name )
+	  if qds_name.modelName in model_mesh_datasets:
+	    model_dict = model_mesh_datasets[ qds_name.modelName ]
+	  else:
+	    model_dict = { 'Axial': {}, 'Detector': {}, 'Fixed Detector': {} }
+	    model_mesh_datasets[ qds_name.modelName ] = model_dict
 
-          #data_set_item = self.dataSetValues[ k ]
-	  #if not isinstance( data_set_item, dict ):
-	  #  data_set_item = { '': data_set_item }
+	  ds_type = self.dmgr.GetDataSetType( qds_name )
           data_set_pair = self.dataSetValues[ k ]
 
 	  if ds_type.startswith( 'channel' ):
@@ -360,7 +353,7 @@ dataset names and ( rc, values ) pairs.
 #			-- Write data rows
 #			--
       cur_axial_index = \
-          DataUtils.FindListIndex( mesh_values, self.axialValue[ 0 ] )
+          DataUtils.FindListIndex( mesh_values, self.axialValue[ 0 ], 'a' )
       if cur_selection_flag:
         j_range = ( cur_axial_index, )
       else:
@@ -800,7 +793,7 @@ configuring the grid, plotting, and creating self.axline.
 #      else:
 #        ndx = self.data.FindListIndex( self.data.core.axialMeshCenters, axial_cm )
 
-      ndx = DataUtils.FindListIndex( mesh_values, axial_cm )
+      ndx = DataUtils.FindListIndex( mesh_values, axial_cm, 'a' )
       sample = data_set_item.itervalues().next()
       if ndx >= 0 and len( sample ) > ndx:
 	cur_dict = {}

@@ -1084,7 +1084,7 @@ method via super.SaveProps() at the end.
 
     for k in self.PlotDataSetPropsDialog():
       if k in props_dict and hasattr( self, k ):
-        setattr( self, k, DataSetName( props_dict[ k ] )
+        setattr( self, k, DataSetName( props_dict[ k ] ) )
 
     if 'eventLocks' in props_dict:
 #		-- Must convert keys to ints

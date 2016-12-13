@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2016-12-13	leerw@ornl.gov				-
 #	  Added GetDataSetTypeDisplayName().
+#	  Added mode param to FindListIndex().
 #		2016-12-12	leerw@ornl.gov				-
 #	  Moved IsValidRange(), ToAddrString() here from DataModel.
 #	  Added NormalizeNodeAddr{s}().
@@ -38,11 +39,12 @@ class DataUtils( object ):
   #	METHOD:		FindListIndex()					-
   #----------------------------------------------------------------------
   @staticmethod
-  def FindListIndex( values, value ):
+  def FindListIndex( values, value, mode = None ):
     """Values in the list are assumed to be in order, either ascending or
 descending.  Note bisect only does ascending.
 @param  values		list of values
 @param  value		value to search
+@param  mode		'a' for ascending, 'd' for descending, None if unknown
 @return			0-based index N, values[ N ]
 			'a': values[ N ] <= value < values[ N + 1 ]
 			'd': values[ N ] >= value > values[ N + 1 ]
@@ -50,8 +52,12 @@ descending.  Note bisect only does ascending.
     match_ndx = -1
 
     if values is not None and len( values ) > 0:
+      if not mode:
+        mode = 'd' if values[ 0 ] > values[ -1 ] else 'a'
+
 #			-- Descending
-      if values[ 0 ] > values[ -1 ]:
+      #if values[ 0 ] > values[ -1 ]:
+      if mode == 'd':
         match_ndx = \
 	    len( values ) - 1 - bisect.bisect_left( sorted( values ), value )
         match_ndx = max( 0, min( match_ndx, len( values ) - 1 ) )
