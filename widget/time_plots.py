@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-12-13	leerw@ornl.gov				-
+#	  Adapting to new DataModelMgr.
 #		2016-11-26	leerw@ornl.gov				-
 #	  Changing plot_type based on dataset being derived or not.
 #		2016-10-26	leerw@ornl.gov				-
@@ -81,17 +83,6 @@ from widget import *
 from widgetcontainer import *
 
 
-PLOT_COLORS = [ 'b', 'r', 'g', 'm', 'c' ]
-#        b: blue
-#        g: green
-#        r: red
-#        c: cyan
-#        m: magenta
-#        y: yellow
-#        k: black
-#        w: white
-
-
 #------------------------------------------------------------------------
 #	CLASS:		TimePlots					-
 #------------------------------------------------------------------------
@@ -126,25 +117,22 @@ Properties:
     self.auxSubAddrs = []
     self.ax2 = None
     self.axialValue = DataModel.CreateEmptyAxialValue()
-    self.curDataSet = kwargs.get( 'dataset', 'pin_powers' )
+    self.curDataSet = None
     #self.channelDataSet = 'channel_liquid_temps [C]'
     self.dataSetDialog = None
-    self.dataSetSelections = {}  # keyed by dataset name or pseudo name
+    self.dataSetSelections = {}  # keyed by DataSetName
     self.dataSetTypes = set()
-    self.dataSetValues = {}  # keyed by dataset name or pseudo name
-    #self.detectorDataSet = 'detector_response'
-    #self.detectorIndex = ( -1, -1, -1 )
-    #self.fixedDetectorDataSet = 'fixed_detector_response'
+
+		#-- keyed by DataSetName, dicts with keys 'times', 'data'
+    self.dataSetValues = {}
+
     self.nodeAddr = -1
 
-    self.refAxisDataSet = ''
+    self.refAxisDataSet = None  # DataSetName ''
     self.refAxisMenu = wx.Menu()
     self.refAxisValues = np.empty( 0 )
-    #self.refDataSet = 'state'
-    #self.scalarDataSet = 'keff'
     self.scaleMode = 'selected'
     self.subAddr = ( -1, -1 )
-    #self.timeDataSet = 'state'
 
     super( TimePlots, self ).__init__( container, id, ref_axis = 'x' )
   #end __init__
@@ -157,7 +145,7 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    #csv_text = '"Axial=%.3f"\n' % self.axialValue[ 0 ]
+    #xxxxx
     csv_text = 'Assy %d %s, Axial %.3f\n' % (
         self.assemblyAddr[ 0 ] + 1,
 	self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
@@ -317,6 +305,7 @@ configuring the grid, plotting, and creating self.axline.
 #	fontsize = 'medium', fontweight = 'bold'
 #	)
 
+    #xxxxx
     label_font_size = 14
     tick_font_size = 12
     self.titleFontSize = 16
@@ -551,9 +540,13 @@ configuring the grid, plotting, and creating self.axline.
     ndx = self.data.FindListIndex( self.refAxisValues, ref_ds_value )
     if ndx >= 0:
       for k in self.dataSetValues:
-        ds_name = self._GetDataSetName( k )
+        qds_name = self._GetDataSetName( k )
 
-        data_set_item = self.dataSetValues[ k ]
+        data_pair = self.dataSetValues[ k ]
+        time_values = data_pair[ 'times' ]
+        data_set_item = data_pair[ 'data' ]
+
+        #data_set_item = self.dataSetValues[ k ]
         if not isinstance( data_set_item, dict ):
           data_set_item = { '': data_set_item }
 
@@ -563,7 +556,7 @@ configuring the grid, plotting, and creating self.axline.
           for rc, values in data_set_item.iteritems():
 	    cur_dict[ rc ] = values[ ndx ]
 
-	  results[ ds_name ] = cur_dict
+	  results[ qds_name ] = cur_dict
         #end if ndx in range
       #end for k
     #end if ndx
@@ -603,7 +596,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     return \
         None  if name is None else \
-	self.curDataSet  if name == LABEL_selectedDataSet else \
+	self.curDataSet  if name == NAME_selectedDataSet else \
 	name
 
 #    return \
@@ -651,7 +644,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_axialValue,
 	STATE_CHANGE_coordinates,
 	STATE_CHANGE_curDataSet,
-	STATE_CHANGE_stateIndex
+	STATE_CHANGE_timeValue
 	])
     return  locks
   #end GetEventLockSet
@@ -689,26 +682,20 @@ XXX size according to how many datasets selected?
 """
     self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
         { 'axis': 'left', 'scale': 1.0, 'visible': True }
-#    axis = 'left'
-#    for dtype in sorted( list( ds_types ) ):
-#      if self.data.HasDataSetType( dtype ):
-#        self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
-#          { 'axis': axis, 'scale': 1.0, 'visible': True }
-#        axis = 'right' if axis == 'left' else ''
   #end InitDataSetSelections
 
 
   #----------------------------------------------------------------------
   #	METHOD:		TimePlots.IsDataSetVisible()			-
   #----------------------------------------------------------------------
-  def IsDataSetVisible( self, ds_name ):
+  def IsDataSetVisible( self, qds_name ):
     """True if the specified dataset is currently displayed, False otherwise.
-@param  ds_name		dataset name
+@param  qds_name	dataset name, DataSetName instance
 @return			True if visible, else False
 """
     visible = \
-        ds_name in self.dataSetSelections and \
-        self.dataSetSelections[ ds_name ][ 'visible' ]
+        qds_name in self.dataSetSelections and \
+        self.dataSetSelections[ qds_name ][ 'visible' ]
     return  visible
   #end IsDataSetVisible
 
@@ -720,19 +707,22 @@ XXX size according to how many datasets selected?
     """Assume self.data is valid.
 @return			dict to be passed to UpdateState()
 """
+    update_args = {}
+
     self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
         { 'axis': 'left', 'scale': 1.0, 'visible': True }
     self.dataSetDialog = None
-    if self.data is not None and self.data.HasData():
-      assy_addr = self.data.NormalizeAssemblyAddr( self.state.assemblyAddr )
-      aux_node_addrs = self.data.NormalizeNodeAddrs( self.state.auxNodeAddrs )
-      aux_sub_addrs = self.data.\
+
+    if self.dmgr.HasData():
+      assy_addr = self.dmgr.NormalizeAssemblyAddr( self.state.assemblyAddr )
+      aux_node_addrs = self.dmgr.NormalizeNodeAddrs( self.state.auxNodeAddrs )
+      aux_sub_addrs = self.dmgr.\
           NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
-      axial_value = self.data.NormalizeAxialValue( self.state.axialValue )
-      node_addr = self.data.NormalizeNodeAddr( self.state.nodeAddr )
-      sub_addr = self.data.NormalizeSubAddr( self.state.subAddr )
+      axial_value = self.dmgr.NormalizeAxialValue( None, self.state.axialValue )
+      node_addr = self.dmgr.NormalizeNodeAddr( self.state.nodeAddr )
+      sub_addr = self.dmgr.NormalizeSubAddr( self.state.subAddr )
       #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )
-      state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
+      #state_ndx = self.data.NormalizeStateIndex( self.state.stateIndex )
       update_args = \
         {
 	'assembly_addr': assy_addr,
@@ -743,14 +733,13 @@ XXX size according to how many datasets selected?
 	'node_addr': node_addr,
 	'state_index': state_ndx,
 	'sub_addr': sub_addr,
-	'time_dataset': self.state.timeDataSet
+	'time_dataset': self.state.timeDataSet,
+	'time_value': self.state.timeValue
 	}
 
-      self.data.AddListener( 'newDataSet', self._UpdateRefAxisMenu )
+      self.dmgr.AddListener( 'dataSetAdded', self._UpdateRefAxisMenu )
       wx.CallAfter( self._UpdateRefAxisMenu )
-
-    else:
-      update_args = {}
+    #end if self.dmgr.HasData()
 
     return  update_args
   #end _LoadDataModelValues

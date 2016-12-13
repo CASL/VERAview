@@ -130,17 +130,6 @@ from widget import *
 from widgetcontainer import *
 
 
-PLOT_COLORS = [ 'b', 'r', 'g', 'm', 'c' ]
-#        b: blue
-#        g: green
-#        r: red
-#        c: cyan
-#        m: magenta
-#        y: yellow
-#        k: black
-#        w: white
-
-
 #------------------------------------------------------------------------
 #	CLASS:		AxialPlot					-
 #------------------------------------------------------------------------
@@ -178,14 +167,13 @@ Properties:
     #self.channelDataSet = 'channel_liquid_temps [C]'
     self.curDataSet = None
     self.dataSetDialog = None
-    self.dataSetSelections = {}  # keyed by dataset name or pseudo name
+    self.dataSetSelections = {}  # keyed by DataSetName
     self.dataSetTypes = set()
-    self.dataSetValues = {}  # keyed by dataset name or pseudo name
-    #self.detectorDataSet = 'detector_response'
-    #self.detectorIndex = ( -1, -1, -1 )
+
+		#-- keyed by DataSetName, dicts with keys 'mesh', 'data'
+    self.dataSetValues = {}
+
     self.nodeAddr = -1
-    #self.fixedDetectorDataSet = 'fixed_detector_response'
-    #self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.scaleMode = 'selected'
     self.subAddr = ( -1, -1 )
 
@@ -985,11 +973,11 @@ to be passed to UpdateState().  Assumes self.dmgr is valid.
     #if self.data is not None and self.data.HasData():
     if self.dmgr.HasData():
       assy_addr = self.dmgr.NormalizeAssemblyAddr( self.state.assemblyAddr )
-      aux_node_addrs = DataUtils.NormalizeNodeAddrs( self.state.auxNodeAddrs )
+      aux_node_addrs = self.dmgr.NormalizeNodeAddrs( self.state.auxNodeAddrs )
       aux_sub_addrs = self.dmgr.\
           NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
       axial_value = self.dmgr.NormalizeAxialValue( None, self.state.axialValue )
-      node_addr = DataUtils.NormalizeNodeAddr( self.state.nodeAddr )
+      node_addr = self.dmgr.NormalizeNodeAddr( self.state.nodeAddr )
       sub_addr = \
           self.dmgr.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
       #detector_ndx = self.data.NormalizeDetectorIndex( self.state.assemblyAddr )

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2016-12-13	leerw@ornl.gov				-
+#	  Move (de)serialization of curDataSet property here.
 #		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
@@ -1067,6 +1069,10 @@ method via super.SaveProps() at the end.
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
+    for k in ( 'curDataSet', ):
+      if k in props_dict and hasattr( self, k ):
+        setattr( self, k, DataSetName( props_dict[ k ] )
+
     if 'eventLocks' in props_dict:
 #		-- Must convert keys to ints
       locks_in = props_dict[ 'eventLocks' ]
@@ -1335,6 +1341,12 @@ method via super.SaveProps().
 """
     for k in ( 'customDataRange', ):
       props_dict[ k ] = getattr( self, k )
+
+    if self.dmgr is not None:
+      for k in ( 'curDataSet', ):
+	if hasattr( self, k ):
+          qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
+          props_dict[ k ] = qds_name.name
 
     props_dict[ 'eventLocks' ] = self.container.GetEventLocks()
   #end SaveProps

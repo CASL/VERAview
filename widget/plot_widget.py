@@ -65,6 +65,17 @@ from widget import *
 from widgetcontainer import *
 
 
+PLOT_COLORS = [ 'b', 'r', 'g', 'm', 'c' ]
+#        b: blue
+#        g: green
+#        r: red
+#        c: cyan
+#        m: magenta
+#        y: yellow
+#        k: black
+#        w: white
+
+
 #------------------------------------------------------------------------
 #	CLASS:		PlotWidget					-
 #------------------------------------------------------------------------
