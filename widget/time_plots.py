@@ -83,6 +83,9 @@ from widget import *
 from widgetcontainer import *
 
 
+LABEL_timeDataSet = 'Time Dataset'
+
+
 #------------------------------------------------------------------------
 #	CLASS:		TimePlots					-
 #------------------------------------------------------------------------
@@ -128,8 +131,10 @@ Properties:
 
     self.nodeAddr = -1
 
-    self.refAxisDataSet = None  # DataSetName ''
+#		-- DataSetName instance, None means use self.state.timeDataSet
+    self.refAxisDataSet = None
     self.refAxisMenu = wx.Menu()
+    self.refAxisTimes = None  # None means refAxisValues *are* the times
     self.refAxisValues = np.empty( 0 )
     self.scaleMode = 'selected'
     self.subAddr = ( -1, -1 )
@@ -160,7 +165,7 @@ Properties:
 #		 	-- Create header
 #		 	--
       #header = self.state.timeDataSet
-      if self.refAxisDataSet:
+      if self.refAxisDataSet is not None:
 	header = '"%s@%s"' % \
 	    ( self.refAxisDataSet, DataModel.ToAddrString( *self.subAddr ) )
       else:
@@ -305,7 +310,6 @@ configuring the grid, plotting, and creating self.axline.
 #	fontsize = 'medium', fontweight = 'bold'
 #	)
 
-    #xxxxx
     label_font_size = 14
     tick_font_size = 12
     self.titleFontSize = 16
@@ -321,181 +325,202 @@ configuring the grid, plotting, and creating self.axline.
 #	'Versus ' + self.state.timeDataSet,
 #	fontsize = self.titleFontSize
 #	)
-    if self.refAxisDataSet:
-      rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
-      xaxis_label = '%s: %d %s %s' % (
-	  self.refAxisDataSet,
-	  self.assemblyAddr[ 0 ] + 1,
-          self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	  str( rc )
-          )
-      self.ax.set_xlim(
-	  np.amin( self.refAxisValues ),
-	  np.amax( self.refAxisValues )
-          )
-      self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
-#      ref_axis_range = self.data.GetRange(
-#          self.refAxisDataSet,
-#          self.stateIndex if self.state.scaleMode == 'state' else -1
-#	  )
-#      self.ax.set_xlim( *ref_axis_range )
-    else:
-      xaxis_label = self.state.timeDataSet
 
-#		-- Something to plot?
+#		-- Must have valid core
 #		--
-    if len( self.dataSetValues ) > 0:
-#			-- Determine axis datasets
+    core = self.dmgr.GetCore()
+    if core is not None:
+      if self.refAxisDataSet is not None:
+        rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
+        xaxis_label = '%s: %d %s %s' % (
+	    self.dmgr.GetDataSetDisplayName( self.refAxisDataSet ),
+	    ref_axis_name,
+	    self.assemblyAddr[ 0 ] + 1,
+            core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	    str( rc )
+            )
+        self.ax.set_xlim(
+	    np.amin( self.refAxisValues ),
+	    np.amax( self.refAxisValues )
+            )
+        self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+      else:
+	xaxis_label = self.dmgr.GetDataSetDisplayName( self.state.timeDataSet )
+      #end if-else self.refAxisDataSet
+
+#			-- Something to plot?
 #			--
-      left_ds_name, right_ds_name = self._ResolveDataSetAxes()
+      if len( self.dataSetValues ) > 0:
+#				-- Determine axis datasets
+#				--
+        left_qds_name, right_qds_name = self._ResolveDataSetAxes()
 
-#			-- Configure axes
-#			--
-#				-- Right
-      if right_ds_name is not None and self.ax2 is not None:
-        self.ax2.set_ylabel( right_ds_name, fontsize = label_font_size )
-	ds_range = self.data.GetRange(
-	    right_ds_name,
-	    self.stateIndex if self.state.scaleMode == 'state' else -1
+#				-- Configure axes
+#				--
+#					-- Right
+        if right_qds_name is not None and self.ax2 is not None:
+          self.ax2.set_ylabel( right_qds_name, fontsize = label_font_size )
+	  ds_range = self.data.GetRange(
+	      self.dmgr.GetDataSetDisplayName( right_qds_name ),
+	      self.stateIndex if self.state.scaleMode == 'state' else -1
+	      )
+          if DataUtils.IsValidRange( *ds_range ):
+            self.ax2.set_ylim( *ds_range )
+	    self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+
+#					-- Left, primary
+        #self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
+        self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
+        self.ax.set_ylabel(
+	    self.dmgr.GetDataSetDisplayName( left_qds_name ),
+	    fontsize = label_font_size
 	    )
-	if self.data.IsValidRange( *ds_range ):
-          self.ax2.set_ylim( *ds_range )
-	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
-#				-- Left, primary
-      #self.ax.set_xlabel( self.state.timeDataSet, fontsize = label_font_size )
-      self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
-      self.ax.set_ylabel( left_ds_name, fontsize = label_font_size )
-
-      ds_range = list( self.customDataRange) \
-          if self.customDataRange is not None else \
-	  [ NAN, NAN ]
-      if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
-        calc_range = self.data.GetRange(
-	    left_ds_name,
-	    self.stateIndex if self.state.scaleMode == 'state' else -1
-	    )
+        ds_range = list( self.customDataRange ) \
+            if self.customDataRange is not None else \
+	    [ NAN, NAN ]
+        if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
+          calc_range = self.data.GetRange(
+	      left_qds_name,
+	      self.timeValue if self.state.scaleMode == 'state' else -1.0
+	      )
 #					-- Scale over all plotted datasets?
-        if self.scaleMode == 'all':
-          for k in self.dataSetValues:
-	    cur_name = self._GetDataSetName( k )
-	    if cur_name != right_ds_name and cur_name != left_ds_name:
-	      cur_range = self.data.GetRange(
-	          cur_name,
-	          self.stateIndex if self.state.scaleMode == 'state' else -1
-	          )
-	      calc_range = (
-	          min( calc_range[ 0 ], cur_range[ 0 ] ),
-		  max( calc_range[ 1 ], cur_range[ 1 ] )
-	          )
-          #end for k
+          if self.scaleMode == 'all':
+            for k in self.dataSetValues:
+	      cur_qname = self._GetDataSetName( k )
+	      if cur_qname != right_qds_name and cur_qname != left_qds_name:
+	        cur_range = self.data.GetRange(
+	            cur_qname,
+	            self.timeValue if self.state.scaleMode == 'state' else -1.0
+	            )
+	        calc_range = (
+	            min( calc_range[ 0 ], cur_range[ 0 ] ),
+		    max( calc_range[ 1 ], cur_range[ 1 ] )
+	            )
+            #end for k
 
-        for i in xrange( len( ds_range ) ):
-	  if math.isnan( ds_range[ i ] ):
-	    ds_range[ i ] = calc_range[ i ]
-      #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
+          for i in xrange( len( ds_range ) ):
+	    if math.isnan( ds_range[ i ] ):
+	      ds_range[ i ] = calc_range[ i ]
+        #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
 
-      if self.data.IsValidRange( *ds_range ):
-        self.ax.set_ylim( *ds_range )
-        self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+        if DataUtils.IsValidRange( *ds_range ):
+          self.ax.set_ylim( *ds_range )
+          self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
-#			-- Set title
-#			--
-      show_assy_addr = \
-          self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
+#				-- Set title
+#				--
+        show_assy_addr = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 
-      title_str = 'Assy %d %s, Axial %.3f' % \
-          ( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
+        title_str = 'Assy %d %s, Axial %.3f' % \
+            ( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
 
-      title_line2 = ''
-      chan_flag = 'channel' in self.dataSetTypes
-      pin_flag = 'pin' in self.dataSetTypes
-      if chan_flag or pin_flag:
-	rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
-	prefix = \
-	    'Chan/Pin'  if chan_flag and pin_flag else \
-	    'Chan'  if chan_flag else \
-	    'Pin'
-        title_line2 += '%s %s' % ( prefix, str( rc ) )
+        title_line2 = ''
+        chan_flag = 'channel' in self.dataSetTypes
+        pin_flag = 'pin' in self.dataSetTypes
+        if chan_flag or pin_flag:
+	  rc = ( self.subAddr[ 0 ] + 1, self.subAddr[ 1 ] + 1 )
+	  prefix = \
+	      'Chan/Pin'  if chan_flag and pin_flag else \
+	      'Chan'  if chan_flag else \
+	      'Pin'
+          title_line2 += '%s %s' % ( prefix, str( rc ) )
 
-      if 'detector' in self.dataSetTypes or \
-          'fixed_detector' in self.dataSetTypes:
-        if len( title_line2 ) > 0: title_line2 += ', '
-	title_line2 += 'Det %d %s' % \
-	    ( self.assemblyAddr[ 0 ] + 1,
-	      self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ) )
+        if 'detector' in self.dataSetTypes or \
+            'fixed_detector' in self.dataSetTypes:
+          if len( title_line2 ) > 0: title_line2 += ', '
+	  title_line2 += 'Det %d %s' % \
+	      ( self.assemblyAddr[ 0 ] + 1,
+	        self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ) )
 
-#      if 'pin' in self.dataSetTypes or 'other' in self.dataSetTypes:
-#        pin_rc = ( self.pinsubAddr[ 0 ] + 1, self.pinsubAddr[ 1 ] + 1 )
-#        if len( title_line2 ) > 0: title_line2 += ', '
-#	title_line2 += 'Pin %s' % str( pin_rc )
+        if len( title_line2 ) > 0:
+          title_str += '\n' + title_line2
 
-      if len( title_line2 ) > 0:
-        title_str += '\n' + title_line2
+#				-- Plot each selected dataset
+#				--
+        count = 0
+	time_indices_by_model = {}
+        for k in self.dataSetValues:
+	  data_pair = self.dataSetValues[ k ]
+	  qds_name = self._GetDataSetName( k )
+	  model_time_indices = None
+#					-- Match refAxisTimes to model times
+#					--
+	  if self.refAxisTimes is not None:
+	    model_time_indices = time_indices_by_model.get( qds_name.modelName )
+	    if model_time_indices is None:
+	      model_time_indices = []
+	      model_time_values = self.dmgr.GetTimeValues( qds_name.modelName )
+	      for t in self.refAxisTimes:
+	        model_time_indices.append(
+		    DataUtils.FindListIndex( model_time_values, t )
+		    )
+	      time_indices_by_model[ qds_name.modelName ] = model_time_indices
+	    #end if qds_name.modelName
+	  #end if self.refAxisTimes
 
-#			-- Plot each selected dataset
-#			--
-      count = 0
-      for k in self.dataSetValues:
-	ds_name = self.data.GetDataSetDisplayName( self._GetDataSetName( k ) )
-	rec = self.dataSetSelections[ k ]
-	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
-	legend_label = ds_name
-	if scale != 1.0:
-	  legend_label += '*%.3g' % scale
+	  rec = self.dataSetSelections[ k ]
+	  scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
+	  legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
+	  if scale != 1.0:
+	    legend_label += '*%.3g' % scale
 
-	marker_size = None
-#	plot_type = '-'
-	plot_type = '--' if self.data.IsDerivedDataSet( ds_name ) else '-'
-	ds_type = self.data.GetDataSetType( ds_name )
-	if ds_type.startswith( 'detector' ):
-	  marker_size = 12
-#	  plot_type = '.'
-#	elif ds_type.startswith( 'channel' ):
-#	  plot_type = '--'
-#	elif ds_type.startswith( 'pin' ):
-#	  plot_type = '-'
-#	elif ds_type.startswith( 'fixed_detector' ):
-	  marker_size = 12
-	  plot_type = 'x'
-	  #plot_type = '-.'
-#	else:
-#	  plot_type = ':'
+	  marker_size = None
+	  plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
+	  ds_type = self.dmgr.GetDataSetType( qds_name )
+	  if ds_type.startswith( 'detector' ):
+	    marker_size = 12
+#	    plot_type = '.'
+#	  elif ds_type.startswith( 'channel' ):
+#	    plot_type = '--'
+#	  elif ds_type.startswith( 'pin' ):
+#	    plot_type = '-'
+	  elif ds_type.startswith( 'fixed_detector' ):
+	    marker_size = 12
+	    plot_type = 'x'
+	    #plot_type = '-.'
+#	  else:
+#	    plot_type = ':'
 
-	data_set_item = self.dataSetValues[ k ]
-	if not isinstance( data_set_item, dict ):
-	  data_set_item = { '': data_set_item }
+	  #data_set_item = self.dataSetValues[ k ]
+	  data_set_item = data_pair[ 'data' ]
+	  if not isinstance( data_set_item, dict ):
+	    data_set_item = { '': data_set_item }
 
-	for rc, values in sorted( data_set_item.iteritems() ):
-	  if values.size == self.refAxisValues.size:
-	    cur_values = values
-	  else:
-	    cur_values = \
-	        np.ndarray( self.refAxisValues.shape, dtype = np.float64 )
-	    cur_values.fill( 0.0 )
-	    cur_values[ 0 : values.shape[ 0 ] ] = values
+	  for rc, values in sorted( data_set_item.iteritems() ):
+	    if self.refAxisTimes is not None and model_time_indices is not None:
+	      cur_values = values[ model_time_indices ]
+	    else:
+	      if values.size == self.refAxisValues.size:
+	        cur_values = values
+	      else:
+	        cur_values = \
+	            np.ndarray( self.refAxisValues.shape, dtype = np.float64 )
+	        cur_values.fill( 0.0 )
+	        cur_values[ 0 : values.shape[ 0 ] ] = values
+	    #end if-else self.refAxisTimes
 
-	  cur_label = \
-	      legend_label + '@' + DataModel.ToAddrString( *rc ) \
-	      if rc else legend_label
+	    cur_label = \
+	        legend_label + '@' + DataUtils.ToAddrString( *rc ) \
+	        if rc else legend_label
 
-	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
-	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
-	  if marker_size is not None:
-	    cur_axis.plot(
-		  self.refAxisValues, cur_values * scale, plot_mode,
-	          label = cur_label, linewidth = 2,
-		  markersize = marker_size
-	          )
-	  else:
-	    cur_axis.plot(
-		  self.refAxisValues, cur_values * scale, plot_mode,
-	          label = cur_label, linewidth = 2
-	          )
+	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+	    cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
+	    if marker_size is not None:
+	      cur_axis.plot(
+		    self.refAxisValues, cur_values * scale, plot_mode,
+	            label = cur_label, linewidth = 2,
+		    markersize = marker_size
+	            )
+	    else:
+	      cur_axis.plot(
+		    self.refAxisValues, cur_values * scale, plot_mode,
+	            label = cur_label, linewidth = 2
+	            )
 
-	  count += 1
-	#end for rc, values
-      #end for k
+	    count += 1
+	  #end for rc, values
+        #end for k
 
 #			-- Create legend
 #			--
@@ -523,7 +548,8 @@ configuring the grid, plotting, and creating self.axline.
           self.ax.axvline( color = 'r', linestyle = '-', linewidth = 1 )
       if self.stateIndex >= 0 and self.stateIndex < len( self.refAxisValues ):
         self.axline.set_xdata( self.refAxisValues[ self.stateIndex ] )
-    #end if we have something to plot
+      #end if we have something to plot
+    #end if valid core
   #end _DoUpdatePlot
 
 
@@ -635,6 +661,18 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		TimePlots.GetDataSetPropertyNames()		-
+  #----------------------------------------------------------------------
+  def GetDataSetPropertyNames( self ):
+    """Overrides to append 'refAxisDataSet' to the list
+@return			[ 'curDataSet', 'refAxisDataSet' ]
+"""
+    result = super( TimePlots, self ).GetDataSetPropertyNames()
+    return  result + [ 'refAxisDataSet' ]
+  #end GetDataSetPropertyNames
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetEventLockSet()				-
   #----------------------------------------------------------------------
   def GetEventLockSet( self ):
@@ -704,7 +742,7 @@ XXX size according to how many datasets selected?
   #	METHOD:		_LoadDataModelValues()				-
   #----------------------------------------------------------------------
   def _LoadDataModelValues( self ):
-    """Assume self.data is valid.
+    """Assume self.dmgr is valid.
 @return			dict to be passed to UpdateState()
 """
     update_args = {}
@@ -755,7 +793,7 @@ be overridden by subclasses.
 """
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'nodeAddr', 'refAxisDataSet',
+	'dataSetSelections', 'nodeAddr',
 	'scaleMode', 'subAddr'
 	):
       if k in props_dict:
@@ -814,10 +852,11 @@ be overridden by subclasses.
 """
     super( TimePlots, self )._OnMplMouseRelease( ev )
 
-    if self.refAxisDataSet == '':
+    #if self.refAxisDataSet == '':
+    if self.refAxisDataSet is None:
       button = ev.button or 1
       if button == 1 and self.cursor is not None:
-        ndx = self.data.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
+        ndx = DataUtils.FindListIndex( self.refAxisValues, self.cursor[ 0 ] )
         if ndx >= 0:
           self.UpdateState( state_index = ndx )
           self.FireStateChange( state_index = ndx )
@@ -833,39 +872,18 @@ be overridden by subclasses.
 """
     ev.Skip()
 
+    #xxxxx pullright by model?
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
     if item is not None:
       label = item.GetItemLabelText()
-      new_value = '' if label == 'Time Dataset' else label
+      new_value = None if label == LABEL_timeDataSet else DataSetName( label )
       if new_value != self.refAxisDataSet:
 	Widget.CheckSingleMenuItem( self.refAxisMenu, item )
         self.refAxisDataSet = new_value
 	self.UpdateState( replot = True )
     #end if
   #end _OnSelectRefAxisDataSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		TimePlots._OnSelectXAxisDataSet()		-
-  #----------------------------------------------------------------------
-  def _OnSelectXAxisDataSet( self, ev ):
-    """Must be called from the UI thread.
-@deprecated
-"""
-    ev.Skip()
-
-    menu = ev.GetEventObject()
-    item = menu.FindItemById( ev.GetId() )
-    if item is not None:
-      label = item.GetItemLabelText()
-
-      new_value = '' if label == 'Time Dataset' else label
-      if new_value != self.refAxisDataSet:
-        self.refAxisDataSet = new_value
-	self.UpdateState( replot = True )
-    #end if
-  #end _OnSelectXAxisDataSet
 
 
   #----------------------------------------------------------------------
@@ -880,65 +898,6 @@ be overridden by subclasses.
       self.UpdateState( replot = True )
     #end if mode changed
   #end _OnSetScaleMode
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		TimePlots._OnShowXAxisDataSetMenu()		-
-  #----------------------------------------------------------------------
-  def _OnShowXAxisDataSetMenu( self, ev ):
-    """Must be called from the UI thread.
-@deprecated  now a pullright
-"""
-    ev.Skip()
-
-    if self.data is None:
-      wx.MessageBox(
-	  'No data are loaded', 'Select X-Axis Dataset',
-	  wx.ICON_WARNING | wx.OK_DEFAULT, None
-          )
-
-    else:
-      menu_types = []
-#      ds_types = self.GetDataSetTypes()
-#      if 'channel' in ds_types:
-#        menu_types.append( 'channel' )
-#      if 'pin' in ds_types:
-#        menu_types.append( 'pin' )
-      menu_types = self.GetDataSetTypes()
-
-#			-- Create pullrights
-#			--
-      menu = wx.Menu()
-      for ty in menu_types:
-	ds_names = self.data.GetDataSetNames( ty )
-	if ds_names:
-	  type_menu = wx.Menu()
-	  for ds_name in ds_names:
-	    item = wx.MenuItem(
-	        type_menu, wx.ID_ANY, ds_name,
-		kind = wx.ITEM_CHECK
-		)
-	    self.container.Bind( wx.EVT_MENU, self._OnSelectXAxisDataSet, item )
-	    type_menu.AppendItem( item )
-	    if ds_name == self.refAxisDataSet:
-	      item.Check()
-	  #end for ds_name
-
-          type_item = wx.MenuItem( menu, wx.ID_ANY, ty, subMenu = type_menu )
-	  menu.AppendItem( type_item )
-	#end if ds_names
-      #end for ty
-
-      item = \
-          wx.MenuItem( menu, wx.ID_ANY, 'Time Dataset', kind = wx.ITEM_CHECK )
-      self.container.Bind( wx.EVT_MENU, self._OnSelectXAxisDataSet, item )
-      menu.AppendItem( item )
-      if not self.refAxisDataSet:
-        item.Check()
-
-      self.container.widgetMenuButton.PopupMenu( menu )
-    #end if-else self.data
-  #end _OnShowXAxisDataSetMenu
 
 
   #----------------------------------------------------------------------
@@ -1006,36 +965,29 @@ method via super.SaveProps().
 
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'nodeAddr',
+	'dataSetSelections', 'nodeAddr',
 	'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
-
-    if self.data is not None:
-      for k in ( 'refAxisDataSet', ):
-	cur_name = getattr( self, k )
-	rev_name = self.data.RevertIfDerivedDataSet( cur_name )
-	if cur_name == rev_name:
-          props_dict[ k ] = cur_name
   #end SaveProps
 
 
   #----------------------------------------------------------------------
   #	METHOD:		TimePlots.ToggleDataSetVisible()		-
   #----------------------------------------------------------------------
-  def ToggleDataSetVisible( self, ds_name ):
+  def ToggleDataSetVisible( self, qds_name ):
     """Toggles the visibility of the named dataset.
 Must be called from the event thread.
-@param  ds_name		dataset name, possibly with 'Selected ' prefix
+@param  qds_name	dataset name, DataSetName instance
 """
-    if ds_name in self.dataSetSelections:
-      rec = self.dataSetSelections[ ds_name ]
+    if qds_name in self.dataSetSelections:
+      rec = self.dataSetSelections[ qds_name ]
       if rec[ 'visible' ]:
         rec[ 'axis' ] = ''
       rec[ 'visible' ] = not rec[ 'visible' ]
 
     else:
-      self.dataSetSelections[ ds_name ] = \
+      self.dataSetSelections[ qds_name ] = \
         { 'axis': '', 'scale': 1.0, 'visible': True }
 
     self._ResolveDataSetAxes()
@@ -1060,35 +1012,41 @@ already read.
 
 #		-- Must have data
 #		--
-    if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
+    #if DataModel.IsValidObj( self.data, axial_level = self.axialValue[ 1 ] ):
+    if self.dmgr.HasData():
       node_addr_list = None
       sub_addr_list = None
+      ref_axis_qds_name = None
 
 #			-- Construct read specs
 #			--
       specs = []
       spec_names = set()
-      if self.refAxisDataSet:
+      if self.refAxisDataSet is not None:
+	ref_axis_qds_name = DataSetName(
+	    self.refAxisDataSet.modelName
+	    '*' + self.refAxisDataSet.displayName
+	    )
         specs.append({
 	    'assembly_index': self.assemblyAddr[ 0 ],
 	    'axial_cm': self.axialValue[ 0 ],
-	    'ds_name': '*' + self.refAxisDataSet,
+	    'qds_name': ref_axis_qds_name,
 	    'sub_addrs': [ self.subAddr ]
 	    })
       else:
-        specs.append( { 'ds_name': self.state.timeDataSet} )
+        specs.append( { 'qds_name': self.state.timeDataSet} )
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
+	qds_name = self._GetDataSetName( k )
 
 #				-- Must be visible
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name not in spec_names:
-	  ds_type = self.data.GetDataSetType( ds_name )
+        if ds_rec[ 'visible' ] and qds_name is not None and \
+	    qds_name not in spec_names:
+	  ds_type = self.dmgr.GetDataSetType( qds_name )
 	  if ds_type:
-	    spec = { 'ds_name': ds_name }
-	    spec_names.add( ds_name )
+	    spec = { 'qds_name': qds_name }
+	    spec_names.add( qds_name )
 
 #						-- Detector, fixed detector
 	    if ds_type == 'detector' or ds_type == 'fixed_detector':
@@ -1125,26 +1083,29 @@ already read.
 
 #			-- Read and extract
 #			--
-      results = self.data.ReadDataSetValues2( *specs )
+      results = self.dmgr.ReadDataSetTimeValues( *specs )
 
-      #self.refAxisValues = results[ self.state.timeDataSet ]
-      if self.refAxisDataSet:
-	#values_dict = results[ '*' + self.refAxisDataSet ]
-	#self.refAxisValues = values_dict.itervalues().next()
-	values_item = results[ '*' + self.refAxisDataSet ]
+      #if self.refAxisDataSet is not None:
+      if ref_axis_qds_name is not None:
+	#values_item = results[ '*' + self.refAxisDataSet ]
+	ref_axis_pair = results[ ref_axis_qds_name ]
+	values_item = ref_axis_pair[ 'data' ]
+	self.refAxisTimes = ref_axis_pair[ 'times' ]
 	if isinstance( values_item, dict ):
 	  self.refAxisValues = values_item.itervalues().next()
 	else:
 	  self.refAxisValues = values_item
       else:
-        self.refAxisValues = results[ self.state.timeDataSet ]
+	ref_axis_pair = results[ self.state.timeDataSet ]
+        self.refAxisValues = ref_axis_pair[ 'data' ]
+	self.refAxisTimes = None
 
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
-	ds_name = self._GetDataSetName( k )
-        if ds_rec[ 'visible' ] and ds_name is not None and \
-	    ds_name in results:
-	  self.dataSetValues[ k ] = results[ ds_name ]
+	qds_name = self._GetDataSetName( k )
+        if ds_rec[ 'visible' ] and qds_name is not None and \
+	    qds_name in results:
+	  self.dataSetValues[ k ] = results[ qds_name ]
       #end for k
     #end if valid state
   #end _UpdateDataSetValues
@@ -1156,7 +1117,8 @@ already read.
   def _UpdateRefAxisMenu( self, *args, **kwargs ):
     """Must be called from the UI thread.
 """
-    if self.data is not None:
+    #if self.data is not None:
+    if self.dmgr.HasData():
       Widget.ClearMenu( self.refAxisMenu )
 
       menu_types = []
@@ -1164,53 +1126,50 @@ already read.
 
 #			-- Map dataset names to base category/type
 #			--
-      names_by_type = {}
+      qds_names_by_type = {}
       for dtype in menu_types:
-        dataset_names = self.data.GetDataSetNames( dtype )
-	if dataset_names:
-	  dtype = self.data.GetDataSetTypeDisplayName( dtype )
-	  #ndx = dtype.find( ':' )
-	  #if ndx >= 0:
-	  #  dtype = dtype[ 0 : ndx ]
-
-	  if dtype in names_by_type:
-	    names_by_type[ dtype ] += dataset_names
+        qds_names = self.dmgr.GetDataSetQNames( None, dtype )
+	if qds_names:
+	  dtype = DataUtils.GetDataSetTypeDisplayName( dtype )
+	  if dtype in qds_names_by_type:
+	    qds_names_by_type[ dtype ] += qds_names
 	  else:
-	    names_by_type[ dtype ] = list( dataset_names )
-	#end if dataset_names
+	    qds_names_by_type[ dtype ] = list( qds_names )
+	#end if qds_names
       #end for dtype
 
 #			-- Create pullrights
 #			--
-      for dtype, ds_names in sorted( names_by_type.iteritems() ):
-        if ds_names:
+      for dtype, qds_names in sorted( qds_names_by_type.iteritems() ):
+        if qds_names:
 	  type_menu = wx.Menu()
-	  for ds_name in sorted( ds_names ):
+	  #xxxxx pullright by model?
+	  for qds_name in sorted( qds_names ):
 	    item = wx.MenuItem(
-	        type_menu, wx.ID_ANY, ds_name,
+	        type_menu, wx.ID_ANY, qds_name.name,
 		kind = wx.ITEM_CHECK
 		)
 	    self.container.Bind( wx.EVT_MENU, self._OnSelectRefAxisDataSet, item )
 	    type_menu.AppendItem( item )
-	    if ds_name == self.refAxisDataSet:
+	    if qds_name == self.refAxisDataSet:
 	      item.Check()
-	  #end for ds_name
+	  #end for qds_name
 
           type_item = wx.MenuItem(
 	      self.refAxisMenu, wx.ID_ANY, dtype,
 	      subMenu = type_menu
 	      )
 	  self.refAxisMenu.AppendItem( type_item )
-        #end if ds_names
+        #end if qds_names
       #end for dtype, ds_names
 
       item = wx.MenuItem(
-          self.refAxisMenu, wx.ID_ANY, 'Time Dataset',
+          self.refAxisMenu, wx.ID_ANY, LABEL_timeDataSet,
 	  kind = wx.ITEM_CHECK
 	  )
       self.container.Bind( wx.EVT_MENU, self._OnSelectRefAxisDataSet, item )
       self.refAxisMenu.AppendItem( item )
-      if not self.refAxisDataSet:
+      if self.refAxisDataSet is None:
         item.Check()
     #end if-else self.data
   #end _UpdateRefAxisMenu
@@ -1239,17 +1198,19 @@ Must be called from the UI thread.
         kwargs[ 'aux_node_addrs' ] != self.auxNodeAddrs:
       replot = True
       self.auxNodeAddrs = \
-          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+          DataUtils.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
 
     if 'aux_sub_addrs' in kwargs and \
         kwargs[ 'aux_sub_addrs' ] != self.auxSubAddrs:
       replot = True
       self.auxSubAddrs = \
-          self.data.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'channel' )
+          self.dmgr.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'channel' )
 
-    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
+    if 'axial_value' in kwargs and \
+        kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ]:
       replot = True
-      self.axialValue = kwargs[ 'axial_value' ]
+      self.axialValue = \
+          self.dmgr.GetAxialValue( cm = kwargs[ 'axial_value' ][ 0 ] )
     #end if
 
     if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
@@ -1263,7 +1224,7 @@ Must be called from the UI thread.
 
     if 'node_addr' in kwargs and kwargs[ 'node_addr' ] != self.nodeAddr:
       replot = True
-      self.nodeAddr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
+      self.nodeAddr = DataUtils.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
       replot = True

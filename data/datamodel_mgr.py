@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-13	leerw@ornl.gov				-
+#	  Added GetDataSetDisplayName().
 #		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Adding support methods or widgets.
@@ -547,8 +549,8 @@ model name or a DataSetName instance.
 @param  qds_name	DataSetName instance
 @param  ds_type		optional type name
 @return			empty list if model name found, else
-			if ds_type is not None, list of datasets in that
-			ds_type, empty if not found, else
+			if ds_type is not None, list of dataset names
+			for ds_type or empty if not found, else
 			if ds_type is None, copy of dict of dataset name lists
 			by ds_type
 			( 'axial', 'channel', 'detector', 'fixed_detector',
@@ -568,6 +570,23 @@ model name or a DataSetName instance.
 """
     return  self.dataModels
   #end GetDataModels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataSetDisplayName()		-
+  #----------------------------------------------------------------------
+  def GetDataSetDisplayName( self, qds_name ):
+    """If we have only a single model, we cull the model name for display
+purpose.  Otherwise, we need the fully-qualified name.
+@param  qds_name	DataSetName instance
+@return			qds_name.displayName if we have a single mode,
+			qds_name.name otherwise
+"""
+    return \
+        qds_name.name \
+	if len( self.dataModels ) > 1 else \
+	qds_name.displayName
+  #end GetDataSetDisplayName
 
 
   #----------------------------------------------------------------------
@@ -1269,16 +1288,12 @@ at a time for better performance.
 	  node_addrs		list of node addrs
 	  sub_addrs		list of sub_addr pairs
 @return			dict keyed by found qds_name of:
-			  dict with keys 'data' and 'times', where 'data value
+			  dict with keys 'data' and 'times', where 'data' value
 			  is
 			    dict keyed by sub_addr of np.ndarray for pin-based
 			    datasets,
 			    np.ndarray for datasets that are not pin-based
-
-@return			dict keyed by found ds_name of:
-			  dict keyed by sub_addr of np.ndarray for pin-based
-			  datasets,
-			  np.ndarray for datasets that are not pin-based
+			  'times' value is np.ndarray
 """
     results = {}
 
@@ -1301,7 +1316,7 @@ at a time for better performance.
     #end for spec
 
     for model_name, spec_list in specs_by_model.iteritems():
-      time_values = self.timeValuesById.get( model_name )
+      time_values = np.array( self.timeValuesById.get( model_name ) )
       dm = self.dataModels.get( model_name )
       if dm and time_values:
         model_results = dm.ReadDataSetTimeValues( *spec_list )

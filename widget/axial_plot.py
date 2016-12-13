@@ -680,7 +680,7 @@ configuring the grid, plotting, and creating self.axline.
 	qds_name = self._GetDataSetName( k )
 	rec = self.dataSetSelections[ k ]
 	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
-	legend_label = qds_name.name
+	legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
@@ -705,18 +705,17 @@ configuring the grid, plotting, and creating self.axline.
 #	  plot_type = ':'
 
 	if axial_values is not None:
-	  axial_values_arr = np.array( axial_values )
+	  #axial_values_arr = np.array( axial_values )
 	  #data_set_item = self.dataSetValues[ k ]
 	  data_set_item = data_pair[ 'data' ]
 	  if not isinstance( data_set_item, dict ):
 	    data_set_item = { '': data_set_item }
 
 	  for rc, values in sorted( data_set_item.iteritems() ):
-	    if values.size == axial_values_arr.size:
+	    if values.size == axial_values.size:
 	      cur_values = values
 	    else:
-	      cur_values = \
-	          np.ndarray( axial_values_arr.shape, dtype = np.float64 )
+	      cur_values = np.ndarray( axial_values.shape, dtype = np.float64 )
 	      cur_values.fill( 0.0 )
 	      cur_values[ 0 : values.shape[ 0 ] ] = values
 
@@ -729,13 +728,13 @@ configuring the grid, plotting, and creating self.axline.
 	    if cur_axis:
 	      if marker_size is not None:
 	        cur_axis.plot(
-	            cur_values * scale, axial_values_arr, plot_mode,
+	            cur_values * scale, axial_values, plot_mode,
 	            label = cur_label, linewidth = 2,
 		    markersize = marker_size
 	            )
 	      else:
 	        cur_axis.plot(
-	            cur_values * scale, axial_values_arr, plot_mode,
+	            cur_values * scale, axial_values, plot_mode,
 	            label = cur_label, linewidth = 2
 	            )
 
@@ -1011,14 +1010,11 @@ be overridden by subclasses.
 """
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'curDataSet', 'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr',
+	'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr',
 	'timeValue'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
-
-    for k in ( 'curDataSet', ):
-      props_dict[ k ] = DataSetName( getattr( self, k ) )
 
     super( AxialPlot, self ).LoadProps( props_dict )
 
@@ -1163,11 +1159,6 @@ method via super.SaveProps().
 	'timeValue'
 	):
       props_dict[ k ] = getattr( self, k )
-
-    if self.dmgr is not None:
-      for k in ( 'curDataSet', ):
-        qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
-        props_dict[ k ] = qds_name.name
   #end SaveProps
 
 

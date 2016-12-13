@@ -1575,8 +1575,8 @@ for each prefix defined for derived_label.
 			e.g. ( 'pin:axial', 'axial_pin_powers', 'axial_powers' )
 """
     result = None
-    #ds_type = ds_category + ':' + derived_label
-    ds_type = ':' + derived_label
+    #ds_type = ':' + derived_label
+    ds_type = DataUtils.CreateDerivedTypeName( derived_label )
     ddef = self.dataSetDefs.get( ds_type )
     if ddef:
       result_list = [ ds_type ]
@@ -2751,14 +2751,7 @@ must match how _CreateDerivedNames() builds the derived type name.
 @param  ds_type		category/type
 @return			type name sans any derived marking
 """
-#    if ds_type and ds_type.find( ':' ) == 0:
-#      ds_type = ds_type[ 1 : ]
-#		-- Safer version
-    if ds_type:
-      ndx = ds_type.find( ':' )
-      if ndx >= 0:
-        ds_type = ds_type[ ndx + 1 : ]
-    return  ds_type
+    return  DataUtils.GetDataSetTypeDisplayName( ds_type )
   #end GetDataSetTypeDisplayName
 
 
@@ -3847,12 +3840,11 @@ being one greater in each dimension.
 @param  node_addrs	list of node indexes
 @param  sub_addrs	list of sub_addr pairs
 @param  state_index	0-based state point index
-			None if dataset cannot be found, otherwise
+@return			None if ds_name cannot be found, otherwise
 			( mesh_values, data_results ), where data_results is a
-			dict with keys 'mesh' and 'data', where the latter is a
 			dict by sub_addr of np.ndarray for datasets that vary
-			by sub_addr,
-			np.ndarray for other datasets
+			by sub_addr, np.ndarray for other datasets,
+			mesh_values is a np.ndarray
 """
     #result = None
     mesh_values = result = None
@@ -3878,6 +3870,8 @@ being one greater in each dimension.
           self.core.GetFixedDetectorMeshCenters()  \
 	    if ds_type == 'fixed_detector' else \
           self.core.GetAxialMeshCenters()
+      if not isinstance( mesh_values, np.ndarray ):
+        mesh_values = np.array( mesh_values )
 
 #			-- 'detector', 'fixed_detector'
 #			--

@@ -804,6 +804,19 @@ ToggleDataSetVisible().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetDataSetPropertyNames()		-
+  #----------------------------------------------------------------------
+  def GetDataSetPropertyNames( self ):
+    """Default list of dataset property names, to be overridden by subclasses
+to append to what's returned here.
+@return			list of property names, [ 'curDataSet' ] defined
+			here
+"""
+    return  [ 'curDataSet' ]
+  #end GetDataSetPropertyNames
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
@@ -1069,7 +1082,7 @@ method via super.SaveProps() at the end.
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
-    for k in ( 'curDataSet', ):
+    for k in self.PlotDataSetPropsDialog():
       if k in props_dict and hasattr( self, k ):
         setattr( self, k, DataSetName( props_dict[ k ] )
 
@@ -1343,7 +1356,7 @@ method via super.SaveProps().
       props_dict[ k ] = getattr( self, k )
 
     if self.dmgr is not None:
-      for k in ( 'curDataSet', ):
+      for k in self.PlotDataSetPropsDialog():
 	if hasattr( self, k ):
           qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
           props_dict[ k ] = qds_name.name

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2016-12-13	leerw@ornl.gov				-
+#	  Added GetDataSetTypeDisplayName().
 #		2016-12-12	leerw@ornl.gov				-
 #	  Moved IsValidRange(), ToAddrString() here from DataModel.
 #	  Added NormalizeNodeAddr{s}().
@@ -164,6 +166,40 @@ descending.  Note bisect only does ascending.
       result = '-' + result
     return  result
   #end FormatFloat3
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.CreateDerivedTypeName()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CreateDerivedTypeName( derived_label ):
+    """Compliment to GetDataSetTypeDisplayName() to create a derived type.
+@param  derived_label	derived type label/name
+@return			type name
+"""
+    return  ':' + derived_label
+  #end CreateDerivedTypeName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.GetDataSetTypeDisplayName()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetDataSetTypeDisplayName( ds_type ):
+    """Strips any derived prefix.  Best to encapsulate this here.  Note this
+must match how _CreateDerivedNames() builds the derived type name.
+@param  ds_type		category/type
+@return			type name sans any derived marking
+"""
+#    if ds_type and ds_type.find( ':' ) == 0:
+#      ds_type = ds_type[ 1 : ]
+#		-- Safer version
+    if ds_type:
+      ndx = ds_type.find( ':' )
+      if ndx >= 0:
+        ds_type = ds_type[ ndx + 1 : ]
+    return  ds_type
+  #end GetDataSetTypeDisplayName
 
 
   #----------------------------------------------------------------------
