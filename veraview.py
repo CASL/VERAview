@@ -2386,7 +2386,7 @@ Must be called from the UI thread.
       if True:
         widget_list = [
             'widget.core_view.Core2DView',
-            #'widget.assembly_view.Assembly2DView',
+            'widget.assembly_view.Assembly2DView',
             #'widget.core_axial_view.CoreAxial2DView',
             #'widget.detector_multi_view.Detector2DMultiView',
             'widget.axial_plot.AxialPlot',

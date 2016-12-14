@@ -152,7 +152,7 @@ FindCell()
   within the raster image.
 
 GetInitialCellRange()
-  Implementation here returns self.data.ExtractSymmetryExtent(), but extensions
+  Implementation here returns self.dmgr.ExtractSymmetryExtent(), but extensions
   may override as appropriate to define the range of assembly columns/rows, or
   channel/pin columns/rows to display initially.
 

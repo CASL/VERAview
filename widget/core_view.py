@@ -317,8 +317,8 @@ If neither are specified, a default 'scale' value of 24 is used.
     tuple_valid = self.dmgr.IsValid(
 	self.curDataSet,
         assembly_addr = assy_ndx,
-	axial_level = axial_level,
-	state_index = state_ndx
+	axial_level = axial_level
+	#state_index = state_ndx
 	)
 
     if config is None:
@@ -346,19 +346,13 @@ If neither are specified, a default 'scale' value of 24 is used.
       pin_factors = None
       if self.state.weightsMode == 'on':
         pin_factors = self.dmgr.GetFactors( self.curDataSet )
-#	if self.nodalMode:
-#          pin_factors = self.data.GetNodeFactors()
-#          pin_factors_shape = pin_factors.shape
-#	else:
-#          pin_factors = self.data.GetPinFactors()
-#          pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
 	cur_nxpin = cur_nypin = 0
       else:
-        dset_array = dset.value
+        dset_array = np.array( dset )
         dset_shape = dset.shape
         cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
         cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
@@ -399,14 +393,12 @@ If neither are specified, a default 'scale' value of 24 is used.
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
 	      )
-
-#				-- Loop on col
-#				--
-	pin_x = assy_region[ 0 ]
-#	for pin_col in range( core.npin ):
-	for pin_col in xrange( cur_nxpin ):
-#					-- Column label
+#					-- Loop on col
 #					--
+	pin_x = assy_region[ 0 ]
+	for pin_col in xrange( cur_nxpin ):
+#						-- Column label
+#						--
 	  if pin_row == 0 and self.showLabels:
 	    label = '%d' % (pin_col + 1)
 	    label_size = label_font.getsize( label )
@@ -416,7 +408,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 		fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
 	  #end if writing column label
-
+#						-- Resolve value,
+#						-- apply pin factors
 	  if self.nodalMode:
 	    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
 	    if pin_factors is None:
@@ -430,7 +423,9 @@ If neither are specified, a default 'scale' value of 24 is used.
 	      pin_factor = 1
 	    else:
 	      pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
-
+	  #end if self.nodalMode
+#						-- Check value and pin_factor
+#						--
 	  if not ( self.dmgr.IsBadValue( value ) or pin_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -448,23 +443,12 @@ If neither are specified, a default 'scale' value of 24 is used.
                   Widget.GetContrastColor( *brush_color ),
                   pin_x, pin_y, pin_wd, pin_wd
                   ))
-#	      value_str, value_size, tfont = self._CreateValueDisplay(
-#	          value, 3, value_font, pin_wd, value_font_size >> 1
-#	          )
-#	      if value_str:
-#	        value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
-#		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1)
-#                im_draw.text(
-#		    ( value_x, value_y ), value_str,
-#		    fill = Widget.GetContrastColor( *brush_color ),
-#		    font = tfont
-#                    )
 	    else:
 	      im_draw.ellipse(
 	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 	          fill = brush_color, outline = pen_color
 	          )
-	  #end if value > 0
+	  #end if good value, not hidden by pin_factor
 
 	  pin_x += pin_wd + pin_gap
 	#end for pin_col
@@ -479,7 +463,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Draw Legend Image
 #			--
-#      im.paste( legend_pil_im, ( assy_wd + font_size, 1 ) )
       if legend_pil_im is not None:
         im.paste(
 	    legend_pil_im,
@@ -547,18 +530,20 @@ If neither are specified, a default 'scale' value of 24 is used.
 @return			text or None
 """
     csv_text = None
+
+    core = None
     dset = None
     is_valid = self.dmgr.IsValid(
 	self.curDataSet,
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
 
     if dset is not None and core is not None:
-      dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
@@ -622,19 +607,21 @@ If neither are specified, a default 'scale' value of 24 is used.
 @return			text or None
 """
     csv_text = None
+
+    core = None
     dset = None
     is_valid = self.dmgr.IsValid(
         self.curDataSet,
         assembly_addr = self.assemblyAddr[ 0 ],
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
 
     if dset is not None and core is not None:
-      dset_value = dset.value
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
@@ -782,7 +769,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, axial_level )
 """
-    start_time = timeit.default_timer()
+    #start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
     axial_level = tuple_in[ 1 ]
     if self.logger.isEnabledFor( logging.DEBUG ):
@@ -818,12 +805,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       pin_factors = None
       if self.state.weightsMode == 'on':
         pin_factors = self.dmgr.GetFactors( self.curDataSet )
-#	if self.nodalMode:
-#          pin_factors = self.data.GetNodeFactors()
-#          pin_factors_shape = pin_factors.shape
-#	else:
-#          pin_factors = self.data.GetPinFactors()
-#          pin_factors_shape = pin_factors.shape
 
       if dset is None:
         dset_array = None
@@ -853,6 +834,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			-- Limit axial level
 #			--
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
+      axial_value = self.dmgr.\
+          GetAxialValue( self.curDataSet, core_ndx = axial_level )
 
 #			-- Create image
 #			--
@@ -879,7 +862,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
 	      )
-
 #				-- Loop on col
 #				--
 	assy_x = core_region[ 0 ]
@@ -902,6 +884,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pin_y = assy_y + 1
 
+#						-- Loop on pin rows
 	    #for pin_row in range( self.data.core.npiny ):
 	    pin_row_limit = 2 if self.nodalMode else core.npiny
 	    pin_col_limit = 2 if self.nodalMode else core.npinx
@@ -910,9 +893,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    for pin_row in range( pin_row_limit ):
 	      pin_x = assy_x + 1
 
+#							-- Loop on pin cols
 	      cur_pin_row = min( pin_row, cur_nypin - 1 )
 	      for pin_col in range( pin_col_limit ):
 	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
+#-- Resolve value, apply pin factors
 		value = 0.0
 		pin_factor = 0
 		if cur_pin_row >= 0 and cur_pin_col >= 0:
@@ -937,6 +922,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  #end if-else
 		#end if cur_pin_row and cur_pin_col
 
+#-- Check value and pin_factor
+#--
 	        if not ( self.dmgr.IsBadValue( value ) or pin_factor == 0 ):
 	          pen_color = Widget.GetColorTuple(
 	              value - ds_range[ 0 ], value_delta, 255
@@ -960,7 +947,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 			pin_x, pin_y, pin_wd, pin_wd
 		        ))
 		  #end if nodalMode
-		#end if value gt 0
+	        #end if good value, not hidden by pin_factor
 
 	        pin_x += pin_wd
 	      #end for pin cols
@@ -972,8 +959,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
 		fill = None, outline = assy_pen
 	        )
-
-#           -- Draw value for cross-pin integrations
+#						-- Draw value for
+#						-- cross-pin integrations
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      assy_value_draw_list.append((
@@ -1018,7 +1005,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       title_str = self._CreateTitleString(
 	  title_templ,
-	  axial = core.axialMeshCenters[ axial_level ],
+	  axial = axial_value[ 0 ],
 	  time = self.timeValue
 	  #time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
           )
@@ -1036,9 +1023,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       del im_draw
     #end if config exists
-    elapsed_time = timeit.default_timer() - start_time
-    if self.logger.isEnabledFor( logging.DEBUG ):
-      self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
+
+    #elapsed_time = timeit.default_timer() - start_time
+    #if self.logger.isEnabledFor( logging.DEBUG ):
+      #self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
     return  im if im is not None else self.emptyPilImage
   #end _CreateCoreImage
@@ -1546,10 +1534,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in (
-        'assemblyAddr', 'auxNodeAddrs', 'nodeAddr',
-	'pinDataSet', 'subAddr', 'mode'
-	):
+    for k in ( 'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'mode' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1603,38 +1588,6 @@ be overridden by subclasses.
         self.FireStateChange( **state_args )
     #end if cell found
   #end _OnClick
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._OnClick_old()			-
-  #----------------------------------------------------------------------
-  def _OnClick_old( self, ev ):
-    """
-"""
-    x = ev.GetX()
-    y = ev.GetY()
-
-    cell_info = self.FindAssembly( x, y )
-    if cell_info is not None and cell_info[ 0 ] >= 0:
-      state_args = {}
-      assy_addr = cell_info[ 0 : 3 ]
-      if assy_addr != self.assemblyAddr:
-	state_args[ 'assembly_addr' ] = assy_addr
-
-      if self.nodalMode:
-        node_addr = cell_info[ 5 ]
-	if node_addr != self.nodeAddr:
-	  state_args[ 'node_addr' ] = node_addr
-
-      if ev.GetClickCount() > 1:
-        pin_addr = cell_info[ 3 : 5 ]
-        if pin_addr != self.subAddr:
-	  state_args[ 'sub_addr' ] = pin_addr
-
-      if len( state_args ) > 0:
-        self.FireStateChange( **state_args )
-    #end if cell found
-  #end _OnClick_old
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2016-12-14	leerw@ornl.gov				-
+#	  Migration to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -138,7 +140,6 @@ Attrs/properties:
     self.auxNodeAddrs = []
     self.auxSubAddrs = []
     self.nodeAddr = -1
-    self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.subAddr = ( -1, -1 )
 
     super( Assembly2DView, self ).__init__( container, id )
@@ -159,9 +160,6 @@ Attrs/properties:
         self._CreateClipboardSelectedDataAllStates() \
 	  if mode == 'selected_all_states' else \
         self._CreateClipboardSelectedData()
-#        self._CreateClipboardSelectionData() \
-#        if cur_selection_flag else \
-#        self._CreateClipboardAllData()
   #end _CreateClipboardData
 
 
@@ -173,18 +171,20 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
-    dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
-        assembly_addr = self.assemblyAddr[ 0 ],
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+
+    core = dset = None
+    is_valid = self.dmgr.IsValid(
+	self.curDataSet,
+        assembly_index = self.assemblyAddr[ 0 ],
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
 
-    if dset is not None:
-      dset_value = dset.value
+    if dset is not None and core is not None:
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
 
@@ -203,16 +203,15 @@ Attrs/properties:
 	    axial_level, self.assemblyAddr[ 0 ]
 	    ]
 
-        #clip_data = dset.value[ :, :, axial_level, self.assemblyAddr[ 0 ] ]
         title = \
             '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' % \
 	    (
-	    self.pinDataSet,
+	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	    self.assemblyAddr[ 0 ] + 1,
-	    self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	    self.axialValue[ 0 ],
 	    self.state.timeDataSet,
-	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	    self.timeValue
             )
         title += \
 	    'Col Range=[%d,%d]; Row Range=[%d,%d]"' % \
@@ -235,18 +234,20 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
-    dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
-        assembly_addr = self.assemblyAddr[ 0 ],
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+
+    core = dset = None
+    is_valid = self.dmgr.IsValid(
+	self.curDataSet,
+        assembly_index = self.assemblyAddr[ 0 ],
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
 
-    if dset is not None:
-      dset_value = dset.value
+    if dset is not None and core is not None:
+      dset_value = np.array( dset )
       dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
@@ -255,12 +256,13 @@ Attrs/properties:
       sub_addrs.insert( 0, self.subAddr )
 
       csv_text = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"\n' % (
-          self.pinDataSet,
+	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	  self.timeValue
+	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
       for rc in sub_addrs:
 	csv_text += '"(%d,%d)",%.7g\n' % (
@@ -281,19 +283,21 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
-    dset = None
+
+    core = dset = None
     is_valid = DataModel.IsValidObj(
 	self.data,
-        assembly_addr = self.assemblyAddr[ 0 ],
+        assembly_addr = self.assemblyAddr[ 0 ]
 	#axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+	#state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
 
-    if dset is not None:
-      core = self.data.GetCore()
-      dset_shape = dset.value.shape
+    if dset is not None and core is not None:
+      dset_value = np.array( dset )
+      dset_shape = dset_value.shape
       #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
@@ -301,11 +305,12 @@ Attrs/properties:
       sub_addrs.insert( 0, self.subAddr )
 
       csv_text = '"%s: Assembly=%d %s; %s=%.3g"\n' % (
-          self.pinDataSet,
+	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	  self.timeValue
+	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
       row_text = 'Axial'
       for rc in sub_addrs:
@@ -316,7 +321,7 @@ Attrs/properties:
 	row_text = '%.3f' % core.axialMeshCenters[ axial_level ]
 	for rc in sub_addrs:
 	  row_text += ',%.7g' % \
-	      dset.value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
+	      dset_value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
 	#end for rc
 
         csv_text += row_text + '\n'
@@ -335,18 +340,21 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
-    dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
-        assembly_addr = self.assemblyAddr[ 0 ],
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+
+    core = None
+    is_valid = self.dmgr.IsValid(
+	self.curDataSet,
+        assembly_index = self.assemblyAddr[ 0 ],
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
 
-    if dset is not None:
-      dset_shape = dset.value.shape
+    if core is not None:
+      #dset_value = np.array( dset )
+      #dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
@@ -354,9 +362,9 @@ Attrs/properties:
       sub_addrs.insert( 0, self.subAddr )
 
       csv_text = '"%s: Assembly=%d %s; Axial=%.3f"\n' % (
-          self.pinDataSet,
+	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ]
           )
       row_text = self.state.timeDataSet
@@ -364,69 +372,24 @@ Attrs/properties:
         row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
       csv_text += row_text + '\n'
 
-      for state_ndx in range( 0, self.data.GetStatesCount() ):
-        dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      time_values = self.dmgr.GetTimeValues( self.curDataSet )
+      for t in xrange( len( time_values ) ):
+        dset = self.dmgr.GetH5DataSet( self.curDataSet, time_values[ t ] )
 	if dset is not None:
-	  row_text = '%.3g' % \
-	      self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+	  dset_value = np.array( dset )
+	  row_text = '%.3g' % time_values[ t ]
 	  for rc in sub_addrs:
 	    row_text += ',%.7g' % \
-	        dset.value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
+	        dset_value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
 	  #end for rc
 
           csv_text += row_text + '\n'
 	#end if dset
-      #end for state_ndx
+      #end for t
     #end if dset is not None
 
     return  csv_text
   #end _CreateClipboardSelectedDataAllStates
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:	Assembly2DView._CreateClipboardSelectionData_orig()	-
-  #----------------------------------------------------------------------
-  def _CreateClipboardSelectionData_orig( self ):
-    """Retrieves the data for the current pin selection(s).
-@return			text or None
-"""
-    csv_text = None
-    dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
-        assembly_addr = self.assemblyAddr[ 0 ],
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
-	)
-    if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-
-    if dset is not None:
-      dset_value = dset.value
-      dset_shape = dset_value.shape
-      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
-      assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
-
-      pin_row = min( self.subAddr[ 1 ], dset_shape[ 0 ] - 1 )
-      pin_col = min( self.subAddr[ 0 ], dset_shape[ 1 ] - 1 )
-      #clip_data = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
-      clip_data = np.ndarray( ( 1, ), dtype = np.float64 )
-      clip_data[ 0 ] = dset_value[ pin_row, pin_col, axial_level, assy_ndx ]
-
-      title = '"%s: Assembly=%d %s; Axial=%.3f; Pin=(%d,%d); %s=%.3g"' % (
-          self.pinDataSet,
-	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	  self.axialValue[ 0 ],
-	  pin_col + 1, pin_row + 1,
-	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-          )
-      csv_text = DataModel.ToCSV( clip_data, title )
-    #end if dset is not None
-
-    return  csv_text
-  #end _CreateClipboardSelectionData_orig
 
 
   #----------------------------------------------------------------------
@@ -458,11 +421,12 @@ If neither are specified, a default 'scale' value of 24 is used.
 """
     #ds_range = self.data.GetRange
     ds_range = self._ResolveDataRange(
-        self.pinDataSet,
-	self.stateIndex if self.state.scaleMode == 'state' else -1
+        self.curDataSet,
+	self.timeValue if self.state.scaleMode == 'state' else -1
 	)
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
+    core = self.dmgr.GetCore()
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
     legend_pil_im = config[ 'legendPilImage' ]
@@ -509,10 +473,6 @@ If neither are specified, a default 'scale' value of 24 is used.
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
 	if value_font_size >= 6 else None
-#    value_font_smaller_size = value_font_size - (value_font_size / 6)
-#    value_font_smaller = \
-#        PIL.ImageFont.truetype( self.valueFontPath, value_font_smaller_size ) \
-#	if value_font_size >= 4 else None
 
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
@@ -578,11 +538,10 @@ If neither are specified, a default 'scale' value of 24 is used.
     im = None
     dset_array = None
 
-    tuple_valid = DataModel.IsValidObj(
-	self.data,
+    tuple_valid = self.dmgr.IsValid(
+	self.curDataSet,
         assembly_addr = assy_ndx,
-	axial_level = axial_level,
-	state_index = state_ndx
+	axial_level = axial_level
 	)
 
     if config is None:
@@ -599,52 +558,50 @@ If neither are specified, a default 'scale' value of 24 is used.
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
 
-      dset = self.data.GetStateDataSet( state_ndx, self.pinDataSet )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
       pin_factors = None
       if self.state.weightsMode == 'on':
-#        pin_factors = self.data.GetPinFactors()
-        pin_factors = self.data.GetFactors( self.pinDataSet )
+        pin_factors = self.dmgr.GetFactors( self.curDataSet )
         pin_factors_shape = pin_factors.shape
 
-      #dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
-      #ds_value = dset.value if dset is not None else None
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
       else:
-        dset_array = dset.value
+        dset_array = np.array( dset )
         dset_shape = dset.shape
-#      ds_range = self.data.GetRange(
-#          self.pinDataSet,
-#	  state_ndx if self.state.scaleMode == 'state' else -1
-#	  )
+
       ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
-	  pil_font, self.pinDataSet, dset_shape, self.state.timeDataSet,
+	  pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
 	  assembly_ndx = 3, axial_ndx = 2
 	  )
     #end if valid config
 
-#			-- Must be valid assy ndx
-#			--
+#		-- Must be valid assy ndx
+#		--
     if dset_array is not None and assy_ndx < dset_shape[ 3 ]:
+      value_draw_list = []
+#			-- Limit axial level
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
+      axial_value = self.dmgr.\
+          GetAxialValue( self.curDataSet, core_ndx = axial_level )
 
 #			-- Create image
 #			--
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
-      value_draw_list = []
 
       nodata_pen_color = ( 155, 155, 155, 255 )
 
 #			-- Loop on rows
 #			--
       pin_y = assy_region[ 1 ]
-      for pin_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+      for pin_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
 #				-- Row label
 #				--
 	if self.showLabels:
@@ -671,14 +628,13 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        )
 	  #end if writing column label
 
-#	  if ds_value is not None:
-#	    #DataModel.GetPinIndex( assy_ndx, axial_level, pin_col, pin_row )
-#	    value = ds_value[ pin_row, pin_col, axial_level, assy_ndx ]
+#					-- Check row and col in range
 	  if pin_row < dset_shape[ 0 ] and pin_col < dset_shape[ 1 ]:
 	    value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
 	  else:
 	    value = 0.0
-
+#					-- Apply pin factors
+#					--
 	  if pin_factors is None:
 	    pin_factor = 1
 	  elif pin_row < pin_factors_shape[ 0 ] and \
@@ -686,9 +642,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
 	  else:
 	    pin_factor = 0
-
-	  #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-	  #if pin_factor != 0:
+#					-- Check value and pin_factor
+#					--
 	  if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
@@ -707,17 +662,6 @@ If neither are specified, a default 'scale' value of 24 is used.
                   Widget.GetContrastColor( *brush_color ),
                   pin_x, pin_y, pin_wd, pin_wd
                   ))
-#	      value_str, value_size, tfont = self._CreateValueDisplay(
-#	          value, 3, value_font, pin_wd, value_font_size
-#		  )
-#	      if value_str:
-#		value_x = pin_x + ((pin_wd - value_size[ 0 ]) >> 1)
-#		value_y = pin_y + ((pin_wd - value_size[ 1 ]) >> 1) 
-#                im_draw.text(
-#		    ( value_x, value_y ), value_str,
-#		    fill = Widget.GetContrastColor( *brush_color ),
-#		    font = tfont
-#                    )
 	    #end if value_font defined
 
 	  else:
@@ -725,7 +669,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
 	        fill = None, outline = nodata_pen_color
 	        )
-	  #end else good value not hidden by pin_factor
+	  #if-else good value, not hidden by pin_factor
 
 	  pin_x += pin_wd + pin_gap
 	#end for pin_col
@@ -758,7 +702,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       title_str = self._CreateTitleString(
 	  title_templ,
 	  assembly = assy_ndx,
-	  axial = self.data.core.axialMeshCenters[ axial_level ],
+	  axial = axial_value[ 0 ],
 	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
           )
       title_size = pil_font.getsize( title_str )
@@ -800,18 +744,22 @@ If neither are specified, a default 'scale' value of 24 is used.
 @param  cell_info	tuple returned from FindCell()
 """
     tip_str = ''
-    valid = cell_info is not None and \
-        self.data.IsValid(
-            assembly_addr = self.assemblyAddr,
-	    axial_level = self.axialValue[ 1 ],
-	    sub_addr = cell_info[ 1 : 3 ],
-	    sub_addr_mode = 'pin',
-	    state_index = self.stateIndex
-	    )
+    valid = False
+    if cell_info is not None:
+      valid = self.dmgr.IsValid(
+          self.curDataSet,
+          assembly_addr = self.assemblyAddr,
+	  axial_level = self.axialValue[ 1 ],
+	  sub_addr = cell_info[ 1 : 3 ],
+	  sub_addr_mode = 'pin'
+          )
 
+    dset = None
     if valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+
+    if dset is not None:
+      dset_shape = dset.shape
       value = None
       if cell_info[ 2 ] < dset_shape[ 0 ] and cell_info[ 1 ] < dset_shape[ 1 ]:
         value = dset[
@@ -822,10 +770,12 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       if not self.data.IsBadValue( value ):
         show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
-	tip_str = \
-	    'Pin: %s\n%s: %g' % \
-	    ( str( show_pin_addr ), self.pinDataSet, value )
-    #end if valid
+	tip_str = 'Pin: %s\n%s: %g' % (
+	    str( show_pin_addr ),
+	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+	    value
+	    )
+    #end if dset
 
     return  tip_str
   #end _CreateToolTipText
@@ -858,37 +808,32 @@ If neither are specified, a default 'scale' value of 24 is used.
 """
     result = None
 
-    if self.config is not None and self.data is not None:
+    core = None
+    if self.config is not None and 'assemblyRegion' in self.config:
+      core = self.dmgr.GetCore()
+
+    if core:
       if ev_x >= 0 and ev_y >= 0:
 	assy_region = self.config[ 'assemblyRegion' ]
         pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
+	off_x = ev_x - assy_region[ 0 ]
+	off_y = ev_y - assy_region[ 1 ]
         cell_x = min(
-	    int( (ev_x - assy_region[ 0 ]) / pin_size ) + self.cellRange[ 0 ],
+	    int( off_x / pin_size ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
 	    )
 	cell_x = max( self.cellRange[ 0 ], cell_x )
         cell_y = min(
-	    int( (ev_y - assy_region[ 1 ]) / pin_size ) + self.cellRange[ 1 ],
+	    int( off_y / pin_size ) + self.cellRange[ 1 ],
 	    self.cellRange[ 3 ] - 1
 	    )
 	cell_y = max( self.cellRange[ 1 ], cell_y )
 	result = ( cell_x, cell_y )
       #end if event within display
-    #end if we have data
+    #end if core
 
     return  result
   #end FindPin
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		GetAllow4DDataSets()				-
-  #----------------------------------------------------------------------
-  def GetAllow4DDataSets( self ):
-    """
-@return			True
-"""
-    return  True
-  #end GetAllow4DDataSets
 
 
   #----------------------------------------------------------------------
@@ -922,7 +867,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_coordinates,
 	STATE_CHANGE_curDataSet,
 	STATE_CHANGE_scaleMode,
-	STATE_CHANGE_stateIndex
+	STATE_CHANGE_timeValue
 	])
     return  locks
   #end GetEventLockSet
@@ -934,16 +879,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def GetInitialCellRange( self ):
     """This implementation returns self.data.ExtractSymmetryExtent().
 Subclasses should override as needed.
-@return			intial range of raster cells
+@return			initial range of raster cells
 			( left, top, right, bottom, dx, dy )
 """
     result = None
-    if self.data is not None:
-      result = [
+    core = self.dmgr.GetCore()
+    if core is not None:
+      result = (
           0, 0,
-	  self.data.core.npin, self.data.core.npin,
-	  self.data.core.npin, self.data.core.npin
-          ]
+	  core.npinx, core.npiny,
+	  core.npinx, core.npiny
+          )
     return  result
   #end GetInitialCellRange
 
@@ -962,7 +908,8 @@ Subclasses should override as needed.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    if self.config is not None:
+    core = self.dmgr.GetCore()
+    if self.config is not None and core is not None:
       addr_list = list( self.auxSubAddrs )
       addr_list.insert( 0, self.subAddr )
 
@@ -1023,61 +970,6 @@ Subclasses should override as needed.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._HiliteBitmap_0()		-
-  #----------------------------------------------------------------------
-  def _HiliteBitmap_0( self, bmap ):
-    result = bmap
-
-    if self.config is not None:
-      rel_col = self.subAddr[ 0 ] - self.cellRange[ 0 ]
-      rel_row = self.subAddr[ 1 ] - self.cellRange[ 1 ]
-
-      if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
-          rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
-	assy_region = self.config[ 'assemblyRegion' ]
-        pin_gap = self.config[ 'pinGap' ]
-        pin_wd = self.config[ 'pinWidth' ]
-	pin_adv = pin_gap + pin_wd
-        line_wd = self.config[ 'lineWidth' ]
-
-	rect = \
-	  [
-	    rel_col * pin_adv + assy_region[ 0 ],
-	    rel_row * pin_adv + assy_region[ 1 ],
-	    pin_wd + 1, pin_wd + 1
-	  ]
-
-	new_bmap = self._CopyBitmap( bmap )
-
-        dc = wx.MemoryDC( new_bmap )
-	gc = wx.GraphicsContext.Create( dc )
-	gc.SetPen(
-	    wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
-		)
-	    )
-	path = gc.CreatePath()
-	path.AddRectangle( *rect )
-	gc.StrokePath( path )
-# This doesn't work on MSWIN
-#	dc.SetBrush( wx.TRANSPARENT_BRUSH )
-#        dc.SetPen(
-#	    wx.ThePenList.FindOrCreatePen(
-#	        wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
-#		)
-#	    )
-#        dc.DrawRectangle( *rect )
-	dc.SelectObject( wx.NullBitmap )
-
-	result = new_bmap
-      #end if within range
-    #end if self.config is not None:
-
-    return  result
-  #end _HiliteBitmap_0
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView.IsTupleCurrent()			-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
@@ -1104,7 +996,8 @@ attributes/properties that aren't already set in _LoadDataModel():
   stateIndex
 """
     self.assemblyAddr = self.state.assemblyAddr
-    self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    #self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    self.curDataSet = self._FindFirstDataSet()
     self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
@@ -1119,7 +1012,7 @@ be overridden by subclasses.
 """
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
-	'nodeAddr', 'pinDataSet', 'subAddr'
+	'nodeAddr', 'subAddr'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1143,25 +1036,15 @@ be overridden by subclasses.
     pin_addr = self.FindPin( *ev.GetPosition() )
 
     if pin_addr is not None and pin_addr != self.subAddr:
-      valid = self.data.IsValid(
+      valid = self.dmgr.IsValid(
+          self.curDataSet,
           assembly_addr = self.assemblyAddr[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
-	  sub_addr = pin_addr,
-	  state_index = self.stateIndex
+	  sub_addr = pin_addr
+	  #state_index = self.stateIndex
 	  )
 
     if valid:
-#      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-#      dset_shape = dset.shape if dset is not None else ( 0, 0, 0, 0 )
-#      value = 0.0
-#      if pin_addr[ 1 ] < dset_shape[ 0 ] and pin_addr[ 0 ] < dset_shape[ 1 ]:
-#        value = dset[
-#            pin_addr[ 1 ], pin_addr[ 0 ],
-#	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
-#	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
-#	    ]
-      #if not self.data.IsNoDataValue( self.pinDataSet, value ):
-      #xxxxx node_addr = self.data.GetNodeAddr( ( pin_col, pin_row ) )
       if is_aux:
 	addrs = list( self.auxSubAddrs )
 	if pin_addr in addrs:
@@ -1169,8 +1052,8 @@ be overridden by subclasses.
 	else:
 	  addrs.append( pin_addr )
 	#self.FireStateChange( aux_sub_addrs = addrs )
-	node_addrs = self.data.NormalizeNodeAddrs(
-	    self.auxNodeAddrs + self.data.GetNodeAddrs( addrs )
+	node_addrs = self.dmgr.NormalizeNodeAddrs(
+	    self.auxNodeAddrs + self.dmgr.GetNodeAddrs( addrs )
 	    )
 	self.FireStateChange(
 	    aux_node_addrs = node_addrs,
@@ -1185,7 +1068,7 @@ be overridden by subclasses.
 	    aux_sub_addrs = [],
 	    sub_addr = pin_addr
 	    )
-	node_addr = self.data.GetNodeAddr( pin_addr )
+	node_addr = self.dmgr.GetNodeAddr( pin_addr )
 	if node_addr >= 0:
 	  state_args[ 'node_addr' ] = node_addr
         self.FireStateChange( **state_args )
@@ -1195,24 +1078,14 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Assembly2DView._OnFindMax()			-
-  #----------------------------------------------------------------------
-  def _OnFindMax( self, all_states_flag, ev ):
-    """Calls _OnFindMaxPin().
-"""
-    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
-      self._OnFindMaxPin( self.pinDataSet, all_states_flag )
-  #end _OnFindMax
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._OnFindMinMax()			-
   #----------------------------------------------------------------------
   def _OnFindMinMax( self, mode, all_states_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
-    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
-      self._OnFindMinMaxPin( mode, self.pinDataSet, all_states_flag )
+    #if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
+    if self.curDataSet:
+      self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
   #end _OnFindMinMax
 
 
@@ -1231,22 +1104,18 @@ method via super.SaveProps().
 	'nodeAddr', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
-
-    if self.data is not None:
-      for k in ( 'pinDataSet', ):
-        props_dict[ k ] = self.data.RevertIfDerivedDataSet( getattr( self, k ) )
   #end SaveProps
 
 
   #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView.SetDataSet()			-
   #----------------------------------------------------------------------
-  def SetDataSet( self, ds_name ):
+  def SetDataSet( self, qds_name ):
     """May be called from any thread.
 """
-    if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
-      self.FireStateChange( cur_dataset = ds_name )
+    if qds_name != self.curDataSet:
+      wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
+      self.FireStateChange( cur_dataset = qds_name )
   #end SetDataSet
 
 
@@ -1266,33 +1135,36 @@ method via super.SaveProps().
       changed = True
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
+#		-- Just send aux_node_addrs event updates on clicks
     if 'aux_node_addrs' in kwargs:
       aux_node_addrs = \
-          self.data.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
+          self.dmgr.NormalizeNodeAddrs( kwargs[ 'aux_node_addrs' ] )
       if aux_node_addrs != self.auxNodeAddrs:
 	self.auxNodeAddrs = aux_node_addrs
 
     if 'aux_sub_addrs' in kwargs:
       aux_sub_addrs = \
-          self.data.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'pin' )
+          self.dmgr.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'pin' )
       if aux_sub_addrs != self.auxSubAddrs:
         changed = True
 	self.auxSubAddrs = aux_sub_addrs
 
-    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
-      ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
-      if ds_type and ds_type in self.GetDataSetTypes():
-        resized = True
-        self.pinDataSet = kwargs[ 'cur_dataset' ]
-	self.container.GetDataSetMenu().Reset()
+# Now handled in RasterWidget
+#    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
+#      ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
+#      if ds_type and ds_type in self.GetDataSetTypes():
+#        resized = True
+#        self.pinDataSet = kwargs[ 'cur_dataset' ]
+#	self.container.GetDataSetMenu().Reset()
 
+#		-- Just send node_addr event updates on clicks
     if 'node_addr' in kwargs:
-      node_addr = self.data.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
+      node_addr = self.dmgr.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
       if node_addr != self.nodeAddr:
         self.nodeAddr = node_addr
 
     if 'sub_addr' in kwargs:
-      sub_addr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
+      sub_addr = self.dmgr.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
       if sub_addr != self.subAddr:
         changed = True
 	self.subAddr = sub_addr

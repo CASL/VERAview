@@ -216,7 +216,7 @@ self.refAxisDataSet and self.refAxixTimes are not None.
       if cur_selection_flag:
         i_range = ( cur_time_ndx, )
       else:
-	i_range = range( len( self.refAxisTimes ) )
+	i_range = xrange( len( self.refAxisTimes ) )
       #end if cur_selection_flag
 
       for i in i_range:
@@ -325,7 +325,7 @@ self.refAxisDataSet and self.refAxixTimes are None.
         if cur_selection_flag:
           i_range = ( cur_time_ndx, )
         else:
-	  i_range = range( len( model_times ) )
+	  i_range = xrange( len( model_times ) )
 
         for i in i_range:
           row = '%.7g' % model_times[ i ]
