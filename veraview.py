@@ -1802,8 +1802,9 @@ Must be called on the UI event thread.
 #      if self.state.stateIndex != self.exposureBean.stateIndex:
 #        self.exposureBean.stateIndex = self.state.stateIndex
 
-    if (reason & STATE_CHANGE_timeDataSet) > 0:
-      self._UpdateTimeDataSetMenu()
+    #Not needed
+    #if (reason & STATE_CHANGE_timeDataSet) > 0:
+    #  self._UpdateTimeDataSetMenu()
 
     if (reason & STATE_CHANGE_timeValue) > 0:
       dmgr = self.state.dataModelMgr
@@ -1915,9 +1916,9 @@ Must be called on the UI event thread.
     if item is not None:
       title = item.GetLabel()
       reason = self.state.Change( self.eventLocks, time_dataset = title )
-      self.state.RemoveListener( self )
+      #self.state.RemoveListener( self )
       self.state.FireStateChange( reason )
-      self.state.AddListener( self )
+      #self.state.AddListener( self )
     #end if
   #end _OnTimeDataSet
 
