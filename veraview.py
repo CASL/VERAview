@@ -1138,208 +1138,208 @@ WIDGET_MAP and TOOLBAR_ITEMS
   #end _InitUI
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame.LoadDataModel()			-
-  #----------------------------------------------------------------------
-  def LoadDataModel( self, file_path, session = None, widget_props = None ):
-    """Called when a data file is opened and set in the state.
-Must be called from the UI thread.
-#@param  data_model	data_model
-@param  file_path	path to VERAOutput file
-@param  session		optional WidgetConfig instance for session restoration
-@param  widget_props	None = for default processing to load all applicable
-			  widgets,
-			'noop' = no widget processing at all,
-			widget = properties for widget to add
-@deprecated  use _UpdateFrame()
-"""
-    if self.logger.isEnabledFor( logging.DEBUG ):
-      self.logger.debug( 'file_path=%s', file_path )
-
-    #dmgr = self.state.GetDataModelMgr()
-    dmgr = self.state.dataModelMgr
-    self.filepath = file_path
-    self.SetRepresentedFilename( file_path )  #xxxxx
-
-    #self.GetStatusBar().SetStatusText( 'Loading data model...' )
-
-#		-- Update dataset selection menu
-#		--
-    self.dataSetMenu.Init()
-
-#		-- Re-create time dataset menu
-#		--
-    while self.timeDataSetMenu.GetMenuItemCount() > 0:
-      self.timeDataSetMenu.\
-          DestroyItem( self.timeDataSetMenu.FindItemByPosition( 0 ) )
-
-    check_item = None
-    #ds_names = dmgr.GetDataSetNames( 'time' )
-    ds_names = dmgr.ResolveAvailableTimeDataSets()
-    for ds in ds_names:
-      item = wx.MenuItem( self.timeDataSetMenu, wx.ID_ANY, ds, kind = wx.ITEM_RADIO )
-      if ds == self.state.timeDataSet:
-        check_item = item
-      self.Bind( wx.EVT_MENU, self._OnTimeDataSet, item )
-      self.timeDataSetMenu.AppendItem( item )
-    #end for
-
-    if check_item is not None:
-      check_item.Check()
-
-#		-- Update toolbar
-#		--
-# Merely enabling/disabling a tool by calling ToolBar.EnableTool() does
-# not work!!  The same bitmap is used.  So, we re-create the tool.
-    self._UpdateToolBar( self.widgetToolBar )
-
-#		-- Update title
-#		--
-    self.UpdateTitle()
-
-#		-- Determine axial plot types
-#		--
-#    self.axialPlotTypes.clear()
-#
-#    if len( data.GetDataSetNames( 'channel' ) ) > 0 and data.core.nax > 1:
-#      self.axialPlotTypes.add( 'channel' )
-#
-#    if len( data.GetDataSetNames( 'detector' ) ) > 0 and data.core.ndetax > 1:
-#      self.axialPlotTypes.add( 'detector' )
-#      self.axialPlotTypes.add( 'pin' )
-#
-#    if len( data.GetDataSetNames( 'pin' ) ) > 0 and data.core.nax > 1:
-#      self.axialPlotTypes.add( 'pin' )
-#
-#    if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0 and data.core.nfdetax > 1:
-#      self.axialPlotTypes.add( 'fixed_detector' )
-#    #if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
-#      #self.axialPlotTypes.add( 'vanadium' )
-
-#		-- Initialize
-#		--
-    self.CloseAllWidgets()
-    grid_sizer = self.grid.GetSizer()
-    grid_sizer.SetRows( 1 )
-    grid_sizer.SetCols( 1 )
-
-#		-- Load Config
-#		--
-    if session is not None:
-      self._LoadWidgetConfig( session )
-
-#		-- Or determine default initial widgets
-#		--
-    elif widget_props is None:
-#      self.CloseAllWidgets()
-#      grid_sizer = self.grid.GetSizer()
-#      grid_sizer.SetRows( 1 )
-#      grid_sizer.SetCols( 1 )
-
-      widget_list = []
-
-      if data.core.nass > 1:
-        widget_list.append( 'widget.core_view.Core2DView' )
-
-#			-- Detector mode
-      if len( data.GetDataSetNames( 'detector' ) ) > 0:
-        widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
-        #widget_list.append( 'widget.detector_view.Detector2DView' )
-
-      if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0:
-        if 'widget.detector_multi_view.Detector2DMultiView' not in widget_list:
-          widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
-        #if 'widget.detector_view.Detector2DView' not in widget_list:
-          #widget_list.append( 'widget.detector_view.Detector2DView' )
-
-#			-- Pin mode
-      if len( data.GetDataSetNames( 'pin' ) ) > 0:
-        if data.core.nax > 1:
-          widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
-        widget_list.append( 'widget.assembly_view.Assembly2DView' )
-
-#			-- Channel mode
-#x      if len( data.GetDataSetNames( 'channel' ) ) > 0:
-#x        if data.core.nass > 1:
-#x          widget_list.append( 'widget.channel_view.Channel2DView' )
-#x        widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
-#x        if data.core.nax > 1:
-#x          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
-
-#			-- Axial plot?
-#      if len( self.axialPlotTypes ) > 0 and data.core.nax > 1:
-      if data.core.nax > 1:
-        widget_list.append( 'widget.axial_plot.AxialPlot' )
-
-#			-- Time plot?
-      if len( data.states ) > 1:
-        widget_list.append( 'widget.time_plots.TimePlots' )
-
-      if False:
-        widget_list = [
-            'widget.core_view.Core2DView'
-            #'widget.assembly_view.Assembly2DView',
-            #'widget.core_axial_view.CoreAxial2DView',
-            #'widget.detector_multi_view.Detector2DMultiView',
-            #'widget.axial_plot.AxialPlot',
-            #'widget.time_plots.TimePlots',
-	    #'widget.channel_view.Channel2DView',
-	    #'widget.channel_assembly_view.ChannelAssembly2DView',
-	    #'widget.channel_axial_view.ChannelAxial2DView',
-            ]
-
-      if self.config is None:
-        if len( widget_list ) > 6:
-          grid_sizer.SetCols( 4 )
-          grid_sizer.SetRows( 2 )
-        elif len( widget_list ) > 3:
-          grid_sizer.SetCols( 3 )
-          grid_sizer.SetRows( 2 )
-        elif len( widget_list ) > 1:
-          grid_sizer.SetCols( 2 )
-          grid_sizer.SetRows( 1 )
-      #end if config
-
-#			-- Create widgets
-#			--
-      for w in widget_list:
-        self.CreateWidget( w, False )
-        if self.logger.isEnabledFor( logging.DEBUG ):
-          self.logger.debug(
-	      'widget added="%s", grid.size=%s',
-	      w, str( self.grid.GetSize() )
-	      )
-      #end for
-
-      fr_size = None if self.config is None else self.config.GetFrameSize()
-      if fr_size is not None and fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
-	fr_pos = self.config.GetFramePosition()
-	self.SetPosition( fr_pos )
-        self.SetSize( fr_size )
-      else:
-        self._Refit( False )  # True
-
-    elif widget_props == 'noop':
-      pass
-
-    elif 'classpath' in widget_props:
-      wc = self.CreateWidget( widget_props[ 'classpath' ] )
-      wc.LoadProps( widget_props )
-#    else:
-#      wc.Reparent( self.grid )
-#      self.AddWidgetContainer( wc, True )
-    #end if-elif-else session
-
-#		-- Set bean ranges and values
-#		--
-    self.axialBean.SetRange( 1, data.core.nax )
-    self.axialBean.axialLevel = self.state.axialValue[ 1 ]
-
-    self.exposureBean.SetRange( 1, len( data.states ) )
-    self.exposureBean.stateIndex = self.state.stateIndex
-
-    ##self.GetStatusBar().SetStatusText( 'Data model loaded' )
-  #end LoadDataModel
+##   #----------------------------------------------------------------------
+##   #	METHOD:		VeraViewFrame.LoadDataModel()			-
+##   #----------------------------------------------------------------------
+##   def LoadDataModel( self, file_path, session = None, widget_props = None ):
+##     """Called when a data file is opened and set in the state.
+## Must be called from the UI thread.
+## #@param  data_model	data_model
+## @param  file_path	path to VERAOutput file
+## @param  session		optional WidgetConfig instance for session restoration
+## @param  widget_props	None = for default processing to load all applicable
+## 			  widgets,
+## 			'noop' = no widget processing at all,
+## 			widget = properties for widget to add
+## @deprecated  use _UpdateFrame()
+## """
+##     if self.logger.isEnabledFor( logging.DEBUG ):
+##       self.logger.debug( 'file_path=%s', file_path )
+## 
+##     #dmgr = self.state.GetDataModelMgr()
+##     dmgr = self.state.dataModelMgr
+##     self.filepath = file_path
+##     self.SetRepresentedFilename( file_path )  #xxxxx
+## 
+##     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
+## 
+## #		-- Update dataset selection menu
+## #		--
+##     self.dataSetMenu.Init()
+## 
+## #		-- Re-create time dataset menu
+## #		--
+##     while self.timeDataSetMenu.GetMenuItemCount() > 0:
+##       self.timeDataSetMenu.\
+##           DestroyItem( self.timeDataSetMenu.FindItemByPosition( 0 ) )
+## 
+##     check_item = None
+##     #ds_names = dmgr.GetDataSetNames( 'time' )
+##     ds_names = dmgr.ResolveAvailableTimeDataSets()
+##     for ds in ds_names:
+##       item = wx.MenuItem( self.timeDataSetMenu, wx.ID_ANY, ds, kind = wx.ITEM_RADIO )
+##       if ds == self.state.timeDataSet:
+##         check_item = item
+##       self.Bind( wx.EVT_MENU, self._OnTimeDataSet, item )
+##       self.timeDataSetMenu.AppendItem( item )
+##     #end for
+## 
+##     if check_item is not None:
+##       check_item.Check()
+## 
+## #		-- Update toolbar
+## #		--
+## # Merely enabling/disabling a tool by calling ToolBar.EnableTool() does
+## # not work!!  The same bitmap is used.  So, we re-create the tool.
+##     self._UpdateToolBar( self.widgetToolBar )
+## 
+## #		-- Update title
+## #		--
+##     self.UpdateTitle()
+## 
+## #		-- Determine axial plot types
+## #		--
+## #    self.axialPlotTypes.clear()
+## #
+## #    if len( data.GetDataSetNames( 'channel' ) ) > 0 and data.core.nax > 1:
+## #      self.axialPlotTypes.add( 'channel' )
+## #
+## #    if len( data.GetDataSetNames( 'detector' ) ) > 0 and data.core.ndetax > 1:
+## #      self.axialPlotTypes.add( 'detector' )
+## #      self.axialPlotTypes.add( 'pin' )
+## #
+## #    if len( data.GetDataSetNames( 'pin' ) ) > 0 and data.core.nax > 1:
+## #      self.axialPlotTypes.add( 'pin' )
+## #
+## #    if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0 and data.core.nfdetax > 1:
+## #      self.axialPlotTypes.add( 'fixed_detector' )
+## #    #if len( data.GetDataSetNames( 'vanadium' ) ) > 0 and data.core.nvanax > 1:
+## #      #self.axialPlotTypes.add( 'vanadium' )
+## 
+## #		-- Initialize
+## #		--
+##     self.CloseAllWidgets()
+##     grid_sizer = self.grid.GetSizer()
+##     grid_sizer.SetRows( 1 )
+##     grid_sizer.SetCols( 1 )
+## 
+## #		-- Load Config
+## #		--
+##     if session is not None:
+##       self._LoadWidgetConfig( session )
+## 
+## #		-- Or determine default initial widgets
+## #		--
+##     elif widget_props is None:
+## #      self.CloseAllWidgets()
+## #      grid_sizer = self.grid.GetSizer()
+## #      grid_sizer.SetRows( 1 )
+## #      grid_sizer.SetCols( 1 )
+## 
+##       widget_list = []
+## 
+##       if data.core.nass > 1:
+##         widget_list.append( 'widget.core_view.Core2DView' )
+## 
+## #			-- Detector mode
+##       if len( data.GetDataSetNames( 'detector' ) ) > 0:
+##         widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
+##         #widget_list.append( 'widget.detector_view.Detector2DView' )
+## 
+##       if len( data.GetDataSetNames( 'fixed_detector' ) ) > 0:
+##         if 'widget.detector_multi_view.Detector2DMultiView' not in widget_list:
+##           widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
+##         #if 'widget.detector_view.Detector2DView' not in widget_list:
+##           #widget_list.append( 'widget.detector_view.Detector2DView' )
+## 
+## #			-- Pin mode
+##       if len( data.GetDataSetNames( 'pin' ) ) > 0:
+##         if data.core.nax > 1:
+##           widget_list.append( 'widget.core_axial_view.CoreAxial2DView' )
+##         widget_list.append( 'widget.assembly_view.Assembly2DView' )
+## 
+## #			-- Channel mode
+## #x      if len( data.GetDataSetNames( 'channel' ) ) > 0:
+## #x        if data.core.nass > 1:
+## #x          widget_list.append( 'widget.channel_view.Channel2DView' )
+## #x        widget_list.append( 'widget.channel_assembly_view.ChannelAssembly2DView' )
+## #x        if data.core.nax > 1:
+## #x          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
+## 
+## #			-- Axial plot?
+## #      if len( self.axialPlotTypes ) > 0 and data.core.nax > 1:
+##       if data.core.nax > 1:
+##         widget_list.append( 'widget.axial_plot.AxialPlot' )
+## 
+## #			-- Time plot?
+##       if len( data.states ) > 1:
+##         widget_list.append( 'widget.time_plots.TimePlots' )
+## 
+##       if False:
+##         widget_list = [
+##             'widget.core_view.Core2DView'
+##             #'widget.assembly_view.Assembly2DView',
+##             #'widget.core_axial_view.CoreAxial2DView',
+##             #'widget.detector_multi_view.Detector2DMultiView',
+##             #'widget.axial_plot.AxialPlot',
+##             #'widget.time_plots.TimePlots',
+## 	    #'widget.channel_view.Channel2DView',
+## 	    #'widget.channel_assembly_view.ChannelAssembly2DView',
+## 	    #'widget.channel_axial_view.ChannelAxial2DView',
+##             ]
+## 
+##       if self.config is None:
+##         if len( widget_list ) > 6:
+##           grid_sizer.SetCols( 4 )
+##           grid_sizer.SetRows( 2 )
+##         elif len( widget_list ) > 3:
+##           grid_sizer.SetCols( 3 )
+##           grid_sizer.SetRows( 2 )
+##         elif len( widget_list ) > 1:
+##           grid_sizer.SetCols( 2 )
+##           grid_sizer.SetRows( 1 )
+##       #end if config
+## 
+## #			-- Create widgets
+## #			--
+##       for w in widget_list:
+##         self.CreateWidget( w, False )
+##         if self.logger.isEnabledFor( logging.DEBUG ):
+##           self.logger.debug(
+## 	      'widget added="%s", grid.size=%s',
+## 	      w, str( self.grid.GetSize() )
+## 	      )
+##       #end for
+## 
+##       fr_size = None if self.config is None else self.config.GetFrameSize()
+##       if fr_size is not None and fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
+## 	fr_pos = self.config.GetFramePosition()
+## 	self.SetPosition( fr_pos )
+##         self.SetSize( fr_size )
+##       else:
+##         self._Refit( False )  # True
+## 
+##     elif widget_props == 'noop':
+##       pass
+## 
+##     elif 'classpath' in widget_props:
+##       wc = self.CreateWidget( widget_props[ 'classpath' ] )
+##       wc.LoadProps( widget_props )
+## #    else:
+## #      wc.Reparent( self.grid )
+## #      self.AddWidgetContainer( wc, True )
+##     #end if-elif-else session
+## 
+## #		-- Set bean ranges and values
+## #		--
+##     self.axialBean.SetRange( 1, data.core.nax )
+##     self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+## 
+##     self.exposureBean.SetRange( 1, len( data.states ) )
+##     self.exposureBean.stateIndex = self.state.stateIndex
+## 
+##     ##self.GetStatusBar().SetStatusText( 'Data model loaded' )
+##   #end LoadDataModel
 
 
   #----------------------------------------------------------------------
@@ -1915,8 +1915,9 @@ Must be called on the UI event thread.
     if item is not None:
       title = item.GetLabel()
       reason = self.state.Change( self.eventLocks, time_dataset = title )
+      self.state.RemoveListener( self )
       self.state.FireStateChange( reason )
-      #self.grid.FireStateChange( reason )
+      self.state.AddListener( self )
     #end if
   #end _OnTimeDataSet
 
