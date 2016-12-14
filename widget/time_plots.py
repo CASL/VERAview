@@ -929,10 +929,10 @@ XXX size according to how many datasets selected?
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
+    # dataSetSelections now handled in PlotWidget
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'dataSetSelections', 'nodeAddr',
-	'scaleMode', 'subAddr'
+	'nodeAddr', 'scaleMode', 'subAddr'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
@@ -1103,10 +1103,10 @@ method via super.SaveProps().
 """
     super( TimePlots, self ).SaveProps( props_dict )
 
+    # dataSetSelections now handled in PlotWidget
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'dataSetSelections', 'nodeAddr',
-	'scaleMode', 'subAddr'
+	'nodeAddr', 'scaleMode', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps

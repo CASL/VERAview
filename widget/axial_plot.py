@@ -1001,9 +1001,10 @@ to be passed to UpdateState().  Assumes self.dmgr is valid.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
+    # dataSetSelections now handled in PlotWidget
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr',
+	'nodeAddr', 'scaleMode', 'subAddr',
 	'timeValue'
 	):
       if k in props_dict:
@@ -1144,12 +1145,12 @@ be overridden by subclasses.
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
+    # dataSetSelections now handled in PlotWidget
     super( AxialPlot, self ).SaveProps( props_dict )
 
     for k in (
 	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
-	'dataSetSelections', 'nodeAddr', 'scaleMode', 'subAddr',
-	'timeValue'
+	'nodeAddr', 'scaleMode', 'subAddr', 'timeValue'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps

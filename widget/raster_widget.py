@@ -327,16 +327,16 @@ Paired to _BitmapThreadStart().
 
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
-          'cur_tuple=%s, try_count=%d, job_id=%d',
-	  cur_tuple, try_count, job_id
+          '%s cur_tuple=%s, try_count=%d, job_id=%d',
+	  self.GetTitle(), cur_tuple, try_count, job_id
 	  )
 
 #		-- Log these conditions
 #		--
     if cur_tuple is None:
-      self.logger.warning( '* cur_tuple is None *' )
+      self.logger.warning( '* %s cur_tuple is None *' % self.GetTitle() )
     if pil_im is None:
-      self.logger.warning( '* pil_im is None *' )
+      self.logger.warning( '* %s pil_im is None *' % self.GetTitle() )
 
 #		-- Retry image creation thread?
 #		--

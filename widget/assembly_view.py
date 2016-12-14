@@ -285,10 +285,10 @@ Attrs/properties:
     csv_text = None
 
     core = dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
+    is_valid = self.dmgr.IsValid(
+	self.curDataSet,
         assembly_addr = self.assemblyAddr[ 0 ]
-	#axial_level = self.axialValue[ 1 ],
+	#axial_level = self.axialValue[ 1 ]
 	#state_index = self.stateIndex
 	)
     if is_valid:
@@ -341,7 +341,7 @@ Attrs/properties:
 """
     csv_text = None
 
-    core = None
+    core = dset = None
     is_valid = self.dmgr.IsValid(
 	self.curDataSet,
         assembly_index = self.assemblyAddr[ 0 ],
@@ -349,12 +349,12 @@ Attrs/properties:
 	#state_index = self.stateIndex
 	)
     if is_valid:
-      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
 
     if core is not None:
-      #dset_value = np.array( dset )
-      #dset_shape = dset_value.shape
+      dset_value = np.array( dset )
+      dset_shape = dset_value.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
@@ -419,7 +419,6 @@ If neither are specified, a default 'scale' value of 24 is used.
     valueFont
     valueFontSize
 """
-    #ds_range = self.data.GetRange
     ds_range = self._ResolveDataRange(
         self.curDataSet,
 	self.timeValue if self.state.scaleMode == 'state' else -1
@@ -644,7 +643,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    pin_factor = 0
 #					-- Check value and pin_factor
 #					--
-	  if not ( self.data.IsBadValue( value ) or pin_factor == 0 ):
+	  if not ( self.dmgr.IsBadValue( value ) or pin_factor == 0 ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -703,7 +702,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  title_templ,
 	  assembly = assy_ndx,
 	  axial = axial_value[ 0 ],
-	  time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
+	  time = self.timeValue
+	  #time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
           )
       title_size = pil_font.getsize( title_str )
       title_x = max(
@@ -768,7 +768,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
-      if not self.data.IsBadValue( value ):
+      if not self.dmgr.IsBadValue( value ):
         show_pin_addr = ( cell_info[ 1 ] + 1, cell_info[ 2 ] + 1 )
 	tip_str = 'Pin: %s\n%s: %g' % (
 	    str( show_pin_addr ),
@@ -877,7 +877,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Assembly2DView.GetInitialCellRange()		-
   #----------------------------------------------------------------------
   def GetInitialCellRange( self ):
-    """This implementation returns self.data.ExtractSymmetryExtent().
+    """This implementation returns self.dmgr.ExtractSymmetryExtent().
 Subclasses should override as needed.
 @return			initial range of raster cells
 			( left, top, right, bottom, dx, dy )

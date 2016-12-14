@@ -1082,7 +1082,7 @@ method via super.SaveProps() at the end.
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
-    for k in self.PlotDataSetPropsDialog():
+    for k in ( 'curDataSet', ):
       if k in props_dict and hasattr( self, k ):
         setattr( self, k, DataSetName( props_dict[ k ] ) )
 
@@ -1356,7 +1356,7 @@ method via super.SaveProps().
       props_dict[ k ] = getattr( self, k )
 
     if self.dmgr is not None:
-      for k in self.PlotDataSetPropsDialog():
+      for k in ( 'curDataSet', ):
 	if hasattr( self, k ):
           qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
           props_dict[ k ] = qds_name.name

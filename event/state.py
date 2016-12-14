@@ -733,15 +733,16 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 """
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
-        'nodeAddr', 'scaleMode', 'stateIndex',
-	'subAddr', 'timeDataSet', 'weightsMode'
+        'nodeAddr', 'scaleMode', 'subAddr',
+	'timeDataSet', 'timeValue', 'weightsMode'
         ):
       if k in props_dict:
-        setattr( self, k, props_dict[ k ] )
+        setattr( self, '_' + k, props_dict[ k ] )
 
     for k in ( 'curDataSet' ):
       if k in props_dict:
-        setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
+        setattr( self, k, DataSetName( props_dict[ k ] ) )
+        #setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
   #end LoadProps
 
 
@@ -812,10 +813,15 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 """
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
-        'curDataSet', 'nodeAddr', 'scaleMode', 'stateIndex',
-	'subAddr', 'timeDataSet', 'weightsMode'
+        'nodeAddr', 'scaleMode', 'subAddr',
+	'timeDataSet', 'timeValue', 'weightsMode'
         ):
-      props_dict[ k ] = getattr( self, k )
+      props_dict[ k ] = getattr( self, '_' + k )
+
+    for k in ( 'curDataSet', ):
+      qds_name = self.dataModelMgr.\
+          RevertIfDerivedDataSet( getattr( self, '_' + k ) )
+      props_dict[ k ] = qds_name.name
   #end SaveProps
 
 

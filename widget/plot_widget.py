@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2016-12-14	leerw@ornl.gov				-
+#	  Processing dataSetSelections in {Load,Save}Props().
 #		2016-12-10	leerw@ornl.gov				-
 #	  Adapting to new DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
@@ -411,6 +413,19 @@ be overridden by subclasses.
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
+    for k in ( 'dataSetSelections', ):
+      if k in props_dict:
+        cur_attr = props_dict[ k ]
+	for name in cur_attr.keys():
+	  cur_value = cur_attr[ name ]
+	  del cur_attr[ name ]
+	  cur_attr[ DataSetName( name ) ] = cur_value
+	#end for name
+      #end if k in props_dict
+
+      setattr( self, k, cur_attr )
+    #end for k
+
     super( PlotWidget, self ).LoadProps( props_dict )
     wx.CallAfter( self.UpdateState, replot = True )
   #end LoadProps
@@ -584,6 +599,22 @@ method via super.SaveProps().
 
     for k in ( 'timeValue', ):
       props_dict[ k ] = getattr( self, k )
+
+    for k in ( 'dataSetSelections', ):
+      if hasattr( self, k ):
+        cur_attr = getattr( self, k )
+	if isinstance( cur_attr, dict ):
+	  for name in cur_attr.keys():
+	    if isinstance( name, DataSetName ):
+	      cur_value = cur_attr[ name ]
+	      del cur_attr[ name ]
+	      cur_attr[ name.name ] = cur_value
+	  #end for name
+	#end if isinstance( cur_value, dict )
+
+	props_dict[ k ] = cur_attr
+      #end if hasattr( self, k )
+    #end for k
   #end SaveProps
 
 
