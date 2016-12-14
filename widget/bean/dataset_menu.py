@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_menu.py					-
 #	HISTORY:							-
+#		2016-12-14	leerw@ornl.gov				-
+#	  Added DataModelMenu.showSelectedItem attribute and fixed
+#	  LABEL_selectedDataSet item placement, adding
+#	  _AddSelectedDataSetItem().
+#	  Fixed DataModelMenu._OnDataSetMenuItem() to properly handle
+#	  LABEL_selectedDataSet items.
 #		2016-12-09	leerw@ornl.gov				-
 #	  Fixed event handling.
 #		2016-12-07	leerw@ornl.gov				-
@@ -69,7 +75,7 @@ No event listening is done in this class.
     """Initializes with an empty menu.
 @param  state		State object, required
 @param  binder		object from window containing this on which to call
-			Bind() for menu events
+			Bind() for menu events, cannot be None
 @param  data_model	DataModel instance
 @param  mode		mode value: ('selected' implies 'multi')
     ''			- single selection, flat menu (default)
@@ -110,9 +116,32 @@ No event listening is done in this class.
     self.logger = DataModelMenu.logger_
     self.mode = mode
     self.showDerivedMenu = show_derived_menu
+    self.showSelectedItem = False
     self.state = state
     self.widget = widget
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMenu._AddSelectedDataSetItem()		-
+  #----------------------------------------------------------------------
+  def _AddSelectedDataSetItem( self, menu = None ):
+    """Adds a LABEL_selectedDataSet item to the specified menu.
+@param  menu		menu to which to add, self if None
+"""
+    if menu is None:
+      menu = self
+
+    item = wx.MenuItem(
+        self, wx.ID_ANY, LABEL_selectedDataSet,
+	kind = wx.ITEM_CHECK
+	)
+    menu.AppendItem( item )
+    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+    if self.dataSetListener and \
+        self.dataSetListener.IsDataSetVisible( NAME_selectedDataSet ):
+      item.Check()
+  #end _AddSelectedDataSetItem
 
 
   #----------------------------------------------------------------------
@@ -309,19 +338,24 @@ derivedMenu if requested in the constructor.
   def _OnDataSetMenuItem( self, ev ):
     ev.Skip()
 
+    qds_name = None
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
-    if item is not None and self.dataModel is not None:
+    if item is not None:
       ds_display_name = item.GetItemLabelText()
-      qds_name = DataSetName( self.dataModel.GetName(), ds_display_name )
+      if ds_display_name == LABEL_selectedDataSet:
+        qds_name = NAME_selectedDataSet
+      elif self.dataModel is not None:
+        qds_name = DataSetName( self.dataModel.GetName(), ds_display_name )
 
+    if qds_name:
       if not self.IsSingleSelection():
         if self.dataSetListener and \
 	    hasattr( self.dataSetListener, 'ToggleDataSetVisible' ):
 	  self.dataSetListener.ToggleDataSetVisible( qds_name )
       else:
 	self._CheckSingleItem( None, item )
-	#this should not happen, 'selected' implies 'multi'
+	#this should not happen, 'selected' implies 'multi' and dataSetListener
 	if qds_name == NAME_selectedDataSet:
 	  qds_name = self.state.GetCurDataSet()
 
@@ -560,16 +594,17 @@ derivedMenu if requested in the constructor.
 	    item_ndx += 1
 	  #end for dtype
 	  
-	  if selected_flag:
-	    item = wx.MenuItem(
-	        self, wx.ID_ANY, LABEL_selectedDataSet,
-		kind = kind
-		)
-	    self.AppendItem( item )
-	    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
-	    if self.dataSetListener and \
-	        self.dataSetListener.IsDataSetVisible( NAME_selectedDataSet ):
-	      item.Check()
+	  if selected_flag and self.showSelectedItem:
+	    self._AddSelectedDataSetItem()
+#	    item = wx.MenuItem(
+#	        self, wx.ID_ANY, LABEL_selectedDataSet,
+#		kind = kind
+#		)
+#	    self.AppendItem( item )
+#	    self.binder.Bind( wx.EVT_MENU, self._OnDataSetMenuItem, item )
+#	    if self.dataSetListener and \
+#	        self.dataSetListener.IsDataSetVisible( NAME_selectedDataSet ):
+#	      item.Check()
 	  #end if selected_flag
 
 #				-- Flat
@@ -584,7 +619,7 @@ derivedMenu if requested in the constructor.
 #	    if selected_flag and dtype.find( ':' ) < 0:
 #	      selected_ds_names.append( 'Selected ' + dtype + ' dataset' )
 	  #end for dtype
-	  if selected_flag:
+	  if selected_flag and self.showSelectedItem:
 	    selected_ds_names = [ LABEL_selectedDataSet ]
 	  #cur_selection = self.state.GetCurDataSet()
 	  cur_selection = self._GetCurDataSet()
@@ -848,9 +883,13 @@ Reset() on all the model submenus.
       if dmgr.GetDataModelCount() == 1:
         self.modelSubMenus[ 'self' ] = self
 	self.dataModel = dmgr.GetFirstDataModel()
+	self.showSelectedItem = True
 	self.ProcessStateChange( STATE_CHANGE_init )
 
       elif dmgr.GetDataModelCount() > 1:
+	selected_flag = self.mode.find( 'selected' ) >= 0
+	if selected_flag:
+	  self._AddSelectedDataSetItem()
         for name in dmgr.GetDataModelNames():
 	  dmodel = dmgr.GetDataModel( name )
 	  ds_menu = DataModelMenu(

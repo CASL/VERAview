@@ -502,6 +502,7 @@ configuring the grid, plotting, and creating self.axline.
         if DataUtils.IsValidRange( *ds_range ):
           self.ax2.set_ylim( *ds_range )
 	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+	  #self.ax2.yaxis.get_major_formatter().set_scientific( True )
 
 #				-- Left, primary
       self.ax.set_xlabel( xaxis_label, fontsize = label_font_size )
@@ -541,6 +542,7 @@ configuring the grid, plotting, and creating self.axline.
       if DataUtils.IsValidRange( *ds_range ):
         self.ax.set_ylim( *ds_range )
         self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
+	#self.ax.yaxis.get_major_formatter().set_scientific( True )
 
 #				-- Set title
 #				--
