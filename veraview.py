@@ -298,8 +298,11 @@ class VeraViewApp( wx.App ):
     #self.dataSetDefault = 'pin_powers'
     self.filePaths = None
     self.firstLoop = True
+
     #self.frame = None
+#		-- Dict by index of { 'frame', 'n', 'title' }
     self.frames = {}
+
     self.logger = logging.getLogger( 'root' )
     self.sessionPath = None
     self.skipSession = False
@@ -488,6 +491,7 @@ unnecessary.
   #----------------------------------------------------------------------
   def RemoveFrame( self, frame ):
     """Removes a new VeraViewFrame.
+@param  frame		wx.Frame instance
 """
     rec = self.FindFrameByTitle( frame.GetTitle() )
     if rec:
@@ -695,6 +699,21 @@ in GridSizer when adding grids.
     for child in close_list:
       child.Destroy()
   #end CloseAllWidgets
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._CloseFrame()			-
+  #----------------------------------------------------------------------
+  def _CloseFrame( self, frame ):
+    """Performs action of closing a frame.
+"""
+    if frame:
+      self.app.RemoveFrame( frame )
+      frame.Bind( wx.EVT_CLOSE, None )
+      frame.Close()
+      if Config.CanDragNDrop():
+        self._UpdateWindowMenus( remove_frame = frame )
+  #end _CloseFrame
 
 
   #----------------------------------------------------------------------
@@ -930,6 +949,10 @@ WIDGET_MAP and TOOLBAR_ITEMS
     self.Bind( wx.EVT_MENU, self._OnSaveImageAllWidgets, save_item )
     file_menu.AppendItem( save_item )
     file_menu.AppendSeparator()
+
+    close_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Close Window\tCtrl+W' )
+    self.Bind( wx.EVT_MENU, self._OnCloseWindow, close_item )
+    file_menu.AppendItem( close_item )
 
     min_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Minimize Window\tCtrl+M' )
     self.Bind( wx.EVT_MENU, self._OnMinimizeWindow, min_item )
@@ -1455,11 +1478,12 @@ Note this defines a new State as well as widgets in the grid.
 
     else:
       frame = ev.GetEventObject()
-      self.app.RemoveFrame( frame )
-      frame.Bind( wx.EVT_CLOSE, None )
-      frame.Close()
-      if Config.CanDragNDrop():
-        self._UpdateWindowMenus( remove_frame = frame )
+      self._CloseFrame( frame )
+#      self.app.RemoveFrame( frame )
+#      frame.Bind( wx.EVT_CLOSE, None )
+#      frame.Close()
+#      if Config.CanDragNDrop():
+#        self._UpdateWindowMenus( remove_frame = frame )
   #end OnCloseFrame
 
 
@@ -1479,14 +1503,25 @@ Note this defines a new State as well as widgets in the grid.
   #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnCloseWindow()			-
   #----------------------------------------------------------------------
-#  def _OnCloseWindow( self, ev ):
-#    ev.Skip()
-#    for child in self.GetChildren():
-#      if isinstance( child, wx.Frame ) and child.IsActive():
-#	child.Close()
-#	break
-#    #end for
-#  #end _OnCloseWindow
+  def _OnCloseWindow( self, ev ):
+    ev.Skip()
+
+    match = None
+    for rec in self.app.GetFrames().itervalues():
+      frame = rec.get( 'frame' )
+      if frame and frame.IsActive():
+        match = frame
+	break
+    #end for rec
+
+    if match:
+      if len( self.app.GetFrames() ) == 1:
+        self._OnQuit( None )
+      else:
+	match.Close()
+        #self._CloseFrame( match )
+        #self.app.RemoveFrame( match )
+  #end _OnCloseWindow
 
 
   #----------------------------------------------------------------------
@@ -2339,11 +2374,6 @@ Must be called from the UI thread.
 #		-- Or determine default initial widgets
 #		--
     elif widget_props is None:
-#      self.CloseAllWidgets()
-#      grid_sizer = self.grid.GetSizer()
-#      grid_sizer.SetRows( 1 )
-#      grid_sizer.SetCols( 1 )
-
       widget_list = []
 
       if core.nass > 1:
@@ -2397,15 +2427,27 @@ Must be called from the UI thread.
             ]
 
       if self.config is None:
-        if len( widget_list ) > 6:
-          grid_sizer.SetCols( 4 )
-          grid_sizer.SetRows( 2 )
-        elif len( widget_list ) > 3:
-          grid_sizer.SetCols( 3 )
-          grid_sizer.SetRows( 2 )
-        elif len( widget_list ) > 1:
-          grid_sizer.SetCols( 2 )
-          grid_sizer.SetRows( 1 )
+	widget_count = len( widget_list )
+	cols = \
+	    5 if widget_count > 8 else \
+	    4 if widget_count > 6 else \
+	    3 if widget_count > 4 else \
+	    2 if widget_count > 1 else 1
+	rows = 2 if widget_count > 1 else 1
+	grid_sizer.SetCols( cols )
+	grid_sizer.SetRows( rows )
+#        if len( widget_list ) > 6:
+#          grid_sizer.SetCols( 4 )
+#          grid_sizer.SetRows( 2 )
+#        elif len( widget_list ) > 4:
+#          grid_sizer.SetCols( 3 )
+#          grid_sizer.SetRows( 2 )
+#        elif len( widget_list ) > 2:
+#          grid_sizer.SetCols( 2 )
+#          grid_sizer.SetRows( 2 )
+#        elif len( widget_list ) > 1:
+#          grid_sizer.SetCols( 2 )
+#          grid_sizer.SetRows( 1 )
       #end if config
 
 #			-- Create widgets

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2016-12-15	leerw@ornl.gov				-
+#	  Cleaning up BitmapThreadFinish() to report exception. Duh!!.
 #		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
@@ -311,19 +313,66 @@ _CreateValueString()
     """Background thread completion method called in the UI thread.
 Paired to _BitmapThreadStart().
 """
+    cur_tuple = pil_im = None
+    job_id = -1
+    try_count = 0
+    if result is not None:
+      try:
+        cur_tuple, pil_im, try_count = result.get()
+	job_id = result.getJobID()
+
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug(
+              '%s cur_tuple=%s, try_count=%d, job_id=%d',
+	      self.GetTitle(), cur_tuple, try_count, job_id
+	      )
+
+#			-- Log these conditions
+#			--
+        if cur_tuple is None:
+          self.logger.warning( '* %s cur_tuple is None *' % self.GetTitle() )
+        if pil_im is None:
+          self.logger.warning( '* %s pil_im is None *' % self.GetTitle() )
+
+      except Exception, ex:
+	self.logger.exception( '%s: Error creating image' % self.GetTitle() )
+	msg = '%s: Error creating image:\n%s' % ( self.GetTitle(), str( ex ) )
+	if hasattr( ex, 'extraInfo' ):
+	  msg += '\n' + str( ex.extraInfo )
+        wx.MessageBox( msg, 'CreateImage', wx.ICON_ERROR | wx.OK_DEFAULT )
+    #end if result is not None
+
+#		-- Always complete
+#		--
+    self._BitmapThreadFinishImpl( cur_tuple, pil_im )
+  #end _BitmapThreadFinish
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._BitmapThreadFinish_retry()	-
+  #----------------------------------------------------------------------
+  def _BitmapThreadFinish_retry( self, result ):
+    """Background thread completion method called in the UI thread.
+Paired to _BitmapThreadStart().
+"""
 #    if result is None:
 #      cur_tuple = pil_im = None
 #      try_count = 0
 #    else:
 #      cur_tuple, pil_im, try_count = result.get()
     cur_tuple = pil_im = None
-    try_count = job_id = -1
+    job_id = -1
+    try_count = 0
     if result is not None:
       try:
         cur_tuple, pil_im, try_count = result.get()
 	job_id = result.getJobID()
-      except:
-        pass
+      except Exception, ex:
+	self.logger.exception( '%s: Error creating image' % self.GetTitle() )
+	msg = '%s: Error creating image:\n%s' % ( self.GetTitle(), str( ex ) )
+	if hasattr( ex, 'extraInfo' ):
+	  msg += '\n' + str( ex.extraInfo )
+        wx.MessageBox( msg, 'CreateImage', wx.ICON_ERROR | wx.OK_DEFAULT )
 
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
@@ -340,7 +389,8 @@ Paired to _BitmapThreadStart().
 
 #		-- Retry image creation thread?
 #		--
-    if cur_tuple is not None and pil_im is None and try_count < 2:
+    #if cur_tuple is not None and pil_im is None and try_count < 2:
+    if cur_tuple is not None and pil_im is None and try_count < 0:
       if self.logger.isEnabledFor( logging.DEBUG ):
         self.logger.debug( 'retrying image thread, try_count=%d', try_count )
       RasterWidget.jobid_ += 1
@@ -355,7 +405,7 @@ Paired to _BitmapThreadStart().
 #		--
     else:
       self._BitmapThreadFinishImpl( cur_tuple, pil_im )
-  #end _BitmapThreadFinish
+  #end _BitmapThreadFinish_retry
 
 
   #----------------------------------------------------------------------
@@ -397,7 +447,7 @@ Paired to _BitmapThreadStart().
       if self.IsTupleCurrent( cur_tuple ):
         self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
         self.bitmapCtrl.Update()
-    #end if cur_pair is not None:
+    #end if cur_tuple is not None:
 
     self._BusyEnd()
   #end _BitmapThreadFinishImpl
