@@ -1564,7 +1564,7 @@ method via super.SaveProps().
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._UpdateDataSetStateValues()	-
   #----------------------------------------------------------------------
-  def _UpdateDataSetStateValues( self ):
+  def _UpdateDataSetStateValues( self, ds_type ):
     """
 Performs any additional state value updates after self.curDataSet has
 been updated.
@@ -1707,6 +1707,7 @@ will be called.
     if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
       ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
+        self._UpdateDataSetStateValues( ds_type )
         resized = True
         self.curDataSet = kwargs[ 'cur_dataset' ]
 	self.container.GetDataSetMenu().Reset()

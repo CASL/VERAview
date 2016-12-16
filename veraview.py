@@ -2487,8 +2487,10 @@ Must be called from the UI thread.
 
 #		-- Set bean ranges and values
 #		--
-    self.axialBean.SetRange( 1, core.nax )
-    self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+    axial_mesh_centers = dmgr.GetAxialMeshCenters()
+    axial_value = dmgr.GetAxialValue( cm = self.state.axialValue[ 0 ] )
+    self.axialBean.SetRange( 1, len( axial_mesh_centers ) )
+    self.axialBean.axialLevel = axial_value[ 1 ]
 
     self.exposureBean.SetRange( 1, len( time_values ) )
     self.exposureBean.stateIndex = \

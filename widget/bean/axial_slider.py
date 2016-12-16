@@ -165,7 +165,8 @@ Attributes/properties:
 
     sizer = wx.BoxSizer( wx.VERTICAL )
     sizer.Add( slider_label, 0, wx.ALL | wx.ALIGN_CENTER | wx.ALIGN_TOP )
-    sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
+    #sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
+    sizer.Add( self.fSlider, 1, wx.EXPAND | wx.RIGHT, 16 )
     self.SetSizer( sizer )
   #end _InitUI
 

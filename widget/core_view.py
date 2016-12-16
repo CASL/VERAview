@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2016-12-16	leerw@ornl.gov				-
+#	  Setting self.nodalMode in _LoadDataModelValues().
 #		2016-12-09	leerw@ornl.gov				-
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
@@ -1522,6 +1524,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     #self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
     self.curDataSet = self._FindFirstDataSet()
+
+    ds_type = self.dmgr.GetDataSetType( self.curDataSet )
+    self.nodalMode = self.dmgr.IsNodalType( ds_type )
+
     self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
