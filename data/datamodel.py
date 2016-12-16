@@ -3749,7 +3749,7 @@ being one greater in each dimension.
     self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
         self._ResolveDataSets( self.core, st_group )
 #			-- Only use time datasets that appear in all statepts
-    self.dataSetNames[ 'time' ] = State.ResolveTimeDataSets( self.states )
+    #self.dataSetNames[ 'time' ] = State.ResolveTimeDataSets( self.states )
     self.derivableTypesByLabel = {}
     self.derivedLabelsByType = {}
 

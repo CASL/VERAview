@@ -159,7 +159,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.0.76'
+TITLE = 'VERAView Version 1.1 Build 77'
 
 TOOLBAR_ITEMS = \
   [
@@ -2025,7 +2025,7 @@ Must be called on the UI event thread.
     """
 Must be called from the UI thread.
 """
-    self.CloseAllWidgets()
+    #self.CloseAllWidgets()
 
     msg = \
         ', '.join( file_paths )  if hasattr( file_paths, '__iter__' ) else \
@@ -2086,7 +2086,7 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._OpenFileEnd()			-
   #----------------------------------------------------------------------
   def _OpenFileEnd( self, result ):
-    """
+    """On UI thread.
 """
     status = result.get()
     if status is not None:
@@ -2361,10 +2361,10 @@ Must be called from the UI thread.
 
 #		-- Initialize
 #		--
-    self.CloseAllWidgets()
+    #self.CloseAllWidgets()
     grid_sizer = self.grid.GetSizer()
-    grid_sizer.SetRows( 1 )
-    grid_sizer.SetCols( 1 )
+    #grid_sizer.SetRows( 1 )
+    #grid_sizer.SetCols( 1 )
 
 #		-- Load Config
 #		--
@@ -2374,6 +2374,7 @@ Must be called from the UI thread.
 #		-- Or determine default initial widgets
 #		--
     elif widget_props is None:
+      self.CloseAllWidgets()
       widget_list = []
 
       if core.nass > 1:
@@ -2473,6 +2474,10 @@ Must be called from the UI thread.
       pass
 
     elif 'classpath' in widget_props:
+      self.CloseAllWidgets()
+      grid_sizer.SetRows( 1 )
+      grid_sizer.SetCols( 1 )
+
       wc = self.CreateWidget( widget_props[ 'classpath' ] )
       wc.LoadProps( widget_props )
 #    else:

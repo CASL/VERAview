@@ -682,6 +682,22 @@ or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetsMenu.__del__()				-
+  #----------------------------------------------------------------------
+  def __del__( self ):
+    self.state.RemoveListener( self )
+
+    dmgr = self.state.dataModelMgr
+    if dmgr is not None:
+      dmgr.RemoveListener( 'dataSetAdded', self._OnDataSetAdded )
+      dmgr.RemoveListener( 'modelAdded', self._OnModelAdded )
+      dmgr.RemoveListener( 'modelRemoved', self._OnModelRemoved )
+
+    super( DataSetsMenu, self ).__del__()
+  #end __del__
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetsMenu.__init__()				-
   #----------------------------------------------------------------------
   def __init__( self,
@@ -720,8 +736,9 @@ or Widget is responsible for calling UpdateMenu().
         )
     self.modelSubMenus = {}  # keyed by model name or 'self'
 
-    if widget is None:
-      state.AddListener( self )
+    #added in Init()
+    #if widget is None:
+    #  state.AddListener( self )
   #end __init__
 
 
@@ -745,7 +762,8 @@ or Widget is responsible for calling UpdateMenu().
 submenu (DataSetMenus), and create the derivedMenu if
 requested in the constructor and there is only one DataModel.
 """
-    dmgr = State.FindDataModelMgr( self.state )
+    #dmgr = State.FindDataModelMgr( self.state )
+    dmgr = self.state.dataModelMgr
     if dmgr is not None:
       dmgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
       dmgr.AddListener( 'modelAdded', self._OnModelAdded )

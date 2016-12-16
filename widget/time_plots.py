@@ -107,6 +107,8 @@ Properties:
     if self.dataSetDialog is not None:
       self.dataSetDialog.Destroy()
 
+    self.dmgr.RemoveListener( 'dataSetAdded', self._UpdateRefAxisMenu )
+
     super( TimePlots, self ).__del__()
   #end __del__
 

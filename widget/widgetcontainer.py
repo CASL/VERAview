@@ -175,6 +175,18 @@ widget.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		__del__()					-
+  #----------------------------------------------------------------------
+  def __del__( self ):
+    self.state.RemoveListener( self )
+#    if self.dataSetMenu is not None:
+#      self.state.RemoveListener( self.dataSetMenu )
+
+    super( WidgetContainer, self ).__del__()
+  #end __del__
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, parent, widget_classpath, state, **kwargs ):
