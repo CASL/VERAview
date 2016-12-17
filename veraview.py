@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2016-12-16	leerw@ornl.gov				-
+#	  Trying to clean up Mac stuff with Anaconda.  Giving up!!.
 #		2016-12-12	leerw@ornl.gov				-
 #		2016-11-26	leerw@ornl.gov				-
 #	  Using Config.CanDragNDrop() as a gate for the "Window" menubar
@@ -303,9 +305,10 @@ class VeraViewApp( wx.App ):
 #		-- Dict by index of { 'frame', 'n', 'title' }
     self.frames = {}
 
+    self.loadSession = False
     self.logger = logging.getLogger( 'root' )
     self.sessionPath = None
-    self.skipSession = False
+    #self.skipSession = False
     self.state = None
 
     wx.ToolTip.Enable( True )
@@ -386,6 +389,7 @@ class VeraViewApp( wx.App ):
   # These noworky
   #----------------------------------------------------------------------
   def MacHideApp( self ):
+    print >> sys.stderr, 'XXX MacHideHap'
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'entered' )
     pass
@@ -397,9 +401,19 @@ class VeraViewApp( wx.App ):
   # These noworky
   #----------------------------------------------------------------------
   def MacReopenApp( self ):
+    print >> sys.stderr, 'XXX MacReopenApp'
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'entered' )
-    self.BringWindowToFront()
+    #self.BringWindowToFront()
+
+    if len( self.frames ) > 0:
+      rec = self.frames.itervalues().next()
+      rec[ 'frame' ].Raise()
+#    for rec in self.frames.itervalues():
+#      print >> sys.stderr, 'XX', rec[ 'n' ], rec[ 'frame' ].IsActive()
+#      frame = rec.get( 'frame' )
+#      if frame and frame.IsActive():
+#        frame.Raise()
   #end MacReopenApp
 
 
@@ -449,7 +463,8 @@ unnecessary.
 	  opened = True
 	  frame.OpenFile( paths, session )
 
-      elif session is not None and not self.skipSession:
+      #elif session is not None and not self.skipSession:
+      elif session is not None and self.loadSession:
         data_paths = session.GetDataModelPaths()
 	if data_paths and len( data_paths ) > 0:
 	  found = True
@@ -541,15 +556,21 @@ unnecessary.
           )
 
       parser.add_argument(
+	  '--load-session',
+	  action = 'store_true',
+	  help = 'load the session on startup, overriding any file paths'
+          )
+
+      parser.add_argument(
 	  '--session',
 	  help = 'path to session file to load'
           )
 
-      parser.add_argument(
-	  '--skip-startup-session-check',
-	  action = 'store_true',
-	  help = 'skip the check for a session on startup when no file path is specified'
-          )
+#      parser.add_argument(
+#	  '--skip-startup-session-check',
+#	  action = 'store_true',
+#	  help = 'skip the check for a session on startup when no file path is specified'
+#          )
 
       args = parser.parse_args()
 
@@ -564,8 +585,9 @@ unnecessary.
       #app = VeraViewApp( redirect = False )  # redirect = False
       app = VeraViewApp()
       app.filePaths = args.file_path
+      app.loadSession = args.load_session
       app.sessionPath = args.session
-      app.skipSession = args.skip_startup_session_check
+      #app.skipSession = args.skip_startup_session_check
       app.state = state
 
       #app.frame = VeraViewFrame( app, state )
@@ -901,10 +923,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
 #			-- File->New Submenu
     new_menu = wx.Menu()
-    new_window_item = wx.MenuItem( new_menu, wx.ID_ANY, '&Window' )
-    self.Bind( wx.EVT_MENU, self._OnNewWindow, new_window_item )
-    new_menu.AppendItem( new_window_item )
-    new_menu.AppendSeparator()
+    if Config.CanDragNDrop():
+      new_window_item = wx.MenuItem( new_menu, wx.ID_ANY, '&Window' )
+      self.Bind( wx.EVT_MENU, self._OnNewWindow, new_window_item )
+      new_menu.AppendItem( new_window_item )
+      new_menu.AppendSeparator()
+    #end if
 
     widget_keys = WIDGET_MAP.keys()
     widget_keys.sort()

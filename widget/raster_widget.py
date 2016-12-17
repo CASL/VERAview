@@ -323,8 +323,9 @@ Paired to _BitmapThreadStart().
 
         if self.logger.isEnabledFor( logging.DEBUG ):
           self.logger.debug(
-              '%s cur_tuple=%s, try_count=%d, job_id=%d',
-	      self.GetTitle(), cur_tuple, try_count, job_id
+              '%s cur_tuple=%s, try_count=%d, job_id=%d, pil_im-is-None=%d',
+	      self.GetTitle(), cur_tuple, try_count, job_id,
+	      pil_im is None
 	      )
 
 #			-- Log these conditions
@@ -420,6 +421,8 @@ Paired to _BitmapThreadStart().
     if cur_tuple is not None:
       if pil_im is None:
         bmap = self.blankBitmap
+        if self.logger.isEnabledFor( logging.INFO ):
+	  self.logger.info( '%s ** pil_im is None **', self.GetTitle() )
 
 #			-- Create bitmap
 #			--
@@ -442,10 +445,23 @@ Paired to _BitmapThreadStart().
 	  self.bitmapThreadArgs = None
 	finally:
 	  self.bitmapsLock.release()
+
+        if self.logger.isEnabledFor( logging.DEBUG ):
+	  self.logger.debug(
+	      '%s pil_im is not None, cur_tuple=%s, bmap=%s',
+	      self.GetTitle(), str( cur_tuple ), bmap
+	      )
       #end else pil_im not None
 
+      if self.logger.isEnabledFor( logging.DEBUG ):
+	self.logger.debug(
+	    '%s cur_tuple=%s, isTupleCurrent=%d, bmap-is-blankBitmap=%d',
+	    self.GetTitle(), str( cur_tuple ),
+            self.IsTupleCurrent( cur_tuple ), bmap == self.blankBitmap
+	    )
       if self.IsTupleCurrent( cur_tuple ):
         self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
+        self.bitmapCtrl.Refresh()
         self.bitmapCtrl.Update()
     #end if cur_tuple is not None:
 
@@ -464,8 +480,8 @@ Calls _CreateRasterImage().
 """
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
-	  'next_tuple=%s, try_count=%d, job_id=%d',
-	  next_tuple, try_count, job_id
+	  '%s next_tuple=%s, try_count=%d, job_id=%d',
+	  self.GetTitle(), next_tuple, try_count, job_id
           )
 
     pil_im = None
@@ -483,6 +499,12 @@ Calls _CreateRasterImage().
 
     #return  ( next_tuple, pil_im, try_count )
     result_tpl = ( next_tuple, pil_im, try_count )
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug(
+	  '%s returning, next_tuple=%s, pil_im-is-None=%d',
+	  self.GetTitle(), next_tuple, pil_im is None
+          )
+
     return  result_tpl
   #end _BitmapThreadStart
 
