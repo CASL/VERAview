@@ -148,19 +148,20 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-#xxxxx nodalMode
     csv_text = None
+
+    core = None
     dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+    is_valid = self.dmgr.IsValid(
+        self.curDataSet,
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
 
-    if dset is not None:
-      #dset_value = dset.value
+    if dset is not None and core is not None:
       dset_value = np.array( dset )
       dset_shape = dset_value.shape
       #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
@@ -168,11 +169,11 @@ Properties:
       if self.mode == 'xz':
 	assy_row = self.assemblyAddr[ 2 ]
 	pin_row = self.subAddr[ 1 ]
-	pin_count = 4 if self.nodalMode else dset_shape[ 0 ]
+	pin_count = 4  if self.nodalMode else  dset_shape[ 0 ]
       else:
 	assy_col = self.assemblyAddr[ 1 ]
 	pin_col = self.subAddr[ 0 ]
-	pin_count = 4 if self.nodalMode else dset_shape[ 1 ]
+	pin_count = 4  if self.nodalMode else  dset_shape[ 1 ]
 
       clip_shape = (
           self.cellRange[ -1 ],
@@ -184,20 +185,23 @@ Properties:
       #for ax in range( self.cellRange[ -1 ] ):
       for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
 	ax_offset = self.cellRange[ 3 ] - 1 - ax
-	clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
+	#clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
+	cur_axial_value = \
+	    self.dmgr.GetAxialValue( self.curDataSet, core_ndx = ax )
+	clip_data[ ax_offset, 0 ] = cur_axial_value[ 0 ]
 
 	pin_cell = 1
         for assy_cell in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 	  pin_cell_to = pin_cell + pin_count
 	  if self.mode == 'xz':
-	    assy_ndx = self.data.core.coreMap[ assy_row, assy_cell ] - 1
+	    assy_ndx = core.coreMap[ assy_row, assy_cell ] - 1
 	    if assy_ndx >= 0:
 	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
 	        dset_value[ 0, :, ax, assy_ndx ] if self.nodalMode else \
 	        dset_value[ pin_row, :, ax, assy_ndx ]
 
 	  else:
-	    assy_ndx = self.data.core.coreMap[ assy_cell, assy_col ] - 1
+	    assy_ndx = core.coreMap[ assy_cell, assy_col ] - 1
 	    if assy_ndx >= 0:
 	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
 	        dset_value[ 0, :, ax, assy_ndx ] if self.nodalMode else \
@@ -209,42 +213,35 @@ Properties:
 
       if self.mode == 'xz':
         title1 = '"%s: Assy Row=%s; Pin Row=%d; %s=%.3g"' % (
-	    self.pinDataSet,
-#            self.data.core.coreLabels[ 1 ][ assy_row ],
-            self.data.core.GetRowLabel( assy_row ),
+	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+            core.GetRowLabel( assy_row ),
 	    pin_row + 1,
 	    self.state.timeDataSet,
-	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	    self.timeValue
+	    #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 	    )
-#        col_labels = [
-#            self.data.core.coreLabels[ 0 ][ i ]
-#	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
-#            ]
-	col_labels = self.data.core.\
-	    GetColLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+	col_labels = \
+	    core.GetColLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
         title2 = '"Axial; Cols=%s"' % ':'.join( col_labels )
 
       else:
         title1 = '"%s: Assy Col=%s; Pin Col=%d; %s=%.3g"' % (
-	    self.pinDataSet,
-#            self.data.core.coreLabels[ 0 ][ assy_col ],
-            self.data.core.GetColLabel( assy_col ),
+	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+            core.GetColLabel( assy_col ),
 	    pin_col + 1,
 	    self.state.timeDataSet,
-	    self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	    self.timeValue
+	    #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 	    )
-#        row_labels = [
-#            self.data.core.coreLabels[ 1 ][ i ]
-#	    for i in range( self.cellRange[ 0 ], self.cellRange[ 2 ] )
-#            ]
-	row_labels = self.data.core.\
-	    GetRowLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+	row_labels = \
+	    core.GetRowLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
         title2 = '"Axial; Rows=%s"' % ':'.join( row_labels )
       #end if-else
 
 #		-- Write with axial mesh centers
 #		--
       csv_text = DataModel.ToCSV( clip_data, ( title1, title2 ) )
+    #end if dset is not None and core is not None
 
     return  csv_text
   #end _CreateClipboardDisplayedData
@@ -259,18 +256,19 @@ Properties:
 """
 #xxxxx nodalMode
     csv_text = None
+
+    core = None
     dset = None
-    is_valid = DataModel.IsValidObj(
-	self.data,
-        assembly_addr = self.assemblyAddr[ 0 ],
-	axial_level = self.axialValue[ 1 ],
-	state_index = self.stateIndex
+    is_valid = self.dmgr.IsValid(
+        self.curDataSet,
+	axial_level = self.axialValue[ 1 ]
+	#state_index = self.stateIndex
 	)
     if is_valid:
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
 
-    if dset is not None:
-      #dset_value = dset.value
+    if dset is not None and core is not None:
       dset_value = np.array( dset )
       dset_shape = dset_value.shape
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
@@ -291,13 +289,14 @@ Properties:
 	pin_title = 'Pin Col=%d' % (pin_col + 1)
 
       title = '"%s: Assembly=%d %s; %s; Axial=%.3f; %s=%.3g"' % (
-	  self.pinDataSet,
+	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  assy_ndx + 1,
-	  self.data.core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  pin_title,
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	  self.timeValue
+	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
       csv_text = DataModel.ToCSV( clip_data, title )
 
@@ -1327,6 +1326,18 @@ method via super.SaveProps().
 #       self.avgValues[ state_ndx ] = avg_values
 #     #end if
 #   #end _UpdateAvgValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._UpdateDataSetStateValues()	-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetStateValues( self, ds_type ):
+    """
+@param  ds_type		dataset category/type
+Updates the nodalMode property.
+"""
+    self.nodalMode = self.dmgr.IsNodalType( ds_type )
+  #end _UpdateDataSetStateValues
 
 
   #----------------------------------------------------------------------
