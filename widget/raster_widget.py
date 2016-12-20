@@ -898,7 +898,7 @@ _CreateRasterImage().
 @return			( string.Template, size-tuple )
 """
     #title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
-    title_fmt = '%s: ' % qds_name.displayName
+    title_fmt = '%s: ' % self.dmgr.GetDataSetDisplayName( qds_name )
     comma_flag = False
     size_values = {}
 
@@ -946,7 +946,7 @@ _CreateRasterImage().
 @return			( string.Template, size-tuple )
 """
     #title_fmt = '%s: ' % self.data.GetDataSetDisplayName( ds_name )
-    title_fmt = '%s: ' % qds_name.displayName
+    title_fmt = '%s: ' % self.dmgr.GetDataSetDisplayName( qds_name )
     comma_flag = False
     size_values = {}
 

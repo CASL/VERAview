@@ -1030,7 +1030,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     #if self.logger.isEnabledFor( logging.DEBUG ):
       #self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
-    return  im if im is not None else self.emptyPilImage
+    return  im  if im is not None else  self.emptyPilImage
   #end _CreateCoreImage
 
 
