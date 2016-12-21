@@ -583,7 +583,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       #end for assy rows
 
       title1 = '"%s: Axial=%.3f; %s=%.3g"' % (
-	  self.curDataSet.displayName,
+	  #self.curDataSet.displayName,
+	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
 	  self.timeValue

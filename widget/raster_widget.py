@@ -1148,7 +1148,7 @@ be displayed in a cell.
     """This implementation returns self.dmgr.ExtractSymmetryExtent().
 Subclasses should override as needed.
 @return			intial range of raster cells
-			( left, top, right, bottom, dx, dy )
+			( left, top, right+1, bottom+1, dx, dy )
 """
     return  self.dmgr.ExtractSymmetryExtent()
   #end GetInitialCellRange
@@ -1729,9 +1729,9 @@ will be called.
     if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
       ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
       if ds_type and ds_type in self.GetDataSetTypes():
-        self._UpdateDataSetStateValues( ds_type )
         resized = True
         self.curDataSet = kwargs[ 'cur_dataset' ]
+        self._UpdateDataSetStateValues( ds_type )
 	self.container.GetDataSetMenu().Reset()
         self.axialValue = self.dmgr.\
             GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )

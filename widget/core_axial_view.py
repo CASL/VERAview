@@ -347,9 +347,11 @@ If neither are specified, a default 'scale' value of 4 is used.
     legend_pil_im = config[ 'legendPilImage' ]
     legend_size = config[ 'legendSize' ]
 
-    axial_mesh = core.axialMesh
+    #axial_mesh = core.axialMesh
+    axial_mesh = self.dmgr.GetAxialMesh( self.curDataSet )
     axial_range_cm = \
-        axial_mesh[ self.cellRange[ 3 ] ] - axial_mesh[ self.cellRange[ 1 ] ]
+        axial_mesh[ self.cellRange[ 3 ] - 1 ] - \
+	axial_mesh[ self.cellRange[ 1 ] ]
     npin = core.npinx  if self.mode == 'xz' else  core.npiny
 
     # pin equivalents in the axial range
@@ -438,7 +440,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     axials_dy_min = sys.float_info.max
     axials_dy = []
-    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+    for ax in range( self.cellRange[ 3 ] - 2, self.cellRange[ 1 ] - 1, -1 ):
       ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
       dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
       axials_dy.insert( 0, dy )
@@ -964,7 +966,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetInitialCellRange( self ):
     """Creates the range using y for the axial.
-@return			( xy-left, z-bottom, xy-right, z-top, d-xy, dz )
+@return			( xy-left, z-bottom, xy-right+1, z-top+1, d-xy, dz )
 """
     core = None
     if self.dmgr is not None:
@@ -981,7 +983,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	result[ 4 ] = result[ 5 ]
 
       result[ 1 ] = 0
-      result[ 3 ] = result[ 5 ] = core.nax
+      #result[ 3 ] = result[ 5 ] = core.nax
+      mesh = self.dmgr.GetAxialMesh( self.curDataSet )
+      result[ 3 ] = result[ 5 ] = len( mesh )
 
     return  result
   #end GetInitialCellRange
@@ -1336,6 +1340,9 @@ method via super.SaveProps().
 @param  ds_type		dataset category/type
 Updates the nodalMode property.
 """
+    self.cellRange = list( self.GetInitialCellRange() )
+    del self.cellRangeStack[ : ]
+
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
   #end _UpdateDataSetStateValues
 

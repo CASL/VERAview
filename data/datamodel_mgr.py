@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-22	leerw@ornl.gov				-
+#	  Modified the GetXxxMeshXxx() methods to accept a model_name
+#	  param.
 #		2016-12-13	leerw@ornl.gov				-
 #	  Added GetDataSetDisplayName().
 #		2016-12-09	leerw@ornl.gov				-
@@ -76,12 +79,14 @@ Properties:
   def __init__( self ):
     """
 """
+    self.axialMesh = None
     self.axialMeshCenters = None
     self.core = None
     self.dataModelNames = []
     self.dataModels = {}
     #self.dataSetNamesVersion = 0
     self.detectorMesh = None
+    self.fixedDetectorMesh = None
     self.fixedDetectorMeshCenters = None
     self.listeners = \
         { 'dataSetAdded': [], 'modelAdded': [], 'modelRemoved': [] }
@@ -430,14 +435,47 @@ returned.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetAxialMesh()			-
+  #----------------------------------------------------------------------
+  def GetAxialMesh( self, model_name = None ):
+    """Retrieves the axialMesh property for the specified model or
+the cross-model global mesh.
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh for the specified model or the
+			cross-model global mesh values if model_name is None
+			or not found
+"""
+    result = self.axialMesh
+    if model_name is not None:
+      dm = self.GetDataModel( model_name )
+      if dm:
+        result = dm.GetCore().axialMesh
+
+    return  result
+  #end GetAxialMesh
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetAxialMeshCenters()		-
   #----------------------------------------------------------------------
-  def GetAxialMeshCenters( self ):
-    """Accessor for the axialMeshCenters property, which is all the mesh
-values across all models.
-@return			mesh values as a list
+  def GetAxialMeshCenters( self, model_name = None ):
+    """Retrieves the axialMeshCenters property for the specified model or
+the cross-model global mesh centers.
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh centers for the specified model or the
+			cross-model global mesh values if model_name is None
+			or not found
 """
-    return  self.axialMeshCenters
+    #return  self.axialMeshCenters
+    result = self.axialMeshCenters
+    if model_name is not None:
+      dm = self.GetDataModel( model_name )
+      if dm:
+        result = dm.GetCore().axialMeshCenters
+
+    return  result
   #end GetAxialMeshCenters
 
 
@@ -507,14 +545,23 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetCore()				-
   #----------------------------------------------------------------------
-  def GetCore( self ):
-    """Convenience method to return the Core instance from the first
-DataModel.
-@return			Core instance or None if no models have been opened
+  def GetCore( self, model_name = None ):
+    """Retrieves the core property for the specified model or
+the cross-model core.
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			Core instance for the specified model or the
+			cross-model instance if model_name is None
+			or not found
 """
-    return  self.core
-    #dm = self.GetFirstDataModel()
-    #return  dm.GetCore()  if dm else  None
+    #return  self.core
+    result = self.core
+    if model_name is not None:
+      dm = self.GetDataModel( model_name )
+      if dm:
+        result = dm.GetCore()
+
+    return  result
   #end GetCore
 
 
@@ -712,12 +759,23 @@ If ds_type is None or empty, all types are matched.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDetectorMesh()			-
   #----------------------------------------------------------------------
-  def GetDetectorMesh( self ):
-    """Accessor for the detectorMesh property, which is all the mesh
-values across all models.
-@return			mesh values as a list
+  def GetDetectorMesh( self, model_name = None ):
+    """Retrieves the detectorMesh property for the specified model or
+the cross-model global mesh.
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh for the specified model or the
+			cross-model global mesh if model_name is None or is
+			not found
 """
-    return  self.detectorMesh
+    #return  self.detectorMesh
+    result = self.detectorMesh
+    if model_name is not None:
+      dm = self.GetDataModel( model_name )
+      if dm:
+        result = dm.GetCore().detectorMesh
+
+    return  result
   #end GetDetectorMesh
 
 
@@ -775,14 +833,47 @@ values across all models.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFixedDetectorMesh()		-
+  #----------------------------------------------------------------------
+  def GetFixedDetectorMesh( self, model_name = None ):
+    """Retrieves the fixedDetectorMesh property for the specified model
+or the cross-model global mesh.
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh for the specified model or the
+			cross-model global mesh values if model_name is None
+			or not found
+"""
+    result = self.fixedDetectorMesh
+    if model_name is not None:
+      dm = self.GetDataModel( model_name )
+      if dm:
+        result = dm.GetCore().fixedDetectorMesh
+
+    return  result
+  #end GetFixedDetectorMesh
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetFixedDetectorMeshCenters()	-
   #----------------------------------------------------------------------
-  def GetFixedDetectorMeshCenters( self ):
-    """Accessor for the fixedDetectorMeshCenters property, which is all the
-mesh values across all models.
-@return			mesh values as a list
+  def GetFixedDetectorMeshCenters( self, model_name = None ):
+    """Retrieves the fixedDetectorMeshCenters property for the specified model
+or the cross-model global mesh centers.
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh centers for the specified model or the
+			cross-model global mesh values if model_name is None
+			or not found
 """
-    return  self.fixedDetectorMeshCenters
+    #return  self.fixedDetectorMeshCenters
+    result = self.fixedDetectorMeshCenters
+    if model_name is not None:
+      dm = self.GetDataModel( model_name )
+      if dm:
+        result = dm.GetCore().fixedDetectorMeshCenters
+
+    return  result
   #end GetFixedDetectorMeshCenters
 
 
@@ -1524,21 +1615,25 @@ other derived types we pass 'pin'.
   #	METHOD:		DataModelMgr._UpdateMeshValues()		-
   #----------------------------------------------------------------------
   def _UpdateMeshValues( self ):
-    """Updates the axialMeshCenters, detectorMesh,
-fixedDetectorMeshCenters, and maxAxialValue properties.
+    """Updates the axialMesh, axialMeshCenters, detectorMesh,
+fixedDetectorMesh, fixedDetectorMeshCenters, and maxAxialValue properties.
 @return			maxAxialValue property value
 """
     self.maxAxialValue = -1.0
+    axial_mesh = set()
     axial_mesh_centers = set()
     detector_mesh = set()
+    fixed_detector_mesh = set()
     fixed_detector_mesh_centers = set()
 
     for dm in self.dataModels.values():
       core = dm.GetCore()
       if core is not None:
+	if core.axialMesh is not None:
+	  self.maxAxialValue = max( self.maxAxialValue, core.axialMesh[ -1 ] )
+	  axial_mesh.update( set( core.axialMesh ) )
+
         if core.axialMeshCenters is not None:
-	  self.maxAxialValue = \
-	      max( self.maxAxialValue, core.axialMeshCenters[ -1 ] )
 	  axial_mesh_centers.update( set( core.axialMeshCenters ) )
 
         if core.detectorMesh is not None:
@@ -1546,17 +1641,23 @@ fixedDetectorMeshCenters, and maxAxialValue properties.
 	      max( self.maxAxialValue, core.detectorMesh[ -1 ] )
 	  detector_mesh.update( set( core.detectorMesh ) )
 
-        if core.fixedDetectorMeshCenters is not None:
+        if core.fixedDetectorMesh is not None:
 	  self.maxAxialValue = \
-	      max( self.maxAxialValue, core.fixedDetectorMeshCenters[ -1 ] )
+	      max( self.maxAxialValue, core.fixedDetectorMesh[ -1 ] )
+	  fixed_detector_mesh.update( set( core.fixedDetectorMesh ) )
+
+        if core.fixedDetectorMeshCenters is not None:
 	  fixed_detector_mesh_centers.\
 	      update( set( core.fixedDetectorMeshCenters ) )
       #if core
     #end for dm
 
+    self.axialMesh = list( sorted( axial_mesh ) )
     self.axialMeshCenters = list( sorted( axial_mesh_centers ) )
     self.detectorMesh = list( sorted( detector_mesh ) )
-    self.fixedDetectorMeshCenters = list( sorted( fixed_detector_mesh_centers ) )
+    self.fixedDetectorMesh = list( sorted( fixed_detector_mesh ) )
+    self.fixedDetectorMeshCenters = \
+        list( sorted( fixed_detector_mesh_centers ) )
 
     return  self.maxAxialValue
   #end _UpdateMeshValues
