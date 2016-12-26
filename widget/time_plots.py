@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2016-12-26	leerw@ornl.gov				-
+#	  Prep for top level data model submenus for ref axis menu.
 #		2016-12-13	leerw@ornl.gov				-
 #	  Adapting to new DataModelMgr.
 #		2016-11-26	leerw@ornl.gov				-
@@ -1014,11 +1016,11 @@ be overridden by subclasses.
 """
     ev.Skip()
 
-    #xxxxx pullright by model?
     menu = ev.GetEventObject()
     item = menu.FindItemById( ev.GetId() )
     if item is not None:
       label = item.GetItemLabelText()
+      #x new_value = None if label == LABEL_timeDataSet else self.refAxisMenuItemMap.get( item )
       new_value = None if label == LABEL_timeDataSet else DataSetName( label )
       if new_value != self.refAxisDataSet:
 	Widget.CheckSingleMenuItem( self.refAxisMenu, item )
@@ -1262,15 +1264,27 @@ already read.
   def _UpdateRefAxisMenu( self, *args, **kwargs ):
     """Must be called from the UI thread.
 """
+    #xxxxx Create model submenus at first level with types submenus
+    #xxxxx _OnSelectRefAxisDataSet() must check parent menu to see
     #if self.data is not None:
     if self.dmgr.HasData():
       Widget.ClearMenu( self.refAxisMenu )
+      #x self.refAxisMenuItemMap.clear()
 
       menu_types = []
       menu_types = self.GetDataSetTypes()
 
 #			-- Map dataset names to base category/type
 #			--
+      #x if self.dmgr.GetDataModelCount() < 2:
+      #x for model_name in self.dmgr.GetDataModelNames():
+      #x   if self.dmgr.GetDataModelCount() > 1:
+      #x     model_menu = wx.Menu()
+      #x     model_menu_item = wx.MenuItem( self.refAxisMenu, wx.ID_ANY, model_name, subMenu = model_menu )
+      #x     self.refAxisMenu.AppendItem( model_menu )
+      #x   else:
+      #x     model_menu = self.refAxisMenu
+
       qds_names_by_type = {}
       for dtype in menu_types:
         qds_names = self.dmgr.GetDataSetQNames( None, dtype )
@@ -1288,9 +1302,9 @@ already read.
       for dtype, qds_names in sorted( qds_names_by_type.iteritems() ):
         if qds_names:
 	  type_menu = wx.Menu()
-	  #xxxxx pullright by model?
 	  for qds_name in sorted( qds_names ):
 	    item = wx.MenuItem(
+		#x qds_name.displayName
 	        type_menu, wx.ID_ANY, qds_name.name,
 		kind = wx.ITEM_CHECK
 		)
@@ -1298,12 +1312,14 @@ already read.
 	    type_menu.AppendItem( item )
 	    if qds_name == self.refAxisDataSet:
 	      item.Check()
+            #x self.refAxisMenuItemMap[ item ] = qds_name
 	  #end for qds_name
 
           type_item = wx.MenuItem(
 	      self.refAxisMenu, wx.ID_ANY, dtype,
 	      subMenu = type_menu
 	      )
+          #x model_menu.AppendItem( type_item )
 	  self.refAxisMenu.AppendItem( type_item )
         #end if qds_names
       #end for dtype, ds_names
@@ -1316,7 +1332,9 @@ already read.
       self.refAxisMenu.AppendItem( item )
       if self.refAxisDataSet is None:
         item.Check()
-    #end if-else self.data
+
+      #x end for model_name
+    #end if self.dmgr.HasData()
   #end _UpdateRefAxisMenu
 
 

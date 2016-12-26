@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-26	leerw@ornl.gov				-
+#	  Added check for core_map and detector_map equality in
+#	  _CheckDataModelIsCompatible().
+#	  Added IsDetectorOperable().
 #		2016-12-22	leerw@ornl.gov				-
 #	  Modified the GetXxxMeshXxx() methods to accept a model_name
 #	  param.
@@ -125,17 +129,21 @@ Properties:
       if not dm.HasData():
         raise  Exception( 'Required VERA data not found' )
 
+      msg = None
+
       if len( self.dataModelNames ) > 0:
         cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]
         cur_core = cur_dm.GetCore()
 	dm_core = dm.GetCore()
+#			-- Core symmetry
+#			--
 	if cur_core.coreSym != dm_core.coreSym or \
 	    cur_core.nass != dm_core.nass or \
 	    cur_core.nassx != dm_core.nassx or \
 	    cur_core.npinx != dm_core.npinx or \
 	    cur_core.npiny != dm_core.npiny:
 	  msg_fmt = \
-	      'Incompatible core geometry:\n' + \
+	      '\n* Incompatible core geometry:\n' + \
 	      '\tcoreSym=%d, nass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d\n' + \
 	      'is not compatible with\n' + \
 	      '\tcoreSym=%d, nass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d'
@@ -147,8 +155,20 @@ Properties:
 	      cur_core.nassx, cur_core.nassy,
 	      cur_core.npinx, cur_core.npiny
 	      )
-          raise  Exception( msg )
+
+#			-- Core map
+#			--
+	if not np.array_equal( cur_core.coreMap, dm_core.coreMap ):
+	  msg += '\n* core_map differs\n'
+
+#			-- Detector map
+#			--
+	if not np.array_equal( cur_core.detectorMap, dm_core.detectorMap ):
+	  msg += '\n* detector_map differs\n'
       #end if len
+
+      if msg:
+        raise  Exception( msg )
     #end if dm
   #end _CheckDataModelIsCompatible
 
@@ -1162,6 +1182,43 @@ True is returned.
     dm = self.GetDataModel( qds_name )
     return  dm.IsDerivedDataSet( qds_name.displayName )  if dm else  False
   #end IsDerivedDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.IsDetectorOperable()		-
+  #----------------------------------------------------------------------
+  def IsDetectorOperable( self, det_ndx, time_value, model_name = None ):
+    """Determines if there is/are 'detector_operable' datasets that mark
+the det_ndx as inoperable.  If model_name is None, then all models must
+report inoperability for the result to be False.
+@param  det_ndx		0-based detector index
+@param  time_value	time value
+@return			True if det_ndx for model_name or any model is
+			operable, False if inoperable for model_name or
+			all models
+"""
+    operable = False
+
+    if model_name:
+      model_names = [ model_name ]
+    else:
+      model_names = self.dataModelNames
+
+    for name in model_names:
+      det_operable_dset = None
+      dm = self.GetDataModel( name )
+      if dm:
+        state_ndx = self.GetTimeValueIndex( time_value, name )
+	det_operable_dset = dm.GetStateDataSet( state_ndx, 'detector_operable' )
+
+      operable |= \
+          (det_operable_dset is None or det_operable_dset[ det_ndx ] == 0)
+      if operable:
+        break
+    #end for name
+
+    return  operable
+  #end IsDetectorOperable
 
 
   #----------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-12-26	leerw@ornl.gov				-
+#	  Transition to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
@@ -186,6 +188,7 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
+    #xxxxx
 
 #		-- Must be valid state
 #		--
@@ -295,6 +298,7 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
+    #xxxxx
 
 #		-- Must be valid state
 #		--
@@ -411,6 +415,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     ds_range = self._GetDataRange()
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
+    #core = self.dmgr.GetCore()
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
     legend_pil_im = config[ 'legendPilImage' ]
@@ -480,14 +485,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
     im = None
 
-    tuple_valid = DataModel.IsValidObj( self.data, state_index = state_ndx )
+    #tuple_valid = DataModel.IsValidObj( self.data, state_index = state_ndx )
 
     if config is None:
       config = self.config
 
-    if config is not None and tuple_valid:
-#	self.data.core.detectorMesh is not None and \
-#	len( self.data.core.detectorMesh ) > 0:
+    if config is not None and self.dmgr.HasData():
       im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       det_gap = config[ 'detectorGap' ]
@@ -497,17 +500,15 @@ If neither are specified, a default 'scale' value of 4 is used.
       line_wd = config[ 'lineWidth' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
-      pil_font2 = config[ 'pilFont2' ]
-      pil_font_small = config[ 'pilFontSmall' ]
 
-      core = self.data.GetCore()
+      core = self.dmgr.GetCore()
       ds_range = self._GetDataRange()
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-      st = self.data.GetState( state_ndx )
-      ds_operable = \
-          st.GetDataSet( 'detector_operable' ) \
-	  if st is not None else None
+#      st = self.data.GetState( state_ndx )
+#      ds_operable = \
+#          st.GetDataSet( 'detector_operable' ) \
+#	  if st is not None else None
 
       axial_mesh_min, axial_mesh_max = self._GetAxialRange()
       axial_mesh_factor = (det_wd - 1) / (axial_mesh_max - axial_mesh_min)
@@ -529,18 +530,22 @@ If neither are specified, a default 'scale' value of 4 is used.
       #op_color = ( 255, 255, 255, 255 )
       #noop_color = ( 155, 155, 155, 255 )
       #grid_color = ( 200, 200, 200, 255 )
-      line_color = ( 0, 0, 0, 255 )
       #fdet_center_color = ( 255, 255, 255, 255 )
+      line_color = ( 0, 0, 0, 255 )
 
 #			-- Need first detector dataset to color cell border
 #			--
       first_det_values = None
       if len( self.detectorDataSets ) > 0:
-	for d in sorted( self.detectorDataSets ):
-	  dset = self.data.GetStateDataSet( state_ndx, d )
-	  if dset is not None:
-	    first_det_values = dset.value
-	  break
+        qds_name = sorted( self.detectorDataSets )[ 0 ]
+	dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+	if dset is not None:
+	  first_det_values = np.array( dset )
+#	for d in sorted( self.detectorDataSets ):
+#	  dset = self.data.GetStateDataSet( state_ndx, d )
+#	  if dset is not None:
+#	    first_det_values = dset.value
+#	  break
       #end if len
 
 #			-- Loop on rows
@@ -548,13 +553,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       #det_y = 1
       det_y = core_region[ 1 ]
       for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-        detmap_row = self.data.core.detectorMap[ det_row, : ]
+        detmap_row = core.detectorMap[ det_row, : ]
 
 #				-- Row label
 #				--
 	if self.showLabels:
-#	  label = self.data.core.coreLabels[ 1 ][ det_row ]
-	  label = self.data.core.GetRowLabel( det_row )
+	  label = core.GetRowLabel( det_row )
 	  label_size = label_font.getsize( label )
 	  label_y = det_y + ((det_wd - label_size[ 1 ]) >> 1)
 	  im_draw.text(
@@ -569,8 +573,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #					-- Column label
 #					--
 	  if det_row == self.cellRange[ 1 ] and self.showLabels:
-#	    label = self.data.core.coreLabels[ 0 ][ det_col ]
-	    label = self.data.core.GetColLabel( det_col )
+	    label = core.GetColLabel( det_col )
 	    label_size = label_font.getsize( label )
 	    label_x = det_x + ((det_wd - label_size[ 0 ]) >> 1)
 	    im_draw.text(
@@ -594,9 +597,13 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        color_ds_value - ds_range[ 0 ], value_delta, 255
 	        )
 
-	    fill_color = self.fillColorOperable
-	    if ds_operable is not None and len( ds_operable ) > det_ndx and \
-	        ds_operable[ det_ndx ] != 0:
+#	    fill_color = self.fillColorOperable
+#	    if ds_operable is not None and len( ds_operable ) > det_ndx and \
+#	        ds_operable[ det_ndx ] != 0:
+#	      fill_color = self.fillColorUnoperable
+            if self.dmgr.IsDetectorOperable( det_ndx, self.timeValue ):
+	      fill_color = self.fillColorOperable
+	    else:
 	      fill_color = self.fillColorUnoperable
 
 	    im_draw.rectangle(
@@ -608,9 +615,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    if self.mode == 'numbers':
 	      #self.axialValue[ 2 or 3 ]
               self._DrawNumbers(
-		  im_draw, core = core,
+		  im_draw,
 		  axial_value = self.axialValue,
-		  state_ndx = state_ndx,
+		  time_value = self.timeValue,
 		  det_ndx = det_ndx, det_wd = det_wd,
 		  det_x = det_x, det_y = det_y,
 		  value_font = value_font,
@@ -620,7 +627,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    else:
               self._DrawPlots(
 		  im_draw,
-		  core = core, state_ndx = state_ndx,
+		  time_value = self.timeValue,
 		  det_ndx = det_ndx, det_wd = det_wd,
 		  det_x = det_x, det_y = det_y,
 		  axial_max = axial_mesh_max, axial_factor = axial_mesh_factor,
@@ -655,7 +662,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #			-- Draw Title String
 #			--
-      title_font = pil_font  # pil_font_small, pil_font2
+      title_font = pil_font
       det_y = max( det_y, legend_size[ 1 ] )
       #det_y += font_size - det_gap
       det_y += font_size >> 2
@@ -683,26 +690,11 @@ If neither are specified, a default 'scale' value of 4 is used.
         start = end
       #end while
 
-#x      title_items = self._CreateTitleStrings( pil_font )
-#x      title_size = title_items[ 0 ][ 1 : 3 ]
-#x      title_x = max(
-#x	  font_size,
-#x	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
-#x	  )
-#x
-#x      for i in range( 1, len( title_items ) ):
-#x	item = title_items[ i ]
-#x        im_draw.text(
-#x	    ( title_x + item[ 1 ], det_y + item[ 2 ] ),
-#x	    item[ 0 ], fill = item[ 3 ], font = pil_font
-#x	    )
-#x      #end for
-
       del im_draw
     #end if config exists
 
     #return  im
-    return  im if im is not None else self.emptyPilImage
+    return  im  if im is not None else  self.emptyPilImage
   #end _CreateRasterImage
 
 
@@ -717,48 +709,48 @@ If neither are specified, a default 'scale' value of 4 is used.
   #end _CreateStateTuple
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._CreateTitleStrings()	-
-  #----------------------------------------------------------------------
-  def _CreateTitleStrings( self, pil_font ):
-    """
-@return			[ ( '_total_', wd, ht ), ( string, x, y, color ), ... ]
-"""
-    results = []
-
-    xpos = ht = 0
-    phrase = '%s %.4g: ' % (
-        self.state.timeDataSet,
-	self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-	)
-    results.append( ( phrase, xpos, 0, ( 0, 0, 0, 255 ) ) )
-    cur_size = pil_font.getsize( phrase )
-    xpos += cur_size[ 0 ]
-    ht = max( ht, cur_size[ 1 ] )
-
-    color_ndx = 0
-    for ds_name in sorted( self.detectorDataSets ):
-      phrase = '%s ' % ds_name
-      results.append( ( phrase, xpos, 0, DET_LINE_COLORS[ color_ndx ] ) )
-      cur_size = pil_font.getsize( phrase )
-      xpos += cur_size[ 0 ]
-      ht = max( ht, cur_size[ 1 ] )
-      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
-    #end for
-
-    color_ndx = 0
-    for ds_name in sorted( self.fixedDetectorDataSets ):
-      phrase = '%s ' % ds_name
-      results.append( ( phrase, xpos, 0, FIXED_LINE_COLORS[ color_ndx ] ) )
-      cur_size = pil_font.getsize( phrase )
-      xpos += cur_size[ 0 ]
-      ht = max( ht, cur_size[ 1 ] )
-      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
-    #end for
-
-    results.insert( 0, ( '_total_', xpos, ht ) )
-    return  results
-  #end _CreateTitleStrings
+#  #----------------------------------------------------------------------
+#  #	METHOD:		Detector2DMultiView._CreateTitleStrings()	-
+#  #----------------------------------------------------------------------
+#  def _CreateTitleStrings( self, pil_font ):
+#    """
+#@return			[ ( '_total_', wd, ht ), ( string, x, y, color ), ... ]
+#"""
+#    results = []
+#
+#    xpos = ht = 0
+#    phrase = '%s %.4g: ' % (
+#        self.state.timeDataSet,
+#	self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+#	)
+#    results.append( ( phrase, xpos, 0, ( 0, 0, 0, 255 ) ) )
+#    cur_size = pil_font.getsize( phrase )
+#    xpos += cur_size[ 0 ]
+#    ht = max( ht, cur_size[ 1 ] )
+#
+#    color_ndx = 0
+#    for ds_name in sorted( self.detectorDataSets ):
+#      phrase = '%s ' % ds_name
+#      results.append( ( phrase, xpos, 0, DET_LINE_COLORS[ color_ndx ] ) )
+#      cur_size = pil_font.getsize( phrase )
+#      xpos += cur_size[ 0 ]
+#      ht = max( ht, cur_size[ 1 ] )
+#      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
+#    #end for
+#
+#    color_ndx = 0
+#    for ds_name in sorted( self.fixedDetectorDataSets ):
+#      phrase = '%s ' % ds_name
+#      results.append( ( phrase, xpos, 0, FIXED_LINE_COLORS[ color_ndx ] ) )
+#      cur_size = pil_font.getsize( phrase )
+#      xpos += cur_size[ 0 ]
+#      ht = max( ht, cur_size[ 1 ] )
+#      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+#    #end for
+#
+#    results.insert( 0, ( '_total_', xpos, ht ) )
+#    return  results
+#  #end _CreateTitleStrings
 
 
   #----------------------------------------------------------------------
@@ -771,10 +763,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     results = []
 
     x = y = 0
-    phrase = '%s %.4g: ' % (
-        self.state.timeDataSet,
-	self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-	)
+    phrase = '%s %.4g: ' % ( self.state.timeDataSet, self.timeValue )
+	#self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
     cur_size = pil_font.getsize( phrase )
     xend = x + cur_size[ 0 ]
     results.append( ( phrase, x, y, ( 0, 0, 0, 255 ), xend ) )
@@ -783,8 +773,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     ht = y + cur_size[ 1 ]
 
     color_ndx = 0
-    for ds_name in sorted( self.detectorDataSets ):
-      phrase = '%s, ' % ds_name
+    for qds_name in sorted( self.detectorDataSets ):
+      phrase = '%s, ' % qds_name.displayName
       cur_size = pil_font.getsize( phrase )
       xend = x + cur_size[ 0 ]
       if xend > max_wd - 2:
@@ -800,11 +790,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       wd = max( wd, x )
       #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for
+    #end for qds_name
 
     #color_ndx = 0
-    for ds_name in sorted( self.fixedDetectorDataSets ):
-      phrase = '%s, ' % ds_name
+    for qds_name in sorted( self.fixedDetectorDataSets ):
+      phrase = '%s, ' % qds_name.displayName
       cur_size = pil_font.getsize( phrase )
       xend = x + cur_size[ 0 ]
       if xend > max_wd - 2:
@@ -820,7 +810,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       wd = max( wd, x )
       #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for
+    #end for qds_name
 
     return  results
   #end _CreateTitleStrings2
@@ -835,23 +825,22 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     tip_str = ''
 
-    valid = cell_info is not None and \
-        self.data.IsValid(
-            detector_index = cell_info[ 0 ],
-	    state_index = self.stateIndex
-	    )
+#xxxxx
+#    valid = False
+#    core = self.dmgr.GetCore()
+#    if cell_info is not None and core is not None:
+#      valid = self.data.IsValid( detector_index = cell_info[ 0 ] )
 
-    #xxx all in self.detectorDataSets and self.fixedDetectorDataSets
     #if valid:
     if False:
-      ds = self.data.states[ self.stateIndex ].group[ self.detectorDataSet ]
-      ds_value = np.amax( ds[ :, cell_info[ 0 ] ] )
+      dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+      ds_value = np.amax( dset[ :, cell_info[ 0 ] ] )
 
       if ds_value > 0.0:
-        show_det_addr = self.data.core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+        show_det_addr = core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
 	tip_str = \
 	    'Detector: %d %s\n%s max: %g' % \
-	    ( cell_info[ 0 ] + 1, show_det_addr, self.detectorDataSet, ds_value )
+	    ( cell_info[ 0 ] + 1, show_det_addr, qds_name, ds_value )
     #end if valid
 
     return  tip_str
@@ -863,7 +852,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def _DrawNumbers(
       self,
-      im_draw, core, axial_value, state_ndx,
+      im_draw, core, axial_value, time_value,
       det_ndx, det_wd, det_x, det_y,
       value_font, value_font_size = 0
       ):
@@ -877,56 +866,58 @@ If neither are specified, a default 'scale' value of 4 is used.
     #text_y = det_y + 1
     text_y = 0
     color_ndx = 0
-    for ds_name in sorted( self.detectorDataSets ):
+    for qds_name in sorted( self.detectorDataSets ):
       #text_color = DET_LINE_COLORS[ color_ndx ]
       text_color = LINE_COLORS[ color_ndx ]
 
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      dset = self.dmgr.GetH5DataSet( qds_name, time_value )
+      axial_tuple = \
+          self.dmgr.GetAxialValue( qds_name, cm = axial_value[ 0 ] )
       if dset is not None and \
-          dset.value.shape[ 1 ] > det_ndx and \
-	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
+          dset.shape[ 1 ] > det_ndx and \
+	  dset.shape[ 0 ] > axial_tuple[ 2 ]:
 	value_str, value_size, tfont = self._CreateValueDisplay(
-	    dset.value[ axial_value[ 1 ], det_ndx ], 3, value_font, det_wd
+	    dset.value[ axial_tuple[ 2 ], det_ndx ], 3, value_font, det_wd
 	    )
-	draw_items.append(
-	    ( value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color, tfont )
-	    )
-#	im_draw.text(
-#	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
-#	    value_str, fill = text_color, font = value_font
-#	    )
+	draw_items.append((
+	    value_str, center_x - (value_size[ 0 ] >> 1), text_y,
+	    text_color, tfont
+	    ))
 	text_y += value_size[ 1 ] + 1
       #end if valid value
 
       #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for ds_name in self.detectorDataSets
+    #end for qds_name in self.detectorDataSets
 
 #		-- Build fixed detector values
 #		--
     #color_ndx = 0
-    for ds_name in sorted( self.fixedDetectorDataSets ):
+    for qds_name in sorted( self.fixedDetectorDataSets ):
       #text_color = FIXED_LINE_COLORS[ color_ndx ]
       text_color = LINE_COLORS[ color_ndx ]
 
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
+      dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+      axial_tuple = \
+          self.dmgr.GetAxialValue( qds_name, cm = axial_value[ 0 ] )
       if dset is not None and \
           dset.value.shape[ 1 ] > det_ndx and \
-	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
+	  dset.value.shape[ 0 ] > axial_tuple[ 3 ]:
 	value_str, value_size, tfont = self._CreateValueDisplay(
-	    dset.value[ axial_value[ 2 ], det_ndx ], 3,
+	    dset.value[ axial_tuple[ 3 ], det_ndx ], 3,
 	    value_font, det_wd, value_font_size
 	    )
 	if value_str:
 	  draw_items.append((
-	      value_str, center_x - (value_size[ 0 ] >> 1), text_y, text_color, tfont
+	      value_str, center_x - (value_size[ 0 ] >> 1), text_y,
+	      text_color, tfont
 	      ))
 	text_y += value_size[ 1 ] + 1
       #end if valid value
 
       #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for ds_name in self.fixedDetectorDataSets
+    #end for qds_name in self.fixedDetectorDataSets
 
 #		-- Render fixed detector values
 #		--
@@ -941,76 +932,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._DrawNumbers_0()		-
-  #----------------------------------------------------------------------
-  def _DrawNumbers_0(
-      self,
-      im_draw, core, axial_value, state_ndx,
-      det_ndx, det_wd, det_x, det_y,
-      value_font
-      ):
-#		-- Draw detector values
-#		--
-    center_x = det_x + (det_wd >> 1)
-    text_y = det_y + 1
-    color_ndx = 0
-    for ds_name in sorted( self.detectorDataSets ):
-      text_color = DET_LINE_COLORS[ color_ndx ]
-
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset is not None and \
-          dset.value.shape[ 1 ] > det_ndx and \
-	  dset.value.shape[ 0 ] > axial_value[ 1 ]:
-	#cur_value = '%.5g' % dset.value[ axial_value[ 1 ], det_ndx ]
-	#wd, ht = value_font.getsize( cur_value )
-	value_str, value_size, tfont = self._CreateValueDisplay(
-	    dset.value[ axial_value[ 1 ], det_ndx ], 3, value_font, det_wd
-	    )
-
-	im_draw.text(
-	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
-	    value_str, fill = text_color, font = value_font
-	    )
-	#text_y += ht + 1
-	text_y += value_size[ 1 ] + 1
-      #end if valid value
-
-      color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
-    #end for ds_name in self.detectorDataSets
-
-#		-- Draw fixed detector values
-#		--
-    color_ndx = 0
-    for ds_name in sorted( self.fixedDetectorDataSets ):
-      text_color = FIXED_LINE_COLORS[ color_ndx ]
-
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset is not None and \
-          dset.value.shape[ 1 ] > det_ndx and \
-	  dset.value.shape[ 0 ] > axial_value[ 2 ]:
-	#cur_value = '%.5g' % dset.value[ axial_value[ 2 ], det_ndx ]
-	#wd, ht = value_font.getsize( cur_value )
-	value_str, value_size, tfont = self._CreateValueDisplay(
-	    dset.value[ axial_value[ 2 ], det_ndx ], 3, value_font, det_wd
-	    )
-	im_draw.text(
-	    ( center_x - (value_size[ 0 ] >> 1), text_y ),
-	    value_str, fill = text_color, font = value_font
-	    )
-	text_y += value_size[ 1 ] + 1
-      #end if valid value
-
-      color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
-    #end for ds_name in self.fixedDetectorDataSets
-  #end _DrawNumbers_0
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView._DrawPlots()		-
   #----------------------------------------------------------------------
   def _DrawPlots(
       self,
-      im_draw, core, state_ndx, line_wd,
+      im_draw, core, time_value, line_wd,
       det_ndx, det_wd, det_x, det_y,
       axial_max, axial_factor,
       value_min, value_factor
@@ -1040,24 +966,23 @@ If neither are specified, a default 'scale' value of 4 is used.
 #		-- Draw detector plots
 #		--
     color_ndx = 0
-    for ds_name in sorted( self.detectorDataSets ):
+    for qds_name in sorted( self.detectorDataSets ):
       #line_color = DET_LINE_COLORS[ color_ndx ]
       line_color = LINE_COLORS[ color_ndx ]
 
       values = None
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
-        dset_values = dset.value[ :, det_ndx ]
-        if len( dset_values ) == len( core.detectorMesh ):
+      dset = self.dmgr.GetH5DataSet( qds_name, time_value )
+      det_mesh = self.dmgr.GetDetectorMesh( qds_name )
+      if dset is not None and dset.shape[ 1 ] > det_ndx:
+        dset_values = dset[ :, det_ndx ]
+        if len( dset_values ) == len( det_mesh ):
 	  values = dset_values
 
       if values is not None:
         last_x = None
 	last_y = None
 	for i in range( len( values ) ):
-	  dy = \
-	      (axial_max - core.detectorMesh[ i ]) * \
-              axial_factor
+	  dy = (axial_max - det_mesh[ i ]) * axial_factor
 	  dx = (values[ i ] - value_min) * value_factor
 	  cur_x = det_x + 1 + dx
 	  cur_y = det_y + 1 + dy
@@ -1074,20 +999,24 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for ds_name in self.detectorDataSets
+    #end for qds_name in self.detectorDataSets
 
 #		-- Draw fixed detector plots
 #		--
     fdet_line_wd = line_wd
     #color_ndx = 0
-    for ds_name in sorted( self.fixedDetectorDataSets ):
+    for qds_name in sorted( self.fixedDetectorDataSets ):
       #line_color = FIXED_LINE_COLORS[ color_ndx ]
       line_color = LINE_COLORS[ color_ndx ]
 
       values = None
-      dset = self.data.GetStateDataSet( state_ndx, ds_name )
-      if dset is not None and dset.value.shape[ 1 ] > det_ndx:
-        dset_values = dset.value[ :, det_ndx ]
+      dset = None
+      dm = self.dmgr.GetDataModel( qds_name )
+      if dm:
+        dset = self.dmgr.GetH5DataSet( qds_name, time_value )
+	core = dm.GetCore()
+      if dset is not None and dset.shape[ 1 ] > det_ndx:
+        dset_values = dset[ :, det_ndx ]
         if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
 	  values = dset_values
 
@@ -1112,16 +1041,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      [ cur_x, cur_ylo, cur_x, cur_yhi ],
 	      fill = line_color, width = fdet_line_wd
 	      )
-#          im_draw.line(
-#              [ cur_x, cur_y_center, cur_x, cur_y_center + 1 ],
-#              fill = self.lineColorFixedCenter, width = fdet_line_wd
-#              )
         #end for i
       #end if values is not None
 
       #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for ds_name in self.fixedDetectorDataSets
+    #end for qds_name in self.fixedDetectorDataSets
   #end _DrawPlots
 
 
@@ -1198,19 +1123,19 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     axial_mesh_min = None
 
     if len( self.detectorDataSets ) > 0:
-      axial_mesh_max = np.amax( core.detectorMesh )
-      axial_mesh_min = np.amin( core.detectorMesh )
+      det_mesh = self.dmgr.GetDetectorMesh()
+      axial_mesh_max = np.amax( det_mesh )
+      axial_mesh_min = np.amin( det_mesh )
 
     if len( self.fixedDetectorDataSets ) > 0:
       #using core.fixedDetectorMesh instead of core.fixedDetectorMeshCenters
+      fdet_mesh = self.dmgr.GetFixedDetectorMesh()
       if axial_mesh_max == None:
-        axial_mesh_max = np.amax( core.fixedDetectorMesh )
-        axial_mesh_min = np.amin( core.fixedDetectorMesh )
+        axial_mesh_max = np.amax( fdet_mesh )
+        axial_mesh_min = np.amin( fdet_mesh )
       else:
-        axial_mesh_max = \
-	    max( axial_mesh_max, np.amax( core.fixedDetectorMesh ) )
-        axial_mesh_min = \
-	    min( axial_mesh_min, np.amin( core.fixedDetectorMesh ) )
+        axial_mesh_max = max( axial_mesh_max, np.amax( fdet_mesh ) )
+        axial_mesh_min = min( axial_mesh_min, np.amin( fdet_mesh ) )
     #end if len
 
     if axial_mesh_max is None:
@@ -1232,13 +1157,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     ds_max = None
     ds_min = None
-    for ds_name in self.detectorDataSets.union( self.fixedDetectorDataSets ):
-      #cur_min, cur_max = self.data.GetRange
+    for qds_name in self.detectorDataSets.union( self.fixedDetectorDataSets ):
       cur_min, cur_max = self._ResolveDataRange(
-          ds_name,
-	  self.stateIndex if self.state.scaleMode == 'state' else -1
+          qds_name,
+	  self.timeValue if self.state.scaleMode == 'state' else -1
+	  #self.stateIndex if self.state.scaleMode == 'state' else -1
 	  )
-      if self.data.IsValidRange( cur_min, cur_max ):
+      if DataUtils.IsValidRange( cur_min, cur_max ):
 	if ds_max is None:
 	  ds_max = cur_max
 	  ds_min = cur_min
