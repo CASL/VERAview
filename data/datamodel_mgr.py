@@ -131,7 +131,7 @@ Properties:
       if not dm.HasData():
         raise  Exception( 'Required VERA data not found' )
 
-      msg = None
+      msg = ''
 
       if len( self.dataModelNames ) > 0:
         cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]

@@ -650,6 +650,7 @@ class VeraViewFrame( wx.Frame ):
     self.windowMenu = None
 
     self.axialBean = None
+    self.closeFileItem = None
     self.dataSetMenu = None
     self.exposureBean = None
     self.grid = None
@@ -939,10 +940,17 @@ WIDGET_MAP and TOOLBAR_ITEMS
       new_menu.AppendItem( item )
     file_menu.AppendSubMenu( new_menu, '&New' )
 
-#			-- Open item
-    open_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Open...\tCtrl+O' )
+#			-- Open File item
+    open_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Open File...\tCtrl+O' )
     self.Bind( wx.EVT_MENU, self._OnOpenFile, open_item )
     file_menu.AppendItem( open_item )
+
+#			-- Close File item
+    self.closeFileItem = \
+        wx.MenuItem( file_menu, wx.ID_ANY, '&Close File...\tShift+Ctrl+W' )
+    self.closeFileItem.Enable( False )
+    self.Bind( wx.EVT_MENU, self._OnCloseFile, self.closeFileItem )
+    file_menu.AppendItem( self.closeFileItem )
 
 #    save_im_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Save Image\tCtrl+S' )
 #    self.Bind( wx.EVT_MENU, self._OnSaveWindow, save_im_item )
@@ -1489,6 +1497,38 @@ Note this defines a new State as well as widgets in the grid.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnCloseFile()			-
+  #----------------------------------------------------------------------
+  def _OnCloseFile( self, ev ):
+    """
+Must be called from the UI thread.
+"""
+    if ev is not None:
+      ev.Skip()
+
+
+    model_names = None
+    if self.state.dataModelMgr is not None:
+      model_names = self.state.dataModelMgr.GetDataModelNames()
+
+    if model_names:
+      dialog = wx.SingleChoiceDialog(
+	  self, 'Select file to close', 'Close File',
+	  sorted( model_names ),
+	  wx.CHOICEDLG_STYLE
+          )
+
+      try:
+        if dialog.ShowModal() == wx.ID_OK:
+	  self.state.dataModelMgr.CloseModel( dialog.GetStringSelection() )
+	  wx.CallAfter( self._UpdateAllFrames )
+      finally:
+        dialog.Destroy()
+    #end if model_names
+  #end _OnCloseFile
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.OnCloseFrame()			-
   #----------------------------------------------------------------------
   def OnCloseFrame( self, ev ):
@@ -1770,11 +1810,13 @@ Must be called from the UI thread.
         'HDF5 files (*.h5)|*.h5|VERAView session files (*.vview)|*.vview',
 	wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_CHANGE_DIR
         )
+
+    path = None
     if dialog.ShowModal() != wx.ID_CANCEL:
       path = dialog.GetPath()
-      dialog.Destroy()
-      #self.OpenFile( path )
+    dialog.Destroy()
 
+    if path:
       path, session = self._ResolveFile( path )
       self.OpenFile( path, session )
   #end _OnOpenFile
@@ -2047,7 +2089,7 @@ Must be called on the UI event thread.
   #----------------------------------------------------------------------
   def OpenFile( self, file_paths, session = None ):
     """
-Must be called from the UI thread.
+May be called from any thread.
 """
     #self.CloseAllWidgets()
 
@@ -2322,6 +2364,22 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateAllFrames()		-
+  #----------------------------------------------------------------------
+  def _UpdateAllFrames( self ):
+    """Must be called on the UI thread.
+"""
+    model_names = self.state.dataModelMgr.GetDataModelNames()
+    file_path = sorted( model_names )[ 0 ]  if model_names else  ''
+    for rec in self.app.GetFrames().itervalues():
+      frame = rec.get( 'frame' )
+      if frame:
+        frame._UpdateFrame( file_path = file_path )
+    #end for rec
+  #end _UpdateAllFrames
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._UpdateConfig()			-
   #----------------------------------------------------------------------
   def _UpdateConfig( self ):
@@ -2365,12 +2423,9 @@ Must be called from the UI thread.
 
     #self.GetStatusBar().SetStatusText( 'Loading data model...' )
 
-#		-- Update dataset selection menu
-#		--
+#		-- Update various widgets
+    self.closeFileItem.Enable( dmgr.GetDataModelCount() > 0 )
     self.dataSetMenu.Init()
-
-#		-- Re-create time dataset menu
-#		--
     self._UpdateTimeDataSetMenu()
 
 #		-- Update toolbar
