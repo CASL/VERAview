@@ -856,17 +856,6 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		InitDataSetSelections()				-
-  #----------------------------------------------------------------------
-  def InitDataSetSelections( self, ds_types ):
-    """Special hook called in VeraViewFrame.LoadDataModel().
-"""
-    self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
-        { 'axis': 'left', 'scale': 1.0, 'visible': True }
-  #end InitDataSetSelections
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		TimePlots.IsDataSetVisible()			-
   #----------------------------------------------------------------------
   def IsDataSetVisible( self, qds_name ):

@@ -1274,7 +1274,7 @@ and/or sub_addr changes.
     if qds_names:
       update_args = self.dmgr.FindMultiDataSetMinMaxValue(
 	  mode,
-	  -1 if all_states_flag else self.stateIndex,
+	  -1 if all_states_flag else self.timeValue,
 	  self, *qds_names
 	  )
 
@@ -1322,7 +1322,6 @@ sub_addr changes.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._ResolveDataRange()			-
   #----------------------------------------------------------------------
-  #def _ResolveDataRange( self, qds_name, state_ndx ):
   def _ResolveDataRange( self, qds_name, time_value ):
     """Calls self.dmgr.GetRange() if necessary to replace NaN values in
 customDataRange.

@@ -916,24 +916,6 @@ XXX size according to how many datasets selected?
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		AxialPlot.InitDataSetSelections()		-
-  #----------------------------------------------------------------------
-  def InitDataSetSelections( self, ds_types ):
-    """Special hook called in VeraViewFrame.LoadDataModel().
-"""
-    self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
-        { 'axis': 'bottom', 'scale': 1.0, 'visible': True }
-#Back to single selection
-#    axis = 'bottom'
-#    for dtype in sorted( list( ds_types ) ):
-#      if self.data.HasDataSetType( dtype ):
-#        self.dataSetSelections[ self.GetSelectedDataSetName( dtype ) ] = \
-#          { 'axis': axis, 'scale': 1.0, 'visible': True }
-#        axis = 'top' if axis == 'bottom' else ''
-  #end InitDataSetSelections
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		AxialPlot.IsDataSetVisible()			-
   #----------------------------------------------------------------------
   def IsDataSetVisible( self, qds_name ):

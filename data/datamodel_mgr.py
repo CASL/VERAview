@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2016-12-27	leerw@ornl.gov				-
+#	  Added GetDetectorMeshIndex and GetFixedDetectorMeshCentersIndex().
 #		2016-12-26	leerw@ornl.gov				-
 #	  Added check for core_map and detector_map equality in
 #	  _CheckDataModelIsCompatible().
@@ -800,6 +802,33 @@ the cross-model global mesh.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDetectorMeshIndex()		-
+  #----------------------------------------------------------------------
+  def GetDetectorMeshIndex( self, value, model_name = None ):
+    """Determines the 0-based index of the value in the mesh list such that
+mesh[ ndx ] <= value < mesh[ ndx + 1 ].  If model_name is specified,
+only the mesh for the specified model is used.  Otherwise, the global,
+cross-model mesh is used.
+@param  value		global time value
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			0-based index such that
+			values[ ndx ] <= value < values[ ndx + 1 ]
+"""
+    ndx = -1
+    if isinstance( model_name, DataSetName ):
+      model_name = model_name.modelName
+    mesh = self.GetDetectorMesh( model_name )
+    if mesh is not None:
+      ndx = bisect.bisect_right( mesh, value ) - 1
+      ndx = max( 0, min( ndx, len( mesh ) - 1 ) )
+    #end if
+
+    return  ndx
+  #end GetDetectorMeshIndex
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetFactors()			-
   #----------------------------------------------------------------------
   def GetFactors( self, qds_name ):
@@ -895,6 +924,33 @@ or the cross-model global mesh centers.
 
     return  result
   #end GetFixedDetectorMeshCenters
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFixedDetectorMeshCentersIndex()	-
+  #----------------------------------------------------------------------
+  def GetFixedDetectorMeshCentersIndex( self, value, model_name = None ):
+    """Determines the 0-based index of the value in the mesh list such that
+mesh[ ndx ] <= value < mesh[ ndx + 1 ].  If model_name is specified,
+only the mesh for the specified model is used.  Otherwise, the global,
+cross-model mesh is used.
+@param  value		global time value
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			0-based index such that
+			values[ ndx ] <= value < values[ ndx + 1 ]
+"""
+    ndx = -1
+    if isinstance( model_name, DataSetName ):
+      model_name = model_name.modelName
+    mesh = self.GetFixedDetectorMeshCenters( model_name )
+    if mesh is not None:
+      ndx = bisect.bisect_right( mesh, value ) - 1
+      ndx = max( 0, min( ndx, len( mesh ) - 1 ) )
+    #end if
+
+    return  ndx
+  #end GetFixedDetectorMeshCentersIndex
 
 
   #----------------------------------------------------------------------
@@ -1075,6 +1131,7 @@ the global, cross-model values are used.
 values[ ndx ] <= value < values[ ndx + 1 ].  If model_param is specified,
 only the list of values for the specified model are used.  Otherwise,
 the global, cross-model values are used.
+@param  value		global time value
 @param  model_param	optional name for the model of interest,
 			can be a DataSetName, None for global index
 @return			0-based index such that

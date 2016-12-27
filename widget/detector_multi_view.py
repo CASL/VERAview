@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2016-12-27	leerw@ornl.gov				-
 #		2016-12-26	leerw@ornl.gov				-
 #	  Transition to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
@@ -188,30 +189,28 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
-    #xxxxx
 
 #		-- Must be valid state
 #		--
-    if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
-#        self.data.core.detectorMesh is not None and \
-#	len( self.data.core.detectorMesh ) > 0:
-      core = self.data.GetCore()
-      csv_text = '"%s=%.3g"\n' % (
-	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
-          )
+    core = None
+    if self.dmgr.HasData():
+      core = self.dmgr.GetCore()
+
+    if core is not None:
+      csv_text = '"%s=%.3g"\n' % ( self.state.timeDataSet, self.timeValue )
+	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
 
 #			-- Detector datasets
 #			--
-      if core.detectorMesh is not None and \
-          len( core.detectorMesh ) > 0 and \
-	  len( self.detectorDataSets ) > 0:
-        for ds_name in sorted( self.detectorDataSets ):
-          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+      det_mesh = self.dmgr.GetDetectorMesh()
+      if det_mesh is not None and len( det_mesh ) > 0 and \
+          len( self.detectorDataSets ) > 0:
+        for qds_name in sorted( self.detectorDataSets ):
+	  dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
           if dset is not None:
-            dset_value = dset.value
+            dset_value = np.array( dset )
             #dset_shape = dset_value.shape
-	    csv_text += ds_name + '\n'
+	    csv_text += self.dmgr.GetDataSetDisplayName( qds_name ) + '\n'
 #						-- Header row
             row_text = 'Row,Mesh'
             for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
@@ -220,15 +219,15 @@ Attrs/properties:
             csv_text += row_text + '\n'
 
 #						-- Data rows
-            for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+	    cur_det_mesh = self.dmgr.GetDetectorMesh( qds_name )
+            for det_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
 #              row_label = core.coreLabels[ 1 ][ det_row ]
               row_label = core.GetRowLabel( det_row )
-	      for ax_ndx in \
-	          range( len( core.detectorMesh ) - 1, -1, -1 ):
-	        ax_value = core.detectorMesh[ ax_ndx ]
+	      for ax_ndx in xrange( len( cur_det_mesh ) - 1, -1, -1 ):
+	        ax_value = cur_det_mesh[ ax_ndx ]
 	        row_text = '%s,%.7g' % ( row_label, ax_value )
 	        for det_col in \
-		    range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+		    xrange( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
                   det_ndx = core.detectorMap[ det_row, det_col ] - 1
 	          if det_ndx >= 0:
 	            row_text += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
@@ -241,19 +240,18 @@ Attrs/properties:
             #end for det_row
           #end if dset
         #end for ds_name
-      #end if core.detectorMesh
+      #end if det_mesh
 
 #			-- Fixed detector datasets
 #			--
-      if core.fixedDetectorMeshCenters is not None and \
-          len( core.fixedDetectorMeshCenters ) > 0 and \
-	  len( self.fixedDetectorDataSets ) > 0:
-        for ds_name in sorted( self.fixedDetectorDataSets ):
-          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+      fdet_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      if fdet_mesh_centers is not None and len( fdet_mesh_centers ) > 0 and \
+          len( self.fixedDetectorDataSets ) > 0:
+        for qds_name in sorted( self.fixedDetectorDataSets ):
+	  dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
           if dset is not None:
-            dset_value = dset.value
-            #dset_shape = dset_value.shape
-	    csv_text += ds_name + '\n'
+            dset_value = np.array( dset )
+	    csv_text += self.dmgr.GetDataSetDisplayName( qds_name ) + '\n'
 #						-- Header row
             row_text = 'Row,Mesh Center'
             for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
@@ -262,15 +260,14 @@ Attrs/properties:
             csv_text += row_text + '\n'
 
 #						-- Data rows
-            for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-#              row_label = core.coreLabels[ 1 ][ det_row ]
+	    cur_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters( qds_name )
+            for det_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
               row_label = core.GetRowLabel( det_row )
-	      for ax_ndx in \
-	          range( len( core.fixedDetectorMeshCenters ) - 1, -1, -1 ):
-	        ax_value = core.fixedDetectorMeshCenters[ ax_ndx ]
+	      for ax_ndx in xrange( len( cur_mesh_centers ) - 1, -1, -1 ):
+	        ax_value = cur_mesh_centers[ ax_ndx ]
 	        row_text = '%s,%.7g' % ( row_label, ax_value )
 	        for det_col in \
-		    range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+		    xrange( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
                   det_ndx = core.detectorMap[ det_row, det_col ] - 1
 	          if det_ndx >= 0:
 	            row_text += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
@@ -284,7 +281,7 @@ Attrs/properties:
           #end if dset
         #end for ds_name
       #end if core.fixedDetectorMeshCenters
-    #end if DataModel.IsValidObj
+    #end if core is not None
 
     return  csv_text
   #end _CreateClipboardDisplayedData
@@ -298,46 +295,46 @@ Attrs/properties:
 @return			text or None
 """
     csv_text = None
-    #xxxxx
 
 #		-- Must be valid state
 #		--
-    is_valid = DataModel.IsValidObj(
-        self.data,
-	detector_index = self.detectorAddr[ 0 ],
-	state_index = self.stateIndex
-	)
-    if is_valid:
-      core = self.data.GetCore()
+    core = None
+    if self.dmgr.HasData():
+      core = self.dmgr.GetCore()
+
+    if core is not None:
       det_ndx = self.detectorAddr[ 0 ]
       csv_text = '"Detector=%d %s; %s=%.3g"\n' % (
 	  det_ndx + 1,
 	  core.CreateAssyLabel( *self.detectorAddr[ 1 : 3 ] ),
-	  self.state.timeDataSet,
-	  self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
+	  self.state.timeDataSet, self.timeValue
           )
 
 #			-- Detector datasets
 #			--
-      if core.detectorMesh is not None and \
-          len( core.detectorMesh ) > 0 and \
-	  len( self.detectorDataSets ) > 0:
+      det_mesh = self.dmgr.GetDetectorMesh()
+      if det_mesh is not None and len( det_mesh ) > 0 and \
+          len( self.detectorDataSets ) > 0:
         header_row_text = 'Mesh'
 	data_rows = []
-        for ax_ndx in range( len( core.detectorMesh ) - 1, -1, -1 ):
-	  data_rows.append( '%.7g' % core.detectorMesh[ ax_ndx ] )
+        for ax_ndx in xrange( len( det_mesh ) - 1, -1, -1 ):
+	  data_rows.append( '%.7g' % det_mesh[ ax_ndx ] )
 
-        for ds_name in sorted( self.detectorDataSets ):
-          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+        for qds_name in sorted( self.detectorDataSets ):
+	  dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
           if dset is not None:
-            dset_value = dset.value
-            #dset_shape = dset_value.shape
-	    header_row_text += ',' + ds_name
+            dset_value = np.array( dset )
+	    header_row_text += ',' + self.dmgr.GetDataSetDisplayName( qds_name )
 
 	    row_ndx = 0
-            for ax_ndx in \
-	        range( len( self.data.core.detectorMesh ) - 1, -1, -1 ):
-	      data_rows[ row_ndx ] += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+            for ax_ndx in xrange( len( det_mesh ) - 1, -1, -1 ):
+	      cur_ax_ndx = \
+	          self.dmgr.GetDetectorMeshIndex( det_mesh[ ax_ndx ], qds_name )
+	      cur_value = \
+	          dset_value[ cur_ax_ndx, det_ndx ] \
+		  if cur_ax_ndx >= 0 else \
+		  0.0
+	      data_rows[ row_ndx ] += ',%.7g' % cur_value
 	      row_ndx += 1
             #end for ax_ndx
           #end if dset
@@ -350,28 +347,31 @@ Attrs/properties:
 
 #			-- Fixed detector datasets
 #			--
-      if core.fixedDetectorMeshCenters is not None and \
-          len( core.fixedDetectorMeshCenters ) > 0 and \
-	  len( self.fixedDetectorDataSets ) > 0:
+      fdet_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      if fdet_mesh_centers is not None and len( fdet_mesh_centers ) > 0 and \
+          len( self.fixedDetectorDataSets ) > 0:
         header_row_text = 'Mesh Center'
 	data_rows = []
-        for ax_ndx in \
-	    range( len( self.data.core.fixedDetectorMeshCenters ) - 1, -1, -1 ):
-	  data_rows.append( '%.7g' % core.fixedDetectorMeshCenters[ ax_ndx ] )
+        for ax_ndx in xrange( len( fdet_mesh_centers ) - 1, -1, -1 ):
+	  data_rows.append( '%.7g' % fdet_mesh_centers[ ax_ndx ] )
 
         for ds_name in sorted( self.fixedDetectorDataSets ):
-          dset = self.data.GetStateDataSet( self.stateIndex, ds_name )
+	  dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
           if dset is not None:
-            dset_value = dset.value
-            #dset_shape = dset_value.shape
-	    header_row_text += ',' + ds_name
+            dset_value = np.array( dset )
+	    header_row_text += ',' + self.dmgr.GetDataSetDisplayName( qds_name )
 
 	    row_ndx = 0
-	    ax_range = range(
-	        len( self.data.core.fixedDetectorMeshCenters ) - 1, -1, -1
-		)
+	    ax_range = xrange( len( fdet_mesh_centers ) - 1, -1, -1 )
             for ax_ndx in ax_range:
-	      data_rows[ row_ndx ] += ',%.7g' % dset_value[ ax_ndx, det_ndx ]
+	      cur_ax_ndx = self.dmgr.GetFixedDetectorMeshCentersIndex(
+	          fdet_mesh_centers[ ax_ndx ], qds_name
+		  )
+	      cur_value = \
+	          dset_value[ cur_ax_ndx, det_ndx ] \
+		  if cur_ax_ndx >= 0 else \
+		  0.0
+	      data_rows[ row_ndx ] += ',%.7g' % cur_value
 	      row_ndx += 1
             #end for ax_ndx
           #end if dset
@@ -541,6 +541,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
 	if dset is not None:
 	  first_det_values = np.array( dset )
+	  first_axial_value = self.dmgr.\
+	      GetAxialValue( qds_name, cm = self.axialValue[ 0 ] )
 #	for d in sorted( self.detectorDataSets ):
 #	  dset = self.data.GetStateDataSet( state_ndx, d )
 #	  if dset is not None:
@@ -589,10 +591,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 #						-- Draw rectangle
 	    if first_det_values is None:
 	      color_ds_value = ds_range[ 0 ]
-	    elif self.axialValue[ 2 ] >= 0:
-	      color_ds_value = first_det_values[ self.axialValue[ 2 ], det_ndx ]
+	    elif first_axial_value[ 2 ] >= 0:
+	      color_ds_value = first_det_values[ first_axial_value[ 2 ], det_ndx ]
 	    else:
 	      color_ds_value = np.average( first_det_values[ :, det_ndx ] )
+	    #end if first_det_values is None
 	    pen_color = Widget.GetColorTuple(
 	        color_ds_value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -635,7 +638,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  line_wd = line_wd
 	          )
 
-	  elif self.data.core.coreMap[ det_row, det_col ] > 0:
+	  elif core.coreMap[ det_row, det_col ] > 0:
 	    im_draw.rectangle(
 	        [ det_x, det_y, det_x + det_wd, det_y + det_wd ],
 	        fill = ( 0, 0, 0, 0 ), outline = ( 155, 155, 155, 255 )
@@ -774,7 +777,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     color_ndx = 0
     for qds_name in sorted( self.detectorDataSets ):
-      phrase = '%s, ' % qds_name.displayName
+      #phrase = '%s, ' % qds_name.displayName
+      phrase = '%s, ' % self.dmgr.GetDataSetDisplayName( qds_name )
       cur_size = pil_font.getsize( phrase )
       xend = x + cur_size[ 0 ]
       if xend > max_wd - 2:
@@ -852,7 +856,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def _DrawNumbers(
       self,
-      im_draw, core, axial_value, time_value,
+      im_draw, axial_value, time_value,
       det_ndx, det_wd, det_x, det_y,
       value_font, value_font_size = 0
       ):
@@ -936,7 +940,7 @@ If neither are specified, a default 'scale' value of 4 is used.
   #----------------------------------------------------------------------
   def _DrawPlots(
       self,
-      im_draw, core, time_value, line_wd,
+      im_draw, time_value, line_wd,
       det_ndx, det_wd, det_x, det_y,
       axial_max, axial_factor,
       value_min, value_factor
@@ -1074,7 +1078,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 """
     result = None
 
-    if self.config is not None and self.data is not None:
+    core = None
+    if self.config is not None and self.dmgr is not None:
+      core = self.dmgr.GetCore()
+
+    if core is not None and core.detectorMap is not None:
       if ev_x >= 0 and ev_y >= 0:
         det_size = self.config[ 'detectorWidth' ] + self.config[ 'detectorGap' ]
 	core_region = self.config[ 'coreRegion' ]
@@ -1089,9 +1097,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    )
 	cell_y = max( self.cellRange[ 1 ], cell_y )
 
-	result = self.data.CreateDetectorAddr( cell_x, cell_y )
-	#det_ndx = self.data.core.detectorMap[ cell_y, cell_x ] - 1
-	#result = ( det_ndx, cell_x, cell_y )
+	result = ( core.detectorMap[ cell_y, cell_x ] - 1, cell_x, cell_y )
       #end if event within display
     #end if we have data
 
@@ -1118,7 +1124,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 @return		( min, max )
 """
-    core = self.data.GetCore()
+    core = self.dmgr.GetCore()
     axial_mesh_max = None
     axial_mesh_min = None
 
@@ -1213,8 +1219,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_coordinates,
 	STATE_CHANGE_curDataSet,
 	STATE_CHANGE_scaleMode,
-	STATE_CHANGE_stateIndex
+	STATE_CHANGE_timeValue
 	])
+#	STATE_CHANGE_stateIndex
     return  locks
   #end GetEventLockSet
 
@@ -1254,7 +1261,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def _HiliteBitmap( self, bmap ):
     result = bmap
 
-    if self.config is not None:
+    core = self.dmgr.GetCore()
+    if self.config is not None and core is not None:
       rel_col = self.detectorAddr[ 1 ] - self.cellRange[ 0 ]
       rel_row = self.detectorAddr[ 2 ] - self.cellRange[ 1 ]
 
@@ -1285,14 +1293,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	path = gc.CreatePath()
 	path.AddRectangle( *rect )
 	gc.StrokePath( path )
-# This doesn't work on MSWIN
-#	dc.SetBrush( wx.TRANSPARENT_BRUSH )
-#        dc.SetPen(
-#	    wx.ThePenList.FindOrCreatePen(
-#	        wx.Colour( 255, 0, 0 ), line_wd, wx.PENSTYLE_SOLID
-#		)
-#	    )
-#        dc.DrawRectangle( *rect )
 	dc.SelectObject( wx.NullBitmap )
 
 	result = new_bmap
@@ -1304,32 +1304,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView.InitDataSetSelections()	-
-  #----------------------------------------------------------------------
-  def InitDataSetSelections( self, *ds_names ):
-    """Special hook called in VeraViewFrame.LoadDataModel().
-@deprecated
-"""
-    for name in ds_names:
-      ds_type = self.data.GetDataSetType( name )
-      if ds_type == 'detector':
-        self.detectorDataSets.add( name )
-      elif ds_type == 'fixed_detector':
-        self.fixedDetectorDataSets.add( name )
-  #end InitDataSetSelections
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.IsDataSetVisible()		-
   #----------------------------------------------------------------------
-  def IsDataSetVisible( self, ds_name ):
+  def IsDataSetVisible( self, qds_name ):
     """True if the specified dataset is currently displayed, False otherwise.
-@param  ds_name		dataset name
+@param  qds_name	dataset name, DataSetName instance
 @return			True if visible, else False
 """
     visible = \
-        ds_name in self.detectorDataSets or \
-        ds_name in self.fixedDetectorDataSets
+        qds_name in self.detectorDataSets or \
+        qds_name in self.fixedDetectorDataSets
     return  visible
   #end IsDataSetVisible
 
@@ -1355,16 +1339,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """
 """
     self.detectorAddr = self.state.assemblyAddr
+    self.detectorDataSets.clear()
+    self.fixedDetectorDataSets.clear()
 
-    if self.data is not None and self.data.HasData():
-      ds_name = self.data.GetFirstDataSet( 'detector' )
-      if ds_name:
-        self.detectorDataSets.add( ds_name )
-      ds_name = self.data.GetFirstDataSet( 'fixed_detector' )
-      if ds_name:
-        self.fixedDetectorDataSets.add( ds_name )
-    #self.detectorDataSet = self.state.detectorDataSet
-    #self.fixedDetectorDataSet = self.state.fixedDetectorDataSet
+    qds_name = self.dmgr.GetFirstDataSet( 'detector' )
+    if qds_name:
+      self.detectorDataSets.add( qds_name )
+
+    qds_name = self.dmgr.GetFirstDataSet( 'fixed_detector' )
+    if qds_name:
+      self.fixedDetectorDataSets.add( qds_name )
   #end _LoadDataModelValues
 
 
@@ -1378,7 +1362,7 @@ be overridden by subclasses.
 """
     for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       if k in props_dict:
-        setattr( self, k, set( props_dict[ k ] ) )
+        setattr( self, k, DataSetName( props_dict[ k ] ) )
 
     for k in ( 'detectorAddr', ):
       if k in props_dict:
@@ -1403,30 +1387,12 @@ be overridden by subclasses.
 #		-- Validate
 #		--
     valid = False
-    det = self.FindDetector( *ev.GetPosition() )
-    if det is not None and det[ 0 ] >= 0 and det != self.detectorAddr:
-      valid = self.data.IsValid(
-	  detector_index = det[ 0 ],
-	  state_index = self.stateIndex
-	  )
-
-    if valid:
-      self.FireStateChange( assembly_addr = det )
+    det_addr = self.FindDetector( *ev.GetPosition() )
+    if det_addr is not None and det_addr[ 0 ] >= 0 and \
+        det_addr != self.detectorAddr:
+      self.FireStateChange( assembly_addr = det_addr )
     #end if valid
   #end _OnClick
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._OnFindMax()		-
-  #----------------------------------------------------------------------
-  def _OnFindMax( self, all_states_flag, ev ):
-    """Calls _OnFindMaxMultiDataSets().
-"""
-    if DataModel.IsValidObj( self.data ):
-      ds_list = \
-          list( self.detectorDataSets.union( self.fixedDetectorDataSets ) )
-      self._OnFindMaxMultiDataSets( all_states_flag, *ds_list )
-  #end _OnFindMax
 
 
   #----------------------------------------------------------------------
@@ -1435,7 +1401,7 @@ be overridden by subclasses.
   def _OnFindMinMax( self, mode, all_states_flag, ev ):
     """Calls _OnFindMinMaxMultiDataSets().
 """
-    if DataModel.IsValidObj( self.data ):
+    if self.dmgr.HasData():
       ds_list = \
           list( self.detectorDataSets.union( self.fixedDetectorDataSets ) )
       self._OnFindMinMaxMultiDataSets( mode, all_states_flag, *ds_list )
@@ -1473,13 +1439,15 @@ method via super.SaveProps().
     if self.data is not None:
       for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
         cur_set = set( getattr( self, k ) )
+	new_set = set()
 	for cur_name in cur_set:
-	  rev_name = self.data.RevertIfDerivedDataSet( cur_name )
+	  rev_name = self.dmgr.RevertIfDerivedDataSet( cur_name )
 	  if rev_name != cur_name:
 	    cur_set.remove( cur_name )
 	    cur_set.add( rev_name )
+	  new_set.add( rev_name.name )
 	#end for cur_name
-        props_dict[ k ] = list( cur_set )
+        props_dict[ k ] = list( new_set )
       #end for k
   #end SaveProps
 
@@ -1542,28 +1510,28 @@ method via super.SaveProps().
   #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.ToggleDataSetVisible()	-
   #----------------------------------------------------------------------
-  def ToggleDataSetVisible( self, ds_name ):
+  def ToggleDataSetVisible( self, qds_name ):
     """Toggles the visibility of the named dataset.
 Must be called from the event thread.
-@param  ds_name		dataset name
+@param  qds_name	dataset name, DataSetName instance
 """
     changed = False
 
-    if ds_name in self.detectorDataSets:
-      self.detectorDataSets.remove( ds_name )
+    if qds_name in self.detectorDataSets:
+      self.detectorDataSets.remove( qds_name )
       changed = True
 
-    elif ds_name in self.fixedDetectorDataSets:
-      self.fixedDetectorDataSets.remove( ds_name )
+    elif qds_name in self.fixedDetectorDataSets:
+      self.fixedDetectorDataSets.remove( qds_name )
       changed = True
 
     else:
-      ds_type = self.data.GetDataSetType( ds_name )
+      ds_type = self.dmgr.GetDataSetType( qds_name )
       if ds_type == 'detector':
-        self.detectorDataSets.add( ds_name )
+        self.detectorDataSets.add( qds_name )
 	changed = True
       elif ds_type == 'fixed_detector':
-        self.fixedDetectorDataSets.add( ds_name )
+        self.fixedDetectorDataSets.add( qds_name )
 	changed = True
 
     if changed:
@@ -1578,10 +1546,13 @@ Must be called from the event thread.
     """
 @return			kwargs with 'changed' and/or 'resized'
 """
-    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
-      self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
-      kwargs[ 'resized' ] = True
-      del kwargs[ 'axial_value' ]
+    if 'axial_value' in kwargs:
+      value_cm = kwargs[ 'axial_value' ][ 0 ]
+      if value_cm != self.axialValue[ 0 ]:
+        self.axialValue = self.dmgr.GetAxialValue( cm = value_cm )
+        kwargs[ 'resized' ] = True
+        del kwargs[ 'axial_value' ]
+    #end if 'axial_value'
 
     kwargs = super( Detector2DMultiView, self )._UpdateStateValues( **kwargs )
     changed = kwargs.get( 'changed', False )
