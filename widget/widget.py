@@ -1335,9 +1335,15 @@ customDataRange.
 	list( self.customDataRange )
     if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
       calc_range = self.dmgr.GetRange( qds_name, time_value )
-      for i in xrange( len( ds_range ) ):
-        if math.isnan( ds_range[ i ] ):
-          ds_range[ i ] = calc_range[ i ]
+      if calc_range:
+        for i in xrange( len( ds_range ) ):
+          if math.isnan( ds_range[ i ] ):
+            ds_range[ i ] = calc_range[ i ]
+
+    if math.isnan( ds_range[ 1 ] ):
+      ds_range[ 1 ] = 10.0
+    if math.isnan( ds_range[ 0 ] ):
+      ds_range[ 0 ] = -10.0
 
     return  tuple( ds_range )
   #end _ResolveDataRange
@@ -1358,7 +1364,7 @@ method via super.SaveProps().
       for k in ( 'curDataSet', ):
 	if hasattr( self, k ):
           qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
-          props_dict[ k ] = qds_name.name
+          props_dict[ k ] = qds_name.name  if qds_name is not None else  ''
 
     props_dict[ 'eventLocks' ] = self.container.GetEventLocks()
   #end SaveProps

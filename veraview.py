@@ -1506,25 +1506,35 @@ Must be called from the UI thread.
     if ev is not None:
       ev.Skip()
 
+    dialog = None
+    try:
+      model_names = None
+      if self.state.dataModelMgr is not None:
+        model_names = self.state.dataModelMgr.GetDataModelNames()
 
-    model_names = None
-    if self.state.dataModelMgr is not None:
-      model_names = self.state.dataModelMgr.GetDataModelNames()
+      if model_names:
+        if self.state.dataModelMgr.GetDataModelCount() == 1:
+          dialog = wx.MessageDialog( 
+	      self, 'Last File, Quit VERAView?', 'Close File',
+	      wx.ICON_QUESTION | wx.YES_NO | wx.YES_DEFAULT
+	      )
+          if dialog.ShowModal() == wx.ID_YES:
+	    self._OnQuit( None )
 
-    if model_names:
-      dialog = wx.SingleChoiceDialog(
-	  self, 'Select file to close', 'Close File',
-	  sorted( model_names ),
-	  wx.CHOICEDLG_STYLE
-          )
+        else:
+          dialog = wx.SingleChoiceDialog(
+	      self, 'Select File to Close:', 'Close File',
+	      sorted( model_names ),
+	      wx.CHOICEDLG_STYLE
+              )
+          if dialog.ShowModal() == wx.ID_OK:
+	    self.state.dataModelMgr.CloseModel( dialog.GetStringSelection() )
+	    #wx.CallAfter( self._UpdateAllFrames )
+      #end if model_names
 
-      try:
-        if dialog.ShowModal() == wx.ID_OK:
-	  self.state.dataModelMgr.CloseModel( dialog.GetStringSelection() )
-	  wx.CallAfter( self._UpdateAllFrames )
-      finally:
+    finally:
+      if dialog is not None:
         dialog.Destroy()
-    #end if model_names
   #end _OnCloseFile
 
 

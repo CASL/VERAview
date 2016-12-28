@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2016-12-28	leerw@ornl.gov				-
+#	  Resolving curDataSet in _OnDataModelMgr().
 #		2016-12-12	leerw@ornl.gov				-
 #	  Added properties.
 #		2016-12-10	leerw@ornl.gov				-
@@ -448,6 +450,29 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_FindDefaultDataSet()				-
+  #----------------------------------------------------------------------
+  def _FindDefaultDataSet( self, data_model = None ):
+    """Determines a default dataset from available models.
+@return			DataSetName instance
+"""
+    result = DataSetName( 'pin_powers' )
+
+    if data_model is None:
+      data_model = self._dataModelMgr.GetFirstDataModel()
+
+    if data_model is not None:
+      ds_display_name = 'pin_powers' \
+	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
+	  data_model.GetFirstDataSet( 'pin' )
+      result = DataSetName( data_model.GetName(), ds_display_name )
+    #end if data_model is not None
+
+    return  result
+  #end _FindDefaultDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		FireStateChange()				-
   #----------------------------------------------------------------------
   def FireStateChange( self, reason ):
@@ -688,10 +713,11 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 
       self._axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
 
-      ds_display_name = 'pin_powers' \
-	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
-	  data_model.GetFirstDataSet( 'pin' )
-      self._curDataSet = DataSetName( data_model.GetName(), ds_display_name )
+      self._curDataSet = self._FindDefaultDataSet( data_model )
+#      ds_display_name = 'pin_powers' \
+#	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
+#	  data_model.GetFirstDataSet( 'pin' )
+#      self._curDataSet = DataSetName( data_model.GetName(), ds_display_name )
       #self.stateIndex = data_model.NormalizeStateIndex( -1 )
 
       ##self.colRow = data_model.NormalizeColRow( undefined2 )
@@ -752,7 +778,17 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
   def _OnDataModelMgr( self, *args, **kwargs ):
     if self._dataModelMgr.GetDataModelCount() == 1:
       self.Init( True )
+
     else:
+      change_args = {}
+#			-- Resolve cur_dataset
+#			--
+      if self._curDataSet is None or not self._curDataSet.modelName or \
+          self._curDataSet.modelName not in self._dataModelMgr.GetDataModelNames():
+	change_args[ 'cur_dataset' ] = self._FindDefaultDataSet()
+
+#			-- Resolve time_dataset
+#			--
       new_name = ''
       time_ds_names = self._dataModelMgr.ResolveAvailableTimeDataSets()
       if len( time_ds_names ) == 0:
@@ -761,7 +797,11 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
         new_name = time_ds_names[ 0 ]
 
       if new_name:
-        self.FireStateChange( self.Change( time_dataset = new_name ) )
+	change_args[ 'time_dataset' ] = new_name
+        #self.FireStateChange( self.Change( time_dataset = new_name ) )
+
+      if len( change_args ) > 0:
+        self.FireStateChange( self.Change( **change_args ) )
     #end if-else
     #xxxxx self.FireStateChange( STATE_CHANGE_dataModelMgr )
   #end _OnDataModelMgr

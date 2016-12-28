@@ -1362,7 +1362,11 @@ be overridden by subclasses.
 """
     for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       if k in props_dict:
-        setattr( self, k, DataSetName( props_dict[ k ] ) )
+	new_set = set()
+	props_set = props_dict[ k ]
+	for n in props_set:
+	  new_set.add( DataSetName( n ) )
+        setattr( self, k, new_set )
 
     for k in ( 'detectorAddr', ):
       if k in props_dict:
@@ -1436,7 +1440,7 @@ method via super.SaveProps().
     #for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
       #props_dict[ k ] = list( getattr( self, k ) )
 
-    if self.data is not None:
+    if self.dmgr.HasData() is not None:
       for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
         cur_set = set( getattr( self, k ) )
 	new_set = set()

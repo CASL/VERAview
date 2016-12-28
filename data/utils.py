@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2016-12-28	leerw@ornl.gov				-
+#	  Added DeepCopy().
 #		2016-12-13	leerw@ornl.gov				-
 #	  Added GetDataSetTypeDisplayName().
 #	  Added mode param to FindListIndex().
@@ -19,7 +21,8 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, math, os, sys
+import bisect, copy, math, os, sys
+import numpy as np
 import pdb
 
 
@@ -33,6 +36,28 @@ class DataUtils( object ):
 
 #		-- Static Methods
 #		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DeepCopy()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def DeepCopy( obj ):
+    """Performs a deep copy calling copy.deepcopy() and np.copy(), checking
+for items in obj.__dict__ that are of type np.ndarray.
+"""
+    new_obj = obj.__class__()
+
+    for name, value in obj.__dict__.iteritems():
+      if isinstance( value, np.ndarray ):
+        new_value = np.copy( value )
+      else:
+        new_value = copy.deepcopy( value )
+      setattr( new_obj, name, new_value )
+    #end for
+
+    return  new_obj
+  #end DeepCopy
 
 
   #----------------------------------------------------------------------

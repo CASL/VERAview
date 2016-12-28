@@ -28,7 +28,7 @@
 #		2016-08-19	leerw@ornl.gov				-
 #		2016-08-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, cStringIO, functools, h5py, \
+import bisect, cStringIO, functools, h5py, \
     logging, json, math, os, sys, \
     tempfile, threading, traceback
 import numpy as np
@@ -91,6 +91,7 @@ Properties:
     self.dataModelNames = []
     self.dataModels = {}
     #self.dataSetNamesVersion = 0
+    self.detectorMap = None
     self.detectorMesh = None
     self.fixedDetectorMesh = None
     self.fixedDetectorMeshCenters = None
@@ -134,8 +135,9 @@ Properties:
       msg = ''
 
       if len( self.dataModelNames ) > 0:
-        cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]
-        cur_core = cur_dm.GetCore()
+        #cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]
+        #cur_core = cur_dm.GetCore()
+	cur_core = self.core
 	dm_core = dm.GetCore()
 #			-- Core symmetry
 #			--
@@ -165,7 +167,8 @@ Properties:
 
 #			-- Detector map
 #			--
-	if not np.array_equal( cur_core.detectorMap, dm_core.detectorMap ):
+	if self.detectorMap is not None and dm.HasDetectorData() and \
+	    not np.array_equal( cur_core.detectorMap, dm_core.detectorMap ):
 	  msg += '\n* detector_map differs\n'
       #end if len
 
@@ -213,12 +216,15 @@ Properties:
 
       if not closing_all:
         if len( self.dataModelNames ) == 1:
-	  self.core = self.dataModels.get( self.dataModelNames[ 0 ] ).GetCore()
+	  #self.core = self.dataModels.get( self.dataModelNames[ 0 ] ).GetCore()
+	  first_core = self.dataModels.get( self.dataModelNames[ 0 ] ).GetCore()
+	  self.core = first_core.Clone()
 
         self._UpdateMeshValues()
         self._UpdateTimeValues()
         #self.dataSetNamesVersion += 1
 	self._FireEvent( 'modelRemoved', model_name )
+      #end if not closing_all
 
       result = True
 
@@ -1503,7 +1509,9 @@ being one greater in each dimension.
       self.dataModels[ model_name ] = dm
 
       if len( self.dataModelNames ) == 1:
-        self.core = dm.GetCore()
+        #self.core = dm.GetCore()
+	self.core = dm.GetCore().Clone()
+
       self._UpdateMeshValues()
       self._UpdateTimeValues()
       #self.dataSetNamesVersion += 1
@@ -1729,7 +1737,7 @@ other derived types we pass 'pin'.
   #	METHOD:		DataModelMgr._UpdateMeshValues()		-
   #----------------------------------------------------------------------
   def _UpdateMeshValues( self ):
-    """Updates the axialMesh, axialMeshCenters, detectorMesh,
+    """Updates the axialMesh, axialMeshCenters, detectorMap, detectorMesh,
 fixedDetectorMesh, fixedDetectorMeshCenters, and maxAxialValue properties.
 @return			maxAxialValue property value
 """
@@ -1739,6 +1747,8 @@ fixedDetectorMesh, fixedDetectorMeshCenters, and maxAxialValue properties.
     detector_mesh = set()
     fixed_detector_mesh = set()
     fixed_detector_mesh_centers = set()
+
+    self.detectorMap = None
 
     for dm in self.dataModels.values():
       core = dm.GetCore()
@@ -1763,6 +1773,9 @@ fixedDetectorMesh, fixedDetectorMeshCenters, and maxAxialValue properties.
         if core.fixedDetectorMeshCenters is not None:
 	  fixed_detector_mesh_centers.\
 	      update( set( core.fixedDetectorMeshCenters ) )
+
+        if self.detectorMap is None and dm.HasDetectorData():
+          self.detectorMap = np.copy( dm.GetCore().detectorMap )
       #if core
     #end for dm
 

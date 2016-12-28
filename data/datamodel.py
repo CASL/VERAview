@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2016-12-28	leerw@ornl.gov				-
+#	  Added HasDetectorData().
 #		2016-12-12	leerw@ornl.gov				-
 #	  Moved IsValidRange(), ToAddrString() to DataUtils.
 #		2016-12-07	leerw@ornl.gov				-
@@ -582,6 +584,49 @@ Properties:
     self.fixedDetectorMesh = None
     self.fixedDetectorMeshCenters = None
   #end Clear
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.Clone()					-
+  #----------------------------------------------------------------------
+  def Clone( self ):
+    """Mostly deep copy.
+"""
+    new_obj = self.__class__()
+
+#		-- Scalars and references
+#		--
+    for name in (
+	'apitch', 'coreSym', 'group', 'nass', 'nassx', 'nassy', 'nax',
+        'ndet', 'ndetax', 'nfdetax', 'npin', 'npinx', 'npiny',
+        'pinVolumesSum', 'ratedFlow', 'ratedPower'
+        ):
+      setattr( new_obj, name, getattr( self, name ) )
+    #end for name
+
+#		-- Numpy arrays
+#		--
+    for name in (
+        'axialMesh', 'axialMeshCenters', 'coreMap',
+	'detectorMap', 'detectorMesh', 'pinVolumes',
+        'fixedDetectorMesh', 'fixedDetectorMeshCenters'
+        ):
+      value = getattr( self, name )
+      if value is None:
+        new_value = None
+      else:
+        new_value = np.copy( value )
+      setattr( new_obj, name, new_value )
+    #end for name
+
+#		-- Deep copy stuff
+#		--
+    for name in ( 'coreLabels', ):
+      setattr( new_obj, name, copy.deepcopy( getattr( self, name ) ) )
+    #end for name
+
+    return  new_obj
+  #end Clone
 
 
   #----------------------------------------------------------------------
@@ -3354,6 +3399,21 @@ a 4D array if necessary.
 
     return  match
   #end HasDerivedDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.HasDetectorData()			-
+  #----------------------------------------------------------------------
+  def HasDetectorData( self ):
+    """Convenience method to check for existence of 'detector' or
+'fixed_detector' dataset types.
+@return			True if either 'detector' or 'fixed_detector' datasets
+			exist, false otherwise
+"""
+    return  \
+        self.HasDataSetType( 'detector' ) or \
+	self.HasDataSetType( 'fixed_detector' )
+  #end HasDetectorData
 
 
   #----------------------------------------------------------------------
