@@ -303,7 +303,7 @@ class VeraViewApp( wx.App ):
 
     #self.frame = None
 #		-- Dict by index of { 'frame', 'n', 'title' }
-    self.frames = {}
+    self.frameRecs = {}
 
     self.loadSession = False
     self.logger = logging.getLogger( 'root' )
@@ -330,7 +330,7 @@ class VeraViewApp( wx.App ):
 #			--
       n = 1
       while True:
-        if n not in self.frames:
+        if n not in self.frameRecs:
           break
         n += 1
 
@@ -341,7 +341,8 @@ class VeraViewApp( wx.App ):
       frame.SetFrameId( n )
       frame.UpdateTitle()
 
-      self.frames[ n ] = { 'frame': frame, 'n': n, 'title': frame.GetTitle() }
+      self.frameRecs[ n ] = \
+          { 'frame': frame, 'n': n, 'title': frame.GetTitle() }
     #end if frame
   #end AddFrame
 
@@ -361,7 +362,7 @@ class VeraViewApp( wx.App ):
         title_n = int( title[ 0 : ndx ] )
 
     if title_n > 0:
-      for n, rec in self.frames.iteritems():
+      for n, rec in self.frameRecs.iteritems():
         #if rec[ 'title' ] == title:
 	if n == title_n:
 	  match = rec
@@ -374,14 +375,14 @@ class VeraViewApp( wx.App ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewApp.GetFrames()				-
+  #	METHOD:		VeraViewApp.GetFrameRecs()			-
   #----------------------------------------------------------------------
-  def GetFrames( self ):
+  def GetFrameRecs( self ):
     """Removes a new VeraViewFrame.
 @return			frames dict
 """
-    return  self.frames
-  #end GetFrames
+    return  self.frameRecs
+  #end GetFrameRecs
 
 
   #----------------------------------------------------------------------
@@ -406,10 +407,10 @@ class VeraViewApp( wx.App ):
       self.logger.debug( 'entered' )
     #self.BringWindowToFront()
 
-    if len( self.frames ) > 0:
-      rec = self.frames.itervalues().next()
+    if len( self.frameRecs ) > 0:
+      rec = self.frameRecs.itervalues().next()
       rec[ 'frame' ].Raise()
-#    for rec in self.frames.itervalues():
+#    for rec in self.frameRecs.itervalues():
 #      print >> sys.stderr, 'XX', rec[ 'n' ], rec[ 'frame' ].IsActive()
 #      frame = rec.get( 'frame' )
 #      if frame and frame.IsActive():
@@ -428,7 +429,7 @@ unnecessary.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'entered' )
 
-    frame_rec = self.frames.get( 1 )
+    frame_rec = self.frameRecs.get( 1 )
     frame = frame_rec.get( 'frame' ) if frame_rec else None
     #if self.frame is None:
     if frame is None:
@@ -511,10 +512,28 @@ unnecessary.
     rec = self.FindFrameByTitle( frame.GetTitle() )
     if rec:
       n = rec.get( 'n' )
-      if n in self.frames:
-        del self.frames[ n ]
+      if n in self.frameRecs:
+        del self.frameRecs[ n ]
     #end if
   #end RemoveFrame
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.UpdateAllFrames()			-
+  #----------------------------------------------------------------------
+  def UpdateAllFrames( self, *skip_frames ):
+    """Must be called on the UI thread.
+@param  skip_frames	frames to skip
+"""
+    model_names = self.state.dataModelMgr.GetDataModelNames()
+    file_path = sorted( model_names )[ 0 ]  if model_names else  ''
+    for rec in self.frameRecs.itervalues():
+      frame = rec.get( 'frame' )
+      #if frame:
+      if frame and (skip_frames is None or frame not in skip_frames):
+        frame.UpdateFrame( file_path = file_path, widget_props = 'noop' )
+    #end for rec
+  #end UpdateAllFrames
 
 
 #		-- Static Methods
@@ -851,8 +870,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
     if Config.CanDragNDrop():
       self._UpdateWindowMenus( add_frame = new_frame )
 
+    skip_frames = []
     if widget_props:
-      wx.CallAfter( new_frame._UpdateFrame, widget_props = widget_props )
+      skip_frames.append( new_frame )
+      wx.CallAfter( new_frame.UpdateFrame, widget_props = widget_props )
+
+    wx.CallAfter( self.UpdateAllFrames, *skip_frames )
   #end CreateWindow
 
 
@@ -1206,7 +1229,7 @@ WIDGET_MAP and TOOLBAR_ITEMS
 ## 			  widgets,
 ## 			'noop' = no widget processing at all,
 ## 			widget = properties for widget to add
-## @deprecated  use _UpdateFrame()
+## @deprecated  use UpdateFrame()
 ## """
 ##     if self.logger.isEnabledFor( logging.DEBUG ):
 ##       self.logger.debug( 'file_path=%s', file_path )
@@ -1542,7 +1565,7 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame.OnCloseFrame()			-
   #----------------------------------------------------------------------
   def OnCloseFrame( self, ev ):
-    if len( self.app.GetFrames() ) == 1:
+    if len( self.app.GetFrameRecs() ) == 1:
 #			-- Windows focus hack
       win = wx.Window_FindFocus()
       if win is not None:
@@ -1581,7 +1604,7 @@ Must be called from the UI thread.
     ev.Skip()
 
     match = None
-    for rec in self.app.GetFrames().itervalues():
+    for rec in self.app.GetFrameRecs().itervalues():
       frame = rec.get( 'frame' )
       if frame and frame.IsActive():
         match = frame
@@ -1589,7 +1612,7 @@ Must be called from the UI thread.
     #end for rec
 
     if match:
-      if len( self.app.GetFrames() ) == 1:
+      if len( self.app.GetFrameRecs() ) == 1:
         self._OnQuit( None )
       else:
 	match.Close()
@@ -1903,7 +1926,7 @@ Must be called on the UI event thread.
 
 #    init_mask = STATE_CHANGE_init | STATE_CHANGE_dataModelMgr
 #    if (reason & init_mask) > 0:
-#      wx.CallAfter( self._UpdateFrame, widget_props = 'noop' )
+#      wx.CallAfter( self.UpdateFrame, widget_props = 'noop' )
 
     if (reason & STATE_CHANGE_axialValue) > 0:
       if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
@@ -1946,7 +1969,7 @@ Must be called on the UI event thread.
 #      display_ht -= 32
 #      display_top += 32
 
-    count = len( self.app.GetFrames() )
+    count = len( self.app.GetFrameRecs() )
     frows = math.sqrt( count * display_ht / float( display_wd ) )
     rows100 = int( frows * 100.0 )
     rounder = rows100 % 100
@@ -1965,7 +1988,7 @@ Must be called on the UI event thread.
     win_x = display_left
     win_y = display_top
 
-    for frame_rec in self.app.GetFrames().values():
+    for frame_rec in self.app.GetFrameRecs().values():
       fr = frame_rec.get( 'frame' )
       if fr:
         fr.SetPosition( ( win_x, win_y ) )
@@ -2187,8 +2210,9 @@ May be called from any thread.
 	display_path = status[ 'file_paths' ][ 0 ]
 	#display_path = status[ 'data_model' ].GetH5File().filename
 
-	wx.CallAfter( self._UpdateFrame, display_path, session )
-	#debug wx.CallAfter( self._UpdateFrame, display_path, session, 'noop' )
+	wx.CallAfter( self.UpdateFrame, display_path, session )
+	wx.CallAfter( self.app.UpdateAllFrames, self )
+	#debug wx.CallAfter( self.UpdateFrame, display_path, session, 'noop' )
       #end if-elif
     #end if status
   #end _OpenFileEnd
@@ -2373,20 +2397,22 @@ Must be called on the UI event thread.
   #end ShowMessageDialog
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._UpdateAllFrames()		-
-  #----------------------------------------------------------------------
-  def _UpdateAllFrames( self ):
-    """Must be called on the UI thread.
-"""
-    model_names = self.state.dataModelMgr.GetDataModelNames()
-    file_path = sorted( model_names )[ 0 ]  if model_names else  ''
-    for rec in self.app.GetFrames().itervalues():
-      frame = rec.get( 'frame' )
-      if frame:
-        frame._UpdateFrame( file_path = file_path )
-    #end for rec
-  #end _UpdateAllFrames
+#  #----------------------------------------------------------------------
+#  #	METHOD:		VeraViewFrame._UpdateAllFrames()		-
+#  #----------------------------------------------------------------------
+#  def _UpdateAllFrames( self, *skip_frames = None ):
+#    """Must be called on the UI thread.
+#@param  skip_frames	frames to skip
+#"""
+#    model_names = self.state.dataModelMgr.GetDataModelNames()
+#    file_path = sorted( model_names )[ 0 ]  if model_names else  ''
+#    for rec in self.app.GetFrameRecs().itervalues():
+#      frame = rec.get( 'frame' )
+#      #if frame:
+#      if frame and (skip_frames is None or frame not in skip_frames):
+#        frame.UpdateFrame( file_path = file_path )
+#    #end for rec
+#  #end _UpdateAllFrames
 
 
   #----------------------------------------------------------------------
@@ -2406,9 +2432,9 @@ Must be called on the UI event thread.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VeraViewFrame._UpdateFrame()			-
+  #	METHOD:		VeraViewFrame.UpdateFrame()			-
   #----------------------------------------------------------------------
-  def _UpdateFrame(
+  def UpdateFrame(
       self, file_path = None, session = None, widget_props = None
       ):
     """Called when self.state.dataModelMgr changes.
@@ -2584,7 +2610,7 @@ Must be called from the UI thread.
     self.exposureBean.SetRange( 1, len( time_values ) )
     self.exposureBean.stateIndex = \
         dmgr.GetTimeValueIndex( self.state.timeValue )
-  #end _UpdateFrame
+  #end UpdateFrame
 
 
   #----------------------------------------------------------------------
@@ -2695,7 +2721,7 @@ been created.
 """
     titles = []
     frames = []
-    for frame_rec in self.app.GetFrames().values():
+    for frame_rec in self.app.GetFrameRecs().values():
       frame = frame_rec.get( 'frame' )
       if frame is not None:
 	frames.append( frame )

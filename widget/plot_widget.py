@@ -720,6 +720,9 @@ Must be called from the UI thread.
     replot = kwargs.get( 'replot', False )
     redraw = kwargs.get( 'redraw', False )
 
+    if 'data_model_mgr' in kwargs:
+      replot = True
+
 #    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
 #      replot = True
 #      self.stateIndex = kwargs[ 'state_index' ]

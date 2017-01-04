@@ -1698,6 +1698,54 @@ unique.  Calls dm.SetName() if necessary.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr._ResolveLists()			-
+  #----------------------------------------------------------------------
+  def _ResolveLists( self, master, values ):
+    """Updates master with values.  Both are assumed to be in ascending
+order.
+@param  master		master list to update, created if necessary
+@param  values		list of values to add
+@return			master or new list if master is None
+"""
+    if master is None:
+      master = []
+
+    i = 0
+    while i < len( values ):
+      cur_value = values[ i ]
+      master_ndx = DataUtils.FindListIndex( master, values[ i ] )
+
+      values_count = 1
+      while i < len( values ) - 1 and values[ i + 1 ] == cur_value:
+        values_count += 1
+	i += 1
+
+      master_count = 0
+      if master_ndx >= 0:
+        while master_ndx < len( master ) and master[ master_ndx ] == cur_value:
+	  master_count += 1
+	  master_ndx += 1
+
+      for k in xrange( values_count - master_count ):
+        master.insert( master_ndx + 1, cur_value )
+	master_ndx += 1
+
+      i += 1
+
+#      while i < len( values ) and values[ i ] == cur_value:
+#	if master_ndx >= len( master ):
+#	  master.append( cur_value )
+#	elif master[ master_ndx ] != cur_value:
+#	  master.insert( master_ndx, values[ i ] )
+#	master_ndx += 1
+#        i += 1
+    #end outer while
+
+    return  master
+  #end _ResolveLists
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.RevertIfDerivedDataSet()		-
   #----------------------------------------------------------------------
   def RevertIfDerivedDataSet( self, qds_name ):
@@ -1808,20 +1856,22 @@ open DataModels and the timeDataSet property.
       result = range( cur_count )
 
     elif self.timeDataSet:
-      cur_set = set()
+      # cannot resolve with sets b/c values repeat
+      #cur_set = set()
       spec = dict( ds_name = self.timeDataSet )
       for name, dm in self.dataModels.iteritems():
 	cur_values = dm.ReadDataSetTimeValues( spec )
 	if cur_values and self.timeDataSet in cur_values:
 	  cur_list = cur_values[ self.timeDataSet ].tolist()
 	  self.timeValuesById[ name ] = cur_list
-	  cur_set.update( set( cur_list ) )
+	  #cur_set.update( set( cur_list ) )
+	  self._ResolveLists( result, cur_list )
 	else:
 	  self.timeValuesById[ name ] = []
-      result = list( cur_set )
+      #result = list( cur_set )
     #end if-elif
 
-    result.sort()
+    #result.sort()
     self.timeValues = result
     return  result
   #end _UpdateTimeValues

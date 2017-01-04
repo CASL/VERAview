@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2017-01-04	leerw@ornl.gov				-
+#	  Firing STATE_CHANGE_dataModelMgr in _OnDataModelMgr().
 #		2016-12-28	leerw@ornl.gov				-
 #	  Resolving curDataSet in _OnDataModelMgr().
 #		2016-12-12	leerw@ornl.gov				-
@@ -100,7 +102,7 @@ STATE_CHANGE_init = 0x1 << 0		# never generated here
 STATE_CHANGE_axialValue = 0x1 << 1
 STATE_CHANGE_coordinates = 0x1 << 2
 STATE_CHANGE_curDataSet = 0x1 << 3
-STATE_CHANGE_dataModelMgr = 0x1 << 4	# maybe should toss this, not used?
+STATE_CHANGE_dataModelMgr = 0x1 << 4
 STATE_CHANGE_scaleMode = 0x1 << 5
 #STATE_CHANGE_stateIndex = 0x1 << 6
 STATE_CHANGE_timeDataSet = 0x1 << 7
@@ -746,7 +748,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     self.auxColRows = []
 
     if fire_event_flag:
-      self.FireStateChange( STATE_CHANGE_init )
+      self.FireStateChange( STATE_CHANGE_init | STATE_CHANGE_dataModelMgr )
   #end Init
 
 
@@ -780,7 +782,8 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       self.Init( True )
 
     else:
-      change_args = {}
+      change_args = { 'data_model_mgr' : self._dataModelMgr }
+
 #			-- Resolve cur_dataset
 #			--
       if self._curDataSet is None or not self._curDataSet.modelName or \

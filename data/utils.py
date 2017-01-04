@@ -70,7 +70,7 @@ descending.  Note bisect only does ascending.
 @param  values		list of values
 @param  value		value to search
 @param  mode		'a' for ascending, 'd' for descending, None if unknown
-@return			0-based index N, values[ N ]
+@return			0-based index N, where
 			'a': values[ N ] <= value < values[ N + 1 ]
 			'd': values[ N ] >= value > values[ N + 1 ]
 """

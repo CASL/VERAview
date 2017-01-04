@@ -328,6 +328,10 @@ class DataModelMgrITest( object ):
       test.ReadDataSetAxialValues()
       test.ReadDataSetTimeValues()
 
+      names = list( test.fMgr.GetDataModelNames() )
+      for name in names:
+        test.fMgr.CloseModel( name )
+
     except Exception, ex:
       print >> sys.stderr, str( ex )
       et, ev, tb = sys.exc_info()
