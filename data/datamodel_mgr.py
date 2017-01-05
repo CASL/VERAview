@@ -450,10 +450,12 @@ returned.
 @param  params		event params
 """
     if event_name in self.listeners:
+      #method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
+      method_name = 'On' + event_name.capitalize()
       for listener in self.listeners[ event_name ]:
-        #method_name = 'On' + event_name[ 0 ].upper() + event_name[ 1 : ]
-        method_name = 'On' + event_name.capitalize()
-	if hasattr( listener, method_name ):
+        if not listener:
+	  self._logger.error( 'Listener is dead: %s', str( listener ) )
+	elif hasattr( listener, method_name ):
 	  getattr( listener, method_name )( self, *params )
 	elif hasattr( listener, '__call__' ):
 	  listener( self, *params )
@@ -1640,7 +1642,7 @@ at a time for better performance.
 """
     if event_name in self.listeners:
       if listener in self.listeners[ event_name ]:
-        del self.listeners[ event_name ][ listener ]
+	self.listeners[ event_name ].remove( listener )
     #end if event_name
   #end RemoveListener
 

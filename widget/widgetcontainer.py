@@ -179,7 +179,8 @@ widget.
   #----------------------------------------------------------------------
   def __del__( self ):
     self.state.RemoveListener( self )
-#    if self.dataSetMenu is not None:
+    if self.dataSetMenu is not None:
+      self.dataSetMenu.Dispose()
 #      self.state.RemoveListener( self.dataSetMenu )
 
     super( WidgetContainer, self ).__del__()
@@ -752,6 +753,8 @@ definition array for a pullright.
 """
     if self.state is not None and self.widget is not None:
       self.state.RemoveListener( self )
+      if self.dataSetMenu is not None:
+        self.dataSetMenu.Dispose()
 
 #    self.Close()
     self.Destroy()
@@ -764,9 +767,8 @@ definition array for a pullright.
   def _OnDataSetMenu( self, ev ):
     """
 """
-    ##self._UpdateDerivedDataSetMenu()
-    #self._UpdateDataSetMenu()
-    self.dataSetMenu.UpdateMenu()
+    # Using DataModelMgr and State events instead
+    #self.dataSetMenu.UpdateAllMenus()
     self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
   #end _OnDataSetMenu
 
@@ -825,7 +827,6 @@ definition array for a pullright.
 """
     widget_props = WidgetConfig.CreateWidgetProps( self.widget )
     widget_json = WidgetConfig.Encode( widget_props )
-    #print >> sys.stderr, '[begin]\n', widget_json, '\n[end]'
 
     drag_source = wx.DropSource( ev.GetEventObject() )
     drag_data = wx.TextDataObject( widget_json )

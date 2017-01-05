@@ -484,7 +484,10 @@ Keys passed and the corresponding state bit are:
     if reason != STATE_CHANGE_noop:
       for listener in self._listeners:
 	try:
-	  if hasattr( listener, 'HandleStateChange' ):
+	  if not listener:
+	    self._logger.error( 'Listener is dead: %s', str( listener ) )
+
+	  elif hasattr( listener, 'HandleStateChange' ):
             listener.HandleStateChange( reason )
 	  elif hasattr( listener, 'OnStateChange' ):
             listener.OnStateChange( reason )
@@ -772,6 +775,25 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
         setattr( self, k, DataSetName( props_dict[ k ] ) )
         #setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
   #end LoadProps
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		LogListeners()					-
+  #----------------------------------------------------------------------
+  def LogListeners( self, logger, header ):
+    msg = ''
+    for i in xrange( len( self._listeners ) ):
+      l = self._listeners[ i ]
+      ltype = type( l ).__name__
+      msg += '\n  %3d: %s' % ( i, str( l ) )
+      if ltype == 'WidgetContainer':
+        msg += '\n    widget: %s' % str( l.widget )
+      elif ltype == 'DataSetsMenu':
+        msg += '\n    widget: %s' % str( l.widget )
+    #end for i
+
+    logger.info( header + msg )
+  #end LogListeners
 
 
   #----------------------------------------------------------------------

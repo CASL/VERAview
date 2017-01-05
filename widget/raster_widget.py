@@ -1701,6 +1701,9 @@ will be called.
           GetAxialValue( self.curDataSet, cm = kwargs[ 'axial_value' ][ 0 ] )
     #end if 'axial_value'
 
+    if 'data_model_mgr' in kwargs:
+      resized = True
+
 #    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
 #      #changed = True
 #      if self.state.scaleMode == 'state':

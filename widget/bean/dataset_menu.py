@@ -195,6 +195,8 @@ No event listening is done in this class.
     while menu.GetMenuItemCount() > ndx:
       item = menu.FindItemByPosition( ndx )
       if not excludes or item.GetItemLabelText() not in excludes:
+	if item.GetSubMenu() is not None:
+	  self._ClearMenu( item.GetSubMenu(), excludes )
         menu.DestroyItem( item )
       else:
         ndx += 1
@@ -734,12 +736,32 @@ or Widget is responsible for calling UpdateMenu().
         ds_listener, ds_types,
         show_derived_menu, widget
         )
+
+    self.isLoaded = False
     self.modelSubMenus = {}  # keyed by model name or 'self'
 
     #added in Init()
     #if widget is None:
     #  state.AddListener( self )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetsMenu.Dispose()				-
+  #----------------------------------------------------------------------
+  def Dispose( self ):
+    """
+"""
+    dmgr = self.state.dataModelMgr
+    if dmgr is not None:
+      dmgr.RemoveListener( 'dataSetAdded', self._OnDataSetAdded )
+      dmgr.RemoveListener( 'modelAdded', self._OnModelAdded )
+      dmgr.RemoveListener( 'modelRemoved', self._OnModelRemoved )
+    #end if dmgr
+
+    self.state.RemoveListener( self )
+    #self.Destroy()
+  #end Dispose
 
 
   #----------------------------------------------------------------------
@@ -764,7 +786,8 @@ requested in the constructor and there is only one DataModel.
 """
     #dmgr = State.FindDataModelMgr( self.state )
     dmgr = self.state.dataModelMgr
-    if dmgr is not None:
+    if dmgr is not None and not self.isLoaded:
+      self.isLoaded = True
       dmgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
       dmgr.AddListener( 'modelAdded', self._OnModelAdded )
       dmgr.AddListener( 'modelRemoved', self._OnModelRemoved )
@@ -805,9 +828,10 @@ requested in the constructor and there is only one DataModel.
 only recreate all the menus when necessary.
 """
     if dmgr and model_name:
-      if 'self' in self.modelSubMenus:
-        self.UpdateAllMenus()
-      else:
+      #self.UpdateAllMenus()
+      update_all = True
+
+      if dmgr.GetDataModelCount() > 1 and 'self' not in self.modelSubMenus:
         dmodel = dmgr.GetDataModel( model_name )
         ds_menu = DataModelMenu(
 	    self.state, self.binder,
@@ -820,7 +844,11 @@ only recreate all the menus when necessary.
 
 	self.modelSubMenus[ model_name ] = ds_menu
 	ds_menu.ProcessStateChange( STATE_CHANGE_init )
-      #end if-else
+	update_all = False
+      #end if dmgr
+
+      if update_all:
+        self.UpdateAllMenus()
     #end if dmgr and model_name
   #end _OnModelAdded
 
@@ -833,14 +861,20 @@ only recreate all the menus when necessary.
 only recreate all the menus when necessary.
 """
     if dmgr and model_name:
-      if dmgr.GetDataModelCount() == 1 and 'self' not in self.modelSubMenus:
-        self.UpdateAllMenus()
-      elif model_name in self.modelSubMenus:
+      #self.UpdateAllMenus()
+      update_all = True
+      if dmgr.GetDataModelCount() > 1 and \
+          'self' not in self.modelSubMenus and \
+	  model_name in self.modelSubMenus:
         menu_item_id = self.FindItem( model_name )
 	if menu_item_id != wx.NOT_FOUND:
 	  self.DestroyItem( menu_item_id )
-        del self.modelSubMenus[ model_name ]
-      #end if-else
+          del self.modelSubMenus[ model_name ]
+	  update_all = False
+      #end if dmgr
+
+      if update_all:
+        self.UpdateAllMenus()
     #end if dmgr and model_name
   #end _OnModelRemoved
 
@@ -919,8 +953,8 @@ Reset() on all the model submenus.
 	  sub_item = wx.MenuItem( self, wx.ID_ANY, name, subMenu = ds_menu )
 	  self.AppendItem( sub_item )
 
-	  self.modelSubMenus[ name ] = ds_menu
 	  ds_menu.ProcessStateChange( STATE_CHANGE_init )
+	  self.modelSubMenus[ name ] = ds_menu
 	#end for name
       #end if-elif modelCount
     #end if dmgr
