@@ -747,6 +747,30 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetCurDataSet()				-
+  #----------------------------------------------------------------------
+  def GetCurDataSet( self ):
+    """This implementation tries to infer the name from an attribute
+named 'curDataSet', 'channelDataSet', or 'pinDataSet', in that order,
+only if GetDataSetDisplayMode is ''.  Otherwise, None is returned.
+Subclasses should override as needed.
+@return		current dataset name (DataSetName instance)
+		if dataSetDisplayMode is ''
+"""
+    qds_name = None
+    if not self.GetDataSetDisplayMode():
+      for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
+        if hasattr( self, attr ):
+          qds_name = getattr( self, attr )
+	  break
+      #end for attr
+    #end if not
+
+    return  qds_name
+  #end GetCurDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetDataSetDisplayMode()			-
   #----------------------------------------------------------------------
   def GetDataSetDisplayMode( self ):

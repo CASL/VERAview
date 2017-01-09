@@ -523,7 +523,7 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._OnFindMinMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMax( self, all_states_flag, ev ):
+  def _OnFindMinMax( self, mode, all_states_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
     if self.curDataSet:
