@@ -1125,8 +1125,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 #		-- Cell range depends on curDataSet
 #		--
-    self.cellRange = list( self.GetInitialCellRange() )
-    del self.cellRangeStack[ : ]
+# This method now called before this is done in RasterWidget._LoadDataModel()
+#    self.cellRange = list( self.GetInitialCellRange() )
+#    del self.cellRangeStack[ : ]
   #end _LoadDataModelValues
 
 

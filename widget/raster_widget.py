@@ -1256,20 +1256,22 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
     #super( RasterWidget, self )._LoadDataModel()
     if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
+      self._LoadDataModelValues()
 
 #		-- Do here what is not dependent on size
 #		--
       self.cellRange = list( self.GetInitialCellRange() )
       del self.cellRangeStack[ : ]
 
-      self.axialValue = self.state.axialValue
+      self.axialValue = self.dmgr.\
+          GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
       #self.stateIndex = self.state.stateIndex
       self.timeValue = self.state.timeValue
 
       with self.bitmapsLock:
         self.bitmapThreadArgs = None
 
-      self._LoadDataModelValues()
+      #self._LoadDataModelValues()
 
       self.stateIndex = self.dmgr.\
           GetTimeValueIndex( self.timeValue, self.curDataSet )

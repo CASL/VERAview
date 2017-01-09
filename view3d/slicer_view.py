@@ -485,13 +485,15 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
 
-      self.assemblyAddr = self.state.assemblyAddr
-      self.axialValue = self.state.axialValue
-      self.coreExtent = self.dmgr.ExtractSymmetryExtent()
       self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
-      self.subAddr = self.state.subAddr
+
+      self.assemblyAddr = self.state.assemblyAddr
+      self.axialValue = self.dmgr.\
+          GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+      self.coreExtent = self.dmgr.ExtractSymmetryExtent()
       self.stateIndex = self.dmgr.\
           GetTimeValueIndex( self.state.timeValue, self.curDataSet )
+      self.subAddr = self.state.subAddr
       self.timeValue = self.state.timeValue
 
       self._UpdateData()
@@ -519,14 +521,14 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView._OnFindMax()			-
+  #	METHOD:		Slicer3DView._OnFindMinMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMax( self, all_states_flag, ev ):
+  def _OnFindMinMax( self, all_states_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
     if self.curDataSet:
       self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
-  #end _OnFindMax
+  #end _OnFindMinMax
 
 
   #----------------------------------------------------------------------

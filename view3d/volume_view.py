@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		volume_view.py					-
 #	HISTORY:							-
+#		2017-01-09	leerw@ornl.gov				-
+#	  Migrating to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-08-31	leerw@ornl.gov				-
@@ -58,16 +60,17 @@ class Volume3DView( Widget ):
     self.assemblyAddr = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
     self.coreExtent = None  # left, top, right + 1, bottom + 1, dx, dy
-    #self.curSize = None
-    self.data = None
+    self.curDataSet = None
 
     #self.autoSync = True
+    self.isLoaded = False
     self.logger = logging.getLogger( 'view3d' )
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
     self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
     self.subAddr = None
+    self.timeValue = -1.0
 
 #    self.toolButtonDefs = \
 #      [
@@ -88,11 +91,11 @@ class Volume3DView( Widget ):
   def _Create3DMatrix( self ):
     matrix = None
 
-    if self.data is not None and self.coreExtent is not None and \
-        (self.data.core.npinx > 0 or self.data.core.npiny > 0):
-      core = self.data.GetCore()
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      #dset_value = dset.value
+    core = self.dmgr.GetCore()
+    if core is not None and self.curDataSet and \
+        self.coreExtent is not None and \
+        (core.npinx > 0 or core.npiny > 0):
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       dset_value = np.array( dset )
       dset_shape = dset.shape
 
@@ -101,14 +104,14 @@ class Volume3DView( Widget ):
 
       if self.logger.isEnabledFor( logging.DEBUG ):
         self.logger.debug(
-	    'pinDataSet=%s, stateIndex=%d',
-	    self.pinDataSet, self.stateIndex
+	    'curDataSet=%s, stateIndex=%d',
+	    self.curDataSet, self.stateIndex
 	    )
 
       # left, top, right + 1, bottom + 1, dx, dy
       #assy_range = self.data.ExtractSymmetryExtent()
 
-      ax_mesh = core.axialMesh
+      ax_mesh = self.dmgr.GetAxialMesh( self.curDataSet )
       #pin_pitch = 1.26
       pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npinx )
       self.meshLevels = [
@@ -130,23 +133,23 @@ class Volume3DView( Widget ):
     
       pin_y = 0
       #for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
-      for assy_y in range( self.coreExtent[ 3 ] - 1, self.coreExtent[ 1 ] - 1, -1 ):
+      for assy_y in xrange( self.coreExtent[ 3 ] - 1, self.coreExtent[ 1 ] - 1, -1 ):
         pin_x = 0
         #for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
-        for assy_x in range( self.coreExtent[ 0 ], self.coreExtent[ 2 ] ):
+        for assy_x in xrange( self.coreExtent[ 0 ], self.coreExtent[ 2 ] ):
           assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
           if assy_ndx >= 0:
-	    for z in range( z_size ):
+	    for z in xrange( z_size ):
 	      ax_level = min(
 	          bisect.bisect_left( self.meshLevels, z ),
 		  len( self.meshLevels ) - 1
 		  )
 	      #for y in range( core.npiny ):
 	      pin_y2 = 0
-	      for y in range( cur_npiny - 1, -1, -1 ):
+	      for y in xrange( cur_npiny - 1, -1, -1 ):
 		data_y = min( y, dset_shape[ 0 ] - 1 )
 
-	        for x in range( cur_npinx ):
+	        for x in xrange( cur_npinx ):
 		  data_x = min( x, dset_shape[ 1 ] - 1 )
 	          matrix[ z, pin_x + x, pin_y + pin_y2 ] = \
 	              dset_value[ data_y, data_x, ax_level, assy_ndx ]
@@ -237,16 +240,16 @@ class Volume3DView( Widget ):
     valid = False
     matrix = self.viz.GetScalarData()
     if matrix is not None and self.meshLevels is not None:
-      valid = DataModel.IsValidObj(
-	  self.data,
-	  assembly_index = self.assemblyAddr[ 0 ],
+      valid = self.dmgr.IsValid(
+          self.curDataSet,
+          assembly_addr = self.assemblyAddr[ 0 ],
 	  axial_level = self.axialValue[ 1 ]
-          )
+	  )
 
-    if valid:
+    core = self.dmgr.GetCore()
+    if valid and core is not None:
       #pos = self.viz.GetSlicePosition()
       # z, x, y
-      core = self.data.GetCore()
       z = self.meshLevels[ self.axialValue[ 1 ] ]
 
       assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
@@ -262,18 +265,6 @@ class Volume3DView( Widget ):
 
     return  csv_text
   #end _CreateClipboardSelectedData
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView._CreateMenuDef()			-
-  #----------------------------------------------------------------------
-#  def _CreateMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( Volume3DView, self )._CreateMenuDef( data_model )
-#    my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
-#    return  menu_def + my_def
-#  #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
@@ -309,22 +300,6 @@ class Volume3DView( Widget ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView.GetAllow4DataSets()		-
-  #----------------------------------------------------------------------
-  def GetAllow4DataSets( self ):
-    return  False
-  #end GetAllow4DataSets
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView.GetDataModel()			-
-  #----------------------------------------------------------------------
-  def GetDataModel( self ):
-    return  self.data
-  #end GetDataModel
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Volume3DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
@@ -341,18 +316,10 @@ class Volume3DView( Widget ):
         STATE_CHANGE_coordinates,
         STATE_CHANGE_curDataSet,
 	STATE_CHANGE_scaleMode,
-        STATE_CHANGE_stateIndex
+        STATE_CHANGE_timeValue
         ])
     return  locks
   #end GetEventLockSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView.GetMenuDef()			-
-  #----------------------------------------------------------------------
-#  def GetMenuDef( self, data_model ):
-#    return  self.menuDef
-#  #end GetMenuDef
 
 
   #----------------------------------------------------------------------
@@ -361,14 +328,6 @@ class Volume3DView( Widget ):
   def GetTitle( self ):
     return  'Volume 3D View'
   #end GetTitle
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Volume3DView.GetToolButtonDefs()		-
-  #----------------------------------------------------------------------
-#  def GetToolButtonDefs( self, data_model ):
-#    return  self.toolButtonDefs
-#  #end GetToolButtonDefs
 
 
   #----------------------------------------------------------------------
@@ -404,16 +363,19 @@ class Volume3DView( Widget ):
   #	METHOD:		Volume3DView._LoadDataModel()			-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
-    self.data = State.FindDataModel( self.state )
-    if self.data is not None and self.data.HasData():
-      self.assemblyAddr = self.state.assemblyAddr
-      self.axialValue = self.state.axialValue
-      self.coreExtent = self.data.ExtractSymmetryExtent()
-      #self.pinDataSet = self.state.pinDataSet
-      self.stateIndex = self.state.stateIndex
-      self.subAddr = self.state.subAddr
+    if self.dmgr.HasData() and not self.isLoaded:
+      self.isLoaded = True
 
-      self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
+      self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+
+      self.assemblyAddr = self.state.assemblyAddr
+      self.axialValue = self.dmgr.\
+          GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+      self.coreExtent = self.dmgr.ExtractSymmetryExtent()
+      self.stateIndex = self.dmgr.\
+          GetTimeValueIndex( self.state.timeValue, self.curDataSet )
+      self.subAddr = self.state.subAddr
+      self.timeValue = self.state.timeValue
 
       self._UpdateData()
     #end if
@@ -423,10 +385,10 @@ class Volume3DView( Widget ):
   #----------------------------------------------------------------------
   #	METHOD:		Volume3DView.SetDataSet()			-
   #----------------------------------------------------------------------
-  def SetDataSet( self, ds_name ):
-    if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
-      self.FireStateChange( cur_dataset = ds_name )
+  def SetDataSet( self, qds_name ):
+    if qds_name != self.curDataSet:
+      wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
+      self.FireStateChange( cur_dataset = qds_name )
   #end SetDataSet
 
 
@@ -436,10 +398,9 @@ class Volume3DView( Widget ):
   def _UpdateData( self ):
     matrix = self._Create3DMatrix()
     if matrix is not None:
-      #drange = self.data.GetRange( self.pinDataSet )
-      drange = self.data.GetRange(
-          self.pinDataSet,
-	  self.stateIndex if self.state.scaleMode == 'state' else -1
+      drange = self.dmgr.GetRange(
+          self.curDataSet,
+	  self.timeValue if self.state.scaleMode == 'state' else -1.0
 	  )
 
       if self.viz is None:
@@ -478,27 +439,48 @@ class Volume3DView( Widget ):
 	self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
       if 'axial_value' in kwargs and \
-          kwargs[ 'axial_value' ] != self.axialValue:
+          kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ] and \
+	  self.curDataSet:
         position_changed = True
-        self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
+        self.axialValue = self.dmgr.\
+	    GetAxialValue( self.curDataSet, cm = kwargs[ 'axial_value' ][ 0 ] )
 
-      if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
-        ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
-        if ds_type and ds_type in self.GetDataSetTypes():
-          data_changed = True
-          self.pinDataSet = kwargs[ 'cur_dataset' ]
-	  self.container.GetDataSetMenu().Reset()
-
-      if 'scale_mode' in kwargs:
+      if 'data_model_mgr' in kwargs or 'scale_mode' in kwargs:
         data_changed = True
 
-      if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
-        data_changed = True
-        self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
+#      if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+#        data_changed = True
+#        self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
 
       if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
         position_changed = True
-        self.subAddr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ] )
+        self.subAddr = self.dmgr.NormalizeSubAddr( kwargs[ 'sub_addr' ] )
+
+      if 'time_value' in kwargs and \
+          kwargs[ 'time_value' ] != self.timeValue and \
+          self.curDataSet:
+        self.timeValue = kwargs[ 'time_value' ]
+	state_index = max(
+	    0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet )
+	    )
+	if state_index != self.stateIndex:
+	  self.stateIndex = state_index
+	  data_changed = True
+      #end if 'time_value' in kwargs
+
+#		-- Special handling for cur_dataset
+#		--
+      if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
+        ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
+        if ds_type and ds_type in self.GetDataSetTypes():
+          data_changed = True
+          self.curDataSet = kwargs[ 'cur_dataset' ]
+	  self.container.GetDataSetMenu().Reset()
+	  self.axialValue = self.dmgr.\
+	      GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
+	  self.stateIndex = max(
+	      0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet )
+	      )
 
       if data_changed:
         self._UpdateData()
