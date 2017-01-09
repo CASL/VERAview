@@ -2622,18 +2622,6 @@ Must be called from the UI thread.
 	rows = 2 if widget_count > 1 else 1
 	grid_sizer.SetCols( cols )
 	grid_sizer.SetRows( rows )
-#        if len( widget_list ) > 6:
-#          grid_sizer.SetCols( 4 )
-#          grid_sizer.SetRows( 2 )
-#        elif len( widget_list ) > 4:
-#          grid_sizer.SetCols( 3 )
-#          grid_sizer.SetRows( 2 )
-#        elif len( widget_list ) > 2:
-#          grid_sizer.SetCols( 2 )
-#          grid_sizer.SetRows( 2 )
-#        elif len( widget_list ) > 1:
-#          grid_sizer.SetCols( 2 )
-#          grid_sizer.SetRows( 1 )
       #end if config
 
 #			-- Create widgets

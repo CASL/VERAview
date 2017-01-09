@@ -1005,7 +1005,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		ChannelAxial2DView.GetToolButtonDefs()		-
   #----------------------------------------------------------------------
-  def GetToolButtonDefs( self, data_model ):
+  def GetToolButtonDefs( self ):
     """
 """
     return  self.toolButtonDefs

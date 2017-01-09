@@ -685,10 +685,10 @@ specified, a default scale value of 8 is used.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateMenuDef()			-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
+  def _CreateMenuDef( self ):
     """
 """
-    menu_def = super( RasterWidget, self )._CreateMenuDef( data_model )
+    menu_def = super( RasterWidget, self )._CreateMenuDef()
 
     find_max_def = \
       [
@@ -1270,6 +1270,10 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
         self.bitmapThreadArgs = None
 
       self._LoadDataModelValues()
+
+      self.stateIndex = self.dmgr.\
+          GetTimeValueIndex( self.timeValue, self.curDataSet )
+
       wx.CallAfter( self._LoadDataModelUI )
     #end if
   #end _LoadDataModel
@@ -1718,7 +1722,9 @@ will be called.
     if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue and \
         self.curDataSet:
       self.timeValue = kwargs[ 'time_value' ]
-      state_index = max( 0, self.dmgr.GetTimeValueIndex( self.timeValue ) )
+      #state_index = max( 0, self.dmgr.GetTimeValueIndex( self.timeValue ) )
+      state_index = \
+          max( 0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet ) )
       if state_index != self.stateIndex:
 	if self.state.scaleMode == 'state':
 	  resized = True
@@ -1738,7 +1744,8 @@ will be called.
 	self.container.GetDataSetMenu().Reset()
         self.axialValue = self.dmgr.\
             GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
-        self.stateIndex = max( 0, self.dmgr.GetTimeValueIndex( self.timeValue ) )
+        self.stateIndex = \
+	  max( 0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet ) )
 
     if changed:
       kwargs[ 'changed' ] = True

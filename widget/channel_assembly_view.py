@@ -457,10 +457,10 @@ If neither are specified, a default 'scale' value of 24 is used.
   #----------------------------------------------------------------------
   #	METHOD:		ChannelAssembly2DView._CreateMenuDef()		-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
+  def _CreateMenuDef( self ):
     """
 """
-    menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef( data_model )
+    menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef()
 
 #		-- Add Copy Selected Options
 #		--
@@ -511,37 +511,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 
     return  result
   #end _CreateMenuDef
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		ChannelAssembly2DView._CreateMenuDef_old()	-
-  #----------------------------------------------------------------------
-  def _CreateMenuDef_old( self, data_model ):
-    """
-"""
-    menu_def = super( ChannelAssembly2DView, self )._CreateMenuDef( data_model )
-    other_def = \
-      [
-#	( '-', None ),
-        ( 'Hide Pins', self._OnTogglePins )
-      ]
-
-    hide_legend_ndx = -1
-    ndx = 0
-    for label, handler in menu_def:
-      if label == 'Hide Legend':
-        hide_legend_ndx = ndx + 1
-      ndx += 1
-    #end for
-
-    if hide_legend_ndx < 0:
-      result = menu_def + other_def
-    else:
-      result = \
-      menu_def[ : hide_legend_ndx ] + other_def + menu_def[ hide_legend_ndx : ]
-
-    return  result
-  #end _CreateMenuDef_old
 
 
   #----------------------------------------------------------------------
@@ -998,18 +967,6 @@ Subclasses should override as needed.
           ]
     return  result
   #end GetInitialCellRange
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget.GetMenuDef()			-
-  #----------------------------------------------------------------------
-#  def GetMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( ChannelAssembly2DView, self ).GetMenuDef( data_model )
-#    menu_def.insert( 0, ( 'Hide Pins', self._OnTogglePins ) )
-#    return  menu_def
-#  #end GetMenuDef
 
 
   #----------------------------------------------------------------------

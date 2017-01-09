@@ -612,12 +612,11 @@ ready for a clipboard copy.  This implementation returns None.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._CreateMenuDef()				-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
+  def _CreateMenuDef( self ):
     """List of (label, handler) pairs to present in a menu.
 This implementation creates the Copy Data and Copy Image items, so
 subclasses must override this calling super._CreateMenuDef() to insert
 or append items.
-@param  data_model	loaded data model, might be None
 @return			[ ( label, handler ), ... ]
 """
     return \
@@ -728,19 +727,6 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Widget.GetAllow4DDataSets()			-
-  #----------------------------------------------------------------------
-  def GetAllow4DDataSets( self ):
-    """Accessor specifying if the widget can visualize any dataset with a
-4-tuple shape.  Extensions must override as necessary.
-@return			None
-@deprecated
-"""
-    return  None
-  #end GetAllow4DDataSets
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetAnimationIndexes()			-
   #----------------------------------------------------------------------
   def GetAnimationIndexes( self ):
@@ -758,31 +744,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def GetContainer( self ):
     return  self.container
   #end GetContainer
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget.GetCurDataSet()				-
-  #----------------------------------------------------------------------
-  def GetCurDataSet( self ):
-    """This implementation tries to infer the name from an attribute
-named 'curDataSet', 'channelDataSet', or 'pinDataSet', in that order,
-only if GetDataSetDisplayMode is ''.  Otherwise, None is returned.
-Subclasses should override as needed.
-@return		current dataset name (DataSetName instance)
-		if dataSetDisplayMode is '', otherwise None
-"""
-    qds_name = None
-    if not self.GetDataSetDisplayMode():
-      qds_name = self.curDataSet
-#      for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
-#        if hasattr( self, attr ):
-#          ds_name = getattr( self, attr )
-#	  break
-#      #end for attr
-    #end if not
-
-    return  qds_name
-  #end GetCurDataSet
 
 
   #----------------------------------------------------------------------
@@ -900,15 +861,14 @@ captured.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.GetMenuDef()				-
   #----------------------------------------------------------------------
-  def GetMenuDef( self, data_model ):
+  def GetMenuDef( self ):
     """List of (label, handler) pairs to present in a menu.
 Lazily created here via a call to _CreateMenuDef(), which should be overridden 
 by subclasses.
-@param  data_model	loaded data model, might be None
 @return			[ ( label, handler ), ... ]
 """
     if self.menuDef is None:
-      self.menuDef = self._CreateMenuDef( data_model )
+      self.menuDef = self._CreateMenuDef()
     return  self.menuDef
   #end GetMenuDef
 
@@ -959,11 +919,10 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.GetToolButtonDefs()			-
   #----------------------------------------------------------------------
-  def GetToolButtonDefs( self, data_model ):
+  def GetToolButtonDefs( self ):
     """List of (icon_name, tip, handler) triples from which to build tool bar
 buttons.
 Returning None means no tool buttons, which is the default implemented here.
-@param  data_model	loaded data model, might be None
 @return			[ ( icon_name, tip, handler ), ... ]
 """
     return  None

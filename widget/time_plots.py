@@ -366,10 +366,10 @@ self.refAxisDataSet and self.refAxixTimes are None.
   #----------------------------------------------------------------------
   #	METHOD:		_CreateMenuDef()				-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
+  def _CreateMenuDef( self ):
     """
 """
-    menu_def = super( TimePlots, self )._CreateMenuDef( data_model )
+    menu_def = super( TimePlots, self )._CreateMenuDef()
 
     select_scale_def = \
       [

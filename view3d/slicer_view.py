@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2017-01-09	leerw@ornl.gov				-
+#	  Migrating to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-08-31	leerw@ornl.gov				-
@@ -35,7 +37,7 @@ from mayavi import mlab
 from mayavi.core.api import PipelineBase, Source
 from mayavi.core.ui.api import SceneEditor, MayaviScene, MlabSceneModel
 
-from data.datamodel import *
+#from data.datamodel import *
 from event.state import *
 from widget.widget import *
 from widget.widgetcontainer import *
@@ -60,16 +62,16 @@ class Slicer3DView( Widget ):
     self.assemblyAddr = ( -1, -1, -1 )
     self.axialValue = ( 0.0, -1, -1 )
     self.coreExtent = None  # left, top, right + 1, bottom + 1, dx, dy
-    #self.curSize = None
-    self.data = None
+    self.curDataSet = None
 
     #self.autoSync = True
+    self.isLoaded = False
     self.logger = logging.getLogger( 'view3d' )
     #self.menuDef = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
     self.meshLevels = None
-    self.pinDataSet = kwargs.get( 'dataset', 'pin_powers' )
     self.stateIndex = -1
     self.subAddr = None
+    self.timeValue = -1.0
 
 #    self.toolButtonDefs = \
 #      [
@@ -96,25 +98,27 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 """
     rec = None
 
-    if self.data is not None and self.meshLevels is not None:
+    core = self.dmgr.GetCore()
+    #if self.data is not None and self.meshLevels is not None:
+    if core is not None and self.curDataSet and self.meshLevels is not None:
       slice_z, slice_x, slice_y = slice_position
-      core = self.data.GetCore()
 
       if slice_z >= 0:
-        ax_level = min(
-	    bisect.bisect_left( self.meshLevels, slice_z ),
-	    len( self.meshLevels ) - 1
-            )
-        axial_value = self.data.CreateAxialValue( core_ndx = ax_level )
+	ax_level = DataUtils.FindListIndex( self.meshLevels, slice_z )
+	axial_value = self.dmgr.\
+	    GetAxialValue( self.curDataSet, core_ndx = ax_level )
+#        ax_level = min(
+#	    bisect.bisect_left( self.meshLevels, slice_z ),
+#	    len( self.meshLevels ) - 1
+#            )
+#        axial_value = self.data.CreateAxialValue( core_ndx = ax_level )
       else:
         axial_value = ( -1, -1, -1 )
 
       if slice_x >= 0 and slice_y >= 0:
-        #assy_col = int( slice_x / core.npinx )
-        #assy_row = core.nassy - 1 - int( slice_y / core.npiny )
         assy_col = int( slice_x / core.npinx ) + self.coreExtent[ 0 ]
         assy_row = self.coreExtent[ 3 ] - 1 - int( slice_y / core.npiny )
-	assembly_addr = self.data.CreateAssemblyAddr( assy_col, assy_row )
+	assembly_addr = self.dmgr.CreateAssemblyAddr( assy_col, assy_row )
 
 	pin_col = int( slice_x ) % core.npinx
 	pin_row = core.npiny - (int( slice_y ) % core.npiny)
@@ -143,23 +147,27 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     """Calculates viz slice positions from the current state.
 @return			( z, x, y )
 """
-    core = self.data.GetCore()
+    result = ( 0, 0, 0 )
+    core = self.dmgr.GetCore()
+    if core and self.meshLevels:
+#		-- Data matrix is z, x, y(reversed)
+#		--
+      z = self.meshLevels[ self.axialValue[ 1 ] ]
 
-#	-- Data matrix is z, x, y(reversed)
-#	--
-    z = self.meshLevels[ self.axialValue[ 1 ] ]
+      assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
+      #xxxxx channel? track with mode flag?
+      x = core.npinx * assy_col + self.subAddr[ 0 ]
 
-    assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
-    #xxxxx channel? track with mode flag?
-    x = core.npinx * assy_col + self.subAddr[ 0 ]
+      assy_row = self.assemblyAddr[ 2 ] - self.coreExtent[ 1 ]
+      #xxxxx channel?
+      y = \
+          core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
+	  self.subAddr[ 1 ]
 
-    assy_row = self.assemblyAddr[ 2 ] - self.coreExtent[ 1 ]
-    #xxxxx channel?
-    y = \
-        core.npiny * (self.coreExtent[ -1 ] - assy_row) - \
-	self.subAddr[ 1 ]
+      result = ( z, x, y )
+    #end if core
 
-    return  ( z, x, y )
+    return  result
   #end CalcSlicePosition
 
 
@@ -169,11 +177,11 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   def _Create3DMatrix( self ):
     matrix = None
 
-    if self.data is not None and self.coreExtent is not None and \
-        (self.data.core.npinx > 0 or self.data.core.npiny > 0):
-      core = self.data.GetCore()
-      dset = self.data.GetStateDataSet( self.stateIndex, self.pinDataSet )
-      #dset_value = dset.value
+    core = self.dmgr.GetCore()
+    if core is not None and self.curDataSet and \
+        self.coreExtent is not None and \
+        (core.npinx > 0 or core.npiny > 0):
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       dset_value = np.array( dset )
       dset_shape = dset.shape
 
@@ -182,14 +190,11 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
       if self.logger.isEnabledFor( logging.DEBUG ):
         self.logger.debug(
-	    'pinDataSet=%s, stateIndex=%d',
-	    self.pinDataSet, self.stateIndex
+	    'curDataSet=%s, stateIndex=%d',
+	    self.curDataSet, self.stateIndex
 	    )
 
-      # left, top, right + 1, bottom + 1, dx, dy
-      #assy_range = self.data.ExtractSymmetryExtent()
-
-      ax_mesh = core.axialMesh
+      ax_mesh = self.dmgr.GetAxialMesh( self.curDataSet )
       #pin_pitch = 1.26
       pin_pitch = core.GetAssemblyPitch() / max( core.npinx, core.npinx )
       self.meshLevels = [
@@ -209,26 +214,26 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
       matrix.fill( 0.0 )
     
       pin_y = 0
-      #for assy_y in range( assy_range[ 3 ] - 1, assy_range[ 1 ] - 1, -1 ):
-      for assy_y in range( self.coreExtent[ 3 ] - 1, self.coreExtent[ 1 ] - 1, -1 ):
+      for assy_y in \
+          xrange( self.coreExtent[ 3 ] - 1, self.coreExtent[ 1 ] - 1, -1 ):
         pin_x = 0
-        #for assy_x in range( assy_range[ 0 ], assy_range[ 2 ] ):
-        for assy_x in range( self.coreExtent[ 0 ], self.coreExtent[ 2 ] ):
+        for assy_x in xrange( self.coreExtent[ 0 ], self.coreExtent[ 2 ] ):
           assy_ndx = core.coreMap[ assy_y, assy_x ] - 1
           if assy_ndx >= 0:
 	    assy_ndx = min( assy_ndx, dset_shape[ 3 ] - 1 )
-	    for z in range( z_size ):
+	    for z in xrange( z_size ):
 	      #xxx is this off by one?
-	      ax_level = min(
-	          bisect.bisect_left( self.meshLevels, z ),
-		  len( self.meshLevels ) - 1
-		  )
+	      ax_level = DataUtils.FindListIndex( self.meshLevels, z )
+#	      ax_level = min(
+#	          bisect.bisect_left( self.meshLevels, z ),
+#		  len( self.meshLevels ) - 1
+#		  )
 	      ax_level = min( ax_level, dset_shape[ 2 ] - 1 )
 	      pin_y2 = 0
-	      for y in range( cur_npiny - 1, -1, -1 ):
+	      for y in xrange( cur_npiny - 1, -1, -1 ):
 		data_y = min( y, dset_shape[ 0 ] - 1 )
 
-	        for x in range( cur_npinx ):
+	        for x in xrange( cur_npinx ):
 		  data_x = min( x, dset_shape[ 1 ] - 1 )
 	          matrix[ z, pin_x + x, pin_y + pin_y2 ] = \
 	              dset_value[ data_y, data_x, ax_level, assy_ndx ]
@@ -236,14 +241,14 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 	        pin_y2 += 1
 	      #end for y
 	    #end for z
-          #end if assy_ndx
+          #end if assy_ndx >= 0
 
           pin_x += cur_npinx
         #end for assy_x
 
         pin_y += cur_npiny
       #end for assy_y
-    #end if self.data is not None
+    #end if valid properties
 
     return  matrix
   #end _Create3DMatrix
@@ -319,11 +324,11 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     valid = False
     matrix = self.viz.GetScalarData()
     if matrix is not None and self.meshLevels is not None:
-      valid = DataModel.IsValidObj(
-	  self.data,
-	  assembly_index = self.assemblyAddr[ 0 ],
+      valid = self.dmgr.IsValid(
+          self.curDataSet,
+          assembly_addr = self.assemblyAddr[ 0 ],
 	  axial_level = self.axialValue[ 1 ]
-          )
+	  )
 
     if valid:
       #pos = self.CalcSlicePosition()
@@ -341,26 +346,42 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._CreateMenuDef()			-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
+  def _CreateMenuDef( self ):
     """
 """
-    menu_def = super( Slicer3DView, self )._CreateMenuDef( data_model )
-    #my_def = [ ( 'Disable Auto Sync', self._OnAutoSync ) ]
+    menu_def = super( Slicer3DView, self )._CreateMenuDef()
 
     find_max_def = \
       [
-        { 'label': 'All State Points',
-	  'handler': functools.partial( self._OnFindMax, True ) },
-        { 'label': 'Current State Point',
-	  'handler': functools.partial( self._OnFindMax, False ) }
+        {
+	'label': 'All State Points',
+	'handler': functools.partial( self._OnFindMinMax, 'max', True )
+	},
+        {
+	'label': 'Current State Point',
+	'handler': functools.partial( self._OnFindMinMax, 'max', False )
+	}
       ]
 
-    my_def = \
+    find_min_def = \
+      [
+        {
+	'label': 'All State Points',
+	'handler': functools.partial( self._OnFindMinMax, 'min', True )
+	},
+        {
+	'label': 'Current State Point',
+	'handler': functools.partial( self._OnFindMinMax, 'min', False )
+	}
+      ]
+
+    slicer_def = \
       [
 	{ 'label': '-' },
-	{ 'label': 'Find Maximum', 'submenu': find_max_def }
+	{ 'label': 'Find Maximum', 'submenu': find_max_def },
+	{ 'label': 'Find Minimum', 'submenu': find_min_def }
       ]
-    return  menu_def + my_def
+    return  menu_def + slicer_def
   #end _CreateMenuDef
 
 
@@ -398,22 +419,6 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetAllow4DataSets()		-
-  #----------------------------------------------------------------------
-  def GetAllow4DataSets( self ):
-    return  False
-  #end GetAllow4DataSets
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetDataModel()			-
-  #----------------------------------------------------------------------
-  def GetDataModel( self ):
-    return  self.data
-  #end GetDataModel
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.GetDataSetTypes()			-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
@@ -430,18 +435,10 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
         STATE_CHANGE_coordinates,
         STATE_CHANGE_curDataSet,
 	STATE_CHANGE_scaleMode,
-        STATE_CHANGE_stateIndex
+        STATE_CHANGE_timeValue
         ])
     return  locks
   #end GetEventLockSet
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetMenuDef()			-
-  #----------------------------------------------------------------------
-#  def GetMenuDef( self, data_model ):
-#    return  self.menuDef
-#  #end GetMenuDef
 
 
   #----------------------------------------------------------------------
@@ -450,14 +447,6 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   def GetTitle( self ):
     return  'Volume Slicer 3D View'
   #end GetTitle
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Slicer3DView.GetToolButtonDefs()		-
-  #----------------------------------------------------------------------
-#  def GetToolButtonDefs( self, data_model ):
-#    return  self.toolButtonDefs
-#  #end GetToolButtonDefs
 
 
   #----------------------------------------------------------------------
@@ -493,16 +482,17 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #	METHOD:		Slicer3DView._LoadDataModel()			-
   #----------------------------------------------------------------------
   def _LoadDataModel( self ):
-    self.data = State.FindDataModel( self.state )
-    if self.data is not None and self.data.HasData():
+    if self.dmgr.HasData() and not self.isLoaded:
+      self.isLoaded = True
+
       self.assemblyAddr = self.state.assemblyAddr
       self.axialValue = self.state.axialValue
-      self.coreExtent = self.data.ExtractSymmetryExtent()
+      self.coreExtent = self.dmgr.ExtractSymmetryExtent()
+      self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
       self.subAddr = self.state.subAddr
-      #self.pinDataSet = self.state.pinDataSet
-      self.stateIndex = self.state.stateIndex
-
-      self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
+      self.stateIndex = self.dmgr.\
+          GetTimeValueIndex( self.state.timeValue, self.curDataSet )
+      self.timeValue = self.state.timeValue
 
       self._UpdateData()
     #end if
@@ -532,10 +522,10 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #	METHOD:		Slicer3DView._OnFindMax()			-
   #----------------------------------------------------------------------
   def _OnFindMax( self, all_states_flag, ev ):
-    """Calls _OnFindMaxPin().
+    """Calls _OnFindMinMaxPin().
 """
-    if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
-      self._OnFindMaxPin( self.pinDataSet, all_states_flag )
+    if self.curDataSet:
+      self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
   #end _OnFindMax
 
 
@@ -573,10 +563,10 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.SetDataSet()			-
   #----------------------------------------------------------------------
-  def SetDataSet( self, ds_name ):
-    if ds_name != self.pinDataSet:
-      wx.CallAfter( self.UpdateState, cur_dataset = ds_name )
-      self.FireStateChange( cur_dataset = ds_name )
+  def SetDataSet( self, qds_name ):
+    if qds_name != self.curDataSet:
+      wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
+      self.FireStateChange( cur_dataset = qds_name )
   #end SetDataSet
 
 
@@ -586,10 +576,9 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   def _UpdateData( self ):
     matrix = self._Create3DMatrix()
     if matrix is not None:
-      #drange = self.data.GetRange( self.pinDataSet )
-      drange = self.data.GetRange(
-          self.pinDataSet,
-	  self.stateIndex if self.state.scaleMode == 'state' else -1
+      drange = self.dmgr.GetRange(
+          self.curDataSet,
+	  self.timeValue if self.state.scaleMode == 'state' else -1.0
 	  )
 
       if self.viz is None:
@@ -629,27 +618,48 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 	self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
       if 'axial_value' in kwargs and \
-          kwargs[ 'axial_value' ] != self.axialValue:
+          kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ] and \
+	  self.curDataSet:
         position_changed = True
-        self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
+        self.axialValue = self.dmgr.\
+	    GetAxialValue( self.curDataSet, cm = kwargs[ 'axial_value' ][ 0 ] )
 
-      if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
-        ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
-        if ds_type and ds_type in self.GetDataSetTypes():
-          data_changed = True
-          self.pinDataSet = kwargs[ 'cur_dataset' ]
-	  self.container.GetDataSetMenu().Reset()
-
-      if 'scale_mode' in kwargs:
+      if 'data_model_mgr' in kwargs or 'scale_mode' in kwargs:
         data_changed = True
 
-      if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
-        data_changed = True
-        self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
+#      if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
+#        data_changed = True
+#        self.stateIndex = self.data.NormalizeStateIndex( kwargs[ 'state_index' ] )
 
       if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
         position_changed = True
-        self.subAddr = self.data.NormalizeSubAddr( kwargs[ 'sub_addr' ] )
+        self.subAddr = self.dmgr.NormalizeSubAddr( kwargs[ 'sub_addr' ] )
+
+      if 'time_value' in kwargs and \
+          kwargs[ 'time_value' ] != self.timeValue and \
+          self.curDataSet:
+        self.timeValue = kwargs[ 'time_value' ]
+	state_index = max(
+	    0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet )
+	    )
+	if state_index != self.stateIndex:
+	  self.stateIndex = state_index
+	  data_changed = True
+      #end if 'time_value' in kwargs
+
+#		-- Special handling for cur_dataset
+#		--
+      if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.curDataSet:
+        ds_type = self.dmgr.GetDataSetType( kwargs[ 'cur_dataset' ] )
+        if ds_type and ds_type in self.GetDataSetTypes():
+          data_changed = True
+          self.curDataSet = kwargs[ 'cur_dataset' ]
+	  self.container.GetDataSetMenu().Reset()
+	  self.axialValue = self.dmgr.\
+	      GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
+	  self.stateIndex = max(
+	      0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet )
+	      )
 
       if data_changed:
         self._UpdateData()

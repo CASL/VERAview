@@ -235,23 +235,6 @@ Support Methods
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		_CreateMenuDef()				-
-  #----------------------------------------------------------------------
-#  def _CreateMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( PlotWidget, self )._CreateMenuDef( data_model )
-#
-#    toolbar_def = \
-#      [
-#        { 'label': 'Toggle Toolbar', 'handler': self._OnToggleToolBar }
-#      ]
-#
-#    return  menu_def + toolbar_def
-#  #end _CreateMenuDef
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CreatePrintImage()				-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):

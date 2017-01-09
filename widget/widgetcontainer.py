@@ -509,7 +509,7 @@ definition array for a pullright.
 
 #		-- Widget-defined toolbar buttons
 #		--
-    tool_button_defs = self.widget.GetToolButtonDefs( dmgr )
+    tool_button_defs = self.widget.GetToolButtonDefs()
     if tool_button_defs is not None:
       for icon, tip, handler in tool_button_defs:
 #        tool_im = wx.Image(
@@ -659,7 +659,7 @@ definition array for a pullright.
       self.widgetMenu.AppendItem( show_item )
 
 #			-- Widget-defined items
-    widget_menu_def = self.widget.GetMenuDef( dmgr )
+    widget_menu_def = self.widget.GetMenuDef()
     if widget_menu_def is not None:
       self.widgetMenu.AppendSeparator()
       self._CreateMenuFromDef( self.widgetMenu, widget_menu_def )

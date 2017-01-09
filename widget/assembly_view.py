@@ -489,10 +489,10 @@ If neither are specified, a default 'scale' value of 24 is used.
   #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._CreateMenuDef()			-
   #----------------------------------------------------------------------
-  def _CreateMenuDef( self, data_model ):
+  def _CreateMenuDef( self ):
     """
 """
-    menu_def = super( Assembly2DView, self )._CreateMenuDef( data_model )
+    menu_def = super( Assembly2DView, self )._CreateMenuDef()
 
     ndx = 0
     for item in menu_def:
@@ -997,7 +997,7 @@ attributes/properties that aren't already set in _LoadDataModel():
 """
     self.assemblyAddr = self.state.assemblyAddr
     #self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
-    self.curDataSet = self._FindFirstDataSet()
+    self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 

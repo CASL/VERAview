@@ -11,7 +11,7 @@
 #		2016-10-26	leerw@ornl.gov				-
 #	  Using logging.
 #		2016-10-24	leerw@ornl.gov				-
-#	  Calling _ResolveDataRange() instead of DatModel.GetRange()
+#	  Calling _ResolveDataRange() instead of DataModel.GetRange()
 #	  directly.
 #		2016-10-22	leerw@ornl.gov				-
 #	  Calling DataModel.Core.Get{Col,Row}Label().
@@ -1055,22 +1055,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core2DView._CreateMenuDef()			-
-  #----------------------------------------------------------------------
-#  def _CreateMenuDef( self, data_model ):
-#    """
-#"""
-#    menu_def = super( Core2DView, self )._CreateMenuDef( data_model )
-#    other_def = \
-#      [
-#        ( 'Select Average Dataset...', self._OnSelectAverageDataSet ),
-#	( '-', None )
-#      ]
-#    return  other_def + menu_def
-#  #end _CreateMenuDef
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Core2DView._CreateRasterImage()			-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in, config_in = None ):
@@ -1524,7 +1508,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     #self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
-    self.curDataSet = self._FindFirstDataSet()
+    self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
 
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )

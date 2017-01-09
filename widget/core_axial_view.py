@@ -1015,7 +1015,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.GetToolButtonDefs()		-
   #----------------------------------------------------------------------
-  def GetToolButtonDefs( self, data_model ):
+  def GetToolButtonDefs( self ):
     """
 """
     return  self.toolButtonDefs
@@ -1116,12 +1116,17 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     #self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
-    self.curDataSet = self._FindFirstDataSet()
+    self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
 
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
 
     self.subAddr = self.state.subAddr
+
+#		-- Cell range depends on curDataSet
+#		--
+    self.cellRange = list( self.GetInitialCellRange() )
+    del self.cellRangeStack[ : ]
   #end _LoadDataModelValues
 
 
