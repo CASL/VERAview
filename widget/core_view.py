@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2017-01-12	leerw@ornl.gov				-
+#	  Integrating channel datasets.
 #		2016-12-16	leerw@ornl.gov				-
 #	  Setting self.nodalMode in _LoadDataModelValues().
 #		2016-12-09	leerw@ornl.gov				-
@@ -183,6 +185,7 @@ Properties:
     self.auxNodeAddrs = []
     self.avgDataSet = None
     #self.avgValues = {}
+    self.channelMode = False
 
     self.mode = ''  # 'assy', 'core'
     self.nodalMode = False
@@ -244,6 +247,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       if self.nodalMode:
         pin_adv_wd = region_wd >> 1
+      elif self.channelMode:
+        pin_adv_wd = region_wd / (core.npin + 1)
       else:
         pin_adv_wd = region_wd / core.npin
 
@@ -251,27 +256,39 @@ If neither are specified, a default 'scale' value of 24 is used.
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
       if self.nodalMode:
         pin_adv_ht = region_ht >> 1
+      elif self.channelMode:
+        pin_adv_ht = region_ht / (core.npin + 1)
       else:
         pin_adv_ht = region_ht / core.npin
 
       if pin_adv_ht < pin_adv_wd:
         pin_adv_wd = pin_adv_ht
 
-      pin_gap = pin_adv_wd >> 3
+      if self.channelMode:
+        pin_gap = 0
+      else:
+        pin_gap = pin_adv_wd >> 3
       pin_wd = max( 1, pin_adv_wd - pin_gap )
 
       if self.nodalMode:
         assy_wd = assy_ht = (pin_wd + pin_gap) << 1
+      elif self.channelMode:
+        assy_wd = assy_ht = (core.npin + 1) * (pin_wd + pin_gap)
       else:
         assy_wd = assy_ht = core.npin * (pin_wd + pin_gap)
 
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 24
-      pin_gap = pin_wd >> 3
+      if self.channelMode:
+        pin_gap = 0
+      else:
+        pin_gap = pin_wd >> 3
 
       if self.nodalMode:
         pin_wd <<= 4
         assy_wd = assy_ht = (pin_wd + pin_gap) << 1
+      elif self.channelMode:
+        assy_wd = assy_ht = (core.npin + 1) * (pin_wd + pin_gap)
       else:
         assy_wd = assy_ht = core.npin * (pin_wd + pin_gap)
 
@@ -345,9 +362,11 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
-      pin_factors = None
+      
+#		-- "Item" refers to channel or pin
+      item_factors = None
       if self.state.weightsMode == 'on':
-        pin_factors = self.dmgr.GetFactors( self.curDataSet )
+        item_factors = self.dmgr.GetFactors( self.curDataSet )
 
       if dset is None:
         dset_array = None
@@ -381,30 +400,36 @@ If neither are specified, a default 'scale' value of 24 is used.
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
 
+      item_col_limit = cur_nxpin
+      if self.channelMode:
+        item_col_limit += 1
+      item_row_limit = cur_nypin
+      if self.channelMode:
+        item_row_limit += 1
+
       node_ndx = 0
-      pin_y = assy_region[ 1 ]
-#      for pin_row in range( core.npin ):
-      for pin_row in xrange( cur_nypin ):
+      item_y = assy_region[ 1 ]
+      for item_row in xrange( item_row_limit ):
 #				-- Row label
 #				--
 	if self.showLabels:
-	  label = '%d' % (pin_row + 1)
+	  label = '%d' % (item_row + 1)
 	  label_size = label_font.getsize( label )
-	  label_y = pin_y + ((pin_wd - label_size[ 1 ]) >> 1)
+	  label_y = item_y + ((pin_wd + pin_gap - label_size[ 1 ]) >> 1)
 	  im_draw.text(
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
 	      )
 #					-- Loop on col
 #					--
-	pin_x = assy_region[ 0 ]
-	for pin_col in xrange( cur_nxpin ):
+	item_x = assy_region[ 0 ]
+	for item_col in xrange( item_col_limit ):
 #						-- Column label
 #						--
-	  if pin_row == 0 and self.showLabels:
-	    label = '%d' % (pin_col + 1)
+	  if item_row == 0 and self.showLabels:
+	    label = '%d' % (item_col + 1)
 	    label_size = label_font.getsize( label )
-	    label_x = pin_x + ((pin_wd - label_size[ 0 ]) >> 1)
+	    label_x = pin_x + ((pin_wd + pin_gap - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ), label,
 		fill = ( 0, 0, 0, 255 ), font = label_font
@@ -414,21 +439,22 @@ If neither are specified, a default 'scale' value of 24 is used.
 #						-- apply pin factors
 	  if self.nodalMode:
 	    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
-	    if pin_factors is None:
-	      pin_factor = 1
+	    if item_factors is None:
+	      item_factor = 1
 	    else:
-	      pin_factor = pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
+	      item_factor = item_factors[ 0, node_ndx, axial_level, assy_ndx ]
 	    node_ndx += 1
 	  else:
-	    value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
-	    if pin_factors is None:
-	      pin_factor = 1
+	    value = dset_array[ item_row, item_col, axial_level, assy_ndx ]
+	    if item_factors is None:
+	      item_factor = 1
 	    else:
-	      pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
-	  #end if self.nodalMode
-#						-- Check value and pin_factor
+	      item_factor = \
+	          item_factors[ item_row, item_col, axial_level, assy_ndx ]
+	  #end if-else self.nodalMode
+#						-- Check value and factor
 #						--
-	  if not ( self.dmgr.IsBadValue( value ) or pin_factor == 0 ):
+	  if not ( item_factor == 0 or self.dmgr.IsBadValue( value ) ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -437,33 +463,54 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	    if self.nodalMode:
 	      im_draw.rectangle(
-	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	          [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
 	          fill = brush_color, outline = pen_color
 	          )
 	      node_value_draw_list.append((
 	          self._CreateValueString( value, 3 ),
                   Widget.GetContrastColor( *brush_color ),
-                  pin_x, pin_y, pin_wd, pin_wd
+                  item_x, item_y, pin_wd, pin_wd
                   ))
 	    else:
 	      im_draw.ellipse(
-	          [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	          [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
 	          fill = brush_color, outline = pen_color
 	          )
 	  #end if good value, not hidden by pin_factor
 
-	  pin_x += pin_wd + pin_gap
+	  item_x += pin_wd + pin_gap
 	#end for pin_col
 
-	pin_y += pin_wd + pin_gap
+	item_y += pin_wd + pin_gap
       #end for pin_row
 
-#			-- Draw Values
+#			-- Draw values
 #			--
       if node_value_draw_list:
         self._DrawValues( node_value_draw_list, im_draw )
 
-#			-- Draw Legend Image
+#			-- Draw pins
+#			--
+      if self.channelMode:
+        brush_color = ( 155, 155, 155, 128 )
+	pen_color = Widget.GetDarkerColor( brush_color, 128 )
+	pin_draw_wd = pin_wd >> 1
+
+	pin_y = assy_region[ 1 ] + ((pin_wd + pin_gap - pin_draw_wd) >> 1)
+	for pin_row in range( core.npiny ):
+	  pin_x = assy_region[ 0 ] + ((pin_wd + pin_gap - pin_draw_wd) >> 1)
+	  for pin_col in range( core.npinx ):
+	    im_draw.ellipse(
+		[ pin_x, pin_y, pin_x + pin_draw_wd, pin_y + pin_draw_wd ],
+		fill = brush_color, outline = pen_color
+	        )
+	    pin_x += pin_wd + pin_gap
+	  #end for pin_col
+	  pin_y += pin_wd + pin_gap
+	#end for pin_row
+      #end if self.channelMode
+
+#			-- Draw legend image
 #			--
       if legend_pil_im is not None:
         im.paste(
@@ -477,15 +524,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Draw Title String
 #			--
-      pin_y = max( pin_y, legend_size[ 1 ] )
-      pin_y += font_size >> 2
+      item_y = max( item_y, legend_size[ 1 ] )
+      item_y += font_size >> 2
 
       title_str = self._CreateTitleString(
 	  title_templ,
 	  assembly = assy_ndx,
 	  axial = axial_value[ 0 ],
 	  time = self.timeValue
-	  #time = self.dmgr.GetTimeIndexValue( state_ndx, qds_name )
           )
       title_size = pil_font.getsize( title_str )
       title_x = max(
@@ -496,7 +542,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  )
 
       im_draw.text(
-          ( title_x, pin_y ),
+          ( title_x, item_y ),
 	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
           )
 
@@ -567,23 +613,17 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  pin_col_to = pin_col + dset_shape[ 1 ]
 
           assy_ndx = core.coreMap[ assy_row, assy_col ] - 1
-#	  if assy_ndx < 0:
-#	    clip_data[ pin_row : pin_row_to, pin_col : pin_col_to ] = 0.0
-#	  else:
 	  if assy_ndx >= 0:
 	    clip_data[ pin_row : pin_row_to, pin_col : pin_col_to ] = \
 	        dset_value[ :, :, axial_level, assy_ndx ]
 
-	  #pin_col += self.core.npinx
 	  pin_col = pin_col_to
 	#end for assy cols
 
-	#pin_row += self.core.npiny
 	pin_row = pin_row_to
       #end for assy rows
 
       title1 = '"%s: Axial=%.3f; %s=%.3g"' % (
-	  #self.curDataSet.displayName,
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
@@ -635,7 +675,8 @@ If neither are specified, a default 'scale' value of 24 is used.
       clip_data = dset_value[ :, :, axial_level, assy_ndx ]
 
       title = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"' % (
-	  self.curDataSet.displayName,
+	  #self.curDataSet.displayName,
+	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  assy_ndx + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
@@ -711,6 +752,9 @@ If neither are specified, a default 'scale' value of 4 is used.
       if self.nodalMode:
         pin_wd = max( 1, (assy_wd - 2) >> 1 )
         assy_wd = pin_wd * 2
+      elif self.channelMode:
+        pin_wd = max( 1, (assy_wd - 2) / (core.npin + 1) )
+        assy_wd = pin_wd * (core.npin + 1) + 1
       else:
         pin_wd = max( 1, (assy_wd - 2) / core.npin )
         assy_wd = pin_wd * core.npin + 1
@@ -720,13 +764,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
+
       if self.nodalMode:
         pin_wd <<= 4
-
-      if self.logger.isEnabledFor( logging.DEBUG ):
-        self.logger.debug( 'nodalMode=%d, pin_wd=%d', self.nodalMode, pin_wd )
-      if self.nodalMode:
         assy_wd = pin_wd << 1
+#        if self.logger.isEnabledFor( logging.DEBUG ):
+#          self.logger.debug( 'nodalMode=%d, pin_wd=%d', self.nodalMode, pin_wd )
+      elif self.channelMode:
+        assy_wd = pin_wd * (core.npin + 1) + 1
       else:
         assy_wd = pin_wd * core.npin + 1
       assy_advance = assy_wd
@@ -805,19 +850,31 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
-      pin_factors = None
+
+#		-- "Item" refers to channel or pin
+      item_factors = None
       if self.state.weightsMode == 'on':
-        pin_factors = self.dmgr.GetFactors( self.curDataSet )
+        item_factors = self.dmgr.GetFactors( self.curDataSet )
 
       if dset is None:
         dset_array = None
 	dset_shape = ( 0, 0, 0, 0 )
-	cur_nxpin = cur_nypin = 0
+	cur_nxpin = cur_nypin = item_col_limit = item_row_limit = 0
       else:
         dset_array = np.array( dset )
         dset_shape = dset.shape
-        cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
-        cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
+	if self.nodalMode:
+	  cur_nxpin = cur_nypin = item_col_limit = item_row_limit = 2
+	else:
+	  if self.channelMode:
+	    item_col_limit = core.npinx + 1
+	    item_row_limit = core.npiny + 1
+	  else:
+	    item_col_limit = core.npinx
+	    item_row_limit = core.npiny
+	  cur_nxpin = min( item_col_limit, dset_shape[ 1 ] )
+	  cur_nypin = min( item_row_limit, dset_shape[ 0 ] )
+      #end if-else dset is None
 
       ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
@@ -853,8 +910,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			--
       assy_y = core_region[ 1 ]
       for assy_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-        core_data_row = core.coreMap[ assy_row, : ]
-
 #				-- Row label
 #				--
 	if self.showLabels:
@@ -882,88 +937,85 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        )
 	  #end if writing column label
 
-	  assy_ndx = core_data_row[ assy_col ] - 1
+	  assy_ndx = core.coreMap[ assy_row, assy_col ] - 1
 
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    pin_y = assy_y + 1
+	    item_y = assy_y + 1
 
-#						-- Loop on pin rows
-	    #for pin_row in range( self.data.core.npiny ):
-	    pin_row_limit = 2 if self.nodalMode else core.npiny
-	    pin_col_limit = 2 if self.nodalMode else core.npinx
+#						-- Loop on chan/pin rows
 	    node_ndx = 0
-
-	    for pin_row in range( pin_row_limit ):
-	      pin_x = assy_x + 1
-
-#							-- Loop on pin cols
-	      cur_pin_row = min( pin_row, cur_nypin - 1 )
-	      for pin_col in range( pin_col_limit ):
-	        cur_pin_col = min( pin_col, cur_nxpin - 1 )
+	    for item_row in xrange( item_row_limit ):
+	      item_x = assy_x + 1
+#							-- Loop on chan/pin cols
+	      cur_item_row = min( item_row, cur_nypin - 1 )
+	      if cur_item_row >= 0:
+	        for item_col in range( item_col_limit ):
+	          cur_item_col = min( item_col, cur_nxpin - 1 )
 #-- Resolve value, apply pin factors
-		value = 0.0
-		pin_factor = 0
-		if cur_pin_row >= 0 and cur_pin_col >= 0:
-		  if self.nodalMode:
-		    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
-		    if pin_factors is None:
-		      pin_factor = 1
+		  value = 0.0
+		  item_factor = 0
+		  if cur_item_col >= 0:
+		    if self.nodalMode:
+		      value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
+		      if item_factors is None:
+		        item_factor = 1
+		      else:
+	                item_factor = \
+		            item_factors[ 0, node_ndx, axial_level, assy_ndx ]
+		      node_ndx += 1
 		    else:
-	              pin_factor = \
-		          pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
-		    node_ndx += 1
-		  else:
-		    value = dset_array[
-		        cur_pin_row, cur_pin_col, axial_level, assy_ndx
-		        ]
-	            if pin_factors is None:
-	              pin_factor = 1
-		    else:
-	              pin_factor = pin_factors[
-		          cur_pin_row, cur_pin_col, axial_level, assy_ndx
+		      value = dset_array[
+		          cur_item_row, cur_item_col, axial_level, assy_ndx
 		          ]
-		  #end if-else
-		#end if cur_pin_row and cur_pin_col
+	              if item_factors is None:
+	                item_factor = 1
+		      else:
+	                item_factor = item_factors[
+		            cur_item_row, cur_item_col, axial_level, assy_ndx
+		            ]
+		    #end if-else self.nodalMode
+		  #end if cur_item_col
 
 #-- Check value and pin_factor
 #--
-	        if not ( self.dmgr.IsBadValue( value ) or pin_factor == 0 ):
-	          pen_color = Widget.GetColorTuple(
-	              value - ds_range[ 0 ], value_delta, 255
-	              )
-	          brush_color = \
-		      ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
-		  #im_draw.ellipse
-	          im_draw.rectangle(
-		      [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
-		      fill = brush_color, outline = pen_color
-		      )
-
-		  if self.nodalMode:
+	          if not ( item_factor == 0 or self.dmgr.IsBadValue( value ) ):
+	            pen_color = Widget.GetColorTuple(
+	                value - ds_range[ 0 ], value_delta, 255
+	                )
+	            brush_color = \
+		        ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+		    #im_draw.ellipse
 	            im_draw.rectangle(
-		        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
-		        fill = None, outline = node_pen
+		        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
+		        fill = brush_color, outline = pen_color
 		        )
-		    node_value_draw_list.append((
-			self._CreateValueString( value, 3 ),
-                        Widget.GetContrastColor( *brush_color ),
-			pin_x, pin_y, pin_wd, pin_wd
-		        ))
-		  #end if nodalMode
-	        #end if good value, not hidden by pin_factor
 
-	        pin_x += pin_wd
-	      #end for pin cols
+		    if self.nodalMode:
+	              im_draw.rectangle(
+		          [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
+		          fill = None, outline = node_pen
+		          )
+		      node_value_draw_list.append((
+			  self._CreateValueString( value, 3 ),
+                          Widget.GetContrastColor( *brush_color ),
+			  item_x, item_y, pin_wd, pin_wd
+		          ))
+		    #end if nodalMode
+	          #end if good value, not hidden by pin_factor
 
-	      pin_y += pin_wd
-	    #end for pin rows
+	          item_x += pin_wd
+	        #end for item_col
+	      #end if cur_item_row >= 0
+
+	      item_y += pin_wd
+	    #end for item_row
 
 	    im_draw.rectangle(
 		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
 		fill = None, outline = assy_pen
 	        )
-#						-- Draw value for
-#						-- cross-pin integrations
+#-- Draw value for cross-pin integration derived datasets
+#--
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      assy_value_draw_list.append((
@@ -1105,20 +1157,20 @@ The config and data attributes are good to go.
       if dset is not None:
         core = self.dmgr.GetCore()
         assy_ndx = min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
-        axial_value = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
-        show_assy_addr = core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
+        axial_level = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+        assy_addr_display = core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
 	value = None
 
 	if self.nodalMode:
-	  node_addr = cell_info[ 5 ] if len( cell_info ) > 5 else -1
+	  node_addr = cell_info[ 5 ]  if len( cell_info ) > 5 else  -1
 	  if self.dmgr.IsValid( self.curDataSet, node_addr = node_addr ):
 	    tip_str = 'Assy: %d %s, Node %d' % \
-	        ( assy_ndx + 1, show_assy_addr, node_addr + 1 )
-	    value = dset[ 0, node_addr, axial_value, assy_ndx ]
+	        ( assy_ndx + 1, assy_addr_display, node_addr + 1 )
+	    value = dset[ 0, node_addr, axial_level, assy_ndx ]
 	else:
-          tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+          tip_str = 'Assy: %d %s' % ( assy_ndx + 1, assy_addr_display )
 	  if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
-	    value = dset[ 0, 0, axial_value, assy_ndx ]
+	    value = dset[ 0, 0, axial_level, assy_ndx ]
 	#end if self.nodalMode
 
 	if not self.dmgr.IsBadValue( value ):
@@ -1173,13 +1225,19 @@ The config and data attributes are good to go.
 	  node_addr = 2 if node_row > 0 else 0
 	  if node_col > 0:
 	    node_addr += 1
-	  pin_col, pin_row = self.dmgr.GetSubAddrFromNode( node_addr )
+	  pin_col, pin_row = self.dmgr.GetSubAddrFromNode(
+	      node_addr,
+	      'channel' if self.channelMode else 'pin'
+	      )
 	else:
 	  pin_col = int( (off_x % assy_advance) / pin_wd )
 	  if pin_col >= core.npinx: pin_col = -1
 	  pin_row = int( (off_y % assy_advance) / pin_wd )
 	  if pin_row >= core.npiny: pin_row = -1
-	  node_addr = self.dmgr.GetNodeAddr( ( pin_col, pin_row ) )
+	  node_addr = self.dmgr.GetNodeAddr(
+	      ( pin_col, pin_row ),
+	      'channel' if self.channelMode else 'pin'
+	      )
 
 	result = ( assy_ndx, cell_x, cell_y, pin_col, pin_row, node_addr )
       #end if event within display
@@ -1224,28 +1282,37 @@ The config and data attributes are good to go.
     if self.config is not None and 'assemblyRegion' in self.config:
       core = self.dmgr.GetCore()
 
-    if core:
-      if ev_x >= 0 and ev_y >= 0:
-	assy_region = self.config[ 'assemblyRegion' ]
-        pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
+    if core and ev_x >= 0 and ev_y >= 0:
+      assy_region = self.config[ 'assemblyRegion' ]
+      pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
 	
-	if self.nodalMode:
-	  node_col = min( int( (ev_x - assy_region[ 0 ]) / pin_size ), 1 )
-	  node_row = min( int( (ev_y - assy_region[ 1 ]) / pin_size ), 1 )
-	  node_addr = 2 if node_row > 0 else 0
-	  if node_col > 0:
-	    node_addr += 1
-	  cell_x, cell_y = self.dmgr.GetSubAddrFromNode( node_addr )
-	else:
-          cell_x = \
-	      min( int( (ev_x - assy_region[ 0 ]) / pin_size ), core.npin - 1 )
-          cell_y = \
-	      min( int( (ev_y - assy_region[ 1 ]) / pin_size ), core.npin - 1 )
-          node_addr = self.dmgr.GetNodeAddr( ( cell_x, cell_y ) )
+      if self.nodalMode:
+        node_col = min( int( (ev_x - assy_region[ 0 ]) / pin_size ), 1 )
+	node_row = min( int( (ev_y - assy_region[ 1 ]) / pin_size ), 1 )
+	node_addr = 2 if node_row > 0 else 0
+	if node_col > 0:
+	  node_addr += 1
+	cell_x, cell_y = self.dmgr.GetSubAddrFromNode(
+	    node_addr,
+	    'channel' if self.channelMode else 'pin'
+	    )
 
+      else:
+	cell_x = int( (ev_x - assy_region[ 0 ]) / pin_size )
+        cell_y = int( (ev_y - assy_region[ 1 ]) / pin_size )
+	if self.channelMode:
+	  cell_x = min( cell_x, core.npinx )
+	  cell_y = min( cell_y, core.npiny )
+	else:
+	  cell_x = min( cell_x, core.npinx - 1 )
+	  cell_y = min( cell_y, core.npiny - 1 )
+
+        node_addr = self.dmgr.GetNodeAddr(
+	    ( cell_x, cell_y ),
+	    'channel' if self.channelMode else 'pin'
+	    )
 	result = ( cell_x, cell_y, node_addr )
-      #end if event within display
-    #end if we have data
+    #end if core and ev_x >= 0 and ev_y >= 0
 
     return  result
   #end FindPin
@@ -1268,9 +1335,12 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
     return  [
-        'pin', ':assembly', ':node',
+	'channel', 'pin',
+	':assembly', ':chan_radial', ':node',
 	':radial', ':radial_assembly', ':radial_node'
 	]
+#        'pin', ':assembly', ':node',
+#	':radial', ':radial_assembly', ':radial_node'
   #end GetDataSetTypes
 
 
@@ -1511,6 +1581,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
 
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
+    #no self.channelMode = ds_type == 'channel'
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
 
     self.subAddr = self.state.subAddr
@@ -1786,6 +1858,8 @@ method via super.SaveProps().
 @param  ds_type		dataset category/type
 Updates the nodalMode property.
 """
+    #no self.channelMode = ds_type == 'channel'
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
   #end _UpdateDataSetStateValues
 

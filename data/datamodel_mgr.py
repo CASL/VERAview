@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2017-01-12	leerw@ornl.gov				-
+#	  Added IsChannelType().
 #		2016-12-27	leerw@ornl.gov				-
 #	  Added GetDetectorMeshIndex and GetFixedDetectorMeshCentersIndex().
 #		2016-12-26	leerw@ornl.gov				-
@@ -1234,6 +1236,26 @@ True is returned.
 """
     return  value is None or math.isnan( value ) or math.isinf( value )
   #end IsBadValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.IsChannelType()			-
+  #----------------------------------------------------------------------
+  def IsChannelType( self, qds_name ):
+    """Determines if the qds_name represents a channel dataset.
+@param  qds_name	DataSetName instance
+@return			True if channel, False otherwise
+"""
+    result = False
+    if self.core:
+      dset = self.GetH5DataSet( qds_name, 0.0 )
+      if dset:
+	result = \
+	    dset.shape[ 0 ] == self.core.npiny + 1 and
+	    dset.shape[ 1 ] == self.core.npinx + 1
+
+    return  result
+  #end IsChannelType
 
 
   #----------------------------------------------------------------------
