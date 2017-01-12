@@ -518,6 +518,7 @@ If neither are specified, a default 'scale' value of 24 is used.
   #----------------------------------------------------------------------
   def CreatePopupMenu( self ):
     """Lazily creates.  Must be called from the UI thread.
+@deprecated
 """
     super( ChannelAssembly2DView, self ).CreatePopupMenu()
     if self.GetPopupMenu() is not None:
@@ -643,7 +644,7 @@ Must be called from the UI thread.
 	  if chan_row == min( self.data.core.npiny, self.cellRange[ 3 ] - 1 ) - 1:
 	    label = '%d' % (chan_row + 2)
 	    label_size = label_font.getsize( label )
-	    label_y = chan_y + + chan_wd + chan_gap + \
+	    label_y = chan_y + chan_wd + chan_gap + \
 	        ((chan_wd - label_size[ 1 ]) >> 1)
 	    im_draw.text(
 	        ( 1, label_y ),

@@ -484,11 +484,6 @@ If neither are specified, a default 'scale' value of 24 is used.
 	item_y += pin_wd + pin_gap
       #end for pin_row
 
-#			-- Draw values
-#			--
-      if node_value_draw_list:
-        self._DrawValues( node_value_draw_list, im_draw )
-
 #			-- Draw pins
 #			--
       if self.channelMode:
@@ -510,6 +505,11 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  pin_y += pin_wd + pin_gap
 	#end for pin_row
       #end if self.channelMode
+
+#			-- Draw values
+#			--
+      if node_value_draw_list:
+        self._DrawValues( node_value_draw_list, im_draw )
 
 #			-- Draw legend image
 #			--
@@ -1580,13 +1580,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     #self.avgValues.clear()
     self.assemblyAddr = self.state.assemblyAddr
     self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+    self.subAddr = self.state.subAddr
 
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
     #no self.channelMode = ds_type == 'channel'
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
 
-    self.subAddr = self.state.subAddr
   #end _LoadDataModelValues
 
 

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2017-01-12	leerw@ornl.gov				-
+#	  Integrating channel datasets.
 #		2016-12-14	leerw@ornl.gov				-
 #	  Migration to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
@@ -139,7 +141,9 @@ Attrs/properties:
     self.assemblyAddr = ( -1, -1, -1 )
     self.auxNodeAddrs = []
     self.auxSubAddrs = []
+    self.channelMode = False
     self.nodeAddr = -1
+    self.showChannelPins = True
     self.subAddr = ( -1, -1 )
 
     super( Assembly2DView, self ).__init__( container, id )
@@ -317,8 +321,9 @@ Attrs/properties:
         row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
       csv_text += row_text + '\n'
 
+      mesh_centers = self.dmgr.GetAxialMeshCeners( self.curDataSet )
       for axial_level in range( dset_shape[ 2 ] - 1, -1, -1 ):
-	row_text = '%.3f' % core.axialMeshCenters[ axial_level ]
+	row_text = '%.3f' % mesh_centers[ axial_level ]
 	for rc in sub_addrs:
 	  row_text += ',%.7g' % \
 	      dset_value[ rc[ 1 ], rc[ 0 ], axial_level, assy_ndx ]
@@ -352,9 +357,9 @@ Attrs/properties:
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
 
-    if core is not None:
-      dset_value = np.array( dset )
-      dset_shape = dset_value.shape
+    if dset is not None and core is not None:
+      #dset_value = np.array( dset )
+      dset_shape = dset.shape
       axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 
@@ -447,7 +452,10 @@ If neither are specified, a default 'scale' value of 24 is used.
       if pin_adv_ht < pin_adv_wd:
         pin_adv_wd = pin_adv_ht
 
-      pin_gap = pin_adv_wd >> 3
+      if self.channelMode:
+        pin_gap = 0
+      else:
+        pin_gap = pin_adv_wd >> 3
       pin_wd = max( 1, pin_adv_wd - pin_gap )
 
       assy_wd = self.cellRange[ -2 ] * (pin_wd + pin_gap)
@@ -456,7 +464,10 @@ If neither are specified, a default 'scale' value of 24 is used.
     else:
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 20
 
-      pin_gap = pin_wd >> 3
+      if self.channelMode:
+        pin_gap = 0
+      else:
+        pin_gap = pin_wd >> 3
       assy_wd = self.cellRange[ -2 ] * (pin_wd + pin_gap)
       assy_ht = self.cellRange[ -1 ] * (pin_wd + pin_gap)
 
@@ -515,9 +526,48 @@ If neither are specified, a default 'scale' value of 24 is used.
 	'handler': functools.partial( self._OnCopyData, 'selected_all_axials' )
 	}
       menu_def.insert( ndx + 1, new_item )
+    #end if ndx < len( menu_def )
 
-    return  menu_def
+#		-- Add show pins toggle item
+#		--
+    other_def = \
+      [
+        { 'label': 'Hide Channel Data Pins', 'handler': self._OnTogglePins }
+      ]
+    hide_legend_ndx = -1
+    ndx = 0
+    for item in menu_def:
+      if item.get( 'label', '' ) == 'Hide Legend':
+        hide_legend_ndx = ndx + 1
+        break
+      ndx += 1
+    #end for
+
+    if hide_legend_ndx < 0:
+      result = menu_def + other_def
+    else:
+      result = \
+          menu_def[ : hide_legend_ndx ] + other_def + \
+	  menu_def[ hide_legend_ndx : ]
+
+    return  result
   #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._CreatePopupMenu()		-
+  #----------------------------------------------------------------------
+  def _CreatePopupMenu( self ):
+    """Lazily creates.  Must be called from the UI thread.
+"""
+    popup_menu = super( Assembly2DView, self )._CreatePopupMenu()
+    if popup_menu is not None:
+      self._UpdateVisibilityMenuItems(
+	  popup_menu, 'Channel Data Pins', self.showChannelPins
+          )
+
+    return  popup_menu
+  #end _CreatePopupMenu
 
 
   #----------------------------------------------------------------------
@@ -535,7 +585,6 @@ If neither are specified, a default 'scale' value of 24 is used.
       self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
 
     im = None
-    dset_array = None
 
     tuple_valid = self.dmgr.IsValid(
 	self.curDataSet,
@@ -559,10 +608,11 @@ If neither are specified, a default 'scale' value of 24 is used.
 
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
-      pin_factors = None
+
+#		-- "Item" is chan or pin
+      item_factors = None
       if self.state.weightsMode == 'on':
-        pin_factors = self.dmgr.GetFactors( self.curDataSet )
-        pin_factors_shape = pin_factors.shape
+        item_factors = self.dmgr.GetFactors( self.curDataSet )
 
       if dset is None:
         dset_array = None
@@ -599,51 +649,76 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Loop on rows
 #			--
-      pin_y = assy_region[ 1 ]
-      for pin_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+      item_y = assy_region[ 1 ]
+      for item_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
 #				-- Row label
 #				--
-	if self.showLabels:
-	  label = '%d' % (pin_row + 1)
+	if self.showLabels and item_row < core.npiny:
+	  label = '%d' % (item_row + 1)
 	  label_size = label_font.getsize( label )
-	  label_y = pin_y + ((pin_wd - label_size[ 1 ]) >> 1)
+	  label_y = item_y + ((pin_wd - label_size[ 1 ]) >> 1)
 	  im_draw.text(
 	      ( 1, label_y ),
 	      label, fill = ( 0, 0, 0, 255 ), font = label_font
 	      )
+
+	  if self.channelMode and \
+	      item_row == min( core.npiny, self.cellRange[ 3 ] - 1 ) - 1:
+	    label = '%d' % (item_row + 2)
+	    label_size = label_font.getsize( label )
+	    label_y = item_y + pin_wd + pin_gap + \
+	        ((pin_wd - label_size[ 1 ]) >> 1)
+	    im_draw.text(
+	        ( 1, label_y ),
+	        label, fill = ( 0, 0, 0, 255 ), font = label_font
+	        )
+	#end if self.showLabels and item_row < core.npiny
+
 #				-- Loop on col
 #				--
-	pin_x = assy_region[ 0 ]
-	for pin_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	item_x = assy_region[ 0 ]
+	for item_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
-	  if pin_row == self.cellRange[ 1 ] and self.showLabels:
-	    label = '%d' % (pin_col + 1)
+	  if self.showLabels and \
+	      item_row == self.cellRange[ 1 ] and item_col < core.npinx:
+	    label = '%d' % (item_col + 1)
 	    label_size = label_font.getsize( label )
-	    label_x = pin_x + ((pin_wd - label_size[ 0 ]) >> 1)
+	    label_x = item_x + ((pin_wd - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ),
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
-	  #end if writing column label
+
+	    if self.channelMode and \
+	        item_col == min( core.npinx, self.cellRange[ 2 ] - 1 ) - 1:
+	      label = '%d' % (item_col + 2)
+	      label_size = label_font.getsize( label )
+	      label_x = item_x + pin_wd + pin_gap + \
+	          ((pin_wd - label_size[ 0 ]) >> 1)
+	      im_draw.text(
+	          ( label_x, 1 ),
+	          label, fill = ( 0, 0, 0, 255 ), font = label_font
+	          )
+	  #end if self.showLabels and ...
 
 #					-- Check row and col in range
-	  if pin_row < dset_shape[ 0 ] and pin_col < dset_shape[ 1 ]:
-	    value = dset_array[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if item_row < dset_shape[ 0 ] and item_col < dset_shape[ 1 ]:
+	    value = dset_array[ item_row, item_col, axial_level, assy_ndx ]
 	  else:
 	    value = 0.0
 #					-- Apply pin factors
 #					--
-	  if pin_factors is None:
-	    pin_factor = 1
-	  elif pin_row < pin_factors_shape[ 0 ] and \
-	      pin_col < pin_factors_shape[ 1 ]:
-	    pin_factor = pin_factors[ pin_row, pin_col, axial_level, assy_ndx ]
+	  if item_factors is None:
+	    item_factor = 1
+	  elif item_row < item_factors.shape[ 0 ] and \
+	      item_col < item_factors.shape[ 1 ]:
+	    item_factor = item_factors[ item_row, item_col, axial_level, assy_ndx ]
 	  else:
-	    pin_factor = 0
-#					-- Check value and pin_factor
+	    item_factor = 0
+#					-- Check value and item_factor
 #					--
-	  if not ( self.dmgr.IsBadValue( value ) or pin_factor == 0 ):
+	  if not ( item_factor == 0 or self.dmgr.IsBadValue( value ) ):
 	    brush_color = Widget.GetColorTuple(
 	        value - ds_range[ 0 ], value_delta, 255
 	        )
@@ -651,7 +726,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	    #im_draw.ellipse
 	    im_draw.rectangle(
-	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
 	        fill = brush_color, outline = pen_color
 	        )
 
@@ -659,22 +734,49 @@ If neither are specified, a default 'scale' value of 24 is used.
 	      value_draw_list.append((
 	          self._CreateValueString( value, 3 ),
                   Widget.GetContrastColor( *brush_color ),
-                  pin_x, pin_y, pin_wd, pin_wd
+                  item_x, item_y, pin_wd, pin_wd
                   ))
 	    #end if value_font defined
 
 	  else:
 	    im_draw.rectangle(
-	        [ pin_x, pin_y, pin_x + pin_wd, pin_y + pin_wd ],
+	        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
 	        fill = None, outline = nodata_pen_color
 	        )
-	  #if-else good value, not hidden by pin_factor
+	  #if-else good value, not hidden by item_factor
 
-	  pin_x += pin_wd + pin_gap
-	#end for pin_col
+	  item_x += pin_wd + pin_gap
+	#end for item_col
 
-	pin_y += pin_wd + pin_gap
-      #end for pin_row
+	item_y += pin_wd + pin_gap
+      #end for item_row
+
+#			-- Draw pins
+#			--
+      if self.channelMode and self.showChannelPins:
+        brush_color = ( 155, 155, 155, 128 )
+	pen_color = Widget.GetDarkerColor( brush_color, 128 )
+	pin_draw_wd = pin_wd >> 2
+
+	pin_y = assy_region[ 1 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
+	for pin_row in xrange(
+	    self.cellRange[ 1 ], min( self.cellRange[ 3 ], core.npiny ), 1
+	    ):
+	  pin_x = assy_region[ 0 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
+	  for pin_row in xrange(
+	      self.cellRange[ 0 ], min( self.cellRange[ 2 ], core.npinx ), 1
+	      ):
+	    im_draw.ellipse(
+		[ pin_x, pin_y, pin_x + pin_draw_wd, pin_y + pin_draw_wd ],
+		fill = brush_color, outline = pen_color
+	        )
+
+	    pin_x += pin_wd + pin_gap
+	  #end for pin_col
+
+	  pin_y += pin_wd + pin_gap
+	#end for pin_row
+      #end if self.channelMode and self.showChannelPins
 
 #			-- Draw Values
 #			--
@@ -695,8 +797,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Draw Title String
 #			--
-      pin_y = max( pin_y, legend_size[ 1 ] )
-      pin_y += font_size >> 2
+      item_y = max( item_y, legend_size[ 1 ] )
+      item_y += font_size >> 2
 
       title_str = self._CreateTitleString(
 	  title_templ,
@@ -713,7 +815,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  )
 
       im_draw.text(
-          ( title_x, pin_y ),
+          ( title_x, item_y ),
 	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
           )
 
@@ -751,7 +853,7 @@ If neither are specified, a default 'scale' value of 24 is used.
           assembly_addr = self.assemblyAddr,
 	  axial_level = self.axialValue[ 1 ],
 	  sub_addr = cell_info[ 1 : 3 ],
-	  sub_addr_mode = 'pin'
+	  sub_addr_mode = 'channel' if self.channelMode else 'pin'
           )
 
     dset = None
@@ -812,25 +914,24 @@ If neither are specified, a default 'scale' value of 24 is used.
     if self.config is not None and 'assemblyRegion' in self.config:
       core = self.dmgr.GetCore()
 
-    if core:
-      if ev_x >= 0 and ev_y >= 0:
-	assy_region = self.config[ 'assemblyRegion' ]
-        pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
-	off_x = ev_x - assy_region[ 0 ]
-	off_y = ev_y - assy_region[ 1 ]
-        cell_x = min(
-	    int( off_x / pin_size ) + self.cellRange[ 0 ],
-	    self.cellRange[ 2 ] - 1
-	    )
-	cell_x = max( self.cellRange[ 0 ], cell_x )
-        cell_y = min(
-	    int( off_y / pin_size ) + self.cellRange[ 1 ],
-	    self.cellRange[ 3 ] - 1
-	    )
-	cell_y = max( self.cellRange[ 1 ], cell_y )
-	result = ( cell_x, cell_y )
+    if core and ev_x >= 0 and ev_y >= 0:
+      assy_region = self.config[ 'assemblyRegion' ]
+      pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
+      off_x = ev_x - assy_region[ 0 ]
+      off_y = ev_y - assy_region[ 1 ]
+      cell_x = min(
+          int( off_x / pin_size ) + self.cellRange[ 0 ],
+	  self.cellRange[ 2 ] - 1
+	  )
+      cell_x = max( self.cellRange[ 0 ], cell_x )
+      cell_y = min(
+	  int( off_y / pin_size ) + self.cellRange[ 1 ],
+	  self.cellRange[ 3 ] - 1
+	  )
+      cell_y = max( self.cellRange[ 1 ], cell_y )
+      result = ( cell_x, cell_y )
       #end if event within display
-    #end if core
+    #end if core and ev_x >= 0 and ev_y >= 0
 
     return  result
   #end FindPin
@@ -852,7 +953,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Assembly2DView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'pin', ':radial' ]
+    return  [ 'channel', 'pin', ':chan_radial', ':radial' ]
+    #return  [ 'pin', ':radial' ]
   #end GetDataSetTypes
 
 
@@ -885,11 +987,14 @@ Subclasses should override as needed.
     result = None
     core = self.dmgr.GetCore()
     if core is not None:
-      result = (
-          0, 0,
-	  core.npinx, core.npiny,
-	  core.npinx, core.npiny
-          )
+      maxx = core.npinx
+      maxy = core.npiny
+      if self.channelMode:
+        maxx += 1
+	maxy += 1
+
+      result = ( 0, 0, maxx, maxy, maxx, maxy )
+
     return  result
   #end GetInitialCellRange
 
@@ -947,12 +1052,11 @@ Subclasses should override as needed.
 	        )
 	    gc.SetPen( secondary_pen )
 
-	  rect = \
-	    [
+	  rect = [
 	      rel_col * pin_adv + assy_region[ 0 ],
 	      rel_row * pin_adv + assy_region[ 1 ],
 	      pin_wd + 1, pin_wd + 1
-	    ]
+	      ]
 	  path = gc.CreatePath()
 	  path.AddRectangle( *rect )
 	  gc.StrokePath( path )
@@ -996,9 +1100,10 @@ attributes/properties that aren't already set in _LoadDataModel():
   stateIndex
 """
     self.assemblyAddr = self.state.assemblyAddr
-    #self.pinDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.subAddr = self.state.subAddr
+
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
   #end _LoadDataModelValues
 
 
@@ -1040,7 +1145,8 @@ be overridden by subclasses.
           self.curDataSet,
           assembly_addr = self.assemblyAddr[ 0 ],
 	  axial_level = self.axialValue[ 1 ],
-	  sub_addr = pin_addr
+	  sub_addr = pin_addr,
+	  sub_addr_mode = 'channel' if self.channelMode else 'pin'
 	  #state_index = self.stateIndex
 	  )
 
@@ -1085,8 +1191,47 @@ be overridden by subclasses.
 """
     #if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
     if self.curDataSet:
-      self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
+      if self.channelMode:
+        self._OnFindMinMaxChannel( mode, self.curDataSet, all_states_flag )
+      else:
+        self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
   #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._OnTogglePins()			-
+  #----------------------------------------------------------------------
+  def _OnTogglePins( self, ev ):
+    """Calls _OnFindMinMaxPin().
+"""
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    label = item.GetItemLabelText()
+
+#		-- Change label for this menu
+#		--
+    if label.startswith( 'Show' ):
+      item.SetItemLabel( label.replace( 'Show', 'Hide' ) )
+      self.showChannelPins = True
+    else:
+      item.SetItemLabel( label.replace( 'Hide', 'Show' ) )
+      self.showChannelPins = False
+
+#		-- Change label for other menu
+#		--
+    other_menu = \
+        self.GetPopupMenu() \
+	if menu == self.container.GetWidgetMenu() else \
+	self.container.GetWidgetMenu()
+    if other_menu is not None:
+      self._UpdateVisibilityMenuItems(
+	  other_menu,
+	  'Channel Data Pins', self.showChannelPins
+          )
+
+    self.UpdateState( resized = True )
+  #end _OnTogglePins
 
 
   #----------------------------------------------------------------------
@@ -1101,7 +1246,7 @@ method via super.SaveProps().
 
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
-	'nodeAddr', 'subAddr'
+	'nodeAddr', 'showChannelPins', 'subAddr'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -1117,6 +1262,18 @@ method via super.SaveProps().
       wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
       self.FireStateChange( cur_dataset = qds_name )
   #end SetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._UpdateDataSetStateValues()	-
+  #----------------------------------------------------------------------
+  def _UpdateDataSetStateValues( self, ds_type ):
+    """
+@param  ds_type		dataset category/type
+Updates the nodalMode property.
+"""
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
+  #end _UpdateDataSetStateValues
 
 
   #----------------------------------------------------------------------
@@ -1143,8 +1300,10 @@ method via super.SaveProps().
 	self.auxNodeAddrs = aux_node_addrs
 
     if 'aux_sub_addrs' in kwargs:
-      aux_sub_addrs = \
-          self.dmgr.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'pin' )
+      aux_sub_addrs = self.dmgr.NormalizeSubAddrs(
+          kwargs[ 'aux_sub_addrs' ],
+	  'channel' if self.channelMode else 'pin'
+	  )
       if aux_sub_addrs != self.auxSubAddrs:
         changed = True
 	self.auxSubAddrs = aux_sub_addrs
@@ -1164,7 +1323,10 @@ method via super.SaveProps().
         self.nodeAddr = node_addr
 
     if 'sub_addr' in kwargs:
-      sub_addr = self.dmgr.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
+      sub_addr = self.dmgr.NormalizeSubAddr(
+          kwargs[ 'sub_addr' ],
+	  'channel' if self.channelMode else 'pin'
+	  )
       if sub_addr != self.subAddr:
         changed = True
 	self.subAddr = sub_addr
