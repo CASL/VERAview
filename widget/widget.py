@@ -645,7 +645,7 @@ or append items.
     """Populates self.popupMenu from self.GetMenuDef().
 Must be called from the UI thread.
 """
-    return  self.container._CreateMenuFromDef( None, self.GetMenuDef( None ) )
+    return  self.container._CreateMenuFromDef( None, self.GetMenuDef() )
   #end _CreatePopupMenu
 
 

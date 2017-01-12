@@ -1272,8 +1272,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	for i in range( len( node_addr_list ) ):
 	  node_addr = node_addr_list[ i ]
 	  if node_addr >= 0:
-	    rel_x = pin_adv if node_addr in ( 1, 3 ) else 0
-	    rel_y = pin_adv if node_addr in ( 2, 3 ) else 0
+	    rel_x = chan_adv if node_addr in ( 1, 3 ) else 0
+	    rel_y = chan_adv if node_addr in ( 2, 3 ) else 0
 	    node_rect = [
 		assy_region[ 0 ] + rel_x,
 		assy_region[ 1 ] + rel_y,

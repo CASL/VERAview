@@ -1251,7 +1251,7 @@ True is returned.
       dset = self.GetH5DataSet( qds_name, 0.0 )
       if dset:
 	result = \
-	    dset.shape[ 0 ] == self.core.npiny + 1 and
+	    dset.shape[ 0 ] == self.core.npiny + 1 and \
 	    dset.shape[ 1 ] == self.core.npinx + 1
 
     return  result

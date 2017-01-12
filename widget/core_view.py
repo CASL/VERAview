@@ -429,7 +429,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  if item_row == 0 and self.showLabels:
 	    label = '%d' % (item_col + 1)
 	    label_size = label_font.getsize( label )
-	    label_x = pin_x + ((pin_wd + pin_gap - label_size[ 0 ]) >> 1)
+	    label_x = item_x + ((pin_wd + pin_gap - label_size[ 0 ]) >> 1)
 	    im_draw.text(
 	        ( label_x, 1 ), label,
 		fill = ( 0, 0, 0, 255 ), font = label_font
@@ -495,10 +495,11 @@ If neither are specified, a default 'scale' value of 24 is used.
         brush_color = ( 155, 155, 155, 128 )
 	pen_color = Widget.GetDarkerColor( brush_color, 128 )
 	pin_draw_wd = pin_wd >> 1
+	#pin_draw_wd = max( 1, pin_wd >> 2 )
 
-	pin_y = assy_region[ 1 ] + ((pin_wd + pin_gap - pin_draw_wd) >> 1)
+	pin_y = assy_region[ 1 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
 	for pin_row in range( core.npiny ):
-	  pin_x = assy_region[ 0 ] + ((pin_wd + pin_gap - pin_draw_wd) >> 1)
+	  pin_x = assy_region[ 0 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
 	  for pin_col in range( core.npinx ):
 	    im_draw.ellipse(
 		[ pin_x, pin_y, pin_x + pin_draw_wd, pin_y + pin_draw_wd ],
@@ -1490,8 +1491,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 #			--
       else:  # 'assy'
 	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
-	    self.subAddr[ 0 ] < core.npin and \
-	    self.subAddr[ 1 ] < core.npin:
+	    self.subAddr[ 0 ] < core.npinx and \
+	    self.subAddr[ 1 ] < core.npiny:
           assy_region = self.config[ 'assemblyRegion' ]
 	  pin_gap = self.config[ 'pinGap' ]
 	  pin_wd = self.config[ 'pinWidth' ]
@@ -1636,7 +1637,10 @@ be overridden by subclasses.
 	  state_args[ 'node_addr' ] = node_addr
 	  state_args[ 'aux_node_addrs' ] = []
 	elif ev.GetClickCount() > 1:
-	  sub_addr = self.dmgr.GetSubAddrFromNode( node_addr )
+	  sub_addr = self.dmgr.GetSubAddrFromNode(
+	      node_addr,
+	      'channel' if self.channelMode else 'pin'
+	      )
 	  if sub_addr != self.subAddr:
 	    state_args[ 'sub_addr' ] = sub_addr
 	#end if-elif is_aux
@@ -1676,7 +1680,10 @@ be overridden by subclasses.
 """
     #if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
     if self.curDataSet:
-      self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
+      if self.channelMode:
+        self._OnFindMinMaxChannel( mode, self.curDataSet, all_states_flag )
+      else:
+        self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
   #end _OnFindMinMax
 
 
@@ -1707,9 +1714,12 @@ be overridden by subclasses.
 	  if pin_factors is not None:
 	    pin_factor = pin_factors[ 0, node_addr, axial_level, assy_ndx ]
           pin_value = dset[ 0, node_addr, axial_level, assy_ndx ]
-	  if not ( self.dmgr.IsBadValue( pin_value ) or pin_factor == 0 ):
-            tip_str = 'Node: %d\n%s: %g' % \
-		( node_addr + 1, self.curDataSet.displayName, pin_value )
+	  if not ( pin_factor == 0 or self.dmgr.IsBadValue( pin_value ) ):
+            tip_str = 'Node: %d\n%s: %g' % (
+	        node_addr + 1,
+	        self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+		pin_value
+		)
 	#end if node_addr and assy_ndx valid
 
       else:
@@ -1727,10 +1737,13 @@ be overridden by subclasses.
 		]
           pin_value = \
 	      dset[ pin_addr[ 1 ], pin_addr[ 0 ], axial_level, assy_ndx ]
-	  if not ( self.dmgr.IsBadValue( pin_value ) or pin_factor == 0 ):
+	  if not ( pin_factor == 0 or self.dmgr.IsBadValue( pin_value ) ):
 	    pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
-            tip_str = 'Pin: %s\n%s: %g' % \
-	        ( str( pin_rc ), self.curDataSet, pin_value )
+            tip_str = 'Pin: %s\n%s: %g' % (
+	        str( pin_rc ),
+	        self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+		pin_value
+		)
       #end if-else nodalMode
     #end if dset
 
@@ -1773,7 +1786,7 @@ be overridden by subclasses.
 	    self.assemblyAddr[ 0 ] < dset.shape[ 3 ]:
           pin_value = dset[
 	      pin_addr[ 1 ], pin_addr[ 0 ],
-	      min( self.axialValue[ 1 ], ds_value.shape[ 2 ] - 1 ),
+	      min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
 	      self.assemblyAddr[ 0 ]
 	      ]
 	  if not self.dmgr.IsBadValue( pin_value ):
@@ -1904,7 +1917,10 @@ Updates the nodalMode property.
         self.nodeAddr = node_addr
 
     if 'sub_addr' in kwargs:
-      sub_addr = self.dmgr.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
+      sub_addr = self.dmgr.NormalizeSubAddr(
+          kwargs[ 'sub_addr' ],
+	  'channel' if self.channelMode else 'pin'
+	  )
       if sub_addr != self.subAddr:
         changed = True
         self.subAddr = sub_addr

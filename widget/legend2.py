@@ -75,7 +75,7 @@ class Legend2( object ):
         os.path.join( Config.GetRootDir(), 'res/Arial Narrow.ttf' ),
 	font_size
 	)
-    text_size = font.getsize( ' -9.99e+99' )
+    text_size = font.getsize( ' -9.999e+99' )
     block_size = text_size[ 1 ] << 1
     im_wd = (border << 1) + text_size[ 0 ] + text_gap + block_size
     #xbug color_band_ht = block_size * (value_count - 1)

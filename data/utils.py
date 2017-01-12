@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2017-01-12	leerw@ornl.gov				-
+#	  Marginal improvement in NormalizeValueLabels() to account for
+#	  exponential and non-exponential labels.
 #		2016-12-28	leerw@ornl.gov				-
 #	  Added DeepCopy().
 #		2016-12-13	leerw@ornl.gov				-
@@ -284,7 +287,79 @@ must match how _CreateDerivedNames() builds the derived type name.
   #----------------------------------------------------------------------
   @staticmethod
   def NormalizeValueLabels( labels ):
-    """Reformats labels to have a consisten size and number of decimal places.
+    """Reformats labels to have a consistent size and number of decimal places.
+@param  labels		list of labels, updated in-line
+@return			labels parameter
+"""
+#		-- Noop if no labels
+#		--
+    if labels is not None and len( labels ) > 0:
+#			-- Find longest, count labels with exponents
+#			--
+      longest_e = longest_noe = None
+      for label in labels:
+        e_ndx = label.find( 'e' )
+	if e_ndx >= 0:
+	  if longest_e is None or len( label ) > len( longest_e ):
+	    longest_e = label
+	elif longest_noe is None or len( label ) > len( longest_noe ):
+	  longest_noe = label
+      #end for label
+#			-- Determine number of decimals
+#			--
+      decimals_e = 0
+      if longest_e:
+        e_ndx = longest_e.find( 'e' )
+	longest_e = longest_e[ : e_ndx ]
+        dot_ndx = longest_e.find( '.' )
+	if dot_ndx >= 0:
+	  decimals_e = len( longest_e ) - 1 - dot_ndx
+
+      decimals_noe = 0
+      if longest_noe:
+        dot_ndx = longest_noe.find( '.' )
+	if dot_ndx >= 0:
+	  decimals_noe = len( longest_noe ) - 1 - dot_ndx
+
+#			-- Fix labels
+#			--
+      for i in range( len( labels ) ):
+        cur_label = labels[ i ]
+	e_ndx = cur_label.find( 'e' )
+
+	if e_ndx >= 0:
+	  mantissa = cur_label[ : e_ndx ]
+	  decimals = decimals_e
+	  e_suffix = cur_label[ e_ndx : ]
+	else:
+	  mantissa = cur_label
+	  decimals = decimals_noe
+	  e_suffix = ''
+
+        dot_ndx = mantissa.find( '.' )
+	cur_decimals = len( mantissa ) - 1 - dot_ndx  if dot_ndx >= 0  else 0
+
+	if cur_decimals < decimals:
+	  new_label = mantissa
+	  if dot_ndx < 0:
+	    new_label += '.'
+
+          new_label += '0' * (decimals - cur_decimals)
+	  new_label += e_suffix
+
+          labels[ i ] = new_label
+        #end if adding decimals
+      #end for
+    #end if we have labels
+  #end NormalizeValueLabels
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		NormalizeValueLabels_0()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def NormalizeValueLabels_0( labels ):
+    """Reformats labels to have a consistent size and number of decimal places.
 @param  labels		list of labels, updated in-line
 @return			labels parameter
 """
@@ -301,9 +376,9 @@ must match how _CreateDerivedNames() builds the derived type name.
 #			-- Exponent?
 #			--
       #pdb.set_trace()
-      e_ndx = longest.find( 'e' )
-      if e_ndx >= 0:
-        longest = longest[ : e_ndx ]
+      long_e_ndx = longest.find( 'e' )
+      if long_e_ndx >= 0:
+        longest = longest[ : long_e_ndx ]
 
 #			-- Determine number of decimals
 #			--
@@ -315,6 +390,7 @@ must match how _CreateDerivedNames() builds the derived type name.
       for i in range( len( labels ) ):
         cur_label = labels[ i ]
 	e_ndx = cur_label.find( 'e' )
+
 	mantissa = cur_label[ : e_ndx ]  if e_ndx >= 0  else cur_label
 
         dot_ndx = mantissa.find( '.' )
@@ -330,13 +406,13 @@ must match how _CreateDerivedNames() builds the derived type name.
           new_label += '0' * (decimals - cur_decimals)
 
 	  if e_ndx >= 0:
-            new_label += cur_label[ e_ndx : ]
+	    new_label += cur_label[ e_ndx : ]
 
           labels[ i ] = new_label
         #end if adding decimals
       #end for
     #end if we have labels
-  #end NormalizeValueLabels
+  #end NormalizeValueLabels_0
 
 
   #----------------------------------------------------------------------
