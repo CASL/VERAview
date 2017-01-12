@@ -321,7 +321,7 @@ Attrs/properties:
         row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
       csv_text += row_text + '\n'
 
-      mesh_centers = self.dmgr.GetAxialMeshCeners( self.curDataSet )
+      mesh_centers = self.dmgr.GetAxialMeshCenters( self.curDataSet )
       for axial_level in range( dset_shape[ 2 ] - 1, -1, -1 ):
 	row_text = '%.3f' % mesh_centers[ axial_level ]
 	for rc in sub_addrs:
@@ -537,7 +537,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     hide_legend_ndx = -1
     ndx = 0
     for item in menu_def:
-      if item.get( 'label', '' ) == 'Hide Legend':
+      if item.get( 'label', '' ) == 'Hide Labels':
         hide_legend_ndx = ndx + 1
         break
       ndx += 1

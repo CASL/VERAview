@@ -617,6 +617,7 @@ definition array for a pullright.
     if anim_indexes is not None:
       self.animateMenu = wx.Menu()
 
+      #xxxxx 'axial:all'
       if 'axial:detector' in anim_indexes and \
           dmgr.GetCore().ndetax > 1 and \
 	  dmgr.HasDataSetType( 'detector' ):
@@ -872,6 +873,7 @@ definition array for a pullright.
         animator = None
 
         label = item.GetLabel().lower()
+	#xxxxx 'all axial'
 	if label.find( 'detector axial' ) >= 0:
 	  animator = DetectorAxialAnimator(
               self.widget, callback = AnimationCallback()

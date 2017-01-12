@@ -832,6 +832,21 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		AxialPlot.GetCurDataSet()			-
+  #----------------------------------------------------------------------
+  def GetCurDataSet( self ):
+    """Returns the first visible dataset.
+@return		dataset name (DataSetName instance) or None
+"""
+    qds_name = None
+    if len( self.dataSetValues ) > 0:
+      qds_name = self._GetDataSetName( self.dataSetValues.iterkeys().next() )
+
+    return  qds_name
+  #end GetCurDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_GetDataSetName()				-
   #----------------------------------------------------------------------
   def _GetDataSetName( self, qds_name ):

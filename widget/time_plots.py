@@ -743,6 +743,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
     return  ( 'axial:detector', 'axial:pin' )
+    #xxxxx ( 'axial:all' )
   #end GetAnimationIndexes
 
 
@@ -755,6 +756,21 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     return  self.axialValue
   #end GetAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TimePlots.GetCurDataSet()			-
+  #----------------------------------------------------------------------
+  def GetCurDataSet( self ):
+    """Returns the visible dataset.
+@return		current dataset name (DataSetName instance) or None
+"""
+    qds_name = None
+    if len( self.dataSetValues ) > 0:
+      qds_name = self._GetDataSetName( self.dataSetValues.iterkeys().next() )
+
+    return  qds_name
+  #end GetCurDataSet
 
 
   #----------------------------------------------------------------------

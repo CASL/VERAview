@@ -1721,8 +1721,9 @@ will be called.
     if 'time_dataset' in kwargs:
       resized = True
 
-    if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue and \
-        self.curDataSet:
+#    if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue and \
+#        self.curDataSet:
+    if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue:
       self.timeValue = kwargs[ 'time_value' ]
       #state_index = max( 0, self.dmgr.GetTimeValueIndex( self.timeValue ) )
       state_index = \

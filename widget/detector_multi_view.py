@@ -1155,6 +1155,21 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView.GetCurDataSet()		-
+  #----------------------------------------------------------------------
+  def GetCurDataSet( self ):
+    """Returns the first detector dataset.
+@return		dataset name (DataSetName instance) or None
+"""
+    qds_name = None
+    if len( self.detectorDataSets ) > 0:
+      qds_name = iter( self.detectorDataSets ).next()
+
+    return  qds_name
+  #end GetCurDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView._GetDataRange()		-
   #----------------------------------------------------------------------
   def _GetDataRange( self ):
