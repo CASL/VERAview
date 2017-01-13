@@ -1586,7 +1586,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     #no self.channelMode = ds_type == 'channel'
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
-
   #end _LoadDataModelValues
 
 
