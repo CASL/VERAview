@@ -1243,9 +1243,10 @@ be overridden by subclasses.
 	state_args[ 'sub_addr' ] = pin_addr
 
       axial_level = cell_info[ 2 ]
-      if axial_level != self.axialValue[ 1 ]:
-        state_args[ 'axial_value' ] = \
-	    self.dmgr.GetAxialValue( self.curDataSet, core_ndx = axial_level )
+      axial_value = \
+          self.dmgr.GetAxialValue( self.curDataSet, core_ndx = axial_level )
+      if axial_value[ 0 ] != self.axialValue[ 0 ]:
+        state_args[ 'axial_value' ] = axial_value
 
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )

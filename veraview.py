@@ -1980,9 +1980,16 @@ Must be called on the UI event thread.
 #    if (reason & init_mask) > 0:
 #      wx.CallAfter( self.UpdateFrame, widget_props = 'noop' )
 
+#    if (reason & STATE_CHANGE_axialValue) > 0:
+#      if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
+#        self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+
     if (reason & STATE_CHANGE_axialValue) > 0:
-      if self.state.axialValue[ 1 ] != self.axialBean.axialLevel:
-        self.axialBean.axialLevel = self.state.axialValue[ 1 ]
+      dmgr = self.state.dataModelMgr
+      if dmgr.HasData():
+        global_ax_value = dmgr.GetAxialValue( cm = self.state.axialValue[ 0 ] )
+	if global_ax_value[ 1 ] != self.axialBean.axialLevel:
+          self.axialBean.axialLevel = global_ax_value[ 1 ]
 
 #    if (reason & STATE_CHANGE_stateIndex) > 0:
 #      if self.state.stateIndex != self.exposureBean.stateIndex:
@@ -1994,7 +2001,7 @@ Must be called on the UI event thread.
 
     if (reason & STATE_CHANGE_timeValue) > 0:
       dmgr = self.state.dataModelMgr
-      if dmgr:
+      if dmgr.HasData():
         state_ndx = dmgr.GetTimeValueIndex( self.state.timeValue )
 	if state_ndx != self.exposureBean.stateIndex:
 	  self.exposureBean.stateIndex = state_ndx
