@@ -1050,8 +1050,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
       result[ 1 ] = 0
       #result[ 3 ] = result[ 5 ] = core.nax
-      mesh = self.dmgr.GetAxialMesh( self.curDataSet )
-      result[ 3 ] = result[ 5 ] = len( mesh )
+      mesh = self.dmgr.GetAxialMeshCenters( self.curDataSet )
+      result[ 3 ] = result[ 5 ] = len( mesh ) - 1
 
     return  result
   #end GetInitialCellRange
