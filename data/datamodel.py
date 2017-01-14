@@ -264,6 +264,7 @@ DATASET_DEFS = \
   {
   'channel':
     {
+    'axial_axis': 2,
     'label': 'channel',
     'shape_expr': '( core.npiny + 1, core.npinx + 1, core.nax, core.nass )',
     'type': 'channel'
@@ -271,6 +272,7 @@ DATASET_DEFS = \
 
   'detector':
     {
+    'axial_axis': 0,
     'label': 'detector',
     'shape_expr': '( core.ndetax, core.ndet )',
     'type': 'detector'
@@ -278,6 +280,7 @@ DATASET_DEFS = \
 
   'fixed_detector':
     {
+    'axial_axis': 0,
     'label': 'fixed_detector',
     'shape_expr': '( core.nfdetax, core.ndet )',
     'type': 'fixed_detector'
@@ -285,6 +288,7 @@ DATASET_DEFS = \
 
   'pin':
     {
+    'axial_axis': 2,
     'label': 'pin',
     'shape_expr': '( core.npiny, core.npinx, core.nax, core.nass )',
     'type': 'pin'
@@ -297,6 +301,7 @@ DATASET_DEFS = \
       'channel': 'calc_channel_assembly_avg',
       'pin': 'calc_pin_assembly_avg'
       },
+    'axial_axis': 2,
     'copy_expr': '[ 0, 0, :, : ]',
     'copy_shape_expr': '( 1, 1, core.nax, core.nass )',
     'ds_prefix': ( 'asy', 'assembly' ),
@@ -313,6 +318,7 @@ DATASET_DEFS = \
       'channel': 'calc_channel_axial_avg',
       'pin': 'calc_pin_axial_avg'
       },
+    'axial_axis': 2,
     'copy_expr': '[ 0, 0, :, 0 ]',
     'copy_shape_expr': '( 1, 1, core.nax, 1 )',
     'ds_prefix': ( 'axial', ),
@@ -326,6 +332,7 @@ DATASET_DEFS = \
     {
     #'avg_method': 'calc_channel_radial_avg',
     'avg_method': { 'channel': 'calc_channel_radial_avg' },
+    'axial_axis': -1,
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny + 1, core.npinx + 1, 1, core.nass )',
     'ds_prefix': ( 'radial', 'ch_radial' ),
@@ -341,6 +348,7 @@ DATASET_DEFS = \
       'channel': 'calc_channel_core_avg',
       'pin': 'calc_pin_core_avg'
       },
+    'axial_axis': -1,
     'copy_expr': '[ 0, 0, 0, 0 ]',
     'copy_shape_expr': '( 1, 1, 1, 1 )',
     'ds_prefix': ( 'core', ),
@@ -356,6 +364,7 @@ DATASET_DEFS = \
       {
       'pin': 'calc_pin_node_avg'
       },
+    'axial_axis': 2,
     'copy_expr': '[ 0, :, :, : ]',
     'copy_shape_expr': '( 1, 4, core.nax, core.nass )',
     'ds_prefix': ( 'node', ),
@@ -371,6 +380,7 @@ DATASET_DEFS = \
       {
       'pin': 'calc_pin_radial_avg'
       },
+    'axial_axis': -1,
     'copy_expr': '[ :, :, 0, : ]',
     'copy_shape_expr': '( core.npiny, core.npinx, 1, core.nass )',
     'ds_prefix': ( 'radial', ),
@@ -386,6 +396,7 @@ DATASET_DEFS = \
       {
       'pin': 'calc_pin_radial_assembly_avg'
       },
+    'axial_axis': -1,
     'copy_expr': '[ 0, 0, 0, : ]',
     'copy_shape_expr': '( 1, 1, 1, core.nass )',
     'ds_prefix': ( 'radial_asy', 'radial_assembly' ),
@@ -401,6 +412,7 @@ DATASET_DEFS = \
       {
       'pin': 'calc_pin_radial_node_avg'
       },
+    'axial_axis': -1,
     'copy_expr': '[ 0, :, 0, : ]',
     'copy_shape_expr': '( 1, 4, 1, core.nass )',
     'ds_prefix': ( 'radial_node', ),
@@ -412,6 +424,7 @@ DATASET_DEFS = \
 
   'scalar':
     {
+    'axial_axis': -1,
     'label': 'scalar',
     'shape_expr': '( 1, )',
     'type': 'scalar'
@@ -1545,13 +1558,9 @@ Parameters:
 	  self.AddDataSetName( der_names[ 0 ], derived_name )
 
 	except Exception, ex:
-#	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
-#	      ( derived_label, ds_name )
-#	  print >> sys.stderr, '%s\nddef="%s"' % ( msg, str( ddef ) )
-	  self.logger.error(
-	      'Error calculating derived "%s" dataset for "%s"',
-	      derived_label, ds_name
-	      )
+	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
+	      ( derived_label, ds_name )
+	  self.logger.error( msg )
 	  raise Exception( msg )
       #end if dataset definition found
     #end we have state points
