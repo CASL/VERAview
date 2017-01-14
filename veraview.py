@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2017-01-14	leerw@ornl.gov				-
+#	  Removing channel widgets since others support channel datasets.
 #		2016-12-16	leerw@ornl.gov				-
 #	  Trying to clean up Mac stuff with Anaconda.  Giving up!!.
 #		2016-12-12	leerw@ornl.gov				-
@@ -186,27 +188,27 @@ TOOLBAR_ITEMS = \
     'type': 'pin'
     },
     { 'widget': 'separator' },
-    {
-    'widget': 'Channel Core 2D View',
-    'icon': 'Channel2DView.1.32.png',
-    'iconDisabled': 'Channel2DView.disabled.1.32.png',
-    'type': 'channel',
-    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
-    },
-    {
-    'widget': 'Channel Axial 2D View',
-    'icon': 'ChannelAxial2DView.1.32.png',
-    'iconDisabled': 'ChannelAxial2DView.disabled.1.32.png',
-    'type': 'channel',
-    'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
-    },
-    {
-    'widget': 'Channel Assembly 2D View',
-    'icon': 'ChannelAssembly2DView.1.32.png',
-    'iconDisabled': 'ChannelAssembly2DView.disabled.1.32.png',
-    'type': 'channel'
-    },
-    { 'widget': 'separator' },
+##    {
+##    'widget': 'Channel Core 2D View',
+##    'icon': 'Channel2DView.1.32.png',
+##    'iconDisabled': 'Channel2DView.disabled.1.32.png',
+##    'type': 'channel',
+##    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
+##    },
+##    {
+##    'widget': 'Channel Axial 2D View',
+##    'icon': 'ChannelAxial2DView.1.32.png',
+##    'iconDisabled': 'ChannelAxial2DView.disabled.1.32.png',
+##    'type': 'channel',
+##    'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
+##    },
+##    {
+##    'widget': 'Channel Assembly 2D View',
+##    'icon': 'ChannelAssembly2DView.1.32.png',
+##    'iconDisabled': 'ChannelAssembly2DView.disabled.1.32.png',
+##    'type': 'channel'
+##    },
+##    { 'widget': 'separator' },
     {
     'widget': 'Detector 2D Multi View',
     'icon': 'Detector2DView.1.32.png',
@@ -260,9 +262,9 @@ WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
   'Axial Plots': 'widget.axial_plot.AxialPlot',
-  'Channel Core 2D View': 'widget.channel_view.Channel2DView',
-  'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
-  'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
+##  'Channel Core 2D View': 'widget.channel_view.Channel2DView',
+##  'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
+##  'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
   'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DMultiView',
@@ -2606,7 +2608,7 @@ Must be called from the UI thread.
         widget_list.append( 'widget.time_plots.TimePlots' )
 
       #xxxxx debug
-      if True:
+      if False:
         widget_list = [
             'widget.core_view.Core2DView',
             'widget.assembly_view.Assembly2DView',
