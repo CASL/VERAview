@@ -584,7 +584,7 @@ configuring the grid, plotting, and creating self.axline.
 	    top_qds_name,
 	    self.timeValue if self.state.scaleMode == 'state' else -1.0
 	    )
-	if DataUtils.IsValidRange( *ds_range ):
+	if ds_range and DataUtils.IsValidRange( *ds_range ):
           self.ax2.set_xlim( *ds_range )
 	  self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
@@ -615,12 +615,14 @@ configuring the grid, plotting, and creating self.axline.
 	          )
           #end for k
 
+	if calc_range is None:
+	  calc_range = ( 0.0, 10.0 )
         for i in xrange( len( ds_range ) ):
 	  if math.isnan( ds_range[ i ] ):
 	    ds_range[ i ] = calc_range[ i ]
       #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
 
-      if DataUtils.IsValidRange( *ds_range ):
+      if ds_range and DataUtils.IsValidRange( *ds_range ):
         self.ax.set_xlim( *ds_range )
         self.ax.xaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 
@@ -673,7 +675,8 @@ configuring the grid, plotting, and creating self.axline.
 	qds_name = self._GetDataSetName( k )
 	rec = self.dataSetSelections[ k ]
 	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
-	legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
+	#legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
+	legend_label = qds_name.displayName
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
@@ -716,9 +719,9 @@ configuring the grid, plotting, and creating self.axline.
 	        legend_label + '@' + DataUtils.ToAddrString( *rc ) \
 	        if rc else legend_label
 
-	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	    cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
 	    if cur_axis:
+	      plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	      if marker_size is not None:
 	        cur_axis.plot(
 	            cur_values * scale, axial_values, plot_mode,
@@ -985,6 +988,15 @@ to be passed to UpdateState().  Assumes self.dmgr is valid.
 	'time_value': self.state.timeValue
 	}
     #end if self.dmgr.HasData()
+
+    for k in self.dataSetValues:
+      qds_name = self._GetDataSetName( k )
+      if self.dmgr.GetDataModel( qds_name ) is None:
+        update_args[ 'replot' ] = True
+	if qds_name in self.dataSetSelections:
+	  del self.dataSetSelections[ qds_name ]
+      #end if qds_name no longer exists
+    #end for k
 
     return  update_args
   #end _LoadDataModelValues

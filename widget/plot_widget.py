@@ -203,7 +203,7 @@ Support Methods
     self.toolbar = None
 
     self.callbackIds = {}
-    self.isLoaded = False
+    #self.isLoaded = False
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
     #self.stateIndex = -1
     self.timeValue = -1.0
@@ -356,17 +356,25 @@ calls self.ax.grid() and can be called by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		_LoadDataModel()				-
   #----------------------------------------------------------------------
-  def _LoadDataModel( self ):
+  def _LoadDataModel( self, reason ):
     """Builds the images/bitmaps and updates the components for the current
 model.
 xxx need loaded flag set when LoadProps() is called so you don't call
 _LoadDataModelValues()
 """
-    #super( PlotWidget, self )._LoadDataModel()
-    if self.dmgr.HasData() and not self.isLoaded:
-      self.isLoaded = True
+#    if self.dmgr.HasData() and not self.isLoaded:
+#      self.isLoaded = True
+#      update_args = self._LoadDataModelValues()
+#      #x wx.CallAfter( self.UpdateState, **update_args )
+
+##    if not self.isLoading:
+##      self._LoadDataModelValues()
+##      if (reason & (STATE_CHANGE_init | STATE_CHANGE_dataModelMgr)) > 0
+
+    if not self.isLoading:
       update_args = self._LoadDataModelValues()
-      #x wx.CallAfter( self.UpdateState, **update_args )
+      if 'replot' in update_args:
+        wx.CallAfter( self.UpdateState, replot = True )
   #end _LoadDataModel
 
 
@@ -390,8 +398,6 @@ to be passed to UpdateState().  Assume self.dmgr is valid.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    self.isLoaded = True
-
     for k in ( 'timeValue', ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )

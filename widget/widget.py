@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2017-01-14	leerw@ornl.gov				-
+#	  Added isLoading attribute for LoadProps() signal to not call
+#	  LoadDataModelValues().  Was isLoaded in {Plot,Raster}Widget,
+#	  so generalizing here.
 #		2016-12-13	leerw@ornl.gov				-
 #	  Move (de)serialization of curDataSet property here.
 #		2016-12-09	leerw@ornl.gov				-
@@ -373,6 +377,7 @@ Widget Class Hierarchy
     self.container = container
     self.customDataRange = None
     self.dmgr = container.state.GetDataModelMgr()
+    self.isLoading = False
     self.logger = Widget.logger_
     self.state = container.state
 
@@ -973,7 +978,7 @@ Returning None means no tool buttons, which is the default implemented here.
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModelMgr
     if (reason & load_mask) > 0:
       self.logger.debug( 'calling _LoadDataModel()' )
-      self._LoadDataModel()
+      self._LoadDataModel( reason )
       reason = STATE_CHANGE_ALL
 
     #else:
@@ -1045,7 +1050,7 @@ return True, in which case ToggleDataSetVisible() should also be overridden.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._LoadDataModel()				-
   #----------------------------------------------------------------------
-  def _LoadDataModel( self ):
+  def _LoadDataModel( self, reason ):
     """Must be implemented by extensions.
 """
     #self.dmgr = State.FindDataModelMgr( self.state )
@@ -1061,24 +1066,29 @@ return True, in which case ToggleDataSetVisible() should also be overridden.
 method via super.SaveProps() at the end.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'customDataRange', ):
-      if k in props_dict:
-        setattr( self, k, props_dict[ k ] )
+    self.isLoading = True
+    try:
+      for k in ( 'customDataRange', ):
+        if k in props_dict:
+          setattr( self, k, props_dict[ k ] )
 
-    for k in ( 'curDataSet', ):
-      if k in props_dict and hasattr( self, k ):
-        setattr( self, k, DataSetName( props_dict[ k ] ) )
+      for k in ( 'curDataSet', ):
+        if k in props_dict and hasattr( self, k ):
+          setattr( self, k, DataSetName( props_dict[ k ] ) )
 
-    if 'eventLocks' in props_dict:
+      if 'eventLocks' in props_dict:
 #		-- Must convert keys to ints
-      locks_in = props_dict[ 'eventLocks' ]
-      locks_out = {}
-      for k in locks_in:
-        i = int( k )
-	locks_out[ i ] = locks_in[ k ]
-      #end for
+        locks_in = props_dict[ 'eventLocks' ]
+        locks_out = {}
+        for k in locks_in:
+          i = int( k )
+	  locks_out[ i ] = locks_in[ k ]
+        #end for
 
-      self.container.SetEventLocks( locks_out )
+        self.container.SetEventLocks( locks_out )
+
+    finally:
+      self.isLoading = False
   #end LoadProps
 
 

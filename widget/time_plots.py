@@ -503,7 +503,7 @@ configuring the grid, plotting, and creating self.axline.
 	    right_qds_name,
 	    self.timeValue if self.state.scaleMode == 'state' else -1.0
 	    )
-        if DataUtils.IsValidRange( *ds_range ):
+        if ds_range and DataUtils.IsValidRange( *ds_range ):
           self.ax2.set_ylim( *ds_range )
 	  self.ax2.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 	  #self.ax2.yaxis.get_major_formatter().set_scientific( True )
@@ -532,18 +532,23 @@ configuring the grid, plotting, and creating self.axline.
 	          cur_qname,
 	          self.timeValue if self.state.scaleMode == 'state' else -1.0
 	          )
-	      calc_range = (
-	          min( calc_range[ 0 ], cur_range[ 0 ] ),
-		  max( calc_range[ 1 ], cur_range[ 1 ] )
-	          )
+	      if calc_range is None:
+	        calc_range = tuple( cur_range )
+	      else:
+	        calc_range = (
+	            min( calc_range[ 0 ], cur_range[ 0 ] ),
+		    max( calc_range[ 1 ], cur_range[ 1 ] )
+	            )
           #end for k
 
+	if calc_range is None:
+	  calc_range = ( 0.0, 10.0 )
         for i in xrange( len( ds_range ) ):
 	  if math.isnan( ds_range[ i ] ):
 	    ds_range[ i ] = calc_range[ i ]
       #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
 
-      if DataUtils.IsValidRange( *ds_range ):
+      if ds_range and DataUtils.IsValidRange( *ds_range ):
         self.ax.set_ylim( *ds_range )
         self.ax.yaxis.get_major_formatter().set_powerlimits( ( -3, 3 ) )
 	#self.ax.yaxis.get_major_formatter().set_scientific( True )
@@ -602,7 +607,8 @@ configuring the grid, plotting, and creating self.axline.
 
 	rec = self.dataSetSelections[ k ]
 	scale = rec[ 'scale' ] if rec[ 'axis' ] == '' else 1.0
-	legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
+	#legend_label = self.dmgr.GetDataSetDisplayName( qds_name )
+	legend_label = qds_name.displayName
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
@@ -645,19 +651,20 @@ configuring the grid, plotting, and creating self.axline.
 	      legend_label + '@' + DataUtils.ToAddrString( *rc ) \
 	      if rc else legend_label
 
-	  plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
-	  if marker_size is not None:
-	    cur_axis.plot(
-	        self.refAxisValues, cur_values * scale, plot_mode,
-	        label = cur_label, linewidth = 2,
-		markersize = marker_size
-	        )
-	  else:
-	    cur_axis.plot(
-	        self.refAxisValues, cur_values * scale, plot_mode,
-	        label = cur_label, linewidth = 2
-	        )
+	  if cur_axis:
+	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+	    if marker_size is not None:
+	      cur_axis.plot(
+	          self.refAxisValues, cur_values * scale, plot_mode,
+	          label = cur_label, linewidth = 2,
+		  markersize = marker_size
+	          )
+	    else:
+	      cur_axis.plot(
+	          self.refAxisValues, cur_values * scale, plot_mode,
+	          label = cur_label, linewidth = 2
+	          )
 
 	  count += 1
 	#end for rc, values
@@ -925,6 +932,15 @@ XXX size according to how many datasets selected?
       self.dmgr.AddListener( 'dataSetAdded', self._UpdateRefAxisMenu )
       wx.CallAfter( self._UpdateRefAxisMenu )
     #end if self.dmgr.HasData()
+
+    for k in self.dataSetValues:
+      qds_name = self._GetDataSetName( k )
+      if self.dmgr.GetDataModel( qds_name ) is None:
+        update_args[ 'replot' ] = True
+	if qds_name in self.dataSetSelections:
+	  del self.dataSetSelections[ qds_name ]
+      #end if qds_name no longer exists
+    #end for k
 
     return  update_args
   #end _LoadDataModelValues

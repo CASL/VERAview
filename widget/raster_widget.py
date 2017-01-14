@@ -268,20 +268,9 @@ _CreateValueString()
     self.curSize = None
     self.dragStartCell = None
     self.dragStartPosition = None
-    self.isLoaded = False
+    #self.isLoaded = False
 
     self._imcount = 0
-
-#old way
-#    self.menuDef = \
-#      [
-#	( 'Copy Data', self._OnCopyData ),
-#	( 'Copy Image', self._OnCopyImage ),
-#	( '-', None ),
-#	( 'Hide Labels', self._OnToggleLabels ),
-#	( 'Hide Legend', self._OnToggleLegend ),
-#        ( 'Unzoom', self._OnUnzoom )
-#      ]
 
     self.showLabels = True
     self.showLegend = True
@@ -1242,7 +1231,7 @@ Must be overridden by subclasses.  Always returns False.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._LoadDataModel()			-
   #----------------------------------------------------------------------
-  def _LoadDataModel( self ):
+  def _LoadDataModel( self, reason ):
     """Copies the state and initiates rendering of the first bitmap.
 Sets attributes:
   axialValue
@@ -1254,8 +1243,8 @@ Sets attributes:
 Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     #super( RasterWidget, self )._LoadDataModel()
-    if self.dmgr.HasData() and not self.isLoaded:
-      self.isLoaded = True
+    if self.dmgr.HasData() and not self.isLoading:
+      #self.isLoaded = True
       self._LoadDataModelValues()
 
 #		-- Do here what is not dependent on size
@@ -1314,8 +1303,6 @@ attributes/properties that aren't already set in _LoadDataModel():
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    self.isLoaded = True
-
     for k in (
 	'axialValue', 'cellRange', 'cellRangeStack',
 	'showLabels', 'showLegend', 'timeValue'
