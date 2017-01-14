@@ -4035,8 +4035,9 @@ being one greater in each dimension.
 	  dset = derived_st.GetDataSet( ds_name )
 
         if dset:
-	  dset_array = dset.value
+	  dset_array = np.array( dset )
 
+	  #xxxx always array
 	  if isinstance( dset_array, np.ndarray ):
 	    #cur_max = np.amax( dset_array )
 	    cur_max = np.nanmax( dset_array )

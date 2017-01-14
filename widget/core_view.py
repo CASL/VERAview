@@ -340,9 +340,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 	#state_index = state_ndx
 	)
 
+    core = dset = None
     if config is None:
       config = self.config
     if config is not None and tuple_valid:
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
+
+    if dset is not None and core is not None:
       if 'assemblyRegion' not in config:
 	if 'clientSize' in config:
           config = self._CreateAssyDrawConfig( size = config[ 'clientSize' ] )
@@ -360,23 +365,18 @@ If neither are specified, a default 'scale' value of 24 is used.
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
 
-      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
-      core = self.dmgr.GetCore()
+      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      #core = self.dmgr.GetCore()
       
 #		-- "Item" refers to channel or pin
       item_factors = None
       if self.state.weightsMode == 'on':
         item_factors = self.dmgr.GetFactors( self.curDataSet )
 
-      if dset is None:
-        dset_array = None
-	dset_shape = ( 0, 0, 0, 0 )
-	cur_nxpin = cur_nypin = 0
-      else:
-        dset_array = np.array( dset )
-        dset_shape = dset.shape
-        cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
-        cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
+      dset_array = np.array( dset )
+      dset_shape = dset.shape
+      cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
+      cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
 
       ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
@@ -437,6 +437,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  #end if writing column label
 #						-- Resolve value,
 #						-- apply pin factors
+	  if dset_array is None:
+	    self.logger.critical( '** B.1 dset_array is None, how did this happen **' )
 	  if self.nodalMode:
 	    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
 	    if item_factors is None:
@@ -548,7 +550,7 @@ If neither are specified, a default 'scale' value of 24 is used.
           )
 
       del im_draw
-    #end if config exists
+    #end if dset is not None and core is not None
 
     #return  im
     return  im if im is not None else self.emptyPilImage
@@ -826,9 +828,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     im = None
 
+    core = dset = None
     if config is None:
       config = self.config
     if config is not None and self.dmgr.HasData():
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
+
+    if dset is not None and core is not None:
       if 'coreRegion' not in config:
         if self.logger.isEnabledFor( logging.DEBUG ):
           self.logger.debug( 'coreRegion missing from config, reconfiguring' )
@@ -849,33 +856,28 @@ If neither are specified, a default 'scale' value of 4 is used.
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
 
-      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
-      core = self.dmgr.GetCore()
+      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      #core = self.dmgr.GetCore()
 
 #		-- "Item" refers to channel or pin
       item_factors = None
       if self.state.weightsMode == 'on':
         item_factors = self.dmgr.GetFactors( self.curDataSet )
 
-      if dset is None:
-        dset_array = None
-	dset_shape = ( 0, 0, 0, 0 )
-	cur_nxpin = cur_nypin = item_col_limit = item_row_limit = 0
+      dset_array = np.array( dset )
+      dset_shape = dset.shape
+      if self.nodalMode:
+        cur_nxpin = cur_nypin = item_col_limit = item_row_limit = 2
       else:
-        dset_array = np.array( dset )
-        dset_shape = dset.shape
-	if self.nodalMode:
-	  cur_nxpin = cur_nypin = item_col_limit = item_row_limit = 2
-	else:
-	  if self.channelMode:
-	    item_col_limit = core.npinx + 1
-	    item_row_limit = core.npiny + 1
-	  else:
-	    item_col_limit = core.npinx
-	    item_row_limit = core.npiny
-	  cur_nxpin = min( item_col_limit, dset_shape[ 1 ] )
-	  cur_nypin = min( item_row_limit, dset_shape[ 0 ] )
-      #end if-else dset is None
+        if self.channelMode:
+	  item_col_limit = core.npinx + 1
+	  item_row_limit = core.npiny + 1
+        else:
+	  item_col_limit = core.npinx
+	  item_row_limit = core.npiny
+	cur_nxpin = min( item_col_limit, dset_shape[ 1 ] )
+	cur_nypin = min( item_row_limit, dset_shape[ 0 ] )
+      #end if-else self.nodalMode
 
       ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
@@ -955,6 +957,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #-- Resolve value, apply pin factors
 		  value = 0.0
 		  item_factor = 0
+	          if dset_array is None:
+	            self.logger.critical( '** B.2 dset_array is None, how did this happen **' )
 		  if cur_item_col >= 0:
 		    if self.nodalMode:
 		      value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
@@ -1017,6 +1021,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        )
 #-- Draw value for cross-pin integration derived datasets
 #--
+	    if dset_array is None:
+	      self.logger.critical( '** B.3 dset_array is None, how did this happen **' )
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      assy_value_draw_list.append((

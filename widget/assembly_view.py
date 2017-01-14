@@ -538,7 +538,8 @@ If neither are specified, a default 'scale' value of 24 is used.
     ndx = 0
     for item in menu_def:
       if item.get( 'label', '' ) == 'Hide Labels':
-        hide_legend_ndx = ndx + 1
+        #hide_legend_ndx = ndx + 1
+        hide_legend_ndx = ndx
         break
       ndx += 1
     #end for
@@ -703,6 +704,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  #end if self.showLabels and ...
 
 #					-- Check row and col in range
+	  if dset_array is None:
+	    self.logger.critical( '** A dset_array is None, how did this happen **' )
 	  if item_row < dset_shape[ 0 ] and item_col < dset_shape[ 1 ]:
 	    value = dset_array[ item_row, item_col, axial_level, assy_ndx ]
 	  else:

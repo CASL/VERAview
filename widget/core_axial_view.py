@@ -545,12 +545,17 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     im = None
 
+    core = dset = None
     if config is None:
       config = self.config
     if config is not None and self.dmgr.HasData():
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
+
+    if dset is not None and core is not None:
       assy_wd = config[ 'assemblyWidth' ]
       axial_levels_dy = config[ 'axialLevelsDy' ]
-      axial_levels_dy_min = config[ 'axialLevelsDyMin' ]
+      #axial_levels_dy_min = config[ 'axialLevelsDyMin' ]
       im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       font_size = config[ 'fontSize' ]
@@ -562,18 +567,18 @@ If neither are specified, a default 'scale' value of 4 is used.
       if self.nodalMode:
         node_wd = config[ 'nodeWidth' ]
 
-      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
-      core = self.dmgr.GetCore()
+      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      #core = self.dmgr.GetCore()
       pin_factors = None
       if self.state.weightsMode == 'on':
         pin_factors = self.dmgr.GetFactors( self.curDataSet )
 
-      if dset is None:
-        dset_array = None
-	dset_shape = ( 0, 0, 0, 0 )
-      else:
-        dset_array = np.array( dset )
-        dset_shape = dset.shape
+      #if dset is None:
+      #  dset_array = None
+      #  dset_shape = ( 0, 0, 0, 0 )
+      #else:
+      dset_array = np.array( dset )
+      dset_shape = dset.shape
 
       ds_range = config[ 'dataRange' ]
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
@@ -686,6 +691,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #					-- Assembly referenced?
 #					--
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
+	    if dset_array is None:
+	      self.logger.critical( '** C dset_array is None, how did this happen **' )
 	    if self.nodalMode:
 	      node_x = assy_x + 1
 
@@ -765,7 +772,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	#end for assy_col
 
 	axial_y += cur_dy
-      #end for assy_row
+      #end for ax in range( len( axial_levels_dy ) - 1, -1, -1 )
 
 #			-- Draw Values
 #			--
@@ -806,7 +813,8 @@ If neither are specified, a default 'scale' value of 4 is used.
           )
 
       del im_draw
-    #end if config exists
+    #end if dset is not None and core is not None
+
     #elapsed_time = timeit.default_timer() - start_time
     #if self.logger.isEnabledFor( logging.DEBUG ):
       #self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )

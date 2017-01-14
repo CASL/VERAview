@@ -834,6 +834,8 @@ definition array for a pullright.
     drag_source.SetData( drag_data )
 
     result = drag_source.DoDragDrop()
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'drag_source returned %s', result )
     if result == wx.DragCopy:
       wx.CallAfter( self.OnClose, None )
   #end _OnLeftDown

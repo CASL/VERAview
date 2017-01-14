@@ -17,7 +17,7 @@
 #	  Replaced axialLevel and stateIndex with state.
 #		2016-06-21	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import json, os, platform, sys
+import json, logging, os, platform, sys
 import numpy as np
 import pdb  # set_trace()
 
@@ -35,6 +35,12 @@ from event.state import *
 class WidgetConfig( object ):
   """Per-user widget configuration.
 """
+
+
+#		-- Class Attributes
+#		--
+
+  fLogger_ = logging.getLogger( 'widget' )
 
 
 #		-- Object Methods
@@ -64,6 +70,7 @@ class WidgetConfig( object ):
       'state': {},
       'widgets': []
       }
+    self.fLogger = WidgetConfig.fLogger_
 
     if file_path is not None:
       self.Read( file_path )
@@ -262,10 +269,12 @@ class WidgetConfig( object ):
 @param  json_str	JSON string to be decoded
 @return			Python object
 """
-    return  json.loads( json_str.rstrip( '\t\r\n ' ) )
-#    content = json_str.rstrip( '\t\r\n ' )
-#    print >> sys.stderr, content
-#    return  json.loads( content )
+    #return  json.loads( json_str.rstrip( '\t\r\n ' ) )
+    content = json_str.rstrip( '\t\r\n ' )
+    try:
+      return  json.loads( content )
+    except Exception, ex:
+      WidgetConfig.fLogger_.exception( 'content:' + os.linesep + content )
   #end Decode
 
 

@@ -312,6 +312,7 @@ _CreateValueString()
   def _BitmapThreadFinish( self, result ):
     """Background thread completion method called in the UI thread.
 Paired to _BitmapThreadStart().
+Not currently using but might have to go back.
 """
     cur_tuple = pil_im = None
     job_id = -1
@@ -336,10 +337,18 @@ Paired to _BitmapThreadStart().
           self.logger.warning( '* %s pil_im is None *' % self.GetTitle() )
 
       except Exception, ex:
-	self.logger.exception( '%s: Error creating image' % self.GetTitle() )
-	msg = '%s: Error creating image:\n%s' % ( self.GetTitle(), str( ex ) )
+	msg = '%s: Error creating image:%s%s' % \
+	    ( os.linesep, self.GetTitle(), str( ex ) )
 	if hasattr( ex, 'extraInfo' ):
-	  msg += '\n' + str( ex.extraInfo )
+	  msg += os.linesep + str( ex.extraInfo )
+#	et, ev, tb = sys.exc_info()
+#	log_msg = msg
+#	while tb:
+#	  log_msg += \
+#	      os.linesep + 'File=' + str( tb.tb_frame.f_code ) + \
+#	      ', Line=' + str( traceback.tb_lineno( tb ) )
+#	  tb = tb.tb_next
+	self.logger.exception( msg )
         wx.MessageBox( msg, 'CreateImage', wx.ICON_ERROR | wx.OK_DEFAULT )
     #end if result is not None
 
@@ -350,70 +359,11 @@ Paired to _BitmapThreadStart().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget._BitmapThreadFinish_retry()	-
-  #----------------------------------------------------------------------
-  def _BitmapThreadFinish_retry( self, result ):
-    """Background thread completion method called in the UI thread.
-Paired to _BitmapThreadStart().
-"""
-#    if result is None:
-#      cur_tuple = pil_im = None
-#      try_count = 0
-#    else:
-#      cur_tuple, pil_im, try_count = result.get()
-    cur_tuple = pil_im = None
-    job_id = -1
-    try_count = 0
-    if result is not None:
-      try:
-        cur_tuple, pil_im, try_count = result.get()
-	job_id = result.getJobID()
-      except Exception, ex:
-	self.logger.exception( '%s: Error creating image' % self.GetTitle() )
-	msg = '%s: Error creating image:\n%s' % ( self.GetTitle(), str( ex ) )
-	if hasattr( ex, 'extraInfo' ):
-	  msg += '\n' + str( ex.extraInfo )
-        wx.MessageBox( msg, 'CreateImage', wx.ICON_ERROR | wx.OK_DEFAULT )
-
-    if self.logger.isEnabledFor( logging.DEBUG ):
-      self.logger.debug(
-          '%s cur_tuple=%s, try_count=%d, job_id=%d',
-	  self.GetTitle(), cur_tuple, try_count, job_id
-	  )
-
-#		-- Log these conditions
-#		--
-    if cur_tuple is None:
-      self.logger.warning( '* %s cur_tuple is None *' % self.GetTitle() )
-    if pil_im is None:
-      self.logger.warning( '* %s pil_im is None *' % self.GetTitle() )
-
-#		-- Retry image creation thread?
-#		--
-    #if cur_tuple is not None and pil_im is None and try_count < 2:
-    if cur_tuple is not None and pil_im is None and try_count < 0:
-      if self.logger.isEnabledFor( logging.DEBUG ):
-        self.logger.debug( 'retrying image thread, try_count=%d', try_count )
-      RasterWidget.jobid_ += 1
-      th = wxlibdr.startWorker(
-          self._BitmapThreadFinish,
-	  self._BitmapThreadStart,
-	  wargs = [ cur_tuple, try_count + 1, RasterWidget.jobid_ ],
-	  jobID = RasterWidget.jobid_
-	  )
-
-#		-- No, normal processing
-#		--
-    else:
-      self._BitmapThreadFinishImpl( cur_tuple, pil_im )
-  #end _BitmapThreadFinish_retry
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._BitmapThreadFinishImpl()		-
   #----------------------------------------------------------------------
   def _BitmapThreadFinishImpl( self, cur_tuple, pil_im ):
     """Called from _BitmapThreadFinish().
+Not currently using but might have to go back.
 """
 
 #		-- No tuple, give up
@@ -477,6 +427,7 @@ Paired to _BitmapThreadStart().
 tuple in the queue.  Paired with _BitmapThreadFinish().
 Calls _CreateRasterImage().
 @return			( next_tuple, PIL_image )
+Not currently using but might have to go back.
 """
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
@@ -569,6 +520,55 @@ Sets the config attribute.
 
     return  new_bmap
   #end _CopyBitmap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._CreateAndSetBitmap()		-
+  #----------------------------------------------------------------------
+  def _CreateAndSetBitmap( self, cur_tuple ):
+    """Non-threaded calls to _BitmapThreadStart() and _BitmapThreadFinish().
+"""
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( '%s cur_tuple=%s', self.GetTitle(), cur_tuple )
+
+    pil_im = None
+    bmap = self.blankBitmap
+
+    if cur_tuple is not None and self.config is not None:
+      self.bitmapsLock.acquire()
+      try:
+        pil_im = self._CreateRasterImage( cur_tuple )
+
+        if pil_im is None:
+	  self.logger.warning( '* pil_im is None *' )
+          #bmap = self.blankBitmap
+	  if cur_tuple in self.bitmaps:
+	    del self.bitmaps[ cur_tuple ]
+
+        else:
+          wx_im = wx.EmptyImage( *pil_im.size )
+
+          pil_im_data_str = pil_im.convert( 'RGB' ).tobytes()
+          wx_im.SetData( pil_im_data_str )
+
+          pil_im_data_str = pil_im.convert( 'RGBA' ).tobytes()
+          wx_im.SetAlphaData( pil_im_data_str[ 3 : : 4 ] )
+
+          bmap = wx.BitmapFromImage( wx_im )
+          self.bitmaps[ cur_tuple ] = bmap
+        #end else pil_im is not None:
+
+      finally:
+	self.bitmapsLock.release()
+
+      if self.IsTupleCurrent( cur_tuple ):
+	if pil_im is not None:
+	  bmap = self._HiliteBitmap( bmap )
+        self.bitmapCtrl.SetBitmap( bmap )
+        self.bitmapCtrl.Refresh()
+        self.bitmapCtrl.Update()
+    #end if cur_tuple is not None and self.config is not None
+  #end _CreateAndSetBitmap
 
 
   #----------------------------------------------------------------------
@@ -1268,10 +1268,8 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
       #self.stateIndex = self.state.stateIndex
       self.timeValue = self.state.timeValue
 
-      with self.bitmapsLock:
-        self.bitmapThreadArgs = None
-
-      #self._LoadDataModelValues()
+#x      with self.bitmapsLock:
+#x        self.bitmapThreadArgs = None
 
       self.stateIndex = self.dmgr.\
           GetTimeValueIndex( self.timeValue, self.curDataSet )
@@ -1475,7 +1473,7 @@ This implementation is a noop.
     if wd > 0 and ht > 0:
       if self.curSize is None or \
           wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]:
-        self._BusyBegin()
+        #self._BusyBegin()
         self.curSize = ( wd, ht )
         if self.logger.isEnabledFor( logging.DEBUG ):
           self.logger.debug( 'calling UpdateState' )
@@ -1619,6 +1617,58 @@ Calls _UpdateStateValues().
     changed = kwargs.get( 'changed', False )
     resized = kwargs.get( 'resized', False )
 
+    if resized:
+      self._ClearBitmaps()
+      self._Configure()
+      changed = True
+
+    if changed and self.config is not None:
+      tpl = self._CreateStateTuple()
+
+      must_create_image = True
+      self.bitmapsLock.acquire()
+      try:
+        if tpl in self.bitmaps:
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug( '%s cache hit', self.GetTitle() )
+          self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
+	  must_create_image = False
+
+        else:
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug(
+	        '%s cache miss, creating thread',
+	        self.GetTitle()
+	        )
+      finally:
+        self.bitmapsLock.release()
+
+      if must_create_image:
+        self._CreateAndSetBitmap( tpl )
+    #end if
+
+    self._BusyEnd()
+  #end UpdateState
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.UpdateState_bitmap_threads()	-
+  # Must be called from the UI thread.
+  #----------------------------------------------------------------------
+  def UpdateState_bitmap_threads( self, **kwargs ):
+    """Called to update the components on a new state property.
+Calls _UpdateStateValues().
+@param  kwargs		any state change values plus 'resized', 'changed'
+"""
+    self._BusyBegin()
+
+    if 'scale_mode' in kwargs:
+      kwargs[ 'resized' ] = True
+
+    kwargs = self._UpdateStateValues( **kwargs )
+    changed = kwargs.get( 'changed', False )
+    resized = kwargs.get( 'resized', False )
+
     end_busy = True
 
     if resized:
@@ -1666,6 +1716,7 @@ Calls _UpdateStateValues().
 	      '%s starting worker, args=%s, jobid=%d',
 	      self.GetTitle(), str( tpl + self.curSize ), RasterWidget.jobid_
 	      )
+
 	th = wxlibdr.startWorker(
 	    self._BitmapThreadFinish,
 	    self._BitmapThreadStart,
@@ -1678,7 +1729,7 @@ Calls _UpdateStateValues().
 
     if end_busy:
       self._BusyEnd()
-  #end UpdateState
+  #end UpdateState_bitmap_threads
 
 
   #----------------------------------------------------------------------
