@@ -128,8 +128,8 @@ be the same.
       return  DataSetName( base_qds_name.modelName, diff_ds_name )
 
     except Exception, ex:
-      msg = 'Error calculating difference for "%s" and "%s"' % \
-          ( base_qds_name, sub_qds_name )
+      msg = 'Error calculating difference for "%s" and "%s":%s%s' % \
+          ( base_qds_name, sub_qds_name, os.linesep, str( ex ) )
       self.dmgr.logger.error( msg )
       raise Exception( msg )
   #end calc

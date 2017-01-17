@@ -114,13 +114,13 @@ creating a difference dataset.
     """
 """
     all_types = DATASET_DEFS.keys()
-    name_ht = 24
-    label_border = name_ht >> 2
+    name_ht = 32
 
-    sizer = wx.BoxSizer( wx.VERTICAL )
-    self.SetSizer( sizer )
+    grid_wrapper = wx.Panel( self, -1, style = wx.BORDER_THEME )
+    gw_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    grid_wrapper.SetSizer( gw_sizer )
 
-    grid_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
+    grid_panel = wx.Panel( grid_wrapper, -1 )
     grid_sizer = wx.FlexGridSizer( cols = 3, vgap = 10, hgap = 8 )
     grid_panel.SetSizer( grid_sizer )
 
@@ -150,12 +150,13 @@ creating a difference dataset.
 	    )
 	)
 
+    st = wx.StaticText(
+        grid_panel, -1, label = 'Base Dataset:',
+	style = wx.ALIGN_RIGHT
+	)
     grid_sizer.Add(
-	wx.StaticText(
-	    self, -1, label = 'Base Dataset:',
-	    style = wx.ALIGN_RIGHT
-	    ),
-	0, wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, label_border
+	st, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
         )
     grid_sizer.Add(
         self.fBaseNameField, 0,
@@ -192,12 +193,13 @@ creating a difference dataset.
 	    )
 	)
 
+    st = wx.StaticText(
+        grid_panel, -1, label = 'Subend Dataset:',
+	style = wx.ALIGN_RIGHT
+	)
     grid_sizer.Add(
-	wx.StaticText(
-	    self, -1, label = 'Subend Dataset:',
-	    style = wx.ALIGN_RIGHT
-	    ),
-	0, wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, label_border
+	st, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
         )
     grid_sizer.Add(
         self.fSubNameField, 0,
@@ -211,6 +213,7 @@ creating a difference dataset.
 #		-- Diff panel
 #		--
     self.fCreateButton = wx.Button( grid_panel, -1, label = 'Create' )
+    self.fCreateButton.SetFont( self.fCreateButton.GetFont().Larger() )
     #self.fCreateButton.Enable( False )
     self.fCreateButton.Bind( wx.EVT_BUTTON, self._OnCreateDataSet )
     self.fDiffNameField = wx.TextCtrl(
@@ -218,12 +221,13 @@ creating a difference dataset.
 	size = ( 320, name_ht )
         )
 
+    st = wx.StaticText(
+        grid_panel, -1, label = 'Difference Dataset:',
+	style = wx.ALIGN_RIGHT
+	)
     grid_sizer.Add(
-	wx.StaticText(
-	    self, -1, label = 'Difference Dataset:',
-	    style = wx.ALIGN_RIGHT
-	    ),
-	0, wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, label_border
+	st, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
         )
     grid_sizer.Add(
         self.fDiffNameField, 0,
@@ -236,9 +240,11 @@ creating a difference dataset.
 
 #		-- Lay self out
 #		--
-    grid_wrapper = wx.BoxSizer( wx.HORIZONTAL )
-    grid_wrapper.Add( grid_panel, 0, wx.LEFT | wx.TOP, 4 )
-    grid_wrapper.AddStretchSpacer()
+    gw_sizer.Add( grid_panel, 0, wx.ALL, 8 )
+    gw_sizer.AddStretchSpacer()
+
+    sizer = wx.BoxSizer( wx.VERTICAL )
+    self.SetSizer( sizer )
 
     sizer.Add( grid_wrapper, 0, wx.BOTTOM, 10 )
     sizer.AddStretchSpacer()
@@ -261,14 +267,14 @@ Called on the UI thread.
 
     base_qds_name = DataSetName( self.fBaseNameField.GetValue() )
     sub_qds_name = DataSetName( self.fSubNameField.GetValue() )
-    diff_ds_name = DataSetName( self.fDiffNameField.GetValue() )
+    diff_ds_name = self.fDiffNameField.GetValue().replace( ' ', '_' )
 
     msg = ''
-    if not base_qds_name:
+    if len( base_qds_name.displayName ) == 0:
       msg = 'Please select a base dataset'
-    elif not sub_qds_name:
+    elif len( sub_qds_name.displayName ) == 0:
       msg = 'Please select a subend dataset'
-    elif not diff_ds_name:
+    elif len( diff_ds_name ) == 0:
       msg = 'Please enter a difference (result) dataset name'
 
     if msg:
@@ -277,7 +283,14 @@ Called on the UI thread.
     else:
       try:
         dmgr = self.fState.dataModelMgr
-	dmgr.CreateDiffDataSet( base_qds_name, sub_qds_name, diff_ds_name )
+	result = \
+	    dmgr.CreateDiffDataSet( base_qds_name, sub_qds_name, diff_ds_name )
+        wx.MessageDialog(
+	    self,
+	    'Dataset "%s" created' % str( result ),
+	    'Create Difference Dataset'
+	    ).\
+	    ShowWindowModal()
       except Exception, ex:
         wx.MessageDialog(
 	    self, str( ex ),

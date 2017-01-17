@@ -24,7 +24,7 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, math, os, sys
+import bisect, copy, logging, math, os, sys
 import numpy as np
 import pdb
 

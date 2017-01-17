@@ -53,6 +53,10 @@ class DataSetDiffCreatorDialogTestApp( wx.App ):
   @staticmethod
   def main():
     try:
+      log_file = os.path.\
+          join( os.path.dirname( __file__ ), '..', 'res', 'logging.conf' )
+      logging.config.fileConfig( log_file )
+
       parser = argparse.ArgumentParser()
 
       parser.add_argument(
@@ -175,7 +179,7 @@ class DataSetDiffCreatorDialogTestFrame( wx.Frame ):
   #----------------------------------------------------------------------
   def _OnQuit( self, ev ):
     #self.Close()
-    self.app.ExitMainLoop()
+    self.fApp.ExitMainLoop()
   #end _OnQuit
 
 #end DataSetDiffCreatorDialogTestFrame

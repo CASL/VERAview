@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2017-01-17	leerw@ornl.gov				-
+#	  Adding DataSetDiffCreatorDialog.
 #		2017-01-14	leerw@ornl.gov				-
 #	  Removing channel widgets since others support channel datasets.
 #		2016-12-16	leerw@ornl.gov				-
@@ -136,6 +138,7 @@ except Exception:
 
 #from bean.dataset_menu_item import *
 #from bean.dataset_mgr import *
+from bean.dataset_diff_creator import *
 from bean.grid_sizer_dialog import *
 
 from data.config import Config
@@ -1088,6 +1091,12 @@ WIDGET_MAP and TOOLBAR_ITEMS
 
     edit_menu.AppendSeparator()
 
+    diff_dataset_item = wx.MenuItem(
+	edit_menu, wx.ID_ANY, 'Create Difference Dataset...'
+        )
+    self.Bind( wx.EVT_MENU, self._OnCreateDiffDataSet, diff_dataset_item )
+    edit_menu.AppendItem( diff_dataset_item )
+
     self.dataSetMenu = \
         DataSetsMenu( self.state, binder = self, mode = 'subsingle' )
     dataset_item = wx.MenuItem(
@@ -1718,6 +1727,20 @@ Must be called from the UI thread.
 	wx.TheClipboard.Close()
     #end if-else
   #end _OnCopy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnCreateDiffDataSet()		-
+  #----------------------------------------------------------------------
+  def _OnCreateDiffDataSet( self, ev ):
+    ev.Skip()
+
+    dialog = DataSetDiffCreatorDialog( self, state = self.state )
+    try:
+      dialog.ShowModal()
+    finally:
+      dialog.Destroy()
+  #end _OnCreateDiffDataSet
 
 
   #----------------------------------------------------------------------
