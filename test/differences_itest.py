@@ -65,6 +65,7 @@ class DifferencesITest( object ):
     try:
       base_qds_name = DataSetName( base_dm.GetName(), base_ds_name )
       sub_qds_name = DataSetName( sub_dm.GetName(), sub_ds_name )
+
       result_qds_name = self.fMgr.\
           CreateDiffDataSet( base_qds_name, sub_qds_name, result_name )
 
@@ -74,6 +75,12 @@ class DifferencesITest( object ):
 	dset_array = np.array( dset )
 	print '\n[%.6g]\n%s' % ( time_values[ i ], str( dset_array ) )
       #end for i
+
+      print '\n[MetaData]'
+      print 'name=', str( result_qds_name )
+      print 'type=', base_dm.GetDataSetType( result_qds_name.displayName )
+      print 'def=', \
+          str( base_dm.GetDataSetDefByDsName( result_qds_name.displayName ) )
 
     finally:
       self.fMgr.CloseModel( base_dm.GetName() )

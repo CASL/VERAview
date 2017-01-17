@@ -269,6 +269,25 @@ be the same.
 @return			difference DataSetName
 @exception		if diff_ds_name not created in base_qds_name.modelName
 """
+    return  Differences( self )( base_qds_name, sub_qds_name, diff_ds_name )
+  #end CreateDiffDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CreateDiffDataSet_1()		-
+  #----------------------------------------------------------------------
+  def CreateDiffDataSet_1( self, base_qds_name, sub_qds_name, diff_ds_name ):
+    """Create new difference dataset to be stored as a derived dataset in
+the base_qds_name model.  Thus, the axial mesh and time
+values are from the base_qds_name model.  The current timeDataSet is used
+to resolve times between the datasets.  The base and sub DataModels can
+be the same.
+@param  base_qds_name	dataset x in x - y
+@param  sub_qds_name	dataset y in x - y
+@param  diff_ds_name	name of difference dataset
+@return			difference DataSetName
+@exception		if diff_ds_name not created in base_qds_name.modelName
+"""
 #		-- Assert on models
 #		--
     base_dm = self.GetDataModel( base_qds_name )
@@ -344,6 +363,7 @@ be the same.
         #end if base_derived_st
       #end for state_ndx
 
+      base_dm.AddDataSetName( base_type, diff_ds_name )
       return  DataSetName( base_qds_name.modelName, diff_ds_name )
 
     except Exception, ex:
@@ -351,7 +371,7 @@ be the same.
           ( base_qds_name, sub_qds_name )
       self.logger.error( msg )
       raise Exception( msg )
-  #end CreateDiffDataSet
+  #end CreateDiffDataSet_1
 
 
   #----------------------------------------------------------------------

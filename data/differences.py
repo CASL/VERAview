@@ -7,11 +7,21 @@ import h5py, os, sys
 import numpy as np
 import pdb
 
+from data.datamodel import DataSetName
+
 
 #------------------------------------------------------------------------
 #	CLASS:		Differences					-
 #------------------------------------------------------------------------
 class Differences( object ):
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		__call__()					-
+  #----------------------------------------------------------------------
+  def __call__( self, *args, **kwargs ):
+    return  self.calc( *args, **kwargs )
+  #end __call__
 
 
   #----------------------------------------------------------------------
@@ -41,8 +51,8 @@ be the same.
 """
 #		-- Assert on models
 #		--
-    base_dm = self.GetDataModel( base_qds_name )
-    sub_dm = self.GetDataModel( sub_qds_name )
+    base_dm = self.dmgr.GetDataModel( base_qds_name )
+    sub_dm = self.dmgr.GetDataModel( sub_qds_name )
 
     assert base_dm is not None, \
         'DataModel "%s" not found' % base_qds_name.modelName
@@ -57,28 +67,35 @@ be the same.
     assert base_type and sub_type and base_type == sub_type, \
         'Dataset types mismatch: %s ne %s' % ( base_type, sub_type )
 
-#		-- Retrieve dataset definition and times
+#		-- Retrieve meshes, assert
 #		--
     ddef = base_dm.GetDataSetDef( base_type )
 
-    base_time_values = self.GetTimeValues( base_qds_name )
-    sub_time_values = self.GetTimeValues( sub_qds_name )
-    equal_times = base_time_values == sub_time_values
-
-#		-- Retrieve meshes
-#		--
     if ddef[ 'axial_axis' ] < 0:
       base_mesh_values = sub_mesh_values = None
+      mesh_type = ''
     elif base_type == 'detector':
-      base_mesh_values = self.GetDetectorMesh( base_qds_name )
-      sub_mesh_values = self.GetDetectorMesh( sub_qds_name )
+      base_mesh_values = self.dmgr.GetDetectorMesh( base_qds_name )
+      sub_mesh_values = self.dmgr.GetDetectorMesh( sub_qds_name )
+      mesh_type = 'Detector mesh'
     elif base_type == 'fixed_detector':
-      base_mesh_values = self.GetFixedDetectorMeshCenters( base_qds_name )
-      sub_mesh_values = self.GetFixedDetectorMeshCenters( sub_qds_name )
+      base_mesh_values = self.dmgr.GetFixedDetectorMeshCenters( base_qds_name )
+      sub_mesh_values = self.dmgr.GetFixedDetectorMeshCenters( sub_qds_name )
+      mesh_type = 'Fixed detector mesh centers'
     else:
-      base_mesh_values = self.GetAxialMeshCenters( base_qds_name )
-      sub_mesh_values = self.GetAxialMeshCenters( sub_qds_name )
-    equal_meshes = base_mesh_values == sub_mesh_values
+      base_mesh_values = self.dmgr.GetAxialMeshCenters( base_qds_name )
+      sub_mesh_values = self.dmgr.GetAxialMeshCenters( sub_qds_name )
+      mesh_type = 'Axial mesh centers'
+    #equal_meshes = base_mesh_values == sub_mesh_values
+
+    assert np.array_equal( base_mesh_values, sub_mesh_values ), \
+        '%s mismatch' % mesh_type
+
+#		-- Retrieve times
+#		--
+    base_time_values = self.dmgr.GetTimeValues( base_qds_name )
+    sub_time_values = self.dmgr.GetTimeValues( sub_qds_name )
+    equal_times = base_time_values == sub_time_values
 
 #		-- State by state
 #		--
@@ -101,18 +118,19 @@ be the same.
 
         if base_derived_st is not None and \
 	    base_dset is not None and sub_dset is not None:
-	  pass
-	  #xxxxx
-          #base_derived_st.CreateDataSet( diff_ds_name, diff_data )
+          diff_data = np.copy( base_dset )
+	  diff_data -= sub_dset
+          base_derived_st.CreateDataSet( diff_ds_name, diff_data )
         #end if base_derived_st
       #end for state_ndx
 
+      base_dm.AddDataSetName( base_type, diff_ds_name )
       return  DataSetName( base_qds_name.modelName, diff_ds_name )
 
     except Exception, ex:
       msg = 'Error calculating difference for "%s" and "%s"' % \
           ( base_qds_name, sub_qds_name )
-      self.logger.error( msg )
+      self.dmgr.logger.error( msg )
       raise Exception( msg )
   #end calc
 
