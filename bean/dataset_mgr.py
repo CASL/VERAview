@@ -336,7 +336,8 @@ Called on the UI thread.
     self.fExtrasList.DeleteAllItems()
     ndx = 0
 
-    extra_file = self.fDataModel.GetH5ExtraFile()
+    #extra_file = self.fDataModel.GetH5ExtraFile()
+    extra_file = None
     if extra_file is not None:
       for name in sorted( extra_file.keys() ):
         if not name.startswith( 'STATE' ):
@@ -348,7 +349,8 @@ Called on the UI thread.
     #end if
 
     #extra_names = self.fDataModel.GetDataSetNames( 'extra' )
-    extra_states = self.fDataModel.GetExtraStates()
+    #extra_states = self.fDataModel.GetExtraStates()
+    extra_states = None
     if extra_states is not None and len( extra_states ) > 0:
       st = self.fDataModel.GetExtraState( 0 )
 

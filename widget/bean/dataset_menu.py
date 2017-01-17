@@ -48,6 +48,60 @@ from event.state import *
 
 
 #------------------------------------------------------------------------
+#	CLASS:		BaseDataModelMenuWidget				-
+#------------------------------------------------------------------------
+class BaseDataModelMenuWidget( object ):
+  """Base, noop Widget implementation for use with DataModelMenu, when a
+DataSetsMenu instance is used in a transient window/dialog.  The purpose is to
+avoid actually firing State events.  For *multi* menu modes, one can implement
+a listener with {Is,Toggle}DataSetVisible() methods.  However, for *single*
+modes, one must provide a widget instance that implements SetDataSet().
+Extending this class is a safe way to do so.
+
+NOTE: Some day we need to clean this up to call {Is,Toggle}DataSetVisible() in
+*single* modes as well.
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseDataModelMenuWidget.FireStateChange()	-
+  #----------------------------------------------------------------------
+  def FireStateChange( self, **kwargs ):
+    """Noop.
+"""
+    pass
+  #end FireStateChange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseDataModelMenuWidget.GetCurDataSet()		-
+  #----------------------------------------------------------------------
+  def GetCurDataSet( self, **kwargs ):
+    """Noop.
+@return			None
+"""
+    return  None
+  #end GetCurDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseDataModelMenuWidget.SetDataSet()		-
+  #----------------------------------------------------------------------
+  def SetDataSet( self, qds_name ):
+    """Noop.
+@param  qds_name	DataSetName instance for the selection.
+"""
+    return  None
+  #end SetDataSet
+
+#end BaseDataModelMenuWidget
+
+
+#------------------------------------------------------------------------
 #	CLASS:		DataModelMenu					-
 #------------------------------------------------------------------------
 class DataModelMenu( wx.Menu ):
