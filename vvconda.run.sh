@@ -7,21 +7,25 @@ VERAViewDir=$(dirname "$0")
 # set the value of the CanopyUserBinDir variable to point the User/bin subdir
 # under that path.
 #------------------------------------------------------------------------
-CanopyUserBinDir="$HOME/Library/Enthought/Canopy_64bit/User/bin"
+CondaBinDir="$HOME/anaconda2/bin"
+if [ "$(uname)" = "Darwin" ]; then
+  CondaExe="${CondaBinDir}/pythonw"
+else
+  CondaExe="${CondaBinDir}/python"
+fi
 
-if [ -x "${CanopyUserBinDir}/python" ]; then
+if [ -x "${CondaExe}" ]; then
   export ETS_TOOLKIT=wx
-  export PATH="${VERAViewDir}/bin/macos:${PATH}"
   export PYTHONPATH="${VERAViewDir}:${PYTHONPATH}"
   #exec "${CanopyUserBinDir}/python" veraview.py "$@"
-  exec "${CanopyUserBinDir}/python" "${VERAViewDir}/veraview.py" "$@"
+  exec "${CondaExe}" "${VERAViewDir}/veraview.py" "$@"
 
 else
   cat <<END >&2
-** Canopy installation not found **
+** Anaconda2 installation not found **
 
-Modify this script to set the CanopyUserBinDir environment variable to point
-to your Canopy User/bin directory.
+Modify this script to set the CondaBinDir environment variable to point
+to your Anaconda2 bin directory.
 END
 
 fi

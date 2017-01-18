@@ -18,14 +18,14 @@ goto finished
 
 
 :found
-if "%PROCESSOR_ARCHITECTURE%" == "x86" goto x86
-path=%VERAViewDir%bin\win64;%path%
-goto launch
-:x86
-path=%VERAViewDir%bin\win32;%path%
+rem if "%PROCESSOR_ARCHITECTURE%" == "x86" goto x86
+rem path=%VERAViewDir%bin\win64;%path%
+rem goto launch
+rem :x86
+rem path=%VERAViewDir%bin\win32;%path%
 
 
-:launch
+rem :launch
 set PYTHONPATH=%VERAViewDir%;%PYTHONPATH%
 "%CanopyUserDir%\python" "%VERAViewDir%veraview.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
 

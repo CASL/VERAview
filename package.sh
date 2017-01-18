@@ -1,9 +1,9 @@
-#!/bin/sh -a
+#!/bin/bash -a
 
 pushd ..
 
 #1.0 == build-35
-name=veraview-build-77.zip
+name=veraview-build-78.zip
 
 [ -f ${name} ] && unlink ${name}
 zip -r ${name} \
@@ -11,7 +11,6 @@ zip -r ${name} \
     --exclude='*.[12]' \
     --exclude='*.py_' \
     --exclude='*.pyc' \
-    --exclude='canopy.run.sh' \
     veraview/bean \
     veraview/bin \
     veraview/data \
@@ -22,9 +21,20 @@ zip -r ${name} \
     veraview/README.txt \
     veraview/veraview.py \
     veraview/veraview.run.bat \
-    veraview/veraview-linux.run.sh \
-    veraview/veraview-mac.run.sh
+    veraview/veraview.run.sh \
+    veraview/vvconda.run.bat \
+    veraview/vvconda.run.sh
 
-#    veraview/test \
+#    --exclude='canopy.run.sh'
+#    --exclude='package.sh'
+#    --exclude='sync-save.sh'
+#    --exclude='vera_sync_from_code_ornl_gov.sh'
+#    --exclude='veraview-linux.run.sh'
+#    --exclude='veraview-mac.run.sh'
+
+#    veraview/veraview-linux.run.sh
+#    veraview/veraview-mac.run.sh
+
+#    veraview/test
 
 popd

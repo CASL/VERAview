@@ -166,7 +166,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.1 Build 77'
+TITLE = 'VERAView Version 1.1 Build 78'
 
 TOOLBAR_ITEMS = \
   [
@@ -1031,9 +1031,9 @@ WIDGET_MAP and TOOLBAR_ITEMS
 #			-- Close File item
     self.closeFileItem = \
         wx.MenuItem( file_menu, wx.ID_ANY, '&Close File...\tShift+Ctrl+W' )
-    self.closeFileItem.Enable( False )
     self.Bind( wx.EVT_MENU, self._OnCloseFile, self.closeFileItem )
     file_menu.AppendItem( self.closeFileItem )
+    self.closeFileItem.Enable( False )
 
 #    save_im_item = wx.MenuItem( file_menu, wx.ID_ANY, '&Save Image\tCtrl+S' )
 #    self.Bind( wx.EVT_MENU, self._OnSaveWindow, save_im_item )
