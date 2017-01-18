@@ -755,6 +755,8 @@ Must be called from the UI thread.
   #	METHOD:		RasterWidget.CreatePrintImage()			-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path ):
+    """
+"""
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
     pil_im = self._CreateRasterImage( self._CreateStateTuple(), config )
 

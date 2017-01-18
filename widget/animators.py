@@ -342,7 +342,8 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
         fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
 	while self.widget.IsBusy():
 	  time.sleep( 0.1 )
-	self.widget.CreatePrintImage( fpath )
+	#self.widget.CreatePrintImage( fpath )
+	wx.CallAfter( self.widget.CreatePrintImage, fpath )
 
 	count += 1
       #end while stepping
