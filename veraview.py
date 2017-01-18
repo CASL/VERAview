@@ -2634,11 +2634,11 @@ Must be called from the UI thread.
       if False:
         widget_list = [
             'widget.core_view.Core2DView',
-            'widget.assembly_view.Assembly2DView',
-            'widget.core_axial_view.CoreAxial2DView',
-            'widget.detector_multi_view.Detector2DMultiView',
-            'widget.axial_plot.AxialPlot',
-            'widget.time_plots.TimePlots'
+#            'widget.assembly_view.Assembly2DView',
+#            'widget.core_axial_view.CoreAxial2DView',
+#            'widget.detector_multi_view.Detector2DMultiView',
+#            'widget.axial_plot.AxialPlot',
+#            'widget.time_plots.TimePlots'
 	    ##'widget.channel_view.Channel2DView',
 	    ##'widget.channel_assembly_view.ChannelAssembly2DView',
 	    ##'widget.channel_axial_view.ChannelAxial2DView',
