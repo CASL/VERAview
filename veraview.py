@@ -126,7 +126,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-15	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import argparse, logging, os, sys, threading, traceback
+import argparse, logging, os, sys, threading, time,traceback
 import pdb  # set_trace()
 
 try:
@@ -355,6 +355,66 @@ class VeraViewApp( wx.App ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp._DoFirstLoop()			-
+  #----------------------------------------------------------------------
+  def _DoFirstLoop( self, frame ):
+    """Must be called on the UI thread.
+"""
+    opened = False
+    session = WidgetConfig.ReadUserSession()
+    frame.SetConfig( session )
+    #wx.CallAfter( frame.SetConfig, session )
+
+    if self.sessionPath and os.path.exists( self.sessionPath ):
+      data_paths, session = frame._ResolveFile( self.sessionPath )
+      if not data_paths:
+        wx.MessageBox(
+            'Error reading session file: ' + self.sessionPath,
+	    'Open File', wx.OK | wx.CANCEL, None
+	    )
+      else:
+        opened = True
+        frame.OpenFile( data_paths, session )
+        #wx.CallAfter( frame.OpenFile, data_paths, session )
+
+    elif self.filePaths:
+      paths = []
+      for f in self.filePaths:
+        if os.path.exists( f ):
+          paths.append( f )
+      if paths:
+        opened = True
+        frame.OpenFile( paths )
+        #wx.CallAfter( frame.OpenFile, paths )
+
+    elif session is not None and self.loadSession:
+      data_paths = session.GetDataModelPaths()
+      if data_paths and len( data_paths ) > 0:
+        found = True
+        for f in data_paths:
+          found |= os.path.exists( f )
+          if not found:
+	    break
+      else:
+        found = False
+
+      if found:
+        ans = wx.MessageBox(
+            'Load previous session?', 'Load Session',
+            wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL, None
+            )
+        if ans == wx.YES:
+          opened = True
+          frame.OpenFile( data_paths, session )
+          #wx.CallAfter( frame.OpenFile, data_paths, session )
+    #end if-else
+
+    if not opened:
+      frame._OnOpenFile( None )
+  #end _DoFirstLoop
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewApp.FindFrameByTitle()			-
   #----------------------------------------------------------------------
   def FindFrameByTitle( self, title ):
@@ -446,57 +506,61 @@ unnecessary.
     elif self.firstLoop:
       self.firstLoop = False
 
-      opened = False
-      session = WidgetConfig.ReadUserSession()
-      #self.frame.SetConfig( session )
-      frame.SetConfig( session )
+      wx.CallAfter( self._DoFirstLoop, frame )
 
-      if self.sessionPath and os.path.exists( self.sessionPath ):
-        data_paths, session = frame._ResolveFile( self.sessionPath )
-	if not data_paths:
-	  wx.MessageBox(
-	      'Error reading session file: ' + self.sessionPath,
-	      'Open File', wx.OK | wx.CANCEL, None
-	      )
-	else:
-	  opened = True
-	  frame.OpenFile( data_paths, session )
-
-      elif self.filePaths:
-	paths = []
-        for f in self.filePaths:
-	  if os.path.exists( f ):
-	    paths.append( f )
-	if paths:
-	  opened = True
-	  frame.OpenFile( paths )
-
-      #elif session is not None and not self.skipSession:
-      elif session is not None and self.loadSession:
-        data_paths = session.GetDataModelPaths()
-	if data_paths and len( data_paths ) > 0:
-	  found = True
-	  for f in data_paths:
-	    found |= os.path.exists( f )
-	    if not found:
-	      break
-	else:
-	  found = False
-
-	if found:
-	  ans = wx.MessageBox(
-	      'Load previous session?',
-	      'Load Session',
-	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
-	      None
-              )
-	  if ans == wx.YES:
-	    opened = True
-	    frame.OpenFile( data_paths, session )
-      #end if-else
-
-      if not opened:
-        frame._OnOpenFile( None )
+##      opened = False
+##      session = WidgetConfig.ReadUserSession()
+##      wx.CallAfter( frame.SetConfig, session )
+##
+##      if self.sessionPath and os.path.exists( self.sessionPath ):
+##        data_paths, session = frame._ResolveFile( self.sessionPath )
+##	if not data_paths:
+##	  wx.MessageBox(
+##	      'Error reading session file: ' + self.sessionPath,
+##	      'Open File', wx.OK | wx.CANCEL, None
+##	      )
+##	else:
+##	  opened = True
+##	  #frame.OpenFile( data_paths, session )
+##	  wx.CallAfter( frame.OpenFile, data_paths, session )
+##
+##      elif self.filePaths:
+##	paths = []
+##        for f in self.filePaths:
+##	  if os.path.exists( f ):
+##	    paths.append( f )
+##	if paths:
+##	  opened = True
+##	  #frame.OpenFile( paths )
+##	  wx.CallAfter( frame.OpenFile, paths )
+##
+##      #elif session is not None and not self.skipSession:
+##      elif session is not None and self.loadSession:
+##        data_paths = session.GetDataModelPaths()
+##	if data_paths and len( data_paths ) > 0:
+##	  found = True
+##	  for f in data_paths:
+##	    found |= os.path.exists( f )
+##	    if not found:
+##	      break
+##	else:
+##	  found = False
+##
+##	if found:
+##	  ans = wx.MessageBox(
+##	      'Load previous session?',
+##	      'Load Session',
+##	      wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL,
+##	      None
+##              )
+##	  if ans == wx.YES:
+##	    opened = True
+##	    #frame.OpenFile( data_paths, session )
+##	    wx.CallAfter( frame.OpenFile, data_paths, session )
+##      #end if-else
+##
+##      if not opened:
+##        frame._OnOpenFile( None )
     #end elif self.firstLoop:
   #end OnEventLoopEnter
 
@@ -2217,12 +2281,23 @@ May be called from any thread.
     dialog = wx.ProgressDialog( 'Open File', 'Reading files: %s' % msg )
     dialog.Show()
 
-    wxlibdr.startWorker(
-	self._OpenFileEnd,
-	self._OpenFileBegin,
-	wargs = [ dialog, file_paths, session ]
-	#wkwargs = { 'config': config, 'session': session }
-        )
+#    wxlibdr.startWorker(
+#	self._OpenFileEnd,
+#	self._OpenFileBegin,
+#	wargs = [ dialog, file_paths, session ]
+#	#wkwargs = { 'config': config, 'session': session }
+#        )
+
+    if threading.current_thread().name == 'MainThread':
+      result = self._OpenFileBegin( dialog, file_paths, session )
+      self._OpenFileEnd( wxlibdr.DelayedResult( result ) )
+    else:
+      wxlibdr.startWorker(
+	  self._OpenFileEnd,
+	  self._OpenFileBegin,
+	  wargs = [ dialog, file_paths, session ]
+	  #wkwargs = { 'config': config, 'session': session }
+          )
   #end OpenFile
 
 
@@ -2273,7 +2348,11 @@ May be called from any thread.
   def _OpenFileEnd( self, result ):
     """On UI thread.
 """
-    status = result.get()
+    #status = result.get()
+    if isinstance( result, dict ):
+      status = result
+    else:
+      status = result.get()
     if status is not None:
       if 'dialog' in status:
 	dlg = status[ 'dialog' ]

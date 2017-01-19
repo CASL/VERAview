@@ -340,10 +340,10 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
 	    )
 
         fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
-	while self.widget.IsBusy():
-	  time.sleep( 0.1 )
-	#self.widget.CreatePrintImage( fpath )
-	wx.CallAfter( self.widget.CreatePrintImage, fpath )
+#	while self.widget.IsBusy():
+#	  time.sleep( 0.1 )
+	self.widget.CreatePrintImage( fpath )
+	#wx.CallAfter( self.widget.CreatePrintImage, fpath )
 
 	count += 1
       #end while stepping
@@ -419,19 +419,24 @@ class AllAxialAnimator( Animator ):
   #----------------------------------------------------------------------
   def _DoNextStep( self ):
     """
-Must be called on the UI thread.
+Called on the worker thread.
 @param  w               widget on which to act
 @return			True if there are further steps, False if finished
 """
     continue_flag = self.nextStep < self.totalSteps
 
-    axial_level = self.totalSteps -1 - self.nextStep
+    axial_level = self.totalSteps - 1 - self.nextStep
     axial_value = \
         self.dmgr.GetAxialValue( core_ndx = axial_level ) \
         if continue_flag else \
         self.restoreValue
-    self.widget.UpdateState( axial_value = axial_value )
-    #self.widget.HandleStateChange( STATE_CHANGE_axialValue )
+    #self.widget.UpdateState( axial_value = axial_value )
+    wx.CallAfter( self.widget.UpdateState, axial_value = axial_value )
+
+    while self.widget.axialValue[ 0 ] != axial_value[ 0 ]:
+      time.sleep( 0.1 )
+    while self.widget.IsBusy():
+      time.sleep( 0.1 )
 
     self.nextStep += 1
     return  continue_flag
@@ -471,7 +476,7 @@ class DetectorAxialAnimator( Animator ):
   #----------------------------------------------------------------------
   def _DoNextStep( self ):
     """
-Must be called on the UI thread.
+Called on the worker thread.
 @return			True if there are further steps, False if finished
 """
     continue_flag = self.nextStep < self.totalSteps
@@ -481,8 +486,13 @@ Must be called on the UI thread.
         self.dmgr.GetAxialValue( self.curDataSet, detector_ndx = axial_level ) \
         if continue_flag else \
         self.restoreValue
-    self.widget.UpdateState( axial_value = axial_value )
-    #self.widget.HandleStateChange( STATE_CHANGE_axialValue )
+    #self.widget.UpdateState( axial_value = axial_value )
+    wx.CallAfter( self.widget.UpdateState, axial_value = axial_value )
+
+    while self.widget.axialValue[ 0 ] != axial_value[ 0 ]:
+      time.sleep( 0.1 )
+    while self.widget.IsBusy():
+      time.sleep( 0.1 )
 
     self.nextStep += 1
     return  continue_flag
@@ -522,7 +532,7 @@ class PinAxialAnimator( Animator ):
   #----------------------------------------------------------------------
   def _DoNextStep( self ):
     """
-Must be called on the UI thread.
+Called on the worker thread.
 @param  w               widget on which to act
 @return			True if there are further steps, False if finished
 """
@@ -533,8 +543,13 @@ Must be called on the UI thread.
         self.dmgr.GetAxialValue( self.curDataSet, core_ndx = axial_level ) \
         if continue_flag else \
         self.restoreValue
-    self.widget.UpdateState( axial_value = axial_value )
-    #self.widget.HandleStateChange( STATE_CHANGE_axialValue )
+    #self.widget.UpdateState( axial_value = axial_value )
+    wx.CallAfter( self.widget.UpdateState, axial_value = axial_value )
+
+    while self.widget.axialValue[ 0 ] != axial_value[ 0 ]:
+      time.sleep( 0.1 )
+    while self.widget.IsBusy():
+      time.sleep( 0.1 )
 
     self.nextStep += 1
     return  continue_flag
@@ -577,7 +592,7 @@ class StatePointAnimator( Animator ):
   #----------------------------------------------------------------------
   def _DoNextStep( self ):
     """
-Must be called on the UI thread.
+Called on the worker thread.
 @param  w               widget on which to act
 @return			True if there are further steps, False if finished
 """
@@ -585,7 +600,13 @@ Must be called on the UI thread.
 
     time_ndx = self.nextStep  if continue_flag else  self.restoreValue
     time_value = self.dmgr.GetTimeIndexValue( time_ndx, self.curDataSet )
-    self.widget.UpdateState( time_value = time_value )
+    #self.widget.UpdateState( time_value = time_value )
+    wx.CallAfter( self.widget.UpdateState, time_value = time_value )
+
+    while self.widget.timeValue != time_value:
+      time.sleep( 0.1 )
+    while self.widget.IsBusy():
+      time.sleep( 0.1 )
 
     self.nextStep += 1
     return  continue_flag
