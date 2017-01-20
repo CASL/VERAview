@@ -88,8 +88,9 @@ be the same.
       mesh_type = 'Axial mesh centers'
     #equal_meshes = base_mesh_values == sub_mesh_values
 
-    assert np.array_equal( base_mesh_values, sub_mesh_values ), \
-        '%s mismatch' % mesh_type
+#xxxxx
+#    assert np.array_equal( base_mesh_values, sub_mesh_values ), \
+#        '%s mismatch' % mesh_type
 
 #		-- Retrieve times
 #		--

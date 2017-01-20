@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2017-01-20	leerw@ornl.gov				-
+#	  Resetting cellRange and cellRangeStack on channel mode change
+#	  in _UpdateDataSetValues().
 #		2017-01-12	leerw@ornl.gov				-
 #	  Integrating channel datasets.
 #		2016-12-14	leerw@ornl.gov				-
@@ -1275,7 +1278,12 @@ method via super.SaveProps().
 @param  ds_type		dataset category/type
 Updates the nodalMode property.
 """
+    cur_is_channel = self.channelMode
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
+
+    if self.channelMode != cur_is_channel:
+      self.cellRange = list( self.GetInitialCellRange() )
+      del self.cellRangeStack[ : ]
   #end _UpdateDataSetStateValues
 
 

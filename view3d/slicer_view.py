@@ -481,7 +481,7 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._LoadDataModel()			-
   #----------------------------------------------------------------------
-  def _LoadDataModel( self ):
+  def _LoadDataModel( self, reason ):
     if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
 
