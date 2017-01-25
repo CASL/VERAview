@@ -62,7 +62,6 @@ except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
 
 from event.state import *
-from legend import *
 from widget import *
 from widgetcontainer import *
 

@@ -79,7 +79,6 @@ except Exception:
 
 from data.utils import DataUtils
 from event.state import *
-from legend import *
 from raster_widget import *
 from widget import *
 

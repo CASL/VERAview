@@ -104,7 +104,7 @@ except Exception:
   raise ImportError( "The wxPython module is required" )
 
 from event.state import *
-from legend import *
+#from legend import *
 from legend2 import *
 from bean.data_range_bean import *
 

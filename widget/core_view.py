@@ -155,7 +155,6 @@ except Exception:
 #from bean.exposure_slider import *
 from data.datamodel import *
 from event.state import *
-from legend import *
 from raster_widget import *
 from widget import *
 

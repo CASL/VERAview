@@ -75,7 +75,6 @@ except Exception:
   raise ImportError, 'The Python Imaging Library (PIL) required for this component'
 
 from event.state import *
-from legend import *
 from widget import *
 
 

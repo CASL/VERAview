@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2017-01-25	leerw@ornl.gov				-
+#	  Disabling auto-enable of Detector Detector2DMultiView when
+#	  a detector dataset is present.
 #		2017-01-17	leerw@ornl.gov				-
 #	  Adding DataSetDiffCreatorDialog.
 #		2017-01-14	leerw@ornl.gov				-
@@ -2677,15 +2680,12 @@ Must be called from the UI thread.
         widget_list.append( 'widget.core_view.Core2DView' )
 
 #			-- Detector mode
-      if dmgr.HasDataSetType( 'detector' ):
-        widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
-        #widget_list.append( 'widget.detector_view.Detector2DView' )
+#      if dmgr.HasDataSetType( 'detector' ):
+#        widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
 
-      if dmgr.HasDataSetType( 'fixed_detector' ):
-        if 'widget.detector_multi_view.Detector2DMultiView' not in widget_list:
-          widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
-        #if 'widget.detector_view.Detector2DView' not in widget_list:
-          #widget_list.append( 'widget.detector_view.Detector2DView' )
+#      if dmgr.HasDataSetType( 'fixed_detector' ):
+#        if 'widget.detector_multi_view.Detector2DMultiView' not in widget_list:
+#          widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
 
 #			-- Pin mode
       if dmgr.HasDataSetType( 'pin' ):

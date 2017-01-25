@@ -124,7 +124,6 @@ except Exception:
 from bean.plot_dataset_props import *
 from event.state import *
 
-from legend import *
 from plot_widget import *
 from widget import *
 from widgetcontainer import *
