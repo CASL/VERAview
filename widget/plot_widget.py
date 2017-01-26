@@ -5,6 +5,7 @@
 #	HISTORY:							-
 #		2017-01-26	leerw@ornl.gov				-
 #	  Added PLOT_MODES.
+#	  Hiding cursorLine in CreatePrintImage().
 #		2016-12-14	leerw@ornl.gov				-
 #	  Processing dataSetSelections in {Load,Save}Props().
 #		2016-12-10	leerw@ornl.gov				-
@@ -252,6 +253,8 @@ Support Methods
     result = None
 
     if self.fig is not None:
+      if self.cursorLine is not None:
+        self.cursorLine.set_visible( False )
       if self.axline is not None:
         self.axline.set_visible( False )
 
@@ -263,6 +266,8 @@ Support Methods
 
       if self.axline is not None:
         self.axline.set_visible( True )
+      if self.cursorLine is not None:
+        self.cursorLine.set_visible( True )
       self.canvas.draw()
     #end if
 

@@ -47,6 +47,10 @@ class MenuWidget( BaseDataModelMenuWidget ):
   def SetDataSet( self, qds_name ):
     if self.fField is not None:
       self.fField.SetValue( str( qds_name ) if qds_name else '' )
+
+#    base_qds_name = DataSetName( self.fBaseNameField.GetValue() )
+#    sub_qds_name = DataSetName( self.fSubNameField.GetValue() )
+#    diff_ds_name = self.fDiffNameField.GetValue().replace( ' ', '_' )
   #end SetDataSet
 
 #end MenuWidget

@@ -1841,8 +1841,8 @@ returned.  Calls FindMinMaxValueAddr().
 @param  cur_obj		optional object with attributes/properties to
 			compare against for changes: assemblyAddr, axialValue,
 			subAddr, stateIndex
-@param  use_factors	True to apply pinFactors when determining the min/max
-			address
+@param  use_factors	True to apply channelFactors when determining the
+			min/max address
 @return			changes dict with possible keys: 'assembly_addr',
 			'axial_value', 'sub_addr', 'state_index'
 """
@@ -1850,7 +1850,8 @@ returned.  Calls FindMinMaxValueAddr().
 
     addr, state_ndx, value = self.FindMinMaxValueAddr(
         mode, ds_name, state_ndx,
-	self.channelFactors if use_factors else None
+        self.GetFactors( ds_name ) if use_factors else None
+	#self.channelFactors if use_factors else None
 	)
 
     if addr is None:
@@ -1906,6 +1907,7 @@ Calls FindMaxValueAddr().
 			stateIndex
 @return			changes dict with possible keys: 'assembly_addr',
 			'axial_value', 'state_index'
+@deprecated
 """
     results = {}
 
@@ -2590,9 +2592,10 @@ Calls FindMinMaxValueAddr().
 
     factors = None
     if use_factors:
-      ds_type = self.GetDataSetType( ds_name )
-      factors = \
-          self.nodeFactors if self.IsNodalType( ds_type ) else self.pinFactors
+#      ds_type = self.GetDataSetType( ds_name )
+#      factors = \
+#          self.nodeFactors if self.IsNodalType( ds_type ) else self.pinFactors
+      factors = self.GetFactors( ds_name )
     #end if use_factors
 
     addr, state_ndx, value = self.FindMinMaxValueAddr(
@@ -2957,7 +2960,10 @@ derived datasets.  Lazily created and cached.
 #      dset = self.GetStateDataSet( 0, ds_name )
     ddef = self.GetDataSetDefByDsName( ds_name ) if ds_name else none
     if ddef:
-      result = self.pinFactors
+      #result = self.pinFactors
+      ds_type = ddef[ 'type' ]
+      result = \
+          self.nodeFactors if self.IsNodalType( ds_type ) else self.pinFactors
 
       if ddef[ 'type' ] == 'channel':
         result = self.channelFactors
