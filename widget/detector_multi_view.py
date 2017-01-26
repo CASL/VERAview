@@ -303,8 +303,7 @@ Attrs/properties:
 
     if core is not None:
       det_ndx = self.detectorAddr[ 0 ]
-      csv_text = '"Detector=%d %s; %s=%.3g"\n' % (
-	  det_ndx + 1,
+      csv_text = '"Detector=%s; %s=%.3g"\n' % (
 	  core.CreateAssyLabel( *self.detectorAddr[ 1 : 3 ] ),
 	  self.state.timeDataSet, self.timeValue
           )
@@ -842,8 +841,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       if ds_value > 0.0:
         show_det_addr = core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
 	tip_str = \
-	    'Detector: %d %s\n%s max: %g' % \
-	    ( cell_info[ 0 ] + 1, show_det_addr, qds_name, ds_value )
+	    'Detector: %s\n%s max: %g' % \
+	    ( show_det_addr, qds_name, ds_value )
     #end if valid
 
     return  tip_str

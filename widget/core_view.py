@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Removed assembly index from titles.
 #		2017-01-12	leerw@ornl.gov				-
 #	  Integrating channel datasets.
 #		2016-12-16	leerw@ornl.gov				-
@@ -676,10 +678,9 @@ If neither are specified, a default 'scale' value of 24 is used.
       #clip_data.fill( 0.0 )
       clip_data = dset_value[ :, :, axial_level, assy_ndx ]
 
-      title = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"' % (
+      title = '"%s: Assembly=%s; Axial=%.3f; %s=%.3g"' % (
 	  #self.curDataSet.displayName,
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
-	  assy_ndx + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
@@ -1170,11 +1171,11 @@ The config and data attributes are good to go.
 	if self.nodalMode:
 	  node_addr = cell_info[ 5 ]  if len( cell_info ) > 5 else  -1
 	  if self.dmgr.IsValid( self.curDataSet, node_addr = node_addr ):
-	    tip_str = 'Assy: %d %s, Node %d' % \
-	        ( assy_ndx + 1, assy_addr_display, node_addr + 1 )
+	    tip_str = 'Assy: %s, Node %d' % \
+	        ( assy_addr_display, node_addr + 1 )
 	    value = dset[ 0, node_addr, axial_level, assy_ndx ]
 	else:
-          tip_str = 'Assy: %d %s' % ( assy_ndx + 1, assy_addr_display )
+          tip_str = 'Assy: %s' % assy_addr_display
 	  if dset.shape[ 0 ] == 1 or dset.shape[ 1 ] == 1:
 	    value = dset[ 0, 0, axial_level, assy_ndx ]
 	#end if self.nodalMode

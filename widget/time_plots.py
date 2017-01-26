@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		time_plots.py					-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Using PLOT_MODES instead of setting plot type based on
+#	  derived vs not-derived dataset.
+#	  Removed assembly index from titles.
 #		2016-12-26	leerw@ornl.gov				-
 #	  Prep for top level data model submenus for ref axis menu.
 #		2016-12-13	leerw@ornl.gov				-
@@ -156,8 +160,8 @@ Properties:
     csv_text = None
     core = self.dmgr.GetCore()
     if core:
-      header = 'Assy %d %s, Axial %.3f\n' % (
-          self.assemblyAddr[ 0 ] + 1,
+      header = 'Assy %s, Axial %.3f\n' % (
+          #self.assemblyAddr[ 0 ] + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ]
 	  )
@@ -470,9 +474,9 @@ configuring the grid, plotting, and creating self.axline.
     core = self.dmgr.GetCore()
     if core is not None and len( self.dataSetValues ) > 0:
       if self.refAxisDataSet is not None:
-        xaxis_label = '%s: %d %s' % (
+        xaxis_label = '%s: %s' % (
 	    self.dmgr.GetDataSetDisplayName( self.refAxisDataSet ),
-	    self.assemblyAddr[ 0 ] + 1,
+	    #self.assemblyAddr[ 0 ] + 1,
             core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
             )
 	if self.dmgr.GetDataSetHasSubAddr( self.refAxisDataSet ):
@@ -556,8 +560,9 @@ configuring the grid, plotting, and creating self.axline.
 #				--
       show_assy_addr = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 
-      title_str = 'Assy %d %s, Axial %.3f' % \
-          ( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
+      title_str = 'Assy %s, Axial %.3f' % \
+          ( show_assy_addr, self.axialValue[ 0 ] )
+          #( self.assemblyAddr[ 0 ] + 1, show_assy_addr, self.axialValue[ 0 ] )
 
       title_line2 = ''
       chan_flag = 'channel' in self.dataSetTypes
@@ -573,8 +578,8 @@ configuring the grid, plotting, and creating self.axline.
       if 'detector' in self.dataSetTypes or \
           'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
-	title_line2 += 'Det %d %s' % (
-	    self.assemblyAddr[ 0 ] + 1,
+	title_line2 += 'Det %s' % (
+	    #self.assemblyAddr[ 0 ] + 1,
 	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 	    )
 
@@ -612,19 +617,15 @@ configuring the grid, plotting, and creating self.axline.
 	  legend_label += '*%.3g' % scale
 
 	marker_size = None
-	plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
+#x	plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
+	plot_type = None
 	ds_type = self.dmgr.GetDataSetType( qds_name )
 	if ds_type.startswith( 'detector' ):
 	  marker_size = 12
-#	  plot_type = '.'
-#	elif ds_type.startswith( 'channel' ):
-#	  plot_type = '--'
-#	elif ds_type.startswith( 'pin' ):
-#	  plot_type = '-'
+	  plot_type = '-'
 	elif ds_type.startswith( 'fixed_detector' ):
 	  marker_size = 12
 	  plot_type = 'x'
-	  #plot_type = '-.'
 #	else:
 #	  plot_type = ':'
 
@@ -652,14 +653,17 @@ configuring the grid, plotting, and creating self.axline.
 
 	  cur_axis = self.ax2 if rec[ 'axis' ] == 'right' else self.ax
 	  if cur_axis:
-	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+#	    plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	    if marker_size is not None:
+	      if not plot_type:  plot_type = '-'
+	      plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	      cur_axis.plot(
 	          self.refAxisValues, cur_values * scale, plot_mode,
 	          label = cur_label, linewidth = 2,
 		  markersize = marker_size
 	          )
 	    else:
+	      plot_mode = PLOT_MODES[ count % len( PLOT_MODES ) ]
 	      cur_axis.plot(
 	          self.refAxisValues, cur_values * scale, plot_mode,
 	          label = cur_label, linewidth = 2

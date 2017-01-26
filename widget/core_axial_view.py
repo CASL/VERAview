@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Fixed bad indexing when dealing with axial meshs (not centers).
+#	  Removed assembly index from titles.
 #		2017-01-13	leerw@ornl.gov				-
 #	  Integrating channel datasets.
 #		2016-12-20	leerw@ornl.gov				-
@@ -333,9 +336,8 @@ Properties:
 	nodes_str = 'Nodes=%d,%d; ' % \
 	    ( node_cells[ 0 ] + 1, node_cells[ 1 ] + 1 )
 
-      title = '"%s: Assembly=%d %s; %s; %sAxial=%.3f; %s=%.3g"' % (
+      title = '"%s: Assembly=%s; %s; %sAxial=%.3f; %s=%.3g"' % (
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
-	  assy_ndx + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  pin_title, nodes_str, self.axialValue[ 0 ],
 	  self.state.timeDataSet, self.timeValue
@@ -393,10 +395,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     #axial_mesh = core.axialMesh
     axial_mesh = self.dmgr.GetAxialMesh( self.curDataSet )
+    top_mesh_level = min( self.cellRange[ 3 ], len( axial_mesh ) - 1 )
     axial_range_cm = \
-        axial_mesh[ self.cellRange[ 3 ] - 1 ] - \
-	axial_mesh[ self.cellRange[ 1 ] ]
-        #axial_mesh[ self.cellRange[ 3 ] ] -
+        axial_mesh[ top_mesh_level ] - axial_mesh[ self.cellRange[ 1 ] ]
     npin = core.npinx  if self.mode == 'xz' else  core.npiny
 
     # pin equivalents in the axial range
@@ -483,7 +484,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         assy_wd = pin_wd * npin + 1
 
-      core_wd = self.cellRange[ -2 ] * assy_wd
+      #core_wd = self.cellRange[ -2 ] * assy_wd
+      core_wd = max( self.cellRange[ -2 ] * assy_wd, 512 )
       core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
 
       font_size = self._CalcFontSize( 768 )
@@ -498,7 +500,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
     axials_dy_min = sys.float_info.max
     axials_dy = []
-    for ax in range( self.cellRange[ 3 ] - 2, self.cellRange[ 1 ] - 1, -1 ):
+    for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
       ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
       dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
       axials_dy.insert( 0, dy )
@@ -658,12 +660,12 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  label = '%02d' % (axial_level + 1)
 	  label_size = pil_font.getsize( label )
 	  label_y = axial_y + ((cur_dy - label_size[ 1 ]) >> 1)
-	  if last_axial_label_y + label_size[ 1 ] < axial_y + cur_dy:
+	  if (last_axial_label_y + label_size[ 1 ] + 1) < (axial_y + cur_dy):
 	    im_draw.text(
 	        ( 1, label_y ),
 	        label, fill = ( 0, 0, 0, 255 ), font = label_font
 	        )
-	    last_axial_label_y = label_y
+	    last_axial_label_y = axial_y
 
 #				-- Loop on col
 #				--
@@ -867,7 +869,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         assy_addr = ( self.assemblyAddr[ 1 ], cell_info[ 1 ] )
 
       show_assy_addr = core.CreateAssyLabel( *assy_addr )
-      tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+      #tip_str = 'Assy: %d %s' % ( assy_ndx + 1, show_assy_addr )
+      tip_str = 'Assy: %s' % show_assy_addr
 
       if cell_info[ 2 ] >= 0:
 	axial_value = self.dmgr.\
@@ -1058,7 +1061,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
       result[ 1 ] = 0
       #result[ 3 ] = result[ 5 ] = core.nax
       mesh = self.dmgr.GetAxialMeshCenters( self.curDataSet )
-      result[ 3 ] = result[ 5 ] = len( mesh ) - 1
+      result[ 3 ] = result[ 5 ] = len( mesh )
 
     return  result
   #end GetInitialCellRange

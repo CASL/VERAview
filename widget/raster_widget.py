@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Applying new limits to font scaling.
 #		2017-01-18	leerw@ornl.gov				-
 #	  Back to multiple threads.
 #		2016-12-15	leerw@ornl.gov				-
@@ -592,10 +594,12 @@ called from subclass _CreateDrawConfig() methods.
       wd, ht = kwargs[ 'size' ]
       if self.logger.isEnabledFor( logging.DEBUG ):
         self.logger.debug( 'size=%d,%d', wd, ht )
-      font_size = self._CalcFontSize( wd )
+      #font_size = self._CalcFontSize( wd )
+      #font_size = self._CalcFontSize( min( wd, ht ) )
+      font_size = self._CalcFontSize( min( 600, max( wd, ht ) ) )
 
     else:
-      font_size = self._CalcFontSize( 512 )
+      font_size = self._CalcFontSize( 600 )
 
     if self.showLegend:
       legend_pil_im = self._CreateLegendPilImage( ds_range, font_size )

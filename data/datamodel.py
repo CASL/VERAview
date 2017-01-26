@@ -2573,8 +2573,8 @@ returned.  Calls FindMaxValueAddr().
     """Creates dict with pin addresses for the "first" (right- and
 bottom-most) occurence of the maximum value of the dataset, which is assumed
 to be a 'pin' dataset.
-If cur_state is provided, only differences with the current state are
-returned.  Calls FindMinMaxValueAddr().
+If state_ndx is ge 0, only that state is searched.
+Calls FindMinMaxValueAddr().
 @param  mode		'min' or 'max', defaulting to the latter
 @param  ds_name		name of dataset
 @param  state_ndx	0-based state point index, or -1 for all states

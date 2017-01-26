@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Using PLOT_MODES instead of setting plot type based on
+#	  derived vs not-derived dataset.
+#	  Removed assembly index from titles.
 #		2016-12-10	leerw@ornl.gov				-
 #	  Adapting to new DataModelMgr.
 #		2016-11-26	leerw@ornl.gov				-
@@ -629,8 +633,8 @@ configuring the grid, plotting, and creating self.axline.
 #			--
       show_assy_addr = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 
-      title_str = 'Assy %d %s, %s %.3g' % (
-          self.assemblyAddr[ 0 ] + 1, show_assy_addr,
+      title_str = 'Assy %s, %s %.3g' % (
+          show_assy_addr,
 	  self.state.timeDataSet,
 	  self.timeValue
 	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -650,15 +654,15 @@ configuring the grid, plotting, and creating self.axline.
       #if 'detector' in self.dataSetTypes: # and self.assemblyAddr[ 0 ] >= 0
       if 'detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
-	title_line2 += 'Det %d %s' % (
-	    self.assemblyAddr[ 0 ] + 1,
+	title_line2 += 'Det %s' % (
+	    #self.assemblyAddr[ 0 ] + 1,
 	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 	    )
 
       if 'fixed_detector' in self.dataSetTypes:
         if len( title_line2 ) > 0: title_line2 += ', '
-	title_line2 += 'Van %d %s' % (
-	    self.assemblyAddr[ 0 ] + 1,
+	title_line2 += 'Van %s' % (
+	    #self.assemblyAddr[ 0 ] + 1,
 	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 	    )
 
@@ -679,21 +683,16 @@ configuring the grid, plotting, and creating self.axline.
 	if scale != 1.0:
 	  legend_label += '*%.3g' % scale
 
-	marker_size = None
 	ds_type = self.dmgr.GetDataSetType( qds_name )
-	#axial_values = self.data.core.axialMeshCenters
 	axial_values = data_pair[ 'mesh' ]
-	plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
+	marker_size = None
+#x	plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
+	plot_type = None
 	if ds_type.startswith( 'detector' ):
 	  #axial_values = self.data.core.detectorMesh
 	  marker_size = 12
-#	  plot_type = '.'
-#	elif ds_type.startswith( 'channel' ):
-#	  plot_type = '--'
-#	elif ds_type.startswith( 'pin' ):
-#	  plot_type = '-'
+	  plot_type = '-'
 	elif ds_type.startswith( 'fixed_detector' ):
-	  #axial_values = self.data.core.fixedDetectorMeshCenters
 	  marker_size = 12
 	  plot_type = 'x'
 #	else:
@@ -720,14 +719,18 @@ configuring the grid, plotting, and creating self.axline.
 
 	    cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
 	    if cur_axis:
-	      plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
+#	      plot_mode = PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	      if marker_size is not None:
+		if not plot_type:  plot_type = '-'
+		plot_mode = \
+		    PLOT_COLORS[ count % len( PLOT_COLORS ) ] + plot_type
 	        cur_axis.plot(
 	            cur_values * scale, axial_values, plot_mode,
 	            label = cur_label, linewidth = 2,
 		    markersize = marker_size
 	            )
 	      else:
+		plot_mode = PLOT_MODES[ count % len( PLOT_MODES ) ]
 	        cur_axis.plot(
 	            cur_values * scale, axial_values, plot_mode,
 	            label = cur_label, linewidth = 2

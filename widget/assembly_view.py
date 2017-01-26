@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Fixed bug in _CreateRasterImage() with reference to dset_array
+#	  before definition.
+#	  Removed assembly index from titles.
 #		2017-01-20	leerw@ornl.gov				-
 #	  Resetting cellRange and cellRangeStack on channel mode change
 #	  in _UpdateDataSetValues().
@@ -210,10 +214,9 @@ Attrs/properties:
 	    ]
 
         title = \
-            '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g;' % \
+            '"%s: Assembly=%s; Axial=%.3f; %s=%.3g;' % \
 	    (
 	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
-	    self.assemblyAddr[ 0 ] + 1,
 	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	    self.axialValue[ 0 ],
 	    self.state.timeDataSet,
@@ -261,9 +264,8 @@ Attrs/properties:
       sub_addrs = list( self.auxSubAddrs )
       sub_addrs.insert( 0, self.subAddr )
 
-      csv_text = '"%s: Assembly=%d %s; Axial=%.3f; %s=%.3g"\n' % (
+      csv_text = '"%s: Assembly=%s; Axial=%.3f; %s=%.3g"\n' % (
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
-	  assy_ndx + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ],
 	  self.state.timeDataSet,
@@ -310,9 +312,8 @@ Attrs/properties:
       sub_addrs = list( self.auxSubAddrs )
       sub_addrs.insert( 0, self.subAddr )
 
-      csv_text = '"%s: Assembly=%d %s; %s=%.3g"\n' % (
+      csv_text = '"%s: Assembly=%s; %s=%.3g"\n' % (
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
-	  assy_ndx + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.state.timeDataSet,
 	  self.timeValue
@@ -368,9 +369,8 @@ Attrs/properties:
       sub_addrs = list( self.auxSubAddrs )
       sub_addrs.insert( 0, self.subAddr )
 
-      csv_text = '"%s: Assembly=%d %s; Axial=%.3f"\n' % (
+      csv_text = '"%s: Assembly=%s; Axial=%.3f"\n' % (
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
-	  assy_ndx + 1,
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
 	  self.axialValue[ 0 ]
           )
@@ -594,6 +594,8 @@ If neither are specified, a default 'scale' value of 24 is used.
         assembly_addr = assy_ndx,
 	axial_level = axial_level
 	)
+
+    dset_array = None
 
     if config is None:
       config = self.config

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
+#	  Added PLOT_MODES.
 #		2016-12-14	leerw@ornl.gov				-
 #	  Processing dataSetSelections in {Load,Save}Props().
 #		2016-12-10	leerw@ornl.gov				-
@@ -75,6 +77,16 @@ PLOT_COLORS = [ 'b', 'r', 'g', 'm', 'c' ]
 #        y: yellow
 #        k: black
 #        w: white
+#	-: solid
+#	--: dashed
+#	:: dotted
+#http://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.plot.html#matplotlib.axes.Axes.plot
+
+PLOT_MODES = (
+  'b-', 'r-', 'g-', 'm-', 'c-',
+  'b--', 'r--', 'g--', 'm--', 'c--',
+  'b:', 'r:', 'g:', 'm:', 'c:'
+  )
 
 
 #------------------------------------------------------------------------

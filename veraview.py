@@ -2945,7 +2945,7 @@ class VeraViewFrameDropTarget( wx.TextDropTarget ):
     #print >> sys.stderr, '[VeraViewFrameDropTarget] ', data, '\n[end]'
     if data:
       widget_props = WidgetConfig.Decode( data )
-      if 'classpath' in widget_props:
+      if widget_props and 'classpath' in widget_props:
         wc = self.frame.CreateWidget( widget_props[ 'classpath' ] )
 	wc.LoadProps( widget_props )
 	result = True
