@@ -1,6 +1,7 @@
 #------------------------------------------------------------------------
 #	NAME:		differences.py					-
 #	HISTORY:							-
+#		2017-01-26	leerw@ornl.gov				-
 #		2017-01-14	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import h5py, os, sys
@@ -91,6 +92,8 @@ be the same.
 #xxxxx
 #    assert np.array_equal( base_mesh_values, sub_mesh_values ), \
 #        '%s mismatch' % mesh_type
+    assert len( base_mesh_values ) == len( sub_mesh_values ), \
+        '%s length mismatch' % mesh_type
 
 #		-- Retrieve times
 #		--

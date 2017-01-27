@@ -44,6 +44,7 @@ be called before use.
 			cannot be calculated for this dataset
 """
     avg = None
+    factor_weights = None
     if dset is not None:
       errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
       try:
@@ -65,14 +66,24 @@ be called before use.
 
 	if factor_weights is None:
           factor_weights = np.ones(
-	      ( self.core.npiny + 1, self.core.npinx + 1,
+	      ( self.core.nchany, self.core.nchanx,
 	        self.core.nax, self.core.nass ),
-	      dtype = int
+	      dtype = np.float64
 	      )
-	else:
-	  pass
-	  #same stuff as pins _calc_weights() sans ref_pin_powers correction
-	#end if-else factor_weights
+	  for x in xrange( 0, self.core.nchanx ):
+	    factor_weights[ 0 , x, :, : ] *= 0.5
+	    factor_weights[ self.core.nchany - 1, x, :, : ] *= 0.5
+	  for y in xrange( 0, self.core.nchany ):
+	    factor_weights[ y , 0, :, : ] *= 0.5
+	    factor_weights[ y , self.core.nchanx - 1, :, : ] *= 0.5
+
+	  for k in xrange( self.core.nax ):
+	    factor_weights[ :, :, k, : ] *= \
+	        (self.core.axialMesh[ k + 1 ] - self.core.axialMesh[ k ])
+	#end if factor_weights is None
+
+#xxxxx Might need to *NOT* half symmetry line weights when COBRA-TF fixes
+	self.fix_weights( self.core, factor_weights )
 
         avg_weights = np.sum( factor_weights, axis = avg_axis )
 	#dset.value is deprecated
@@ -85,7 +96,7 @@ be called before use.
 	np.seterr( **errors_save )
     #end if
 
-    return  avg
+    return  avg, factor_weights
   #end calc_average
 
 
@@ -128,6 +139,45 @@ be called before use.
   def calc_channel_radial_avg( self, dset ):
     return  self.calc_average( dset, 2 )
   #end calc_channel_radial_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		fix_weights()					-
+  #----------------------------------------------------------------------
+  def fix_weights( self, core, wts ):
+    """Zero outside the line of symmetry.
+"""
+    if core.coreSym == 4:
+      mass = core.nassx / 2
+      mpin = core.nchanx / 2
+      odd = core.nchanx % 2 == 1
+      pxlo = np.zeros( [ core.nass ], dtype = int )
+      pylo = np.zeros( [ core.nass ], dtype = int )
+#			-- Assemblies on the line of symmetry start at the
+#			-- middle channel
+      for i in xrange( mass, core.nassx ):
+        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
+        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
+
+      for i in xrange( mass, core.nassx ):
+	assy_ndx = core.coreMap[ mass, i ] - 1
+	if assy_ndx >= 0:
+	  wts[ 0 : pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] = 0.0
+	  if odd:
+	    wts[ pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] *= 0.5
+      #end for i
+
+      for j in xrange( mass, core.nassy ):
+	assy_ndx = core.coreMap[ j, mass ] - 1
+	if assy_ndx >= 0:
+          wts[ 0 : core.nchany, 0 : pxlo[ assy_ndx ], :, assy_ndx ] = 0.0
+	  if odd:
+            wts[ 0 : core.nchany, pxlo[ assy_ndx ], :, assy_ndx ] *= 0.5
+      #end for j
+    #end if core.coreSym
+   
+    return  wts
+  #end fix_weights
 
 
   #----------------------------------------------------------------------

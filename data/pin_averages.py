@@ -33,6 +33,19 @@ import pdb
 #	CLASS:		Averages					-
 #------------------------------------------------------------------------
 class Averages( object ):
+  """
+      pin    channel
+         \     /
+          node -> radial, axial
+	    |
+         assembly -> assembly-radial,...
+	    |
+          core
+
+For channel: have attribute or defaults
+For pin: have attribute, or pin_factors, or defaults
+Final step is dz weighting
+"""
 
 
   #----------------------------------------------------------------------
