@@ -1548,6 +1548,7 @@ Parameters:
 	try:
 	  avg_method = getattr( averager, avg_method_name )
 #x	  factors_ds_name = None
+	  factors = None
 
 #xxxxx will need to make this a separate thread with per-state progress feedback
           for state_ndx in xrange( len( self.states ) ):
@@ -1580,6 +1581,8 @@ Parameters:
 #x            ddef = self.GetDataSetDefByDsName( ds_name )
 #x	    self.AddDataSetName( ddef[ 'type' ], factors_ds_name )
 #x	    self.dataSetFactors[ ds_name ] = factors
+	  if factors is not None:
+	    self.dataSetFactors[ ds_name ] = factors
 
 	except Exception, ex:
 	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
