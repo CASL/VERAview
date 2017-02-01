@@ -21,8 +21,7 @@ set PythonCommand=python
 
 :found
 set PYTHONPATH=%VERAViewDir%;%PYTHONPATH%
-rem "%PythonCommand%" "%VERAViewDir%veraview.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
-"%PythonCommand%" -m veraview" %1 %2 %3 %4 %5 %6 %7 %8 %9
+"%PythonCommand%" "%VERAViewDir%veraview.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
 
 
 :finished
