@@ -4,23 +4,29 @@ setlocal
 set VERAViewDir=%~dp0
 
 rem ---------------------------------------------------------------------
-rem - If you changed the path for your per-user Canopy environment setup,
-rem - set the value of the CanopyUserDir variable to point to the User subdir
-rem - under that path.
+rem - If you changed the path for your per-user Anaconda environment setup,
+rem - set the value of the CondaDir variable to point to that path.
 rem ---------------------------------------------------------------------
-if not exist "%userprofile%\AppData\Local\Continuum\Miniconda2" goto not_found
-set CondaBinDir=%userprofile%\AppData\Local\Continuum\Miniconda2
+rem if not exist "%userprofile%\AppData\Local\Continuum\Miniconda2" goto not_found
+rem set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
+rem set PythonCommand=%CondaDir%\pythonw
 
+if not exist "%VERAViewDir%\Miniconda2" goto not_found
+set CondaDir=%VERAViewDir%\Miniconda2
+set PythonCommand=%CondaDir%\pythonw
 
-if exist "%CondaBinDir%\pythonw.exe" goto found
-echo msgbox "Anaconda2 installation not found.  Edit this script to set the CondaBinDir variable." > %temp%\msg.vbs
+if exist "%CondaDir%\pythonw.exe" goto found
+echo msgbox "Miniconda2 installation not found.  Edit this script to set the CondaDir variable." > %temp%\msg.vbs
 call "%temp%\msg.vbs"
 goto finished
 
+:not_found
+set PythonCommand=python
 
 :found
 set PYTHONPATH=%VERAViewDir%;%PYTHONPATH%
-"%CondaBinDir%\pythonw" "%VERAViewDir%veraview.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
+rem "%PythonCommand%" "%VERAViewDir%veraview.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
+"%PythonCommand%" -m veraview" %1 %2 %3 %4 %5 %6 %7 %8 %9
 
 
 :finished
