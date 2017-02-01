@@ -7,12 +7,8 @@ rem ---------------------------------------------------------------------
 rem - If you changed the path for your per-user Anaconda environment setup,
 rem - set the value of the CondaDir variable to point to that path.
 rem ---------------------------------------------------------------------
-rem if not exist "%userprofile%\AppData\Local\Continuum\Miniconda2" goto not_found
-rem set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
-rem set PythonCommand=%CondaDir%\pythonw
-
-if not exist "%VERAViewDir%\Miniconda2" goto not_found
-set CondaDir=%VERAViewDir%\Miniconda2
+if not exist "%userprofile%\AppData\Local\Continuum\Miniconda2" goto not_found
+set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
 set PythonCommand=%CondaDir%\pythonw
 
 if exist "%CondaDir%\pythonw.exe" goto found
