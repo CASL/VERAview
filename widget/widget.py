@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2017-02-03	leerw@ornl.gov				-
+#	  Adding white background image save option.
 #		2017-01-14	leerw@ornl.gov				-
 #	  Added isLoading attribute for LoadProps() signal to not call
 #	  LoadDataModelValues().  Was isLoaded in {Plot,Raster}Widget,
@@ -657,11 +659,13 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.CreatePrintImage()			-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path ):
+  def CreatePrintImage( self, file_path, bgcolor = None  ):
     """
 Placeholder for widget implementations to create a PNG image.
 The default implementation returns None.
 @param  file_path	path to file if the widget creates the image
+@param  bgcolor		background color tupe ( r, g, b, a ), where None
+			means transparent
 @return			file_path or None if not processed
 """
     #return  wx.EmptyImage( 400, 300 )

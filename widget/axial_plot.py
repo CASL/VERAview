@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2017-02-03	leerw@ornl.gov				-
+#	  Set left boundary to 0.15 to make room for Y-axis label.
 #		2017-01-26	leerw@ornl.gov				-
 #	  Using PLOT_MODES instead of setting plot type based on
 #	  derived vs not-derived dataset.
@@ -928,9 +930,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     """Initialize axes, 'ax', and 'ax2'.
 XXX size according to how many datasets selected?
 """
-    #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
-    #self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
-    self.ax = self.fig.add_axes([ 0.12, 0.12, 0.82, 0.7 ])
+    ##self.ax = self.fig.add_axes([ 0.1, 0.12, 0.85, 0.68 ])
+    ##self.ax = self.fig.add_axes([ 0.1, 0.12, 0.8, 0.68 ])
+    #self.ax = self.fig.add_axes([ 0.12, 0.12, 0.82, 0.7 ])
+    self.ax = self.fig.add_axes([ 0.15, 0.12, 0.82, 0.7 ])
     self.ax2 = self.ax.twiny() if len( self.dataSetValues ) > 1 else None
   #end _InitAxes
 

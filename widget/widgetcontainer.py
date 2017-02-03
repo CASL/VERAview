@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2017-02-03	leerw@ornl.gov				-
+#	  Adding white background image save option.
 #		2016-12-08	leerw@ornl.gov				-
 #	  Migrating to new DataModelMgr.
 #		2016-11-19	leerw@ornl.gov				-
@@ -606,10 +608,24 @@ definition array for a pullright.
 
 #		-- Widget menu
 #		--
-#			-- Save image
     self.widgetMenu = wx.Menu()
-    save_item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Save Image' )
-    self.Bind( wx.EVT_MENU, self._OnSave, save_item )
+#			-- Save image
+    save_option_menu = wx.Menu()
+    save_trans_item = \
+        wx.MenuItem( save_option_menu, wx.ID_ANY, 'Transparent Background' )
+    save_option_menu.AppendItem( save_trans_item )
+    self.Bind( wx.EVT_MENU, self._OnSave, save_trans_item )
+    save_white_item = \
+        wx.MenuItem( save_option_menu, wx.ID_ANY, 'White Background' )
+    save_option_menu.AppendItem( save_white_item )
+    self.Bind( wx.EVT_MENU, self._OnSave, save_white_item )
+
+    #save_item = wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Save Image' )
+    save_item = wx.MenuItem(
+        self.widgetMenu, wx.ID_ANY, 'Save Image',
+	subMenu = save_option_menu
+	)
+    #self.Bind( wx.EVT_MENU, self._OnSave, save_item )
     self.widgetMenu.AppendItem( save_item )
 
 #			-- Save animated image
@@ -857,7 +873,14 @@ definition array for a pullright.
   def _OnSave( self, ev ):
     """
 """
-    self.SaveWidgetImage()
+    #self.SaveWidgetImage()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item:
+      bgcolor = None
+      if item.GetItemLabelText().lower().find( 'white' ) >= 0:
+        bgcolor = ( 255, 255, 255, 255 )
+      self.SaveWidgetImage( bgcolor = bgcolor )
   #end _OnSave
 
 
@@ -960,7 +983,7 @@ Must be called from the UI event thread
   #----------------------------------------------------------------------
   #	METHOD:		SaveWidgetImage()				-
   #----------------------------------------------------------------------
-  def SaveWidgetImage( self, file_path = None ):
+  def SaveWidgetImage( self, file_path = None, bgcolor = None ):
     """
 """
     if file_path is None:
@@ -975,7 +998,7 @@ Must be called from the UI event thread
 
     if file_path is not None:
       try:
-	result = self.widget.CreatePrintImage( file_path )
+	result = self.widget.CreatePrintImage( file_path, bgcolor )
 	if result is None:
 	  raise Exception( 'No image created' )
 	elif isinstance( result, wx.Image ):

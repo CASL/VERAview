@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2017-02-03	leerw@ornl.gov				-
+#	  Adding white background image save option.
 #		2017-01-26	leerw@ornl.gov				-
 #	  Added PLOT_MODES.
 #	  Hiding cursorLine in CreatePrintImage().
@@ -249,7 +251,7 @@ Support Methods
   #----------------------------------------------------------------------
   #	METHOD:		CreatePrintImage()				-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path ):
+  def CreatePrintImage( self, file_path, bgcolor = None ):
     result = None
 
     if self.fig is not None:
@@ -258,9 +260,13 @@ Support Methods
       if self.axline is not None:
         self.axline.set_visible( False )
 
+      if bgcolor and hasattr( bgcolor, '__iter__' ) and len( bgcolor ) >= 3:
+	fc = tuple( [ bgcolor[ i ] / 255.0 for i in xrange( 3 ) ] )
+      else:
+        fc = self.fig.get_facecolor()
       self.fig.savefig(
           file_path, dpi = 144, format = 'png', orientation = 'landscape',
-	  facecolor = self.fig.get_facecolor()
+	  facecolor = fc
 	  )
       result = file_path
 

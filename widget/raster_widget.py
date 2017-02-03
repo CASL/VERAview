@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2017-02-03	leerw@ornl.gov				-
+#	  Adding white background image save option.
 #		2017-01-26	leerw@ornl.gov				-
 #	  Applying new limits to font scaling.
 #		2017-01-18	leerw@ornl.gov				-
@@ -757,15 +759,24 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget.CreatePrintImage()			-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path ):
+  def CreatePrintImage( self, file_path, bgcolor = None ):
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
     pil_im = self._CreateRasterImage( self._CreateStateTuple(), config )
 
     if pil_im is not None:
-      pil_im.save( file_path, 'PNG' )
-#      pil_im2 = PIL.Image.new( "RGBA", pil_im.size, ( 236, 236, 236, 255 ) )
-#      pil_im2.paste( pil_im, ( 0, 0 ), pil_im )
-#      pil_im2.save( file_path.replace( '.png', '.gif' ), 'GIF' )
+      #pil_im.save( file_path, 'PNG' )
+      if bgcolor and hasattr( bgcolor, '__iter__' ) and len( bgcolor ) >= 4:
+        pil_im2 = PIL.Image.new( 'RGBA', pil_im.size )
+	pil_im2.paste( pil_im, ( 0, 0 ) )
+	pix_data = pil_im2.load()
+	for y in xrange( pil_im.size[ 1 ] ):
+	  for x in xrange( pil_im.size[ 0 ] ):
+	    if pix_data[ x, y ] == ( 0, 0, 0, 0 ):
+	      pix_data[ x, y ] = bgcolor
+        pil_im2.save( file_path, 'PNG' )
+#        pil_im2.save( file_path.replace( '.png', '.gif' ), 'GIF' )
+      else:
+        pil_im.save( file_path, 'PNG' )
     return  file_path
   #end CreatePrintImage
 
