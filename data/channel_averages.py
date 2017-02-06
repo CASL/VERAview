@@ -148,30 +148,52 @@ be called before use.
     """Zero outside the line of symmetry.
 """
     if core.coreSym == 4:
-      mass = core.nassx / 2
-      mpin = core.nchanx / 2
-      odd = core.nchanx % 2 == 1
-      pxlo = np.zeros( [ core.nass ], dtype = int )
-      pylo = np.zeros( [ core.nass ], dtype = int )
+      mass = massx = core.nassx / 2
+      massy = core.nassy / 2
+      mpin = mpinx = core.nchanx / 2
+      mpiny = core.nchany / 2
+      odd = oddx = core.nchanx % 2 == 1
+      oddy = core.nchany % 2 == 1
+      pxlo = np.zeros( [ core.nassx ], dtype = int )
+      pylo = np.zeros( [ core.nassy ], dtype = int )
 #			-- Assemblies on the line of symmetry start at the
 #			-- middle channel
-      for i in xrange( mass, core.nassx ):
-        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
-        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
+#      for i in xrange( mass, core.nassx ):
+#        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
+#        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
 
+      for j in xrange( mass, core.nassy ):
+        pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
       for i in xrange( mass, core.nassx ):
-	assy_ndx = core.coreMap[ mass, i ] - 1
+        pylo[ core.coreMap[ massy, i ] - 1 ] = mpiny
+
+#      for i in xrange( mass, core.nassx ):
+#	assy_ndx = core.coreMap[ mass, i ] - 1
+#	if assy_ndx >= 0:
+#	  wts[ 0 : pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] = 0.0
+#	  if odd:
+#	    wts[ pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] *= 0.5
+#      #end for i
+      for i in xrange( massx, core.nassx ):
+	assy_ndx = core.coreMap[ massy, i ] - 1
 	if assy_ndx >= 0:
 	  wts[ 0 : pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] = 0.0
-	  if odd:
+	  if oddy:
 	    wts[ pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] *= 0.5
       #end for i
 
-      for j in xrange( mass, core.nassy ):
-	assy_ndx = core.coreMap[ j, mass ] - 1
+#      for j in xrange( mass, core.nassy ):
+#	assy_ndx = core.coreMap[ j, mass ] - 1
+#	if assy_ndx >= 0:
+#          wts[ 0 : core.nchany, 0 : pxlo[ assy_ndx ], :, assy_ndx ] = 0.0
+#	  if odd:
+#            wts[ 0 : core.nchany, pxlo[ assy_ndx ], :, assy_ndx ] *= 0.5
+#      #end for j
+      for j in xrange( massy, core.nassy ):
+	assy_ndx = core.coreMap[ j, massx ] - 1
 	if assy_ndx >= 0:
           wts[ 0 : core.nchany, 0 : pxlo[ assy_ndx ], :, assy_ndx ] = 0.0
-	  if odd:
+	  if oddx:
             wts[ 0 : core.nchany, pxlo[ assy_ndx ], :, assy_ndx ] *= 0.5
       #end for j
     #end if core.coreSym

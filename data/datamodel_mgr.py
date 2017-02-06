@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2017-02-06	leerw@ornl.gov				-
+#	  Fixed bug in ExtractSymmetryExtent() with even number of
+#	  assemblies.
 #		2017-01-14	leerw@ornl.gov				-
 #	  Starting CreateDiffDataSet().
 #		2017-01-12	leerw@ornl.gov				-
@@ -284,12 +287,6 @@ dimensions.
 @return			None if core is None, otherwise
 			( left, top, right+1, bottom+1, dx, dy )
 """
-    #bounds = ( -1, -1, -1, -1, 0, 0 )
-    #left = -1
-    #bottom = -1
-    #right = -1
-    #top = -1
-
     result = None
 
     core = self.GetCore()
@@ -301,13 +298,13 @@ dimensions.
       if core.coreSym == 4:
 	left = core.nassx >> 1
 	top = core.nassy >> 1
-	if core.nassx % 2 == 0 and left > 0: left -= 1
-	if core.nassy % 2 == 0 and top > 0: top -= 1
+#	if core.nassx % 2 == 0 and left > 0: left -= 1
+#	if core.nassy % 2 == 0 and top > 0: top -= 1
       elif core.coreSym == 8:
 	left = core.nassx >> 2
 	top = core.nassy >> 2
-	if core.nassx % 2 == 0 and left > 0: left -= 1
-	if core.nassy % 2 == 0 and top > 0: top -= 1
+#	if core.nassx % 2 == 0 and left > 0: left -= 1
+#	if core.nassy % 2 == 0 and top > 0: top -= 1
       else:
 	left = 0
 	top = 0

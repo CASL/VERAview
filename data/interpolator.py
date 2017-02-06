@@ -1,12 +1,15 @@
 #------------------------------------------------------------------------
 #	NAME:		interpolator.py					-
 #	HISTORY:							-
+#		2017-02-06	leerw@ornl.gov				-
+#	  New approach from Andrew and Ben.
 #		2016-11-04	leerw@ornl.gov				-
 #		2016-10-31	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import h5py, os, sys, timeit
 import numpy as np
-from scipy.interpolate import griddata
+from scipy.interpolate import interp1
+from scipy import array, integrate
 import pdb
 
 
@@ -14,6 +17,8 @@ import pdb
 #	CLASS:		Interpolator					-
 #------------------------------------------------------------------------
 class Interpolator( object ):
+  """
+"""
 
 
   #----------------------------------------------------------------------
@@ -27,40 +32,32 @@ class Interpolator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
-  def __init__( self,
-      src_shape, src_pitch, src_axial_mesh_centers,
-      dst_shape, dst_pitch, dst_axial_mesh_centers,
-      nass, listener = None
-      ):
-    """Sets up the interpolation grid for future calls to the
-Interpolate() method.  For now we only do 4D shapes and assume identical
-core_maps.
-
-others are TBD.  It is
-assumed that none of the parameters are None.  Otherwise you will get an
+  def __init__( self, src_data, src_mesh_centers, dst_mesh, listener = None ):
+    """Sets up to interpolate within a single state point.
+It is assumed that none of the parameters are None.  Otherwise you will get an
 exception.
 
-@param  src_shape	source dataset shape
-@param  src_pitch	source assembly pitch
-@param  src_axial_mesh_centers  source axial mesh np.ndarray
-@param  dst_shape	destination dataset shape
-			(must have the same size for axis == 3 as src_shape
-@param  dst_pitch	destination assembly pitch
-@param  dst_axial_mesh_centers  destination axial mesh np.ndarray
-@param  nass		number of assemblys for src and dst
+@param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
+@param  src_mesh_centers  axial mesh centers (np.ndarray)
+@param  dst_mesh	result mesh, not centers (np.ndarray)
 @param  listener	optional callable to invoke with progress, prototype
 			callback( message, progress_value ), where
 			progress_value is [0,100]
 """
 #		-- Assertions
 #		--
-    assert len( src_shape ) == 4 and len( dst_shape ) == 4, \
+    assert src_data is not None and len( src_data.shape ) == 4, \
         'only 4D shapes are supported'
-    assert src_shape[ 3 ] == dst_shape[ 3 ], \
-        'shapes must match size on axis == 3'
-
-    assert 0 not in src_shape, 'src_shape has 0-sized dimension'
-    assert 0 not in dst_shape, 'dst_shape has 0-sized dimension'
+    assert isinstance( src_data, h5py.Dataset ) or \
+        isinstance( src_data, np.ndarray ), \
+        'src_data must be a Dataset or ndarray'
+#    assert src_data.shape[ axial_axis ] == len( src_mesh_centers ), \
+#        'src_data and src_mesh_centers have incompatible shapes'
+    assert \
+        src_data.shape[ 2 ] == len( src_mesh_centers ), \
+        'src_data and src_mesh_centers have incompatible shapes'
+    assert src_data.shape[ 2 ] == 0 or len( dst_mesh ) < 2, \
+        'mesh cannot have zero length'
 
     self.listeners = []
     if listener:
@@ -68,46 +65,19 @@ exception.
 
 #		-- Plow on
 #		--
-    self.srcShape = src_shape
-    self.dstShape = dst_shape
+    self.srcMeshCenters = src_axial_mesh_centers
+    self.dstMesh = dst_axial_mesh
 
-#		-- X- and Y-axis grids
-#		--
-    src_pitch = float( src_pitch )
-    src_x = np.linspace( 0.0, src_pitch, src_shape[ 1 ], False )
-    src_y = np.linspace( 0.0, src_pitch, src_shape[ 0 ], False )
+    if isinstance( src_data, h5py.Dataset ):
+      src.srcData = np.array( src_data )
+    else:
+      src.srcData = src_data
 
-    dst_pitch = float( dst_pitch )
-    dst_x = np.linspace( 0.0, dst_pitch, dst_shape[ 1 ], False )
-    dst_y = np.linspace( 0.0, dst_pitch, dst_shape[ 0 ], False )
+    dst_shape = list( src_dset.shape )
+    dst_shape[ axial_axis ] = len( dst_axial_mesh ) - 1
 
-#		-- Axial mesh centers
-#		--
-#    t = np.copy( src_axial_mesh )
-#    t2 = np.r_[ t, np.roll( t, -1 ) ]
-#    src_ax = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
-#
-#    t = np.copy( dst_axial_mesh )
-#    t2 = np.r_[ t, np.roll( t, -1 ) ]
-#    dst_ax = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
-
-#		-- Build interpolation coordinates
-#		--
-    self.srcCoords = []
-    for y in src_y:
-      for x in src_x:
-        for z in src_axial_mesh_centers:
-	  self.srcCoords.append( [ y, x, z ] )
-#	  for i in xrange( nass ):
-#	    self.srcCoords.append( [ y, x, z, i ] )
-
-    self.dstCoords = []
-    for y in dst_y:
-      for x in dst_x:
-        for z in dst_axial_mesh_centers:
-	  self.dstCoords.append( [ y, x, z ] )
-#	  for i in xrange( nass ):
-#	    self.dstCoords.append( [ y, x, z, i ] )
+    #self.dstData = np.ndarray( dst_shape, dtype = np.float64 )
+    self.dstData = np.zeros( dst_shape, dtype = np.float64 )
   #end __init__
 
 
@@ -116,8 +86,7 @@ exception.
   #----------------------------------------------------------------------
   def add_listeners( self, *listeners ):
     """Adds listeners/callbacks.  Listeners are callables invoked with
-prototype callback( message, progress_value ), where progress_value is
-in range [0,100], 100 indicating completion.
+parameters ( cur_step, total_steps ).
 @param  listeners	one or more listeners to add
 """
     if listeners:
@@ -130,40 +99,83 @@ in range [0,100], 100 indicating completion.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		create_interpolator()				-
+  #----------------------------------------------------------------------
+  def create_interpolator( self, xs, ys ):
+    f_s = interp1d( xs, ys, 'cubic' )
+
+    def get_y( x ):
+      if x < xs[ 0 ]:
+	if len( xs ) < 2 or len( ys ) < 2:
+	  y = ys[ 0 ]
+	else:
+	  y = ys[ 0 ] + \
+	      (x - xs[ 0 ]) * (ys[ 1 ] - ys[ 0 ]) / (xs[ 1 ] - xs[ 0 ])
+      elif x > x_values[ -1 ]:
+        if len( xs ) < 2 or len( ys ) < 2:
+	  y = ys[ 0 ]
+        else:
+	  y = ys[ -1 ] + \
+	      (x - xs[ -1 ]) * (ys[ -1 ] - ys[ -2 ]) / (xs[ -1 ] - xs[ -2 ])
+      else:
+        y = f_s( x )
+      return  y
+    #end extrap_pt
+
+    def interp_ys( xs_in ):
+      return  array( [ get_y( i ) for i in xs_in ] )
+
+    return  interp_ys
+  #end create_interpolator
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		interpolate()					-
   #----------------------------------------------------------------------
-  def interpolate( self, src_data, name = '' ):
+  def interpolate( self, name = '' ):
     """
 @param  src_data	np.ndarray of self.srcShape
 @param  name		optional name to use in callback messages
 @return			interpolated np.ndarray of self.dstShape
 """
     start_time = timeit.default_timer()
+    step_count = reduce( (lambda x, y : x * y), self.dstData.shape )
+    step = 1
 
-    nass = self.srcShape[ 3 ]
-    progress = 0
-    result = np.zeros( self.dstShape, dtype = np.float64 )
-
-    for assy_ndx in xrange( nass ):
-      progress = int( 100 * assy_ndx / nass )
-      message = 'Processing %s (%d%%)' % ( name, progress )
-      self.notify_listeners( message, progress )
-
-      src_data_slice = src_data[ :, :, :, assy_ndx ]
-      src_data_flat = src_data_slice.flatten()
-      result_data = \
-          griddata( self.srcCoords, src_data_flat, self.dstCoords, 'linear' )
-      result_data_shaped = result_data.reshape( *self.dstShape[ 0 : 3 ] )
-      result[ :, :, :, assy_ndx ] = result_data_shaped
+    for assy_ndx in xrange( self.dstData.shape[ 3 ] ):
+      for pin_row in xrange( self.dstData.shape[ 0 ] ):
+        for pin_col in xrange( self.dstData.shape[ 1 ] ):
+          #progress = int( 100 * assy_ndx / nass )
+          self.notify_listeners( step, step_count )
+	  self.interpolate_slice( assy_ndx, pin_col, pin_row )
+	  step += 1
+        #end for x
+      #end for y
     #end for assy_ndx
 
-    message = 'Processing %s complete (100%%)' % name
-    self.notify_listeners( message, 100 )
     elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, '[interpolate] time=%.3fs' % elapsed_time
-
-    return  result
+    print >> sys.stderr, '[interpolator] time=%.3fs' % elapsed_time
   #end interpolate
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		interpolate_slice()				-
+  #----------------------------------------------------------------------
+  def interpolate_slice( self, assy_ndx, pin_col, pin_row ):
+    """Interpolates a single slice
+"""
+    f_e = self.create_interpolator(
+        self.srcMeshCenters,
+	self.srcData[ pin_row, pin_col, :, assy_ndx ]
+	)
+
+    for k in xrange( len( self.dstMesh ) - 1 ):
+      a = self.dstMesh[ k ]
+      b = self.dstMesh[ k + 1 ]
+      self.dstData[ pin_row, pin_col, k, assy_ndx ] = \
+          integrate.quadrature( f_e, a, b )
+    #end for k
+  #end interpolate_slice
 
 
   #----------------------------------------------------------------------

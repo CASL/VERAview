@@ -1015,14 +1015,15 @@ to be column and row labels, respectively, and the order is forced such that
 
 #		-- Other datasets: axial_mesh
 #		--
-    #item = self._FindInGroup( 'axial_mesh', core_group, in_core_group )
-    #if item is not None:
-    self.axialMesh = axial_mesh_item.value
+#    self.axialMesh = axial_mesh_item.value
+    self.axialMesh = np.array( axial_mesh_item )
     self.nax = self.axialMesh.shape[ 0 ] - 1
 #			-- Numpy magic
-    t = np.copy( axial_mesh_item.value )
-    t2 = np.r_[ t, np.roll( t, -1 ) ]
-    self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+#    t = np.copy( axial_mesh_item.value )
+#    t2 = np.r_[ t, np.roll( t, -1 ) ]
+#    self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+    self.axialMeshCenters = \
+        (self.axialMesh[ 0 : -1 ] + self.axialMesh[ 1 : ]) / 2.0
 
 #		-- Other datasets: core_sym
 #		--
