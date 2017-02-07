@@ -8,7 +8,7 @@
 #------------------------------------------------------------------------
 import h5py, os, sys, timeit
 import numpy as np
-from scipy.interpolate import interp1
+from scipy.interpolate import interp1d
 from scipy import array, integrate
 import pdb
 
@@ -32,12 +32,11 @@ class Interpolator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
-  def __init__( self, src_data, src_mesh_centers, dst_mesh, listener = None ):
+  def __init__( self, src_mesh_centers, dst_mesh, listener = None ):
     """Sets up to interpolate within a single state point.
 It is assumed that none of the parameters are None.  Otherwise you will get an
 exception.
 
-@param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
 @param  src_mesh_centers  axial mesh centers (np.ndarray)
 @param  dst_mesh	result mesh, not centers (np.ndarray)
 @param  listener	optional callable to invoke with progress, prototype
@@ -46,18 +45,10 @@ exception.
 """
 #		-- Assertions
 #		--
-    assert src_data is not None and len( src_data.shape ) == 4, \
-        'only 4D shapes are supported'
-    assert isinstance( src_data, h5py.Dataset ) or \
-        isinstance( src_data, np.ndarray ), \
-        'src_data must be a Dataset or ndarray'
-#    assert src_data.shape[ axial_axis ] == len( src_mesh_centers ), \
-#        'src_data and src_mesh_centers have incompatible shapes'
-    assert \
-        src_data.shape[ 2 ] == len( src_mesh_centers ), \
-        'src_data and src_mesh_centers have incompatible shapes'
-    assert src_data.shape[ 2 ] == 0 or len( dst_mesh ) < 2, \
-        'mesh cannot have zero length'
+    assert src_mesh_centers is None or len( src_mesh_centers ) == 0, \
+        'src_mesh_centers cannot be empty'
+    assert dst_mesh is None or len( dst_mesh ) < 2, \
+        'dst_mesh must have length ge 2'
 
     self.listeners = []
     if listener:
@@ -132,22 +123,52 @@ parameters ( cur_step, total_steps ).
   #----------------------------------------------------------------------
   #	METHOD:		interpolate()					-
   #----------------------------------------------------------------------
-  def interpolate( self, name = '' ):
+  def interpolate( self, src_data ):
     """
-@param  src_data	np.ndarray of self.srcShape
-@param  name		optional name to use in callback messages
-@return			interpolated np.ndarray of self.dstShape
+@param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
+@return			interpolated np.ndarray with len( self.dstMesh ) -1
+			axial levels
 """
+#		-- Assertions
+#		--
+    assert src_data is not None and len( src_data.shape ) == 4, \
+        'only 4D shapes are supported'
+
+#    assert isinstance( src_data, h5py.Dataset ) or \
+#        isinstance( src_data, np.ndarray ), \
+#        'src_data must be a Dataset or ndarray'
+    if isinstance( src_data, h5py.Dataset ):
+      src_data = np.array( src_data )
+    else:
+      assert isintance( src_data, np.ndarray ), \
+          'src_data must be a Dataset or ndarray'
+
+    assert \
+        src_data.shape[ 2 ] == len( self.srcMeshCenters ), \
+        'src_data has incompatible shapes'
+
+
     start_time = timeit.default_timer()
-    step_count = reduce( (lambda x, y : x * y), self.dstData.shape )
+
+    dst_shape = list( src_dset.shape )
+    dst_shape[ 2 ] = len( self.dstMesh ) - 1
+
+    #dst_data = np.ndarray( dst_shape, dtype = np.float64 )
+    dst_data = np.zeros( dst_shape, dtype = np.float64 )
+
+    step_count = reduce( (lambda x, y : x * y), dst_shape )
     step = 1
 
-    for assy_ndx in xrange( self.dstData.shape[ 3 ] ):
-      for pin_row in xrange( self.dstData.shape[ 0 ] ):
-        for pin_col in xrange( self.dstData.shape[ 1 ] ):
+    for assy_ndx in xrange( dst_shape.shape[ 3 ] ):
+      for pin_row in xrange( dst_shape.shape[ 0 ] ):
+        for pin_col in xrange( dst_shape.shape[ 1 ] ):
           #progress = int( 100 * assy_ndx / nass )
           self.notify_listeners( step, step_count )
-	  self.interpolate_slice( assy_ndx, pin_col, pin_row )
+	  self.interpolate_slice(
+	      dst_data, self.dstMesh,
+	      src_data, self.srcMeshCenters,
+	      assy_ndx, pin_col, pin_row
+	      )
 	  step += 1
         #end for x
       #end for y
@@ -155,37 +176,44 @@ parameters ( cur_step, total_steps ).
 
     elapsed_time = timeit.default_timer() - start_time
     print >> sys.stderr, '[interpolator] time=%.3fs' % elapsed_time
+
+    return  dst_data
   #end interpolate
 
 
   #----------------------------------------------------------------------
   #	METHOD:		interpolate_slice()				-
   #----------------------------------------------------------------------
-  def interpolate_slice( self, assy_ndx, pin_col, pin_row ):
-    """Interpolates a single slice
+  def interpolate_slice( self,
+      dst_data, dst_mesh, src_data, src_mesh_centers,
+      assy_ndx, pin_col, pin_row
+      ):
+    """Interpolates a single slice.
 """
     f_e = self.create_interpolator(
-        self.srcMeshCenters,
-	self.srcData[ pin_row, pin_col, :, assy_ndx ]
+        src_mesh_centers,
+	src_data[ pin_row, pin_col, :, assy_ndx ]
 	)
 
-    for k in xrange( len( self.dstMesh ) - 1 ):
-      a = self.dstMesh[ k ]
-      b = self.dstMesh[ k + 1 ]
-      self.dstData[ pin_row, pin_col, k, assy_ndx ] = \
+    for k in xrange( len( dst_mesh ) - 1 ):
+      a = dst_mesh[ k ]
+      b = dst_mesh[ k + 1 ]
+      dst_data[ pin_row, pin_col, k, assy_ndx ] = \
           integrate.quadrature( f_e, a, b )
     #end for k
+
+    return  dst_data
   #end interpolate_slice
 
 
   #----------------------------------------------------------------------
   #	METHOD:		notify_listeners()				-
   #----------------------------------------------------------------------
-  def notify_listeners( self, message, progress ):
+  def notify_listeners( self, current, total ):
     """Invokes listener.
 """
     for l in self.listeners:
-      l( message, progress )
+      l( current, total )
   #end notify_listeners
 
 
