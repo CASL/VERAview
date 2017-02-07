@@ -46,8 +46,8 @@ class InterpolatorITest( object ):
 
     self.interpolator = Interpolator(
         dmgr.GetAxialMeshCenters( ref_model.name ),
-	dmgr.GetAxialmesh( comp_model.name ),
-	self._OnInterplator
+	dmgr.GetAxialMesh( comp_model.name ),
+	self._OnInterpolator
 	)
   #end __init__
 
@@ -70,7 +70,8 @@ class InterpolatorITest( object ):
 
     #ref_state_ndx = dmgr.GetTimeValueIndex( ref_model.name )
     #dset = self.fDataModel.GetStateDataSet( ref_state_ndx, ds_name )
-    dset = dmgr.GetH5DataSet( DataSetName( ref_model.name, ds_name ), time_value )
+    dset = self.dmgr.\
+        GetH5DataSet( DataSetName( self.refModel.name, ds_name ), time_value )
 
     if dset is not None:
       result = self.interpolator.interpolate( dset )
@@ -136,7 +137,7 @@ class InterpolatorITest( object ):
 
 	test = InterpolatorITest( dmgr, ref_model, comp_model )
 
-	for ds_name in args.dataset:
+	for ds_name in args.datasets:
 	  print '\n[%s, %s=%f]' % ( ds_name, time_ds_name, time_value )
 	  result = test.Interpolate( ds_name, time_value )
 	  print repr( result )

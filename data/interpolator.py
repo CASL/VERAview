@@ -45,30 +45,19 @@ exception.
 """
 #		-- Assertions
 #		--
-    assert src_mesh_centers is None or len( src_mesh_centers ) == 0, \
+    assert src_mesh_centers is not None and len( src_mesh_centers ) > 0, \
         'src_mesh_centers cannot be empty'
-    assert dst_mesh is None or len( dst_mesh ) < 2, \
+    assert dst_mesh is not None and len( dst_mesh ) >= 2, \
         'dst_mesh must have length ge 2'
 
+#		-- Plow on
+#		--
     self.listeners = []
     if listener:
       self.listeners.append( listener )
 
-#		-- Plow on
-#		--
-    self.srcMeshCenters = src_axial_mesh_centers
-    self.dstMesh = dst_axial_mesh
-
-    if isinstance( src_data, h5py.Dataset ):
-      src.srcData = np.array( src_data )
-    else:
-      src.srcData = src_data
-
-    dst_shape = list( src_dset.shape )
-    dst_shape[ axial_axis ] = len( dst_axial_mesh ) - 1
-
-    #self.dstData = np.ndarray( dst_shape, dtype = np.float64 )
-    self.dstData = np.zeros( dst_shape, dtype = np.float64 )
+    self.srcMeshCenters = src_mesh_centers
+    self.dstMesh = dst_mesh
   #end __init__
 
 
@@ -102,13 +91,14 @@ parameters ( cur_step, total_steps ).
 	else:
 	  y = ys[ 0 ] + \
 	      (x - xs[ 0 ]) * (ys[ 1 ] - ys[ 0 ]) / (xs[ 1 ] - xs[ 0 ])
-      elif x > x_values[ -1 ]:
+      elif x > xs[ -1 ]:
         if len( xs ) < 2 or len( ys ) < 2:
 	  y = ys[ 0 ]
         else:
 	  y = ys[ -1 ] + \
 	      (x - xs[ -1 ]) * (ys[ -1 ] - ys[ -2 ]) / (xs[ -1 ] - xs[ -2 ])
       else:
+        #y = f_s( x )[ () ]
         y = f_s( x )
       return  y
     #end extrap_pt
@@ -150,28 +140,31 @@ parameters ( cur_step, total_steps ).
 
     start_time = timeit.default_timer()
 
-    dst_shape = list( src_dset.shape )
+    dst_shape = list( src_data.shape )
     dst_shape[ 2 ] = len( self.dstMesh ) - 1
 
     #dst_data = np.ndarray( dst_shape, dtype = np.float64 )
     dst_data = np.zeros( dst_shape, dtype = np.float64 )
 
     step_count = reduce( (lambda x, y : x * y), dst_shape )
+    step_count = dst_shape[ 3 ]
     step = 1
 
-    for assy_ndx in xrange( dst_shape.shape[ 3 ] ):
-      for pin_row in xrange( dst_shape.shape[ 0 ] ):
-        for pin_col in xrange( dst_shape.shape[ 1 ] ):
+    for assy_ndx in xrange( dst_shape[ 3 ] ):
+      self.notify_listeners( step, step_count )
+      for pin_row in xrange( dst_shape[ 0 ] ):
+        for pin_col in xrange( dst_shape[ 1 ] ):
           #progress = int( 100 * assy_ndx / nass )
-          self.notify_listeners( step, step_count )
+          #self.notify_listeners( step, step_count )
 	  self.interpolate_slice(
 	      dst_data, self.dstMesh,
 	      src_data, self.srcMeshCenters,
 	      assy_ndx, pin_col, pin_row
 	      )
-	  step += 1
+	  #step += 1
         #end for x
       #end for y
+      step += 1
     #end for assy_ndx
 
     elapsed_time = timeit.default_timer() - start_time
@@ -198,8 +191,9 @@ parameters ( cur_step, total_steps ).
     for k in xrange( len( dst_mesh ) - 1 ):
       a = dst_mesh[ k ]
       b = dst_mesh[ k + 1 ]
-      dst_data[ pin_row, pin_col, k, assy_ndx ] = \
-          integrate.quadrature( f_e, a, b )
+      result = integrate.quadrature( f_e, a, b )
+      value = result[ 0 ]  if hasattr( result, '__iter__' ) else  result
+      dst_data[ pin_row, pin_col, k, assy_ndx ] = value
     #end for k
 
     return  dst_data
