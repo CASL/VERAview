@@ -8,7 +8,7 @@
 #		2016-11-04	leerw@ornl.gov				-
 #		2016-10-31	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import h5py, os, sys, timeit
+import h5py, os, sys
 import numpy as np
 from scipy.interpolate import interp1d
 #from scipy import array, integrate
@@ -26,8 +26,8 @@ class Interpolator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		__call__()					-
   #----------------------------------------------------------------------
-  def __call__( self, src_data, name = '' ):
-    return  self.interpolate( src_data, name )
+  def __call__( self, *args, **kwargs ):
+    return  self.interpolate( *args, **kwargs )
   #end __call__
 
 
@@ -84,10 +84,29 @@ parameters ( cur_step, total_steps ).
     """
 @return		interpolator function
 """
+#linear
     f = interp1d(
         src_mesh_centers, src_data,
 	assume_sorted = True, axis = 2, fill_value = 'extrapolate'
 	)
+
+#slinear
+#    f = interp1d(
+#        src_mesh_centers, src_data,
+#	assume_sorted = True, axis = 2,
+#	bounds_error = False,
+#	fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
+#	kind = 'slinear'
+#	)
+
+#cubic
+#    f = interp1d(
+#        src_mesh_centers, src_data,
+#	assume_sorted = True, axis = 2,
+#	bounds_error = False,
+#	fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
+#	kind = 'cubic'
+#	)
 
     return  f
   #end create_interpolator
@@ -96,7 +115,7 @@ parameters ( cur_step, total_steps ).
   #----------------------------------------------------------------------
   #	METHOD:		interpolate()					-
   #----------------------------------------------------------------------
-  def interpolate( self, src_data, f = None ):
+  def interpolate( self, src_data, f = None, skip_assertions = False ):
     """
 @param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
 @param  f		interpolator function, will be created if None
@@ -105,23 +124,23 @@ parameters ( cur_step, total_steps ).
 """
 #		-- Assertions
 #		--
-    assert src_data is not None and len( src_data.shape ) == 4, \
-        'only 4D shapes are supported'
+    if not skip_assertions:
+      assert src_data is not None and len( src_data.shape ) == 4, \
+          'only 4D shapes are supported'
 
-#    assert isinstance( src_data, h5py.Dataset ) or \
-#        isinstance( src_data, np.ndarray ), \
-#        'src_data must be a Dataset or ndarray'
-    if isinstance( src_data, h5py.Dataset ):
-      src_data = np.array( src_data )
-    else:
-      assert isintance( src_data, np.ndarray ), \
+#      assert isinstance( src_data, h5py.Dataset ) or \
+#          isinstance( src_data, np.ndarray ), \
+#          'src_data must be a Dataset or ndarray'
+      if isinstance( src_data, h5py.Dataset ):
+        src_data = np.array( src_data )
+      else:
+        assert isintance( src_data, np.ndarray ), \
           'src_data must be a Dataset or ndarray'
 
-    assert \
-        src_data.shape[ 2 ] == len( self.srcMeshCenters ), \
-        'src_data has incompatible shape'
-
-    start_time = timeit.default_timer()
+      assert \
+          src_data.shape[ 2 ] == len( self.srcMeshCenters ), \
+          'src_data has incompatible shape'
+    #end if not skip_assertions:
 
     dst_shape = list( src_data.shape )
     dst_shape[ 2 ] = len( self.dstMeshCenters )
@@ -138,9 +157,6 @@ parameters ( cur_step, total_steps ).
 
     for k in xrange( dst_shape[ 2 ] ):
       dst_data[ :, :, k, : ] = f( self.dstMeshCenters[ k ] )
-
-    elapsed_time = timeit.default_timer() - start_time
-    print >> sys.stderr, '[interpolator] time=%.3fs' % elapsed_time
 
     return  dst_data
   #end interpolate
