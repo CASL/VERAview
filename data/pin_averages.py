@@ -416,7 +416,7 @@ be called before use.
 #pxlo=numpy.empty([nass],dtype=int)      # create arrays for loop bounds
 #pylo=numpy.empty([nass],dtype=int)      # in case of quarter symmetry
 #axlo=0                                  # initialize loop bounds for 
-    axlo = 0
+    axlo = aylo = 0
 #hmid=(ax_mesh[0]+ax_mesh[-1])*0.5       # midpoint of the fuel for AO
 #if sym==4:                              # for quarter symmetry
 #    axlo=mass                           # start in the middle of the core
@@ -426,31 +426,42 @@ be called before use.
 #		-- Quarter symmetry, start in the middle of the core
 #		--
     if core.coreSym == 4:
-      mass = core.nassx / 2
-      mpin = core.npinx / 2
+      mass = massx = core.nassx >> 1
+      massy = core.nassy >> 1
+      mpin = mpinx = core.npinx >> 1
+      mpiny = core.npiny >> 1
       pxlo = np.zeros( [ core.nass ], dtype = int )
       pylo = np.zeros( [ core.nass ], dtype = int )
 #			-- Assemblies on the line of symmetry start at the
 #			-- middle pin
-      for i in xrange( mass, core.nassx ):
-        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
-        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
+#x      for i in xrange( mass, core.nassx ):
+#x        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
+#x        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
+      for j in xrange( massy, core.nassy ):
+        pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
+      for i in xrange( massx, core.nassx ):
+        pylo[ core.coreMap[ massy, i ] - 1 ] = mpiny
 #			-- Start in the middle of the core
-      axlo = mass
+      axlo = massx
+      aylo = massy
 
 #		-- Eighth symmetry, start at the core quadrant
 #		--
     elif core.coreSym == 8:
-      mass = core.nassx / 4
-      mpin = core.npinx / 4
+      mass = massx = core.nassx >> 2
+      massy = core.nassy >> 2
+      mpin = mpinx = core.npinx >> 2
+      mpiny = core.npiny >> 2
       pxlo = np.zeros( [ core.nass ], dtype = int )
       pylo = np.zeros( [ core.nass ], dtype = int )
 #			-- Assemblies on the line of symmetry start at the
 #			-- fourth-way pin
-      for i in xrange( mass, core.nassx ):
-        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
-        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
-      axlo = mass
+      for j in xrange( massy, core.nassy ):
+        pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
+      for i in xrange( massx, core.nassx ):
+        pylo[ core.coreMap[ massy, i ] - 1 ] = mpiny
+      axlo = massx
+      aylo = massy
 
 #		-- Weights provided?
 #		--
@@ -484,14 +495,14 @@ be called before use.
 #				-- Cut pin weights by half on line of symmetry
 #				--
         for i in xrange( axlo, core.nassx ):
-	  assy_ndx = core.coreMap[ mass, i ] - 1
+	  assy_ndx = core.coreMap[ massy, i ] - 1
 	  if assy_ndx >= 0:
-	    pin_weights[ mpin, :, :, assy_ndx ] *= 0.5
+	    pin_weights[ mpiny, :, :, assy_ndx ] *= 0.5
 
-        for j in xrange( axlo, core.nassy ):
-          assy_ndx = core.coreMap[ j, mass ] - 1
+        for j in xrange( aylo, core.nassy ):
+          assy_ndx = core.coreMap[ j, massx ] - 1
 	  if assy_ndx >= 0:
-	    pin_weights[ :, mpin, :, assy_ndx ] *= 0.5
+	    pin_weights[ :, mpiny, :, assy_ndx ] *= 0.5
       #end if-else coreSym
 
 #			-- Multiply weights by axial mesh size

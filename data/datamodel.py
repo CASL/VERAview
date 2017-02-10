@@ -1210,7 +1210,6 @@ Properties:
   dataSetDefs		dict of dataset definitions
   dataSetDefsByName	reverse lookup of dataset definitions by ds_name
   dataSetDefsLock	threading.RLock for dataSetDefs and dataSetDefsByName
-  dataSetFactors	dynamically created factors
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector',
 			    'fixed_detector', 'pin', 'scalar' )
@@ -1383,7 +1382,6 @@ passed, Read() must be called.
     self.core = None
     self.dataSetDefs = {}
     self.dataSetDefsByName = {}
-    self.dataSetFactors = {}
     self.dataSetNames = {}
     self.dataSetNamesVersion = 0
     self.derivableTypesByLabel = {}
@@ -1548,8 +1546,6 @@ Parameters:
 
 	try:
 	  avg_method = getattr( averager, avg_method_name )
-#x	  factors_ds_name = None
-	  factors = None
 
 #xxxxx will need to make this a separate thread with per-state progress feedback
           for state_ndx in xrange( len( self.states ) ):
@@ -1561,29 +1557,12 @@ Parameters:
 	      dset = derived_st.GetDataSet( ds_name )
 
 	    if dset is not None:
-	      #avg_data = avg_method( dset )  # was data.value
-	      factors = None
-	      result = avg_method( dset )
-	      if hasattr( result, '__iter__' ):
-	        avg_data = result[ 0 ]
-		factors = result[ 1 ]
-	      else:
-	        avg_data = result
+	      avg_data = avg_method( dset )
 	      derived_st.CreateDataSet( derived_name, avg_data )
-
-#x	      if factors is not None:
-#x	        factors_ds_name = ds_name + '_factors'
-#x	        st.CreateDataSet( factors_ds_name, factors )
 	    #end if data
 	  #end for each state
 
 	  self.AddDataSetName( der_names[ 0 ], derived_name )
-#x	  if factors_ds_name:
-#x            ddef = self.GetDataSetDefByDsName( ds_name )
-#x	    self.AddDataSetName( ddef[ 'type' ], factors_ds_name )
-#x	    self.dataSetFactors[ ds_name ] = factors
-	  if factors is not None:
-	    self.dataSetFactors[ ds_name ] = factors
 
 	except Exception, ex:
 	  msg = 'Error calculating derived "%s" dataset for "%s"' % \
@@ -2980,39 +2959,38 @@ derived datasets.  Lazily created and cached.
 @param  dset		dataset to match
 @return			factors np.ndarray or None
 """
-    result = self.dataSetFactors.get( ds_name )
+    result = None
 
-    if result is None:
-      ddef = self.GetDataSetDefByDsName( ds_name ) if ds_name else none
-      if ddef:
-        #result = self.pinFactors
-        ds_type = ddef[ 'type' ]
-        result = \
+    ddef = self.GetDataSetDefByDsName( ds_name ) if ds_name else None
+    if ddef:
+      #result = self.pinFactors
+      ds_type = ddef[ 'type' ]
+      result = \
           self.nodeFactors if self.IsNodalType( ds_type ) else self.pinFactors
   
-        if ddef[ 'type' ] == 'channel':
-          result = self.channelFactors
+      if ddef[ 'type' ] == 'channel':
+        result = self.channelFactors
   
-        elif ddef[ 'type' ] == ':chan_radial':
-          result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
-          result.fill( 0.0 )
-  	  factors_sum = np.sum( self.channelFactors, axis = 2 )
-  	  exec_str = 'result' + ddef[ 'copy_expr' ] + ' = factors_sum'
-  	  exec(
-  	      exec_str, {},
-  	      { 'factors_sum': factors_sum, 'result': result }
-  	      )
+      elif ddef[ 'type' ] == ':chan_radial':
+        result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
+        result.fill( 0.0 )
+  	factors_sum = np.sum( self.channelFactors, axis = 2 )
+  	exec_str = 'result' + ddef[ 'copy_expr' ] + ' = factors_sum'
+  	exec(
+	    exec_str, {},
+  	    { 'factors_sum': factors_sum, 'result': result }
+  	    )
   
-        elif 'factors' in ddef and 'copy_shape' in ddef and \
-            'pin' in self.averagers:
-          result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
-          result.fill( 0.0 )
-  	  exec_str = \
+      elif 'factors' in ddef and 'copy_shape' in ddef and \
+          'pin' in self.averagers:
+        result = np.ndarray( ddef[ 'copy_shape' ], dtype = np.float64 )
+        result.fill( 0.0 )
+  	exec_str = \
   	    'result' + ddef[ 'copy_expr' ] + ' = averager.' + ddef[ 'factors' ]
-  	  exec(
-  	      exec_str, {},
-  	      { 'averager': self.averagers[ 'pin' ], 'result': result }
-  	      )
+  	exec(
+	    exec_str, {},
+  	    { 'averager': self.averagers[ 'pin' ], 'result': result }
+  	    )
       #end if ddef
     #end if result is None
 

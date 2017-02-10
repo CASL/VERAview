@@ -96,7 +96,8 @@ be called before use.
 	np.seterr( **errors_save )
     #end if
 
-    return  avg, factor_weights
+    return  avg
+    #return  avg, factor_weights
   #end calc_average
 
 
@@ -154,17 +155,17 @@ be called before use.
       mpiny = core.nchany / 2
       odd = oddx = core.nchanx % 2 == 1
       oddy = core.nchany % 2 == 1
-      pxlo = np.zeros( [ core.nassx ], dtype = int )
-      pylo = np.zeros( [ core.nassy ], dtype = int )
+      pxlo = np.zeros( [ core.nass ], dtype = int )
+      pylo = np.zeros( [ core.nass ], dtype = int )
 #			-- Assemblies on the line of symmetry start at the
 #			-- middle channel
 #      for i in xrange( mass, core.nassx ):
 #        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
 #        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
 
-      for j in xrange( mass, core.nassy ):
+      for j in xrange( massy, core.nassy ):
         pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
-      for i in xrange( mass, core.nassx ):
+      for i in xrange( massx, core.nassx ):
         pylo[ core.coreMap[ massy, i ] - 1 ] = mpiny
 
 #      for i in xrange( mass, core.nassx ):
