@@ -370,7 +370,8 @@ Paired to _BitmapThreadStart().
 
 #			-- Create bitmap
 #			--
-      else:
+      #else:
+      elif bitmap_args is not None:
 	self.bitmapsLock.acquire()
 	try:
 	  if bitmap_args in self.bitmapThreads:
