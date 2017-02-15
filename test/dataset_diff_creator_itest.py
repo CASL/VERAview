@@ -158,6 +158,7 @@ class DataSetDiffCreatorDialogTestFrame( wx.Frame ):
     self.Fit()
     self.SetTitle( 'DataSetDiffCreatorDialog Test' )
     self.Center()
+    self.SetPosition( ( 50, 50 ) )
   #end _InitUI
 
 

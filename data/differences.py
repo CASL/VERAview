@@ -1,6 +1,8 @@
 #------------------------------------------------------------------------
 #	NAME:		differences.py					-
 #	HISTORY:							-
+#		2017-02-15	leerw@ornl.gov				-
+#	  New approach with interpolation				-
 #		2017-01-26	leerw@ornl.gov				-
 #		2017-01-14	leerw@ornl.gov				-
 #------------------------------------------------------------------------
@@ -39,7 +41,7 @@ class Differences( object ):
   #----------------------------------------------------------------------
   #	METHOD:		calc()						-
   #----------------------------------------------------------------------
-  def calc( self, base_qds_name, sub_qds_name, diff_ds_name ):
+  def calc( self, base_qds_name, sub_qds_name, diff_ds_name, listener = None ):
     """Create new difference dataset to be stored as a derived dataset in
 the base_qds_name model.  Thus, the axial mesh and time
 values are from the base_qds_name model.  The current timeDataSet is used
@@ -48,6 +50,7 @@ be the same.
 @param  base_qds_name	dataset x in x - y
 @param  sub_qds_name	dataset y in x - y
 @param  diff_ds_name	name of difference dataset
+@param  listener	optional callable( message, cur_step, step_count )
 @return			difference DataSetName
 @exception		if diff_ds_name not created in base_qds_name.modelName
 """

@@ -433,6 +433,7 @@ Calls _CreateRasterImage().
 
     pil_im = None
 
+    #xxx catch exception, add to returned tuple
     if next_tuple is not None and self.config is not None:
       pil_im = self._CreateRasterImage( next_tuple )
 
