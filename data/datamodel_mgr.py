@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2017-02-15	leerw@ornl.gov				-
+#	  Not considering detectorMap in _CheckDataModelIsCompatible().
 #		2017-02-06	leerw@ornl.gov				-
 #	  Fixed bug in ExtractSymmetryExtent() with even number of
 #	  assemblies.
@@ -143,8 +145,6 @@ Properties:
       msg = ''
 
       if len( self.dataModelNames ) > 0:
-        #cur_dm = self.dataModels[ self.dataModelNames[ 0 ] ]
-        #cur_core = cur_dm.GetCore()
 	cur_core = self.core
 	dm_core = dm.GetCore()
 #			-- Core symmetry
@@ -175,9 +175,9 @@ Properties:
 
 #			-- Detector map
 #			--
-	if self.detectorMap is not None and dm.HasDetectorData() and \
-	    not np.array_equal( cur_core.detectorMap, dm_core.detectorMap ):
-	  msg += '\n* detector_map differs\n'
+#	if self.detectorMap is not None and dm.HasDetectorData() and \
+#	    not np.array_equal( cur_core.detectorMap, dm_core.detectorMap ):
+#	  msg += '\n* detector_map differs\n'
       #end if len
 
       if msg:

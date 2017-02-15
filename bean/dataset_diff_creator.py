@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_diff_creator.py				-
 #	HISTORY:							-
+#		2017-02-15	leerw@ornl.gov				-
+#	  New approach from Andrew.
 #		2017-01-17	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, json, math, os, sys, time, traceback
@@ -48,8 +50,8 @@ class MenuWidget( BaseDataModelMenuWidget ):
     if self.fField is not None:
       self.fField.SetValue( str( qds_name ) if qds_name else '' )
 
-#    base_qds_name = DataSetName( self.fBaseNameField.GetValue() )
-#    sub_qds_name = DataSetName( self.fSubNameField.GetValue() )
+#    ref_qds_name = DataSetName( self.fRefNameField.GetValue() )
+#    comp_qds_name = DataSetName( self.fCompNameField.GetValue() )
 #    diff_ds_name = self.fDiffNameField.GetValue().replace( ' ', '_' )
   #end SetDataSet
 
@@ -78,21 +80,18 @@ creating a difference dataset.
     self.fState = state
     #self.fDataMgr = state.dataModelMgr
 
-#		-- mode 'subsingle', widget with FireStateChange( **kwargs )
-# FireStateChange( **kwargs )
-# GetCurDataSet()
-# SetDataSet( qds_name )
-    self.fBaseDataSetMenu = None
-    self.fBaseMenuButton = None
-    self.fBaseNameField = None
-
     self.fButtonPanel = None
     self.fCreateButton = None
+
+    self.fCompDataSetMenu = None
+    self.fCompMenuButton = None
+    self.fCompNameField = None
+
     self.fDiffNameField = None
 
-    self.fSubDataSetMenu = None
-    self.fSubMenuButton = None
-    self.fSubNameField = None
+    self.fRefDataSetMenu = None
+    self.fRefMenuButton = None
+    self.fRefNameField = None
 
     self._InitUI()
     #self._UpdateControls()
@@ -105,7 +104,7 @@ creating a difference dataset.
   def Enable( self, flag = True ):
     super( DataSetDiffCreatorBean, self ).Enable( flag )
 
-    for obj in ( self.fBaseMenuButton, self.fSubMenuButton ):
+    for obj in ( self.fRefMenuButton, self.fCompMenuButton ):
       if obj is not None:
         obj.Enable( flag )
   #end Enable
@@ -128,34 +127,34 @@ creating a difference dataset.
     grid_sizer = wx.FlexGridSizer( cols = 3, vgap = 10, hgap = 8 )
     grid_panel.SetSizer( grid_sizer )
 
-#		-- Base panel
+#		-- Reference panel
 #		--
 #    base_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
 #    base_panel_sizer = wx.BoxSizer( wx.HORIZONTAL )
 #    base_panel.SetSizer( base_panel_sizer )
 
-    self.fBaseNameField = wx.TextCtrl(
+    self.fRefNameField = wx.TextCtrl(
 	grid_panel, -1, '',
 	size = ( 320, name_ht )
         )
-    self.fBaseNameField.SetEditable( False )
+    self.fRefNameField.SetEditable( False )
 
-    self.fBaseDataSetMenu = DataSetsMenu(
+    self.fRefDataSetMenu = DataSetsMenu(
 	self.fState, binder = self, mode = 'subsingle',
 	ds_types = all_types,
-	widget = MenuWidget( self.fBaseNameField )
+	widget = MenuWidget( self.fRefNameField )
         )
 
-    self.fBaseMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
-    self.fBaseMenuButton.Bind(
+    self.fRefMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
+    self.fRefMenuButton.Bind(
         wx.EVT_BUTTON,
 	functools.partial(
-	    self._OnShowMenu, self.fBaseMenuButton, self.fBaseDataSetMenu
+	    self._OnShowMenu, self.fRefMenuButton, self.fRefDataSetMenu
 	    )
 	)
 
     st = wx.StaticText(
-        grid_panel, -1, label = 'Base Dataset:',
+        grid_panel, -1, label = 'Reference Dataset:',
 	style = wx.ALIGN_RIGHT
 	)
     grid_sizer.Add(
@@ -163,42 +162,38 @@ creating a difference dataset.
 	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
         )
     grid_sizer.Add(
-        self.fBaseNameField, 0,
+        self.fRefNameField, 0,
 	wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0
 	)
     grid_sizer.Add(
-        self.fBaseMenuButton, 0,
+        self.fRefMenuButton, 0,
 	wx.ALIGN_CENTRE | wx.ALL | wx.EXPAND, 0
 	)
 
-#		-- Sub panel
+#		-- Comparison panel
 #		--
-#    sub_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
-#    sub_panel_sizer = wx.BoxSizer( wx.HORIZONTAL )
-#    sub_panel.SetSizer( sub_panel_sizer )
-
-    self.fSubNameField = wx.TextCtrl(
+    self.fCompNameField = wx.TextCtrl(
 	grid_panel, -1, '',
 	size = ( 320, name_ht )
         )
-    self.fSubNameField.SetEditable( False )
+    self.fCompNameField.SetEditable( False )
 
-    self.fSubDataSetMenu = DataSetsMenu(
+    self.fCompDataSetMenu = DataSetsMenu(
 	self.fState, binder = self, mode = 'subsingle',
 	ds_types = all_types,
-	widget = MenuWidget( self.fSubNameField )
+	widget = MenuWidget( self.fCompNameField )
         )
 
-    self.fSubMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
-    self.fSubMenuButton.Bind(
+    self.fCompMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
+    self.fCompMenuButton.Bind(
         wx.EVT_BUTTON,
 	functools.partial(
-	    self._OnShowMenu, self.fSubMenuButton, self.fSubDataSetMenu
+	    self._OnShowMenu, self.fCompMenuButton, self.fCompDataSetMenu
 	    )
 	)
 
     st = wx.StaticText(
-        grid_panel, -1, label = 'Subend Dataset:',
+        grid_panel, -1, label = 'Comparison Dataset:',
 	style = wx.ALIGN_RIGHT
 	)
     grid_sizer.Add(
@@ -206,11 +201,11 @@ creating a difference dataset.
 	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
         )
     grid_sizer.Add(
-        self.fSubNameField, 0,
+        self.fCompNameField, 0,
 	wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0
 	)
     grid_sizer.Add(
-        self.fSubMenuButton, 0,
+        self.fCompMenuButton, 0,
 	wx.ALIGN_CENTRE | wx.ALL | wx.EXPAND, 0
 	)
 
@@ -255,8 +250,8 @@ creating a difference dataset.
 
     self.Fit()
 
-    self.fBaseDataSetMenu.Init()
-    self.fSubDataSetMenu.Init()
+    self.fRefDataSetMenu.Init()
+    self.fCompDataSetMenu.Init()
   #end _InitUI
 
 
@@ -269,15 +264,15 @@ Called on the UI thread.
 """
     ev.Skip()
 
-    base_qds_name = DataSetName( self.fBaseNameField.GetValue() )
-    sub_qds_name = DataSetName( self.fSubNameField.GetValue() )
+    ref_qds_name = DataSetName( self.fRefNameField.GetValue() )
+    comp_qds_name = DataSetName( self.fCompNameField.GetValue() )
     diff_ds_name = self.fDiffNameField.GetValue().replace( ' ', '_' )
 
     msg = ''
-    if len( base_qds_name.displayName ) == 0:
-      msg = 'Please select a base dataset'
-    elif len( sub_qds_name.displayName ) == 0:
-      msg = 'Please select a subend dataset'
+    if len( ref_qds_name.displayName ) == 0:
+      msg = 'Please select a reference dataset'
+    elif len( comp_qds_name.displayName ) == 0:
+      msg = 'Please select a comparison dataset'
     elif len( diff_ds_name ) == 0:
       msg = 'Please enter a difference (result) dataset name'
 
@@ -286,9 +281,10 @@ Called on the UI thread.
           ShowWindowModal()
     else:
       try:
+	#xxx Progress dialog
         dmgr = self.fState.dataModelMgr
 	result = \
-	    dmgr.CreateDiffDataSet( base_qds_name, sub_qds_name, diff_ds_name )
+	    dmgr.CreateDiffDataSet( ref_qds_name, comp_qds_name, diff_ds_name )
         wx.MessageDialog(
 	    self,
 	    'Dataset "%s" created' % str( result ),

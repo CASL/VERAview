@@ -169,7 +169,7 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.1 Build 82'
+TITLE = 'VERAView Version 1.1 Build 83'
 
 TOOLBAR_ITEMS = \
   [
@@ -1701,6 +1701,8 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._OnCloseFrame()			-
   #----------------------------------------------------------------------
   def _OnCloseFrame( self, ev ):
+    """Called on EVT_CLOSE event.
+"""
     if len( self.app.GetFrameRecs() ) == 1:
 #			-- Windows focus hack
       win = wx.Window_FindFocus()
@@ -1732,6 +1734,8 @@ Must be called from the UI thread.
   #	METHOD:		VeraViewFrame._OnCloseWindow()			-
   #----------------------------------------------------------------------
   def _OnCloseWindow( self, ev ):
+    """Menu item handler.
+"""
     ev.Skip()
 
     match = None
