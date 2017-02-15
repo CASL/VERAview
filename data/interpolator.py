@@ -8,7 +8,7 @@
 #		2016-11-04	leerw@ornl.gov				-
 #		2016-10-31	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import h5py, os, sys
+import h5py, os, sys, time
 import numpy as np
 from scipy.interpolate import interp1d
 #from scipy import array, integrate
@@ -85,20 +85,21 @@ parameters ( cur_step, total_steps ).
 @return		interpolator function
 """
 #linear
-#    f = interp1d(
-#        src_mesh_centers, src_data,
-#	assume_sorted = True, axis = 2, fill_value = 'extrapolate'
-#	)
-
-#slinear
     f = interp1d(
         src_mesh_centers, src_data,
-	assume_sorted = True, axis = 2,
-	bounds_error = False,
-	copy = False,
-	fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
-	kind = 'slinear'
+	assume_sorted = True, axis = 2, fill_value = 'extrapolate'
 	)
+    time.sleep( 0.5 )
+
+#slinear
+#    f = interp1d(
+#        src_mesh_centers, src_data,
+#	assume_sorted = True, axis = 2,
+#	bounds_error = False,
+#	copy = False,
+#	fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
+#	kind = 'slinear'
+#	)
 
 #cubic
 #    f = interp1d(

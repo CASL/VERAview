@@ -38,7 +38,9 @@ class MenuWidget( BaseDataModelMenuWidget ):
   #----------------------------------------------------------------------
   #	METHOD:		MenuWidget.__init__()				-
   #----------------------------------------------------------------------
-  def __init__( self, field ):
+  def __init__( self, field, callback = None ):
+    self.fCallback = \
+        callback  if callback and hasattr( callback, '__call__' ) else  None
     self.fField = field
   #end __init__
 
@@ -50,9 +52,8 @@ class MenuWidget( BaseDataModelMenuWidget ):
     if self.fField is not None:
       self.fField.SetValue( str( qds_name ) if qds_name else '' )
 
-#    ref_qds_name = DataSetName( self.fRefNameField.GetValue() )
-#    comp_qds_name = DataSetName( self.fCompNameField.GetValue() )
-#    diff_ds_name = self.fDiffNameField.GetValue().replace( ' ', '_' )
+      if self.fCallback:
+        self.fCallback()
   #end SetDataSet
 
 #end MenuWidget
@@ -88,8 +89,8 @@ creating a difference dataset.
     self.fCompNameField = None
 
     self.fDiffNameField = None
+    self.fGridSizer = None
     self.fProgressField = None
-    self.fProgressPanel = None
     self.fProgressSizer = None
 
     self.fRefDataSetMenu = None
@@ -124,6 +125,7 @@ creating a difference dataset.
   #----------------------------------------------------------------------
   def _CreateDataSetEnd( self, result ):
     error_message = None
+    new_qname = None
 
     try:
       result_obj = None
@@ -136,12 +138,11 @@ creating a difference dataset.
         error_message = 'Dataset creation failed'
 
       elif isinstance( result_obj, DataSetName ):
+	new_qname = result_obj
         if self.fSelectBox.GetValue():
-	  reason = self.fState.Change( None, cur_dataset = result_obj )
+	  reason = self.fState.Change( None, cur_dataset = new_qname )
           self.fState.FireStateChange( reason )
 
-#      elif isinstance( result_obj, Exception ):
-#        error_message = 'Dataset creation failed:\n' + str( result_obj )
       else:
         error_message = 'Dataset creation failed'
 	if isinstance( result_obj, Exception ):
@@ -152,9 +153,12 @@ creating a difference dataset.
       error_message = 'Dataset creation failed:\n' + str( ex )
 
     finally:
+      self.fCreateButton.Enable()
       self.fProgressGauge.Hide()
-      self.fProgressField.SetLabel( '' )
-      self.fProgressPanel.Layout()
+      self.fProgressGauge.SetValue( 0 )
+      label = ('Created %s' % new_qname) if new_qname else ''
+      self.fProgressField.SetLabel( label )
+      self.fGridSizer.Layout()
 
     if error_message:
       wx.MessageDialog( self, error_message, 'Create Difference Dataset' ).\
@@ -182,6 +186,7 @@ creating a difference dataset.
 """
     all_types = DATASET_DEFS.keys()
     name_ht = 28
+    name_wd = 320
 
     grid_wrapper = wx.Panel( self, -1, style = wx.BORDER_THEME )
     gw_sizer = wx.BoxSizer( wx.HORIZONTAL )
@@ -200,14 +205,14 @@ creating a difference dataset.
 
     self.fRefNameField = wx.TextCtrl(
 	grid_panel, -1, '',
-	size = ( 320, name_ht )
+	size = ( name_wd, name_ht )
         )
     self.fRefNameField.SetEditable( False )
 
     self.fRefDataSetMenu = DataSetsMenu(
 	self.fState, binder = self, mode = 'subsingle',
 	ds_types = all_types,
-	widget = MenuWidget( self.fRefNameField )
+	widget = MenuWidget( self.fRefNameField, self.OnNameUpdate )
         )
 
     self.fRefMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
@@ -239,14 +244,14 @@ creating a difference dataset.
 #		--
     self.fCompNameField = wx.TextCtrl(
 	grid_panel, -1, '',
-	size = ( 320, name_ht )
+	size = ( name_wd, name_ht )
         )
     self.fCompNameField.SetEditable( False )
 
     self.fCompDataSetMenu = DataSetsMenu(
 	self.fState, binder = self, mode = 'subsingle',
 	ds_types = all_types,
-	widget = MenuWidget( self.fCompNameField )
+	widget = MenuWidget( self.fCompNameField, self.OnNameUpdate )
         )
 
     self.fCompMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
@@ -278,7 +283,7 @@ creating a difference dataset.
 #		--
     self.fDiffNameField = wx.TextCtrl(
 	grid_panel, -1, 'diff_data',
-	size = ( 320, name_ht )
+	size = ( name_wd, name_ht )
         )
 
     st = wx.StaticText(
@@ -325,33 +330,29 @@ creating a difference dataset.
 
 #		-- Progress
 #		--
-    self.fProgressPanel = wx.Panel( self, -1 )
+    progress_panel = wx.Panel( self, -1 )
+    progress_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    progress_panel.SetSizer( progress_sizer )
+
     self.fProgressField = wx.StaticText(
-        self.fProgressPanel, -1, label = '',
-	size = ( 240, -1 ), style = wx.ALIGN_RIGHT
+        progress_panel, -1, label = '',
+	size = ( name_wd - 40, -1 ), style = wx.ALIGN_RIGHT
 	)
-    self.fProgressGauge = wx.Gauge( self.fProgressPanel, wx.ID_ANY )
-    self.fProgressGauge.Hide()
+    self.fProgressGauge = \
+        wx.Gauge( progress_panel, wx.ID_ANY, size = ( -1, 24 ) )
     self.fProgressGauge.SetValue( 0 )
 
-#    grid_sizer.Add(
-#	self.fProgressField, 0,
-#	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
-#	)
-#    grid_sizer.Add(
-#	self.fProgressGauge,
-#	wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0
-#        )
-#    grid_sizer.AddSpacer( 0 )
-
-    progress_sizer = wx.BoxSizer( wx.HORIZONTAL )
     progress_sizer.Add(
 	self.fProgressField, 0,
-	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.RIGHT | wx.TOP, 10
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.BOTTOM |
+	  wx.RIGHT | wx.TOP,
+	8
         )
     progress_sizer.Add(
 	self.fProgressGauge, 1,
-	wx.ALIGN_LEFT | wx.TOP, 10
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_LEFT | wx.BOTTOM | wx.EXPAND |
+	  wx.RIGHT | wx.TOP,
+	8
         )
     progress_sizer.AddSpacer( 16 )
 
@@ -364,13 +365,14 @@ creating a difference dataset.
     self.SetSizer( sizer )
 
     sizer.Add( grid_wrapper, 0, wx.BOTTOM, 10 )
-    sizer.Add( self.fProgressPanel, 0, wx.BOTTOM, 10 )
+    sizer.Add( progress_panel, 0, wx.BOTTOM | wx.EXPAND, 10 )
     sizer.AddStretchSpacer()
 
     self.Fit()
 
     self.fRefDataSetMenu.Init()
     self.fCompDataSetMenu.Init()
+    self.fProgressGauge.Hide()
   #end _InitUI
 
 
@@ -399,12 +401,13 @@ Called on the UI thread.
       wx.MessageDialog( self, msg, 'Create Difference Dataset' ).\
           ShowWindowModal()
     else:
+      self.fCreateButton.Disable()
       self.fProgressGauge.SetValue( 0 )
       self.fProgressGauge.Show()
 
       th = wxlibdr.startWorker(
-          self._CreateDataSetBegin(),
-          self._CreateDataSetEnd(),
+          self._CreateDataSetEnd,
+          self._CreateDataSetBegin,
 	  wargs = [ ref_qds_name, comp_qds_name, diff_ds_name ]
 	  )
     #end if-else msg
@@ -468,6 +471,20 @@ Called on the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetDiffCreatorBean.OnNameUpdate()		-
+  #----------------------------------------------------------------------
+  def OnNameUpdate( self, *args, **kwargs ):
+    """
+"""
+    ref_qds_name = DataSetName( self.fRefNameField.GetValue() )
+    comp_qds_name = DataSetName( self.fCompNameField.GetValue() )
+
+    if ref_qds_name and ref_qds_name.displayName == comp_qds_name.displayName:
+      self.fDiffNameField.SetValue( 'diff_' + ref_qds_name.displayName )
+  #end OnNameUpdate
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetDiffCreatorBean._OnShowMenu()		-
   #----------------------------------------------------------------------
   def _OnShowMenu( self, button, menu, ev ):
@@ -491,7 +508,8 @@ Called on the UI thread.
 
     if message != self.fProgressField.GetLabel():
       self.fProgressField.SetLabel( message )
-      self.fProgressPanel.Layout()
+
+    self.fGridSizer.Layout()
   #end _UpdateProgress
 
 #end DataSetDiffCreatorBean
