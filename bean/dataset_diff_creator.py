@@ -99,6 +99,8 @@ creating a difference dataset.
 
     self.fSelectionBox = None
 
+    self.fWorkerIsCanceled = False
+
     self._InitUI()
     #self._UpdateControls()
   #end __init__
@@ -158,7 +160,7 @@ creating a difference dataset.
       self.fProgressGauge.SetValue( 0 )
       label = ('Created %s' % new_qname) if new_qname else ''
       self.fProgressField.SetLabel( label )
-      self.fGridSizer.Layout()
+      self.Layout()
 
     if error_message:
       wx.MessageDialog( self, error_message, 'Create Difference Dataset' ).\
@@ -199,10 +201,6 @@ creating a difference dataset.
 
 #		-- Reference panel
 #		--
-#    base_panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
-#    base_panel_sizer = wx.BoxSizer( wx.HORIZONTAL )
-#    base_panel.SetSizer( base_panel_sizer )
-
     self.fRefNameField = wx.TextCtrl(
 	grid_panel, -1, '',
 	size = ( name_wd, name_ht )
@@ -298,23 +296,17 @@ creating a difference dataset.
         self.fDiffNameField, 0,
 	wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0
 	)
-#    grid_sizer.Add(
-#        self.fCreateButton, 0,
-#	wx.ALIGN_CENTRE | wx.ALL | wx.EXPAND, 0
-#	)
     grid_sizer.AddSpacer( 0 )
 
 #		-- Create panel
 #		--
     self.fCreateButton = wx.Button( grid_panel, -1, label = 'Create', size = ( -1, 28 ) )
     self.fCreateButton.SetFont( self.fCreateButton.GetFont().Larger() )
-    #self.fCreateButton.Enable( False )
     self.fCreateButton.Bind( wx.EVT_BUTTON, self._OnCreateDataSet )
 
     self.fSelectBox = wx.CheckBox( grid_panel, wx.ID_ANY, "Select New Dataset" )
 
     create_sizer = wx.BoxSizer( wx.HORIZONTAL )
-    #create_sizer.AddStretchSpacer()
     create_sizer.Add(
 	self.fCreateButton, 0,
 	wx.ALIGN_CENTRE | wx.ALL, 0
@@ -322,7 +314,6 @@ creating a difference dataset.
     create_sizer.AddSpacer( 16 )
     create_sizer.Add( self.fSelectBox, 0, wx.ALIGN_CENTRE | wx.ALL, 0 )
     self.fSelectBox.SetValue( True )
-    #create_sizer.AddStretchSpacer()
 
     grid_sizer.AddSpacer( 0 )
     grid_sizer.Add( create_sizer, 0, wx.ALIGN_CENTRE | wx.ALL, 0 )
@@ -330,31 +321,10 @@ creating a difference dataset.
 
 #		-- Progress
 #		--
-    progress_panel = wx.Panel( self, -1 )
-    progress_sizer = wx.BoxSizer( wx.HORIZONTAL )
-    progress_panel.SetSizer( progress_sizer )
-
-    self.fProgressField = wx.StaticText(
-        progress_panel, -1, label = '',
-	size = ( name_wd - 40, -1 ), style = wx.ALIGN_RIGHT
-	)
-    self.fProgressGauge = \
-        wx.Gauge( progress_panel, wx.ID_ANY, size = ( -1, 24 ) )
+    self.fProgressField = \
+        wx.StaticText( self, -1, label = '', style = wx.ALIGN_LEFT )
+    self.fProgressGauge = wx.Gauge( self, wx.ID_ANY, size = ( 40, 24 ) )
     self.fProgressGauge.SetValue( 0 )
-
-    progress_sizer.Add(
-	self.fProgressField, 0,
-	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.BOTTOM |
-	  wx.RIGHT | wx.TOP,
-	8
-        )
-    progress_sizer.Add(
-	self.fProgressGauge, 1,
-	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_LEFT | wx.BOTTOM | wx.EXPAND |
-	  wx.RIGHT | wx.TOP,
-	8
-        )
-    progress_sizer.AddSpacer( 16 )
 
 #		-- Lay self out
 #		--
@@ -365,14 +335,24 @@ creating a difference dataset.
     self.SetSizer( sizer )
 
     sizer.Add( grid_wrapper, 0, wx.BOTTOM, 10 )
-    sizer.Add( progress_panel, 0, wx.BOTTOM | wx.EXPAND, 10 )
+    sizer.Add(
+        self.fProgressField, 0,
+	wx.ALIGN_LEFT | wx.BOTTOM | wx.EXPAND | wx.LEFT | wx.RIGHT,
+	10
+	)
+    sizer.Add(
+        self.fProgressGauge, 0,
+	wx.ALIGN_LEFT | wx.BOTTOM | wx.EXPAND | wx.LEFT | wx.RIGHT,
+	10
+	)
     sizer.AddStretchSpacer()
 
     self.Fit()
 
     self.fRefDataSetMenu.Init()
     self.fCompDataSetMenu.Init()
-    self.fProgressGauge.Hide()
+    #self.fProgressGauge.Hide()
+    wx.CallAfter( self.fProgressGauge.Hide )
   #end _InitUI
 
 
@@ -405,6 +385,7 @@ Called on the UI thread.
       self.fProgressGauge.SetValue( 0 )
       self.fProgressGauge.Show()
 
+      self.fWorkerIsCanceled = False
       th = wxlibdr.startWorker(
           self._CreateDataSetEnd,
           self._CreateDataSetBegin,
@@ -467,6 +448,7 @@ Called on the UI thread.
     """Not called on the UI thread.
 """
     wx.CallAfter( self._UpdateProgress, message, cur_step, step_count )
+    return  not self.fWorkerIsCanceled
   #end OnDataSetProgress
 
 
@@ -509,7 +491,7 @@ Called on the UI thread.
     if message != self.fProgressField.GetLabel():
       self.fProgressField.SetLabel( message )
 
-    self.fGridSizer.Layout()
+    self.Layout()
   #end _UpdateProgress
 
 #end DataSetDiffCreatorBean

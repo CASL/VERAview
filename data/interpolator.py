@@ -89,7 +89,6 @@ parameters ( cur_step, total_steps ).
         src_mesh_centers, src_data,
 	assume_sorted = True, axis = 2, fill_value = 'extrapolate'
 	)
-    time.sleep( 0.5 )
 
 #slinear
 #    f = interp1d(
