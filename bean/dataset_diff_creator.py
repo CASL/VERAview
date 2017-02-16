@@ -20,7 +20,13 @@ except Exception:
 
 from data.datamodel import *
 from data.datamodel_mgr import *
+from data.differences import *
 from widget.bean.dataset_menu import *
+
+
+DIFF_OPTIONS = [ 'Delta', 'Pct Difference' ]
+
+INTERP_OPTIONS = [ 'Cubic', 'Quadratic', 'Linear' ]
 
 
 #------------------------------------------------------------------------
@@ -88,8 +94,11 @@ creating a difference dataset.
     self.fCompMenuButton = None
     self.fCompNameField = None
 
+    self.fDiffComboBox = None
     self.fDiffNameField = None
     self.fGridSizer = None
+    self.fInterpComboBox = None
+
     self.fProgressField = None
     self.fProgressSizer = None
 
@@ -109,12 +118,18 @@ creating a difference dataset.
   #----------------------------------------------------------------------
   #	METHOD:		DataSetDiffCreatorBean._CreateDataSetBegin()	-
   #----------------------------------------------------------------------
-  def _CreateDataSetBegin( self, ref_qname, comp_qname, diff_ds_name ):
+  def _CreateDataSetBegin(
+      self, ref_qname, comp_qname, diff_ds_name,
+      diff_mode, interp_mode
+      ):
     try:
-      dmgr = self.fState.dataModelMgr
-      result = dmgr.CreateDiffDataSet(
+      #dmgr = self.fState.dataModelMgr
+      #result = dmgr.CreateDiffDataSet
+
+      result = Differences( self.fState.dataModelMgr )(
           ref_qname, comp_qname, diff_ds_name,
-	  self.OnDataSetProgress
+	  diff_mode = diff_mode, interp_mode = interp_mode,
+	  listener = self.OnDataSetProgress
 	  )
     except Exception, ex:
       result = ex
@@ -199,45 +214,6 @@ creating a difference dataset.
     grid_sizer = wx.FlexGridSizer( cols = 3, vgap = 10, hgap = 8 )
     grid_panel.SetSizer( grid_sizer )
 
-#		-- Reference panel
-#		--
-    self.fRefNameField = wx.TextCtrl(
-	grid_panel, -1, '',
-	size = ( name_wd, name_ht )
-        )
-    self.fRefNameField.SetEditable( False )
-
-    self.fRefDataSetMenu = DataSetsMenu(
-	self.fState, binder = self, mode = 'subsingle',
-	ds_types = all_types,
-	widget = MenuWidget( self.fRefNameField, self.OnNameUpdate )
-        )
-
-    self.fRefMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
-    self.fRefMenuButton.Bind(
-        wx.EVT_BUTTON,
-	functools.partial(
-	    self._OnShowMenu, self.fRefMenuButton, self.fRefDataSetMenu
-	    )
-	)
-
-    st = wx.StaticText(
-        grid_panel, -1, label = 'Reference Dataset:',
-	style = wx.ALIGN_RIGHT
-	)
-    grid_sizer.Add(
-	st, 0,
-	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
-        )
-    grid_sizer.Add(
-        self.fRefNameField, 0,
-	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0
-	)
-    grid_sizer.Add(
-        self.fRefMenuButton, 0,
-	wx.ALIGN_CENTRE | wx.ALL | wx.EXPAND, 0
-	)
-
 #		-- Comparison panel
 #		--
     self.fCompNameField = wx.TextCtrl(
@@ -277,6 +253,45 @@ creating a difference dataset.
 	wx.ALIGN_CENTRE | wx.ALL | wx.EXPAND, 0
 	)
 
+#		-- Reference panel
+#		--
+    self.fRefNameField = wx.TextCtrl(
+	grid_panel, -1, '',
+	size = ( name_wd, name_ht )
+        )
+    self.fRefNameField.SetEditable( False )
+
+    self.fRefDataSetMenu = DataSetsMenu(
+	self.fState, binder = self, mode = 'subsingle',
+	ds_types = all_types,
+	widget = MenuWidget( self.fRefNameField, self.OnNameUpdate )
+        )
+
+    self.fRefMenuButton = wx.Button( grid_panel, -1, label = 'Select...' )
+    self.fRefMenuButton.Bind(
+        wx.EVT_BUTTON,
+	functools.partial(
+	    self._OnShowMenu, self.fRefMenuButton, self.fRefDataSetMenu
+	    )
+	)
+
+    st = wx.StaticText(
+        grid_panel, -1, label = 'Reference Dataset:',
+	style = wx.ALIGN_RIGHT
+	)
+    grid_sizer.Add(
+	st, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.TOP, 0
+        )
+    grid_sizer.Add(
+        self.fRefNameField, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_LEFT | wx.ALL | wx.EXPAND, 0
+	)
+    grid_sizer.Add(
+        self.fRefMenuButton, 0,
+	wx.ALIGN_CENTRE | wx.ALL | wx.EXPAND, 0
+	)
+
 #		-- Diff panel
 #		--
     self.fDiffNameField = wx.TextCtrl(
@@ -298,7 +313,49 @@ creating a difference dataset.
 	)
     grid_sizer.AddSpacer( 0 )
 
-#		-- Create panel
+#		-- Combo boxes
+#		--
+    self.fDiffComboBox = wx.ComboBox(
+        grid_panel, -1, DIFF_OPTIONS[ 0 ],
+	choices = DIFF_OPTIONS
+	)
+    self.fInterpComboBox = wx.ComboBox(
+        grid_panel, -1, INTERP_OPTIONS[ 0 ],
+	choices = INTERP_OPTIONS
+	)
+
+    combos_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    st = wx.StaticText(
+        grid_panel, -1, label = 'Difference:',
+	style = wx.ALIGN_RIGHT
+	)
+    combos_sizer.Add(
+        st, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.RIGHT, 4
+	)
+    combos_sizer.Add(
+	self.fDiffComboBox, 0,
+	wx.ALIGN_LEFT | wx.ALL, 0
+        )
+    combos_sizer.AddSpacer( 16 )
+    st = wx.StaticText(
+        grid_panel, -1, label = 'Interpolation:',
+	style = wx.ALIGN_RIGHT
+	)
+    combos_sizer.Add(
+        st, 0,
+	wx.ALIGN_CENTRE_VERTICAL | wx.ALIGN_RIGHT | wx.RIGHT, 4
+	)
+    combos_sizer.Add(
+	self.fInterpComboBox, 0,
+	wx.ALIGN_LEFT | wx.ALL, 0
+        )
+
+    grid_sizer.AddSpacer( 0 )
+    grid_sizer.Add( combos_sizer, 0, wx.ALIGN_CENTRE | wx.ALL, 0 )
+    grid_sizer.AddSpacer( 0 )
+
+#		-- Create row
 #		--
     self.fCreateButton = wx.Button( grid_panel, -1, label = 'Create', size = ( -1, 28 ) )
     self.fCreateButton.SetFont( self.fCreateButton.GetFont().Larger() )
@@ -385,11 +442,17 @@ Called on the UI thread.
       self.fProgressGauge.SetValue( 0 )
       self.fProgressGauge.Show()
 
+      diff_mode = self.fDiffComboBox.GetStringSelection().lower()
+      interp_mode = self.fInterpComboBox.GetStringSelection().lower()
+
       self.fWorkerIsCanceled = False
+      wargs = [
+          ref_qds_name, comp_qds_name, diff_ds_name, diff_mode, interp_mode
+	  ]
       th = wxlibdr.startWorker(
           self._CreateDataSetEnd,
           self._CreateDataSetBegin,
-	  wargs = [ ref_qds_name, comp_qds_name, diff_ds_name ]
+	  wargs = wargs
 	  )
     #end if-else msg
   #end _OnCreateDataSet

@@ -80,34 +80,34 @@ parameters ( cur_step, total_steps ).
   #----------------------------------------------------------------------
   #	METHOD:		create_interpolator()				-
   #----------------------------------------------------------------------
-  def create_interpolator( self, src_data, src_mesh_centers ):
+  def create_interpolator( self, src_data, src_mesh_centers, mode = 'linear' ):
     """
 @return		interpolator function
 """
-#linear
-    f = interp1d(
-        src_mesh_centers, src_data,
-	assume_sorted = True, axis = 2, fill_value = 'extrapolate'
-	)
+    #xxxxx must handle interpolation out of bounds
+    if mode.startswith( 'cubic' ):
+      f = interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2,
+	  bounds_error = False,
+	  fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
+	  kind = 'cubic'
+	  )
 
-#slinear
-#    f = interp1d(
-#        src_mesh_centers, src_data,
-#	assume_sorted = True, axis = 2,
-#	bounds_error = False,
-#	copy = False,
-#	fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
-#	kind = 'slinear'
-#	)
+    elif mode.startswith( 'quad' ):
+      f = interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2,
+	  bounds_error = False,
+	  fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
+	  kind = 'quadratic'
+	  )
 
-#cubic
-#    f = interp1d(
-#        src_mesh_centers, src_data,
-#	assume_sorted = True, axis = 2,
-#	bounds_error = False,
-#	fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
-#	kind = 'cubic'
-#	)
+    else:
+      f = interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2, fill_value = 'extrapolate'
+	  )
 
     return  f
   #end create_interpolator
@@ -116,7 +116,10 @@ parameters ( cur_step, total_steps ).
   #----------------------------------------------------------------------
   #	METHOD:		interpolate()					-
   #----------------------------------------------------------------------
-  def interpolate( self, src_data, f = None, skip_assertions = False ):
+  def interpolate(
+      self, src_data,
+      f = None, mode = 'linear', skip_assertions = False
+      ):
     """
 @param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
 @param  f		interpolator function, will be created if None

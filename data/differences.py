@@ -42,7 +42,11 @@ class Differences( object ):
   #----------------------------------------------------------------------
   #	METHOD:		calc()						-
   #----------------------------------------------------------------------
-  def calc( self, ref_qds_name, comp_qds_name, diff_ds_name, listener = None ):
+  def calc(
+      self, ref_qds_name, comp_qds_name, diff_ds_name,
+      diff_mode = 'delta', interp_mode = 'linear',
+      listener = None
+      ):
     """Create new difference dataset to be stored as a derived dataset in
 the comp_qds_name model.  Thus, the axial mesh and time
 values are from comp_qds_name model.  The current timeDataSet is used
@@ -51,6 +55,8 @@ be the same.
 @param  ref_qds_name	reference dataset x in x - y
 @param  comp_qds_name	comparison dataset y in x - y
 @param  diff_ds_name	name of difference dataset
+@param  diff_mode	difference mode, must start with one of 'delta', 'pct'
+@param  interp_mode	interpolation mode, one of 'linear', 'quad', 'cubic'
 @param  listener	optional callable( message, cur_step, step_count )
 @return			difference DataSetName
 @exception		if diff_ds_name not created in comp_qds_name.modelName
@@ -133,11 +139,18 @@ be the same.
 	    ref_dset is not None and comp_dset is not None:
 
 	  if must_interpolate:
-	    ref_data = interp.interpolate( ref_dset, skip_assertions = True )
+	    ref_data = interp.interpolate(
+	        ref_dset, mode = interp_mode, skip_assertions = True
+		)
 	  else:
 	    ref_data = np.array( ref_dset )
 
-	  diff_data = comp_dset - ref_data
+	  if diff_mode.startswith( 'pct' ):
+	    diff_data = (comp_dset - ref_data) / ref_data
+	    diff_data *= 100.0
+	  else:
+	    diff_data = comp_dset - ref_data
+
           comp_derived_st.CreateDataSet( diff_ds_name, diff_data )
         #end if comp_derived_st
 
