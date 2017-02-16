@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_diff_creator.py				-
 #	HISTORY:							-
+#		2017-02-16	leerw@ornl.gov				-
+#	  Added diff and interp mode comboboxes.
 #		2017-02-15	leerw@ornl.gov				-
 #	  New approach from Andrew.
 #		2017-01-17	leerw@ornl.gov				-
@@ -300,7 +302,7 @@ creating a difference dataset.
         )
 
     st = wx.StaticText(
-        grid_panel, -1, label = 'Difference Dataset:',
+        grid_panel, -1, label = 'Difference Name:',
 	style = wx.ALIGN_RIGHT
 	)
     grid_sizer.Add(
@@ -442,8 +444,8 @@ Called on the UI thread.
       self.fProgressGauge.SetValue( 0 )
       self.fProgressGauge.Show()
 
-      diff_mode = self.fDiffComboBox.GetStringSelection().lower()
-      interp_mode = self.fInterpComboBox.GetStringSelection().lower()
+      diff_mode = str( self.fDiffComboBox.GetValue() ).lower()
+      interp_mode = str( self.fInterpComboBox.GetValue() ).lower()
 
       self.fWorkerIsCanceled = False
       wargs = [

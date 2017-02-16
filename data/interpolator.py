@@ -1,6 +1,8 @@
 #------------------------------------------------------------------------
 #	NAME:		interpolator.py					-
 #	HISTORY:							-
+#		2017-02-16	leerw@ornl.gov				-
+#	  Added mode param.
 #		2017-02-09	leerw@ornl.gov				-
 #	  New, simple approach.
 #		2017-02-06	leerw@ornl.gov				-
@@ -84,8 +86,10 @@ parameters ( cur_step, total_steps ).
     """
 @return		interpolator function
 """
+    print >> sys.stderr, '[create_interpolator] mode=', mode
     #xxxxx must handle interpolation out of bounds
     if mode.startswith( 'cubic' ):
+      print >> sys.stderr, '[create_interpolator] CUBIC'
       f = interp1d(
           src_mesh_centers, src_data,
 	  assume_sorted = True, axis = 2,
@@ -95,6 +99,7 @@ parameters ( cur_step, total_steps ).
 	  )
 
     elif mode.startswith( 'quad' ):
+      print >> sys.stderr, '[create_interpolator] QUAD'
       f = interp1d(
           src_mesh_centers, src_data,
 	  assume_sorted = True, axis = 2,
@@ -104,6 +109,7 @@ parameters ( cur_step, total_steps ).
 	  )
 
     else:
+      print >> sys.stderr, '[create_interpolator] LINEAR'
       f = interp1d(
           src_mesh_centers, src_data,
 	  assume_sorted = True, axis = 2, fill_value = 'extrapolate'
@@ -117,8 +123,11 @@ parameters ( cur_step, total_steps ).
   #	METHOD:		interpolate()					-
   #----------------------------------------------------------------------
   def interpolate(
-      self, src_data,
-      f = None, mode = 'linear', skip_assertions = False
+      self,
+      src_data,
+      f = None,
+      mode = 'linear',
+      skip_assertions = False
       ):
     """
 @param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
@@ -157,7 +166,7 @@ parameters ( cur_step, total_steps ).
     #step = 1
 
     if f is None:
-      f = self.create_interpolator( src_data, self.srcMeshCenters )
+      f = self.create_interpolator( src_data, self.srcMeshCenters, mode )
 
     for k in xrange( dst_shape[ 2 ] ):
       dst_data[ :, :, k, : ] = f( self.dstMeshCenters[ k ] )

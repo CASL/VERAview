@@ -1,6 +1,8 @@
 #------------------------------------------------------------------------
 #	NAME:		differences.py					-
 #	HISTORY:							-
+#		2017-02-16	leerw@ornl.gov				-
+#	  Added diff_mode and interp_mode params.
 #		2017-02-15	leerw@ornl.gov				-
 #	  New approach with interpolation				-
 #		2017-01-26	leerw@ornl.gov				-
@@ -80,6 +82,8 @@ be the same.
         'Dataset types mismatch: %s ne %s' % ( ref_type, comp_type )
 
     try:
+      print >> sys.stderr, '[calc] diff_mode=%s, interp_mode=%s' % \
+          ( diff_mode, interp_mode )
 #			-- Retrieve meshes, assert
 #			--
       ddef = comp_dm.GetDataSetDef( comp_type )
@@ -146,8 +150,13 @@ be the same.
 	    ref_data = np.array( ref_dset )
 
 	  if diff_mode.startswith( 'pct' ):
-	    diff_data = (comp_dset - ref_data) / ref_data
-	    diff_data *= 100.0
+            errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
+            try:
+	      diff_data = (comp_dset - ref_data) / ref_data
+	      diff_data = np.nan_to_num( diff_data )
+	      diff_data *= 100.0
+            finally:
+	      np.seterr( **errors_save )
 	  else:
 	    diff_data = comp_dset - ref_data
 

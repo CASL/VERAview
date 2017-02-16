@@ -278,6 +278,7 @@ be the same.
 @param  listener	optional callable( message, cur_step, step_count )
 @return			difference DataSetName
 @exception		if diff_ds_name not created in comp_qds_name.modelName
+@deprecated  Just instantiate differences.Differences.
 """
     return \
     Differences( self )(
