@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		animators.py				        -
 #	HISTORY:							-
+#		2017-02-17	leerw@ornl.gov				-
+#	  Zipping individual images.
 #		2017-01-12	leerw@ornl.gov				-
 #	  Migrating to DataModelMgr.
 #		2016-03-17	leerw@ornl.gov				-
@@ -10,7 +12,7 @@
 #		2015-08-31	leerw@ornl.gov				-
 #		2015-08-29	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import glob, os, shutil, subprocess, sys, time, tempfile, threading
+import glob, os, shutil, subprocess, sys, time, tempfile, threading, zipfile
 #import pdb
 
 try:
@@ -148,7 +150,7 @@ import widget
 # 	if self.callback is not None:
 # 	  self.callback( count + 1, self.totalSteps + 1 )
 # 
-#         fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
+#         fpath = os.path.join( temp_dir, 'temp-%04d.png' % count )
 # 	while self.widget.IsBusy():
 # 	  time.sleep( 0.1 )
 # 	self.widget.CreatePrintImage( fpath )
@@ -254,14 +256,24 @@ class Animator( object ):
   def CreateAnimatedImage( self, file_path, temp_dir ):
     """
 """
+    zfp = zipfile.ZipFile( file_path + '.images.zip', 'w', zipfile.ZIP_DEFLATED )
     fnames = glob.glob( os.path.join( temp_dir, '*.png' ) )
-    for f in sorted( fnames ):
+    try:
+      for f in sorted( fnames ):
 #      # subprocess.call() fails on Windows
 #      os.system( 'convert "%s" "%s.gif"' % ( f, f ) )
-      png_im = PIL.Image.open( f )
-      gif_im = PIL.Image.new( "RGBA", png_im.size, ( 236, 236, 236, 255 ) )
-      gif_im.paste( png_im, ( 0, 0 ), png_im )
-      gif_im.save( f + '.gif', 'GIF' )
+	gif_name = f.replace( '.png', '.gif' )
+        png_im = PIL.Image.open( f )
+        gif_im = PIL.Image.new( "RGBA", png_im.size, ( 236, 236, 236, 255 ) )
+        gif_im.paste( png_im, ( 0, 0 ), png_im )
+        #gif_im.save( f + '.gif', 'GIF' )
+        gif_im.save( gif_name, 'GIF' )
+
+	zfp.write( f, os.path.basename( f ) )
+	zfp.write( gif_name, os.path.basename( gif_name ) )
+      #end for f
+    finally:
+      zfp.close()
 
     args = \
         [ 'gifsicle', '--disposal=background', '--delay=50', '--loop' ] + \
@@ -339,20 +351,19 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
 	    'Creating frame %d/%d' % ( count + 1, self.totalSteps )
 	    )
 
-        fpath = os.path.join( temp_dir, 'temp-%03d.png' % count )
-#	while self.widget.IsBusy():
-#	  time.sleep( 0.1 )
+        #fpath = os.path.join( temp_dir, 'temp-%04d.png' % count )
+        fpath = os.path.join( temp_dir, '%04d.png' % count )
 	self.widget.CreatePrintImage( fpath )
-	#wx.CallAfter( self.widget.CreatePrintImage, fpath )
 
 	count += 1
       #end while stepping
 
-      wx.CallAfter(
-	  dialog.Update,
-	  int( count * 100.0 / (self.totalSteps + 1) ),
-	  'Creating animated GIF'
-          )
+#      wx.CallAfter(
+#	  dialog.Update,
+#	  int( count * 100.0 / (self.totalSteps + 1) ),
+#	  'Creating animated GIF'
+#          )
+      wx.CallAfter( dialog.Pulse, 'Creating animated GIF' )
 
       self.CreateAnimatedImage( file_path, temp_dir )
 

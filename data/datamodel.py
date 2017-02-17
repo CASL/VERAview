@@ -4057,7 +4057,8 @@ being one greater in each dimension.
 	  dset_array = np.array( dset )
 
 	  #xxxx always array
-	  if isinstance( dset_array, np.ndarray ):
+	  #if isinstance( dset_array, np.ndarray ):
+	  if len( dset_array.shape ) > 0:
 	    #cur_max = np.amax( dset_array )
 	    cur_max = np.nanmax( dset_array )
 	    if math.isnan( vmax ) or cur_max > vmax:
