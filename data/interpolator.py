@@ -12,6 +12,7 @@
 #------------------------------------------------------------------------
 import h5py, os, sys, time
 import numpy as np
+from scipy import array
 from scipy.interpolate import interp1d
 #from scipy import array, integrate
 import pdb
@@ -80,12 +81,85 @@ parameters ( cur_step, total_steps ).
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_create_inner_interpolator()			-
+  #----------------------------------------------------------------------
+  def _create_inner_interpolator(
+      self, src_data, src_mesh_centers, mode = 'linear'
+      ):
+    """
+@return		interpolator function
+"""
+    print >> sys.stderr, '[create_inner_interpolator] mode=', mode
+
+    if mode.startswith( 'cubic' ):
+      print >> sys.stderr, '[create_interpolator] CUBIC'
+      f = interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2,
+	  bounds_error = False,
+	  kind = 'cubic'
+	  )
+
+    elif mode.startswith( 'quad' ):
+      print >> sys.stderr, '[create_inner_interpolator] QUAD'
+      f = interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2,
+	  bounds_error = False,
+	  kind = 'quadratic'
+	  )
+
+    else:
+      print >> sys.stderr, '[create_inner_interpolator] LINEAR'
+      f = interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2
+	  )
+
+    return  f
+  #end _create_inner_interpolator
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		create_interpolator()				-
   #----------------------------------------------------------------------
   def create_interpolator( self, src_data, src_mesh_centers, mode = 'linear' ):
     """
 @return		interpolator function
 """
+    f = self._create_inner_interpolator( src_data, src_mesh_centers, mode )
+    x = f.x
+    y = f.y
+
+    def extrapolate( x ):
+      if x < f.x[ 0 ]:
+	y = \
+	    (x - f.x[ 0 ]) / (f.x[ 1 ] - f.x[ 0 ]) * \
+            (f.y[ :, :, 1, : ] - f.y[ :, :, 0, : ]) + \
+	    f.y[ :, :, 0, : ]
+      elif x > f.x[ -1 ]:
+	y = \
+	    (x - f.x[ -2 ]) / (f.x[ -1 ] - f.x[ -2 ]) * \
+            (f.y[ :, :, -1, : ] - f.y[ :, :, -2, : ]) + \
+	    f.y[ :, :, -2, : ]
+      else:
+        y = f( x )
+      return  y
+    #end extrapolate
+
+    return  extrapolate
+  #end create_interpolator
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		create_interpolator_0()				-
+  #----------------------------------------------------------------------
+  def create_interpolator_0( self, src_data, src_mesh_centers, mode = 'linear' ):
+    """Due to a scipy bug, specifying fill_value won't always work.  Hence
+the workaround.
+@return		interpolator function
+"""
+    pdb.set_trace()
     print >> sys.stderr, '[create_interpolator] mode=', mode
     #xxxxx must handle interpolation out of bounds
     if mode.startswith( 'cubic' ):
@@ -116,7 +190,7 @@ parameters ( cur_step, total_steps ).
 	  )
 
     return  f
-  #end create_interpolator
+  #end create_interpolator_0
 
 
   #----------------------------------------------------------------------
