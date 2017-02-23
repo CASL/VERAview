@@ -97,6 +97,7 @@ class InterpolatorITest( object ):
     if dset is not None:
       result = self.interpolator.\
           interpolate( dset, mode = mode, skip_assertions = True )
+          #interpolate_integral( dset, mode = mode, skip_assertions = True )
       diff = dset - result
 
     return  result, diff
