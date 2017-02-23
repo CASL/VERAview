@@ -437,6 +437,7 @@ be called before use.
 #x      for i in xrange( mass, core.nassx ):
 #x        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
 #x        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
+
       for j in xrange( massy, core.nassy ):
         pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
       for i in xrange( massx, core.nassx ):

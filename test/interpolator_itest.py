@@ -66,7 +66,7 @@ class InterpolatorITest( object ):
   #----------------------------------------------------------------------
   #	METHOD:		InterpolatorITest.Interpolate()			-
   #----------------------------------------------------------------------
-  def Interpolate( self, ds_name, time_value ):
+  def Interpolate( self, ds_name, time_value, mode ):
     result = None
 
     #ref_state_ndx = dmgr.GetTimeValueIndex( ref_model.name )
@@ -75,7 +75,8 @@ class InterpolatorITest( object ):
         GetH5DataSet( DataSetName( self.refModel.name, ds_name ), time_value )
 
     if dset is not None:
-      result = self.interpolator.interpolate( dset, skip_assertions = True )
+      result = self.interpolator.\
+          interpolate( dset, mode = mode, skip_assertions = True )
 
     return  result
   #end Interpolate
@@ -84,7 +85,7 @@ class InterpolatorITest( object ):
   #----------------------------------------------------------------------
   #	METHOD:		InterpolatorITest.InterpolateAndDiff()		-
   #----------------------------------------------------------------------
-  def InterpolateAndDiff( self, ds_name, time_value ):
+  def InterpolateAndDiff( self, ds_name, time_value, mode ):
     result = None
     diff = None
 
@@ -94,7 +95,8 @@ class InterpolatorITest( object ):
         GetH5DataSet( DataSetName( self.refModel.name, ds_name ), time_value )
 
     if dset is not None:
-      result = self.interpolator.interpolate( dset, skip_assertions = True )
+      result = self.interpolator.\
+          interpolate( dset, mode = mode, skip_assertions = True )
       diff = dset - result
 
     return  result, diff
@@ -147,6 +149,11 @@ cubic
 	  default = None, nargs = 2,
 	  help = 'input HDF5 files'
           )
+      parser.add_argument(
+	  '-m', '--mode',
+	  default = 'linear',
+	  help = 'one of "linear", "quad", "cubic"'
+          )
 #      parser.add_argument(
 #	  '-t', '--time',
 #	  default = 'exposure=0.0',
@@ -188,7 +195,7 @@ cubic
 	for tv in time_values:
 	  cur_results = {}
 	  for ds_name in args.datasets:
-	    inter, diff = test.InterpolateAndDiff( ds_name, tv )
+	    inter, diff = test.InterpolateAndDiff( ds_name, tv, args.mode )
 	    cur_results[ ds_name ] = ( inter, diff )
 	  #end for ds_name
 	  results.append( cur_results )
@@ -203,9 +210,9 @@ cubic
 	  ndx += 1
 
 	  for ds_name, pair in sorted( cur_results.iteritems() ):
-	    print '\n[%s, %s=%.3f]' % ( ds_name, args.time, tv )
-	    print '  [interpolation]\n', str( pair[ 0 ] )
-	    print '\n  [diff]\n', str( pair[ 1 ] )
+	    print '\n(%s, %s=%.3f)' % ( ds_name, args.time, tv )
+	    print '  (interpolation)\n', str( pair[ 0 ] )
+	    print '\n  (diff)\n', str( pair[ 1 ] )
 	  #end for ds_name, pair
 	#end for tv
       #end required arguments specified

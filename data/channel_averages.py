@@ -1,6 +1,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_averages.py				-
 #	HISTORY:							-
+#		2017-02-03	leerw@ornl.gov				-
+#	  Worked with Andrew to add fix_weights(), called from
+#	  calc_average().
 #		2016-09-29	leerw@ornl.gov				-
 #	  Implementing calc_average().
 #		2016-09-14	leerw@ornl.gov				-
@@ -51,7 +54,7 @@ be called before use.
 	factor_weights = None
         #avg_weights = np.ones( avg_axis, dtype = int )
 
-	if 'factor' in dset.attrs:
+	if dset.attrs and 'factor' in dset.attrs:
           factor_obj = dset.attrs[ 'factor' ]
 	  factor_name = \
 	      factor_obj[ 0 ] if isinstance( factor_obj, np.ndarray ) else \
@@ -159,22 +162,22 @@ be called before use.
       pylo = np.zeros( [ core.nass ], dtype = int )
 #			-- Assemblies on the line of symmetry start at the
 #			-- middle channel
-#      for i in xrange( mass, core.nassx ):
-#        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
-#        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
+#x      for i in xrange( mass, core.nassx ):
+#x        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
+#x        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
 
       for j in xrange( massy, core.nassy ):
         pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
       for i in xrange( massx, core.nassx ):
         pylo[ core.coreMap[ massy, i ] - 1 ] = mpiny
 
-#      for i in xrange( mass, core.nassx ):
-#	assy_ndx = core.coreMap[ mass, i ] - 1
-#	if assy_ndx >= 0:
-#	  wts[ 0 : pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] = 0.0
-#	  if odd:
-#	    wts[ pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] *= 0.5
-#      #end for i
+#x      for i in xrange( mass, core.nassx ):
+#x	assy_ndx = core.coreMap[ mass, i ] - 1
+#x	if assy_ndx >= 0:
+#x	  wts[ 0 : pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] = 0.0
+#x	  if odd:
+#x	    wts[ pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] *= 0.5
+#x      #end for i
       for i in xrange( massx, core.nassx ):
 	assy_ndx = core.coreMap[ massy, i ] - 1
 	if assy_ndx >= 0:
@@ -183,13 +186,13 @@ be called before use.
 	    wts[ pylo[ assy_ndx ], 0 : core.nchanx, :, assy_ndx ] *= 0.5
       #end for i
 
-#      for j in xrange( mass, core.nassy ):
-#	assy_ndx = core.coreMap[ j, mass ] - 1
-#	if assy_ndx >= 0:
-#          wts[ 0 : core.nchany, 0 : pxlo[ assy_ndx ], :, assy_ndx ] = 0.0
-#	  if odd:
-#            wts[ 0 : core.nchany, pxlo[ assy_ndx ], :, assy_ndx ] *= 0.5
-#      #end for j
+#x      for j in xrange( mass, core.nassy ):
+#x	assy_ndx = core.coreMap[ j, mass ] - 1
+#x	if assy_ndx >= 0:
+#x          wts[ 0 : core.nchany, 0 : pxlo[ assy_ndx ], :, assy_ndx ] = 0.0
+#x	  if odd:
+#x            wts[ 0 : core.nchany, pxlo[ assy_ndx ], :, assy_ndx ] *= 0.5
+#x      #end for j
       for j in xrange( massy, core.nassy ):
 	assy_ndx = core.coreMap[ j, massx ] - 1
 	if assy_ndx >= 0:

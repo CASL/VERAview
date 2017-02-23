@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # $Id$
 #------------------------------------------------------------------------
-#	NAME:		pin_averages_itest.py				-
+#	NAME:		channel_averages_itest.py			-
 #	HISTORY:							-
-#		2016-09-30	leerw@ornl.gov				-
-#		2016-02-15	leerw@ornl.gov				-
+#		2017-02-23	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import argparse, h5py, os, sys, traceback
 import pdb  # set_trace()
@@ -12,13 +11,13 @@ import pdb  # set_trace()
 sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
 
 from data.datamodel import *
-from data.pin_averages import *
+from data.channel_averages import *
 
 
 #------------------------------------------------------------------------
-#	CLASS:		PinAveragesITest				-
+#	CLASS:		ChannelAveragesITest				-
 #------------------------------------------------------------------------
-class PinAveragesITest( object ):
+class ChannelAveragesITest( object ):
   """
 """
 
@@ -28,16 +27,15 @@ class PinAveragesITest( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		PinAveragesITest.__init__()			-
+  #	METHOD:		ChannelAveragesITest.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, data ):
-    dset_array = np.array( data.GetStateDataSet( 0, 'pin_powers' ) )
-    self.fAverages = Averages( data.core, dset_array )
+    self.fAverages = Averages( data.core )
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		PinAveragesITest.CalcScalarAverage()		-
+  #	METHOD:		ChannelAveragesITest.CalcScalarAverage()	-
   #----------------------------------------------------------------------
   def CalcScalarAverage( self, ds_name ):
     pass
@@ -49,7 +47,7 @@ class PinAveragesITest( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		PinAveragesITest.main()				-
+  #	METHOD:		ChannelAveragesITest.main()			-
   #----------------------------------------------------------------------
   @staticmethod
   def main():
@@ -78,47 +76,28 @@ class PinAveragesITest( object ):
 #			-- Must have valid data
 #			--
         data = DataModel( args.file )
-	test = PinAveragesITest( data )
-	print '[pinWeights]'
-	print repr( test.fAverages.pinWeights )
+	test = ChannelAveragesITest( data )
 
-	#pin_powers_dset = data.GetStateDataSet( 0, 'pin_powers' )
-	#pin_powers = np.array( pin_powers_dset )
-	pin_powers = data.GetStateDataSet( 0, 'pin_powers' )
-	pin_powers_array = np.array( pin_powers )
+	vapor_void = data.GetStateDataSet( 0, 'vapor_void' )
+	vapor_void_array = np.array( vapor_void )
 
-	print '[pows]'
-	print repr( pin_powers_array )
+	print '[vapor_void]'
+	print repr( vapor_void_array )
 
-	print '[ass_wgts]'
-	print repr( test.fAverages.assemblyWeights )
-	print '[ass_powers]'
-	print repr( test.fAverages.calc_pin_assembly_avg( pin_powers ) )
+	print '[chan_assembly_avg]'
+	print repr( test.fAverages.calc_channel_assembly_avg( vapor_void ) )
 
-	print '[axial_wgts]'
-	print repr( test.fAverages.axialWeights )
-	print '[axial_powers]'
-	print repr( test.fAverages.calc_pin_axial_avg( pin_powers ) )
+	print '[chan_axial_avg]'
+	print repr( test.fAverages.calc_channel_axial_avg( vapor_void ) )
 
-	print '[core_wgts]'
-	print repr( test.fAverages.coreWeights )
-	print '[core_powers]'
-	print repr( test.fAverages.calc_pin_core_avg( pin_powers ) )
+	print '[chan_core_avg]'
+	print repr( test.fAverages.calc_channel_core_avg( vapor_void ) )
 
-	print '[nodeWeights]'
-	print repr( test.fAverages.nodeWeights )
-	print '[node_powers]'
-	print repr( test.fAverages.calc_pin_node_avg( pin_powers ) )
+	print '[chan_radial_assembly_avg]'
+	print repr( test.fAverages.calc_channel_radial_assembly_avg( vapor_void ) )
 
-	print '[rad_ass_wgts]'
-	print repr( test.fAverages.radialAssemblyWeights )
-	print '[rad_ass_powers]'
-	print repr( test.fAverages.calc_pin_radial_assembly_avg( pin_powers ) )
-
-	print '[rad_wgts]'
-	print repr( test.fAverages.radialWeights )
-	print '[rad_powers]'
-	print repr( test.fAverages.calc_pin_radial_avg( pin_powers ) )
+	print '[chan_radial_avg]'
+	print repr( test.fAverages.calc_channel_radial_avg( vapor_void ) )
       #end required arguments specified
 
     except Exception, ex:
@@ -132,11 +111,11 @@ class PinAveragesITest( object ):
       #end while
   #end main
 
-#end PinAveragesITest
+#end ChannelAveragesITest
 
 
 #------------------------------------------------------------------------
 #	NAME:		main()						-
 #------------------------------------------------------------------------
 if __name__ == '__main__':
-  PinAveragesITest.main()
+  ChannelAveragesITest.main()

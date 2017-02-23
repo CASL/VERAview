@@ -12,8 +12,8 @@
 #------------------------------------------------------------------------
 import h5py, os, sys, time
 import numpy as np
-from scipy import array
-from scipy.interpolate import interp1d
+from scipy import array, integrate
+from scipy.interpolate import griddata, interp1d
 #from scipy import array, integrate
 import pdb
 
@@ -89,10 +89,10 @@ parameters ( cur_step, total_steps ).
     """
 @return		interpolator function
 """
-    print >> sys.stderr, '[create_inner_interpolator] mode=', mode
+    #print >> sys.stderr, '[create_inner_interpolator] mode=', mode
 
     if mode.startswith( 'cubic' ):
-      print >> sys.stderr, '[create_interpolator] CUBIC'
+      #print >> sys.stderr, '[create_interpolator] CUBIC'
       f = interp1d(
           src_mesh_centers, src_data,
 	  assume_sorted = True, axis = 2,
@@ -101,7 +101,7 @@ parameters ( cur_step, total_steps ).
 	  )
 
     elif mode.startswith( 'quad' ):
-      print >> sys.stderr, '[create_inner_interpolator] QUAD'
+      #print >> sys.stderr, '[create_inner_interpolator] QUAD'
       f = interp1d(
           src_mesh_centers, src_data,
 	  assume_sorted = True, axis = 2,
@@ -110,7 +110,7 @@ parameters ( cur_step, total_steps ).
 	  )
 
     else:
-      print >> sys.stderr, '[create_inner_interpolator] LINEAR'
+      #print >> sys.stderr, '[create_inner_interpolator] LINEAR'
       f = interp1d(
           src_mesh_centers, src_data,
 	  assume_sorted = True, axis = 2
@@ -132,6 +132,7 @@ parameters ( cur_step, total_steps ).
     y = f.y
 
     def extrapolate( x ):
+      pdb.set_trace()
       if x < f.x[ 0 ]:
 	y = \
 	    (x - f.x[ 0 ]) / (f.x[ 1 ] - f.x[ 0 ]) * \
@@ -152,48 +153,6 @@ parameters ( cur_step, total_steps ).
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		create_interpolator_0()				-
-  #----------------------------------------------------------------------
-  def create_interpolator_0( self, src_data, src_mesh_centers, mode = 'linear' ):
-    """Due to a scipy bug, specifying fill_value won't always work.  Hence
-the workaround.
-@return		interpolator function
-"""
-    pdb.set_trace()
-    print >> sys.stderr, '[create_interpolator] mode=', mode
-    #xxxxx must handle interpolation out of bounds
-    if mode.startswith( 'cubic' ):
-      print >> sys.stderr, '[create_interpolator] CUBIC'
-      f = interp1d(
-          src_mesh_centers, src_data,
-	  assume_sorted = True, axis = 2,
-	  bounds_error = False,
-	  fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
-	  kind = 'cubic'
-	  )
-
-    elif mode.startswith( 'quad' ):
-      print >> sys.stderr, '[create_interpolator] QUAD'
-      f = interp1d(
-          src_mesh_centers, src_data,
-	  assume_sorted = True, axis = 2,
-	  bounds_error = False,
-	  fill_value = ( src_data[ :, :, 0, : ], src_data[ :, :, -1, : ] ),
-	  kind = 'quadratic'
-	  )
-
-    else:
-      print >> sys.stderr, '[create_interpolator] LINEAR'
-      f = interp1d(
-          src_mesh_centers, src_data,
-	  assume_sorted = True, axis = 2, fill_value = 'extrapolate'
-	  )
-
-    return  f
-  #end create_interpolator_0
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		interpolate()					-
   #----------------------------------------------------------------------
   def interpolate(
@@ -203,7 +162,7 @@ the workaround.
       mode = 'linear',
       skip_assertions = False
       ):
-    """
+    """Interpolates by integrating over the interpolation function.
 @param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
 @param  f		interpolator function, will be created if None
 @return			interpolated np.ndarray with len( self.dstMeshCenters )
@@ -232,7 +191,151 @@ the workaround.
     dst_shape = list( src_data.shape )
     dst_shape[ 2 ] = len( self.dstMeshCenters )
 
-    #dst_data = np.ndarray( dst_shape, dtype = np.float64 )
+    dst_data = np.zeros( dst_shape, dtype = np.float64 )
+
+    #step_count = reduce( (lambda x, y : x * y), dst_shape )
+    #step_count = dst_shape[ 3 ]
+    #step = 1
+
+#    if f is None:
+#      f = self.create_interpolator( src_data, self.srcMeshCenters, mode )
+
+#    for k in xrange( dst_shape[ 2 ] ):
+#      dst_data[ :, :, k, : ] = f( self.dstMeshCenters[ k ] )
+    left_ndx = 0
+    pdb.set_trace()
+    for k in xrange( dst_shape[ 2 ] ):
+      dst_z = self.dstMeshCenters[ k ]
+      while left_ndx < len( self.srcMeshCenters ) - 1 and \
+          self.srcMeshCenters[ left_ndx + 1 ] <= dst_z:
+        left_ndx += 1
+
+      left = self.srcMeshCenters[ left_ndx ]
+      right = None
+
+      if left == dst_z:
+        pass
+
+      elif left > dst_z:
+	if left_ndx < len( self.srcMeshCenters ) - 1:
+	  next_x = self.srcMeshCenters[ left_ndx + 1 ]
+	  temp = left - (next_x - left)
+	  right = left
+	  left = temp
+
+      elif left_ndx == len( self.srcMeshCenters ) - 1:
+        if left_ndx > 0:
+	  prev_x = self.srcMeshCenters[ left_ndx - 1 ]
+	  right = left + left - prev_x
+
+      else:
+        right = self.srcMeshCenters[ left_ndx + 1 ]
+
+      if right is None:
+        dst_data[ :, :, k, : ] = f( left )
+
+      else:
+	#result = integrate.quadrature( f, left, right )
+        #dst_data[ :, :, k, : ] = result[ 0 ] / (right - left)
+        dst_data[ :, :, k, : ] = \
+	    (dst_z - left) / (right - left) * \
+	    (f( right ) - f( left )) + \
+	    f( left )
+    #end for k
+
+    return  dst_data
+  #end interpolate
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		interpolate_no1()				-
+  #----------------------------------------------------------------------
+  def interpolate_no1(
+      self,
+      src_data,
+      f = None,
+      mode = 'linear',
+      skip_assertions = False
+      ):
+    """Interpolates by integrating over the interpolation function.
+@param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
+@param  f		interpolator function, will be created if None
+@return			interpolated np.ndarray with len( self.dstMeshCenters )
+			axial levels
+"""
+#		-- Assertions
+#		--
+    if not skip_assertions:
+      assert src_data is not None and len( src_data.shape ) == 4, \
+          'only 4D shapes are supported'
+
+#      assert isinstance( src_data, h5py.Dataset ) or \
+#          isinstance( src_data, np.ndarray ), \
+#          'src_data must be a Dataset or ndarray'
+      if isinstance( src_data, h5py.Dataset ):
+        src_data = np.array( src_data )
+      else:
+        assert isintance( src_data, np.ndarray ), \
+          'src_data must be a Dataset or ndarray'
+
+      assert \
+          src_data.shape[ 2 ] == len( self.srcMeshCenters ), \
+          'src_data has incompatible shape'
+    #end if not skip_assertions:
+
+    #dst_shape = list( src_data.shape )
+    #dst_shape[ 2 ] = len( self.dstMeshCenters )
+    #dst_data = np.zeros( dst_shape, dtype = np.float64 )
+
+    pdb.set_trace()
+    points = self.srcMeshCenters
+    values = np.array( src_data )
+    xi = self.dstMeshCenters
+    dst_data = griddata( points, values, xi, method = mode )
+
+    return  dst_data
+  #end interpolate_no1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		interpolate_simple()				-
+  #----------------------------------------------------------------------
+  def interpolate_simple(
+      self,
+      src_data,
+      f = None,
+      mode = 'linear',
+      skip_assertions = False
+      ):
+    """Interpolates by finding the value on the interpolation function.
+@param  src_data	source dataset (h5py.Dataset or np.ndarray instance)
+@param  f		interpolator function, will be created if None
+@return			interpolated np.ndarray with len( self.dstMeshCenters )
+			axial levels
+"""
+#		-- Assertions
+#		--
+    if not skip_assertions:
+      assert src_data is not None and len( src_data.shape ) == 4, \
+          'only 4D shapes are supported'
+
+#      assert isinstance( src_data, h5py.Dataset ) or \
+#          isinstance( src_data, np.ndarray ), \
+#          'src_data must be a Dataset or ndarray'
+      if isinstance( src_data, h5py.Dataset ):
+        src_data = np.array( src_data )
+      else:
+        assert isintance( src_data, np.ndarray ), \
+          'src_data must be a Dataset or ndarray'
+
+      assert \
+          src_data.shape[ 2 ] == len( self.srcMeshCenters ), \
+          'src_data has incompatible shape'
+    #end if not skip_assertions:
+
+    dst_shape = list( src_data.shape )
+    dst_shape[ 2 ] = len( self.dstMeshCenters )
+
     dst_data = np.zeros( dst_shape, dtype = np.float64 )
 
     #step_count = reduce( (lambda x, y : x * y), dst_shape )
@@ -246,7 +349,7 @@ the workaround.
       dst_data[ :, :, k, : ] = f( self.dstMeshCenters[ k ] )
 
     return  dst_data
-  #end interpolate
+  #end interpolate_simple
 
 
   #----------------------------------------------------------------------
