@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		differences_itest.py				-
 #	HISTORY:							-
+#		2017-02-24	leerw@ornl.gov				-
 #		2017-01-14	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import argparse, h5py, logging, logging.config, os, re, sys, traceback
@@ -12,6 +13,7 @@ sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
 
 from data.datamodel import *
 from data.datamodel_mgr import *
+from data.differences import *
 
 
 PATTERN_ws = re.compile( '[\s,]+' )
@@ -50,12 +52,12 @@ class DifferencesITest( object ):
   #----------------------------------------------------------------------
   def Run(
       self,
-      base_fname, base_ds_name,
-      sub_fname, sub_ds_name,
+      ref_fname, ref_ds_name,
+      comp_fname, comp_ds_name,
       time_ds_name, result_name
       ):
-    base_dm = self.fMgr.OpenModel( base_fname )
-    sub_dm = self.fMgr.OpenModel( sub_fname )
+    ref_dm = self.fMgr.OpenModel( ref_fname )
+    comp_dm = self.fMgr.OpenModel( comp_fname )
 
     time_names = self.fMgr.ResolveAvailableTimeDataSets()
     if time_ds_name not in time_names:
@@ -63,13 +65,13 @@ class DifferencesITest( object ):
     self.fMgr.SetTimeDataSet( time_ds_name )
 
     try:
-      base_qds_name = DataSetName( base_dm.GetName(), base_ds_name )
-      sub_qds_name = DataSetName( sub_dm.GetName(), sub_ds_name )
+      ref_qds_name = DataSetName( ref_dm.GetName(), ref_ds_name )
+      comp_qds_name = DataSetName( comp_dm.GetName(), comp_ds_name )
 
-      result_qds_name = self.fMgr.\
-          CreateDiffDataSet( base_qds_name, sub_qds_name, result_name )
+      result_qds_name = Differences( self.fMgr )\
+          ( ref_qds_name, comp_qds_name, result_name )
 
-      time_values = self.fMgr.GetTimeValues( base_qds_name )
+      time_values = self.fMgr.GetTimeValues( ref_qds_name )
       for i in xrange( len( time_values ) ):
         dset = self.fMgr.GetH5DataSet( result_qds_name, time_values[ i ] )
 	dset_array = np.array( dset )
@@ -78,13 +80,13 @@ class DifferencesITest( object ):
 
       print '\n[MetaData]'
       print 'name=', str( result_qds_name )
-      print 'type=', base_dm.GetDataSetType( result_qds_name.displayName )
+      print 'type=', comp_dm.GetDataSetType( result_qds_name.displayName )
       print 'def=', \
-          str( base_dm.GetDataSetDefByDsName( result_qds_name.displayName ) )
+          str( comp_dm.GetDataSetDefByDsName( result_qds_name.displayName ) )
 
     finally:
-      self.fMgr.CloseModel( base_dm.GetName() )
-      self.fMgr.CloseModel( sub_dm.GetName() )
+      self.fMgr.CloseModel( ref_dm.GetName() )
+      self.fMgr.CloseModel( comp_dm.GetName() )
   #end Run
 
 
@@ -116,9 +118,16 @@ class DifferencesITest( object ):
 #	  nargs = '+'
 #          )
       parser.add_argument(
-	  '-b', '--base',
+	  '--comp',
 	  default = None,
-	  dest = 'base_pair',
+	  dest = 'comp_pair',
+	  help = 'file dataset',
+	  nargs = 2
+          )
+      parser.add_argument(
+	  '--ref',
+	  default = None,
+	  dest = 'ref_pair',
 	  help = 'file dataset',
 	  nargs = 2
           )
@@ -126,13 +135,6 @@ class DifferencesITest( object ):
 	  '-r', '--result-name',
 	  default = 'diff_data',
 	  help = 'name of difference dataset'
-          )
-      parser.add_argument(
-	  '-s', '--sub',
-	  default = None,
-	  dest = 'sub_pair',
-	  help = 'file dataset',
-	  nargs = 2
           )
       parser.add_argument(
 	  '-t', '--time-name',
@@ -143,13 +145,13 @@ class DifferencesITest( object ):
 
 #		-- Check required arguments
 #		--
-      if args.base_pair is None or args.sub_pair is None:
+      if args.ref_pair is None or args.comp_pair is None:
         parser.print_help()
       else:
         test = DifferencesITest()
 	test.Run(
-	    args.base_pair[ 0 ], args.base_pair[ 1 ],
-	    args.sub_pair[ 0 ], args.sub_pair[ 1 ],
+	    args.ref_pair[ 0 ], args.ref_pair[ 1 ],
+	    args.comp_pair[ 0 ], args.comp_pair[ 1 ],
 	    args.time_name, args.result_name
 	    )
 

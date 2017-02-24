@@ -47,6 +47,7 @@ class InterpolatorITest( object ):
 
     self.interpolator = Interpolator(
         dmgr.GetAxialMeshCenters( ref_model.name ),
+	dmgr.GetAxialMesh( comp_model.name ),
 	dmgr.GetAxialMeshCenters( comp_model.name ),
 	self._OnInterpolator
 	)
@@ -95,9 +96,7 @@ class InterpolatorITest( object ):
         GetH5DataSet( DataSetName( self.refModel.name, ds_name ), time_value )
 
     if dset is not None:
-      result = self.interpolator.\
-          interpolate( dset, mode = mode, skip_assertions = True )
-          #interpolate_integral( dset, mode = mode, skip_assertions = True )
+      result = self.interpolator( dset, mode = mode, skip_assertions = True )
       diff = dset - result
 
     return  result, diff

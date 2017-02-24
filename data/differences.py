@@ -1,6 +1,7 @@
 #------------------------------------------------------------------------
 #	NAME:		differences.py					-
 #	HISTORY:							-
+#		2017-02-24	leerw@ornl.gov				-
 #		2017-02-16	leerw@ornl.gov				-
 #	  Added diff_mode and interp_mode params.
 #		2017-02-15	leerw@ornl.gov				-
@@ -82,34 +83,42 @@ be the same.
         'Dataset types mismatch: %s ne %s' % ( ref_type, comp_type )
 
     try:
-      print >> sys.stderr, '[calc] diff_mode=%s, interp_mode=%s' % \
-          ( diff_mode, interp_mode )
+#      print >> sys.stderr, '[calc] diff_mode=%s, interp_mode=%s' % \
+#          ( diff_mode, interp_mode )
 #			-- Retrieve meshes, assert
 #			--
       ddef = comp_dm.GetDataSetDef( comp_type )
+      comp_mesh_centers = None
 
       if ddef[ 'axial_axis' ] < 0:
-        ref_mesh_values = comp_mesh_values = None
+        ref_mesh_centers = comp_mesh = None
         mesh_type = ''
       elif ref_type == 'detector':
-        ref_mesh_values = self.dmgr.GetDetectorMesh( ref_qds_name )
-        comp_mesh_values = self.dmgr.GetDetectorMesh( comp_qds_name )
-        mesh_type = 'Detector mesh'
+        ref_mesh_centers = self.dmgr.GetDetectorMesh( ref_qds_name )
+	comp_mesh_centers = \
+        comp_mesh = self.dmgr.GetDetectorMesh( comp_qds_name )
+        mesh_type = 'detector'
       elif ref_type == 'fixed_detector':
-        ref_mesh_values = self.dmgr.GetFixedDetectorMeshCenters( ref_qds_name )
-        comp_mesh_values = self.dmgr.GetFixedDetectorMeshCenters( comp_qds_name )
-        mesh_type = 'Fixed detector mesh centers'
+        ref_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters( ref_qds_name )
+        comp_mesh = self.dmgr.GetFixedDetectorMesh( comp_qds_name )
+        comp_mesh_centers = \
+	    self.dmgr.GetFixedDetectorMeshCenters( comp_qds_name )
+        mesh_type = 'fixed_detector'
       else:
-        ref_mesh_values = self.dmgr.GetAxialMeshCenters( ref_qds_name )
-        comp_mesh_values = self.dmgr.GetAxialMeshCenters( comp_qds_name )
-        mesh_type = 'Axial mesh centers'
+        ref_mesh_centers = self.dmgr.GetAxialMeshCenters( ref_qds_name )
+        comp_mesh = self.dmgr.GetAxialMesh( comp_qds_name )
+        comp_mesh_centers = self.dmgr.GetAxialMeshCenters( comp_qds_name )
+        mesh_type = 'axial'
 
 #xxxxx
 #      assert len( ref_mesh_values ) == len( comp_mesh_values ), \
 #          '%s length mismatch' % mesh_type
-      must_interpolate = not np.array_equal( ref_mesh_values, comp_mesh_values )
+#      must_interpolate = not np.array_equal( ref_mesh_values, comp_mesh_values )
+      must_interpolate = \
+          comp_mesh_centers is None or \
+          not self.equal_meshes( ref_mesh_centers, comp_mesh_centers )
       if must_interpolate:
-        interp = Interpolator( ref_mesh_values, comp_mesh_values )
+        interp = Interpolator( ref_mesh_centers, comp_mesh, comp_mesh_centers )
 
 #			-- Retrieve times
 #			--
@@ -143,9 +152,16 @@ be the same.
 	    ref_dset is not None and comp_dset is not None:
 
 	  if must_interpolate:
-	    ref_data = interp.interpolate(
-	        ref_dset, mode = interp_mode, skip_assertions = True
-		)
+	    if mesh_type == 'detector':
+	      ref_data = interp.interpolate_on_spline(
+	          ref_dset,
+		  mode = interp_mode, skip_assertions = True
+		  )
+	    else:
+	      ref_data = interp.interpolate_integral_over_spline(
+	          ref_dset,
+		  mode = interp_mode, skip_assertions = True
+		  )
 	  else:
 	    ref_data = np.array( ref_dset )
 
@@ -175,5 +191,28 @@ be the same.
       self.dmgr.logger.error( msg )
       raise Exception( msg )
   #end calc
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		equal_meshes()					-
+  #----------------------------------------------------------------------
+  def equal_meshes( self, one, two, tolerance = 0.01 ):
+    """
+@param  one		first mesh, assumed not None
+@param  two		second mesh, assumed not None
+@param  tolerance	percentage error tolerance
+"""
+    equal = len( one ) == len( two )
+    if equal:
+      for i in range( len( one ) ):
+	pct_error = abs( one[ i ] - two[ i ] ) / ((one[ i ] + two[ i ]) / 2.0)
+	if pct_error > tolerance:
+	  equal = False
+	  break
+      #end for i
+    #end if
+
+    return  equal
+  #end equal_meshes
 
 #end Differences

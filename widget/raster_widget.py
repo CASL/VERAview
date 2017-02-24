@@ -1230,6 +1230,7 @@ Subclasses that override should call this implementation.
     self.SetAutoLayout( True )
     #self.SetBackgroundStyle( wx.BG_STYLE_CUSTOM )
     self.SetSizer( sizer )
+
     self.Bind( wx.EVT_SIZE, self._OnSize )
   #end _InitUI
 
