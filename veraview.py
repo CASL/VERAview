@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2017-02-25	leerw@ornl.gov				-
+#	  Developing with VesselCore2DView.
 #		2017-01-25	leerw@ornl.gov				-
 #	  Disabling auto-enable of Detector Detector2DMultiView when
 #	  a detector dataset is present.
@@ -169,10 +171,17 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.1 Build 84'
+TITLE = 'VERAView Version 1.1 Build 85'
 
 TOOLBAR_ITEMS = \
   [
+    {
+    'widget': 'Vessel Core 2D View',
+    'icon': 'Core2DView.1.32.png',
+    'iconDisabled': 'Core2DView.disabled.1.32.png',
+    'type': 'pin',
+    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
+    },
     {
     'widget': 'Core 2D View',
     'icon': 'Core2DView.1.32.png',
@@ -277,6 +286,7 @@ WIDGET_MAP = \
 #  'Detector 2D View': 'widget.detector_view.Detector2DView',
 #  'Time Plot': 'widget.time_plot.TimePlot',
   'Time Plots': 'widget.time_plots.TimePlots',
+  'Vessel Core 2D View': 'widget.vessel_core_view.VesselCore2DView',
   'Volume 3D View': 'view3d.volume_view.Volume3DView',
   'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
   }

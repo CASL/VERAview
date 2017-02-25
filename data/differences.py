@@ -204,7 +204,7 @@ be the same.
 """
     equal = len( one ) == len( two )
     if equal:
-      for i in range( len( one ) ):
+      for i in xrange( len( one ) ):
 	pct_error = abs( one[ i ] - two[ i ] ) / ((one[ i ] + two[ i ]) / 2.0)
 	if pct_error > tolerance:
 	  equal = False

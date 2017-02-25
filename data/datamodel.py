@@ -493,6 +493,7 @@ Properties:
   pinVolumesSum		sum of all pin volumes
   fixedDetectorMesh		np.ndarray of mesh values
   fixedDetectorMeshCenters	np.ndarray of center-of-mesh values
+  vesselTallyMesh	VesselTallyMesh instance or None
 """
 
 #		-- Object Methods
@@ -581,6 +582,8 @@ Properties:
     self.coreSym = 0
     self.detectorMap = None
     self.detectorMesh = None
+    self.fixedDetectorMesh = None
+    self.fixedDetectorMeshCenters = None
     self.group = None
     self.nass = 0
     self.nassx = 0
@@ -597,8 +600,7 @@ Properties:
     self.pinVolumesSum = 0.0
     self.ratedFlow = 0
     self.ratedPower = 0
-    self.fixedDetectorMesh = None
-    self.fixedDetectorMeshCenters = None
+    self.vesselTallyMesh = None
   #end Clear
 
 
@@ -640,6 +642,16 @@ Properties:
 #		--
     for name in ( 'coreLabels', ):
       setattr( new_obj, name, copy.deepcopy( getattr( self, name ) ) )
+    #end for name
+
+#		-- Explicit clones
+#		--
+    for name in ( 'vesselTallyMesh', ):
+      value = getattr( self, name )
+      new_value = None
+      if value is not None and hasattr( value, 'Clone' ):
+        new_value = value.Clone()
+      setattr( new_obj, name, new_value )
     #end for name
 
     return  new_obj
@@ -948,6 +960,8 @@ to be column and row labels, respectively, and the order is forced such that
   #	METHOD:		Core.Read()					-
   #----------------------------------------------------------------------
   def Read( self, h5_group ):
+    """
+"""
     self.Clear()
 
 #		-- Assert on valid group
@@ -984,19 +998,18 @@ to be column and row labels, respectively, and the order is forced such that
         self._FindInGroup( 'axial_mesh', core_group, in_core_group )
     if axial_mesh_item is None:
       missing.append( '"axial_mesh" dataset not found' )
-    #elif not isinstance( axial_mesh_item.value, np.ndarray ):
-      #missing.append( '"axial_mesh" dataset is not an array' )
 
     core_map_item = self._FindInGroup( 'core_map', core_group, in_core_group )
     if core_map_item is None:
       missing.append( '"core_map" dataset not found' )
 
     if missing:
-      raise Exception( ','.join( missing ) )
+      raise Exception( ', '.join( missing ) )
 
 #		-- No exception, plow on
 #		--
-    self.coreMap = core_map_item.value
+    #self.coreMap = core_map_item.value
+    self.coreMap = np.array( core_map_item )
     self.nassy = self.coreMap.shape[ 0 ]
     self.nassx = self.coreMap.shape[ 1 ]
     self.nass = int( np.amax( self.coreMap ) )
@@ -1066,8 +1079,9 @@ to be column and row labels, respectively, and the order is forced such that
     self.pinVolumesSum = 0
     item = self._FindInGroup( 'pin_volumes', core_group, in_core_group )
     if item is not None:
-      self.pinVolumes = item.value
-      self.pinVolumesSum = np.sum( item.value )
+      #self.pinVolumes = item.value
+      self.pinVolumes = np.array( item )
+      self.pinVolumesSum = np.sum( self.pinVolumes )
       if self.npin == 0:
         self.npin = self.pinVolumes.shape[ 0 ]  # and [ 1 ]
         self.npiny = self.pinVolumes.shape[ 0 ]
@@ -1080,21 +1094,19 @@ to be column and row labels, respectively, and the order is forced such that
     item = self._FindInGroup( 'rated_flow', core_group, in_core_group )
     if item is not None:
       self.ratedFlow = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
-      #self.ratedFlow = item.value.item() if len( item.shape ) > 0 else item.value
 
     item = self._FindInGroup( 'rated_power', core_group, in_core_group )
     if item is not None:
       self.ratedPower = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
-      #self.ratedPower = item.value.item() if len( item.shape ) > 0 else item.value
 
 #		-- Optional detector_map
 #		--
     #xxxx if no detector_map, assume each assembly is a detector
     item = self._FindInGroup( 'detector_map', core_group, in_core_group )
-    #if item is not None and item.value.shape == self.coreMap.shape:
     if item is not None:
-      self.detectorMap = item.value
-      self.ndet = int( np.amax( item.value ) )
+      #self.detectorMap = item.value
+      self.detectorMap = np.array( item )
+      self.ndet = int( np.amax( self.detectorMap ) )
     else:
       self.detectorMap = self.coreMap
       self.ndet = self.nass
@@ -1107,7 +1119,7 @@ to be column and row labels, respectively, and the order is forced such that
     item = self._FindInGroup( 'detector_mesh', core_group )
     if item is not None:
 #				-- Detector meshes are not centers
-      t = np.copy( item.value )
+      t = np.copy( item )
       self.detectorMesh = t
       self.ndetax = item.shape[ 0 ]
     else:
@@ -1120,9 +1132,10 @@ to be column and row labels, respectively, and the order is forced such that
     #item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
     item = self._FindInGroup( 'fixed_detector_mesh', core_group )
     if item is not None:
-      self.fixedDetectorMesh = item.value
+      #self.fixedDetectorMesh = item.value
+      self.fixedDetectorMesh = np.array( item )
 #				-- Numpy magic for centers
-      t = np.copy( item.value )
+      t = np.copy( item )
       t2 = np.r_[ t, np.roll( t, -1 ) ]
       self.fixedDetectorMeshCenters = \
           np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
@@ -1186,6 +1199,7 @@ to be column and row labels, respectively, and the order is forced such that
 
     return  obj
   #end ToJson
+
 #end Core
 
 
@@ -3199,9 +3213,7 @@ the properties construct for this class soon.
 """
     return \
         None if ds is None else \
-	ds.value[ () ] if len( ds.shape ) == 0 else ds[ 0 ]
-#	ds.value if len( ds.shape ) == 0 else \
-#	ds.value.item()
+	ds[ () ] if len( ds.shape ) == 0 else ds[ 0 ]
   #end GetScalarValue
 
 
@@ -3850,7 +3862,8 @@ being one greater in each dimension.
 	#( 'core.pin_factors', self.h5File )
         ):
       if name in group:
-        darray = group[ name ].value
+        #darray = group[ name ].value
+        darray = np.array( group[ name ] )
 	if darray.shape == pin_factors_shape:
 	  pin_factors = darray
 	  break
@@ -4974,103 +4987,6 @@ __init__( dict_value )
 
 
 #------------------------------------------------------------------------
-#	CLASS:		DataSetNamer					-
-#------------------------------------------------------------------------
-class DataSetNamer( object ):
-  """Assembles and parses qualified and/or tagged dataset names.
-@deprecated  Use DataSetName instances instead.
-"""
-
-#		-- Object Methods
-#		--
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataSetNamer.__init__()				-
-  #----------------------------------------------------------------------
-  def __init__( self ):
-    """
-"""
-    pass
-  #end __init__
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataSetNamer.Assemble()				-
-  #----------------------------------------------------------------------
-  def Assemble(
-      self,
-      model_name = '',
-      tagged_name = '',
-      tag = '',
-      display_name = ''
-      ):
-    """Assembles a "qualified" dataset name from the pieces provided.
-If tagged_name is specified, tag and display_name are ignored, otherwise
-the name is built from tag and display_name.
-@param  model_name	unique model name
-@param  tagged_name	tagged name, which if specified overrides tag
-			and display_name
-@param  tag		tag portion of name, ignored if tagged_name is specified
-@param  display_name	name, which should be provided if tagged_name is not
-@return			qualified name
-"""
-    result = ''
-    if model_name:
-      result = model_name + '|'
-
-    if tagged_name:
-      result += tagged_name
-    else:
-      if tag:
-        result += tag + ':'
-      result += display_name
-    #end if-else tagged_name
-
-    return  result
-  #end Assemble
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataSetName.Parse()				-
-  #----------------------------------------------------------------------
-  def Parse( self, qds_name ):
-    """Parses the "qualified" dataset name into a 4-tuple containing the
-model_name, tagged_name, tag, display_name.  For example,
-'xxx|copy:asy_powers' would be parsed as
-( 'xxx', 'copy:asy_powers', 'copy', 'asy_powers' ).  Missing pieces are
-returned as the blank string.  The display name is always result[ -1 ].
-@param  qds_name	qualified dataset name
-@return			model_name, tagged_name, tag, display_name
-"""
-    model_name = ''
-    tagged_name = ''
-    tag = ''
-    display_name = ''
-
-    if qds_name:
-      bar_ndx = qds_name.find( '|' )
-      if bar_ndx < 0:
-        tagged_name = qds_name
-      else:
-        model_name = qds_name[ 0 : bar_ndx ]
-	tagged_name = qds_name[ bar_ndx + 1 : ]
-
-      colon_ndx = tagged_name.find( ':' )
-      if colon_ndx < 0:
-        display_name = tagged_name
-      else:
-        tag = tagged_name[ 0 : colon_ndx ]
-	display_name = tagged_name[ colon_ndx + 1 : ]
-    #end if qds_name
-
-    return  model_name, tagged_name, tag, display_name
-  #end Parse
-
-#end DataSetNamer
-
-
-#------------------------------------------------------------------------
 #	CLASS:		State						-
 #------------------------------------------------------------------------
 class State( object ):
@@ -5223,17 +5139,14 @@ NOT process derived datasets as does DataModel.GetStateDataSet().
         #self.exposure = state_group[ 'exposure' ].value[ 0 ]
 	item = state_group[ 'exposure' ]
         self.exposure = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
-        #self.exposure = item.value.item() if len( item.shape ) > 0 else item.value
 
       if 'keff' in state_group:
-        #self.keff = state_group[ 'keff' ].value[ 0 ]
 	item = state_group[ 'keff' ]
         self.keff = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
-        #self.keff = item.value.item() if len( item.shape ) > 0 else item.value
 
       if 'pin_powers' in state_group:
-        self.pinPowers = state_group[ 'pin_powers' ].value
-#	powers_shape = state_group[ 'pin_powers' ].shape
+        #self.pinPowers = state_group[ 'pin_powers' ].value
+        self.pinPowers = np.array( state_group[ 'pin_powers' ] )
     #end if
 
     if self.exposure < 0.0:
@@ -5431,10 +5344,175 @@ class DerivedState( State ):
 
 
 #------------------------------------------------------------------------
-#	CONST:		DATASET_NAMER					-
-# Singleton DataSetNamer instance.
+#	CLASS:		VesselTallyMesh					-
 #------------------------------------------------------------------------
-#DATASET_NAMER = DataSetNamer()
+class VesselTallyMesh( object ):
+  """Encapsulates vessel tally grid/mesh information.
+Total dataset shape ( z, theta, r, multiplier, stat )
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, h5_group = None ):
+    """
+@param  h5_group	optional "CORE/vessel_tally" group, if None must
+			call Read()
+"""
+    self.Clear()
+    if h5_group is not None:
+      self.Read( h5_group )
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.Clear()				-
+  #----------------------------------------------------------------------
+  def Clear( self ):
+    self._fluxIndex = 0  # multipler_names
+    self._meanIndex = 0  # mesh_stat
+    self._r = None
+    self._stat = None
+    self._theta = None
+    self._z = None
+  #end Clear
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.Clone()				-
+  #----------------------------------------------------------------------
+  def Clone( self ):
+    """Deep copy.
+"""
+    new_obj = self.__class__()
+
+#		-- Scalars and references
+#		--
+    for name in ( '_fluxIndex', '_meanIndex' ):
+      setattr( new_obj, name, getattr( self, name ) )
+    #end for name
+
+#		-- Numpy arrays
+#		--
+    for name in ( '_r', '_stat', '_theta', '_z' ):
+      value = getattr( self, name )
+      if value is None:
+        new_value = None
+      else:
+        new_value = np.copy( value )
+      setattr( new_obj, name, new_value )
+    #end for name
+
+    return  new_obj
+  #end Clone
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.GetFluxIndex()			-
+  #----------------------------------------------------------------------
+  def GetFluxIndex( self ):
+    return  self._fluxIndex
+  #end GetFluxIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.GetMeanIndex()			-
+  #----------------------------------------------------------------------
+  def GetMeanIndex( self ):
+    return  self._meanIndex
+  #end GetMeanIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.GetR()				-
+  #----------------------------------------------------------------------
+  def GetR( self ):
+    return  self._r
+  #end GetR
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.GetTheta()			-
+  #----------------------------------------------------------------------
+  def GetTheta( self ):
+    return  self._theta
+  #end GetTheta
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.GetZ()				-
+  #----------------------------------------------------------------------
+  def GetZ( self ):
+    return  self._z
+  #end GetZ
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyMesh.Read()				-
+  #----------------------------------------------------------------------
+  def Read( self, h5_group ):
+    """
+@param  h5_group	"CORE/vessel_tally" group
+"""
+    self.Clear()
+
+#		-- Assert on valid group
+#		--
+    if h5_group is None or not isinstance( h5_group, h5py.Group ):
+      raise Exception( 'Must have valid HDF5 group' )
+
+#		-- Read mesh arrays
+#		--
+    missing = []
+
+    for name in ( '_r', '_theta', '_z' ):
+      ds_name = 'mesh' + name
+      if ds_name in h5_group:
+        setattr( self, name, np.array( h5_group[ ds_name ] ) )
+      else:
+        missing.append( '"%s" not found' % ds_name )
+    #end for name
+
+    if missing:
+      raise Exception( ', '.join( missing ) )
+
+#		-- Read index labels
+#		--
+    if 'mesh_stat' in h5_group:
+      dset = h5_group[ 'mesh_stat' ]
+      if len( dset.shape ) > 0:
+        for i in xrange( dset.shape[ 0 ] ):
+	  if dset[ i ] == 'mean':
+	    self._meanIndex = i
+	    break
+    #end if 'mesh_stat'
+
+    if 'multiplier_names' in h5_group:
+      dset = h5_group[ 'multiplier_names' ]
+      if len( dset.shape ) > 0:
+        for i in xrange( dset.shape[ 0 ] ):
+	  if dset[ i ] == 'flux':
+	    self._fluxIndex = i
+	    break
+    #end if 'multiplier_names'
+  #end Read
+
+
+#		-- Properties
+#		--
+
+  fluxIndex = property( GetFluxIndex )
+  meanIndex = property( GetMeanIndex )
+  r = property( GetR )
+  theta = property( GetTheta )
+  z = property( GetZ )
+
+#end VesselTallyMesh
 
 
 #------------------------------------------------------------------------
