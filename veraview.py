@@ -2723,10 +2723,11 @@ Must be called from the UI thread.
       if len( time_values ) > 1:
         widget_list.append( 'widget.time_plots.TimePlots' )
 
-      #xxxxx debug
-      if False:
+      #xxxxx _debug_
+      _debug_ = True
+      if _debug_:
         widget_list = [
-            'widget.core_view.Core2DView',
+            'widget.vessel_core_view.VesselCore2DView',
 #            'widget.assembly_view.Assembly2DView',
 #            'widget.core_axial_view.CoreAxial2DView',
 #            'widget.detector_multi_view.Detector2DMultiView',

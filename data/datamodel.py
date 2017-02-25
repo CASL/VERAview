@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2017-02-25	leerw@ornl.gov				-
+#	  Added Core.FindBottomRightAssemblyAddr(), VesselTallyMesh class,
+#	  Core vesselTallyMesh property.
 #		2016-12-28	leerw@ornl.gov				-
 #	  Added HasDetectorData().
 #		2016-12-12	leerw@ornl.gov				-
@@ -699,6 +702,60 @@ Properties:
 
     return  result
   #end CreatePinLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.FindBottomRightAssemblyAddr()		-
+  #----------------------------------------------------------------------
+  def FindBottomRightAssemblyAddr( self, cell_range = None ):
+    """Locate the bottom-right assembly over the specified range
+@param  cell_range	optional ( left, top, right+1, bottom+1, ... )
+@return			0-based ( assy_ndx, col, row )
+"""
+    if cell_range is None:
+      cell_range = ( 0, 0, self.nassx, self.nassy )
+
+#		-- Walk the diagonal from the bottom right
+#		--
+    cur_x, cur_y = cell_range[ 2 ] - 1, cell_range[ 3 ] - 1
+    while self.coreMap[ cur_y, cur_x ] <= 0 and \
+        cur_x > cell_range[ 0 ] and cur_y > cell_range[ 1 ]:
+      cur_x -= 1
+      cur_y -= 1
+
+    return  self.coreMap[ cur_y, cur_x ], cur_x, cur_y
+  #end FindBottomRightAssemblyAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.FindCornerAssemblyAddrs()			-
+  #----------------------------------------------------------------------
+  def FindCornerAssemblyAddrs( self, cell_range = None ):
+    """Locate the right-most on the bottom row and bottom-most on the
+right column.
+@param  cell_range	optional ( left, top, right+1, bottom+1, ... )
+@return			0-based bottom_col, right_row
+"""
+    if cell_range is None:
+      cell_range = ( 0, 0, self.nassx, self.nassy )
+
+    right_col, bottom_row = cell_range[ 2 ] - 1, cell_range[ 3 ] - 1
+    bottom_col, right_row = right_col, bottom_row
+
+#		-- Find bottom column
+#		--
+    while self.coreMap[ bottom_row, bottom_col ] <= 0 and \
+        bottom_col > cell_range[ 0 ]:
+      bottom_col -= 1
+
+#		-- Find right row
+#		--
+    while self.coreMap[ right_row, right_col ] <= 0 and \
+        right_row > cell_range[ 1 ]:
+      right_row -= 1
+
+    return  bottom_col, right_row
+  #end FindCornerAssemblyAddrs
 
 
   #----------------------------------------------------------------------
