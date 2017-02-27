@@ -577,7 +577,7 @@ Properties:
   #	METHOD:		Core.Clear()					-
   #----------------------------------------------------------------------
   def Clear( self ):
-    self.apitch = 0
+    self.apitch = 21.5
     self.axialMesh = None
     self.axialMeshCenters = None
     self.coreLabels = None
@@ -897,6 +897,17 @@ Calls _GetCoreLabel().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Core.GetVesselTallyMesh()			-
+  #----------------------------------------------------------------------
+  def GetVesselTallyMesh( self ):
+    """Getter for 'vesselTallyMesh' property.
+@return			VesselTallyMesh instance or None
+"""
+    return  self.vesselTallyMesh
+  #end GetVesselTallyMesh
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Core._InferCoreLabelsSimply()			-
   #----------------------------------------------------------------------
   def _InferCoreLabelsSimply( self, core_group, in_core_group ):
@@ -1184,8 +1195,8 @@ to be column and row labels, respectively, and the order is forced such that
       self.ndetax = self.nax
     #end if detector_mesh
 
-#			-- Optional fixedDetector_axial_mesh
-#			--
+#		-- Optional fixedDetector_axial_mesh
+#		--
     #item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
     item = self._FindInGroup( 'fixed_detector_mesh', core_group )
     if item is not None:
@@ -1198,6 +1209,12 @@ to be column and row labels, respectively, and the order is forced such that
           np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
       self.nfdetax = item.shape[ 0 ] - 1
     #end if fixed_detector_mesh
+
+#		-- Vessel Tally
+#		--
+    vessel_tally_group = self._FindInGroup( 'vessel_tally', core_group )
+    if vessel_tally_group is not None:
+      self.vesselTallyMesh = VesselTallyMesh( vessel_tally_group )
 
 #		-- Infer missing dimensions
 #		--
@@ -3862,6 +3879,11 @@ being one greater in each dimension.
 
     st_group = self.states[ 0 ].GetGroup()
 
+#		-- Special check for vessel_tally
+#		--
+    if self.core.vesselTallyMesh is None and 'vessel_tally' in st_group:
+      self.core.vesselTallyMesh = VesselTallyMesh( vessel_tally_group )
+
 #		-- Assert on pin_powers
 #		--
 #orig
@@ -4472,15 +4494,6 @@ ds_names	dict of dataset names by dataset type
 
 	  ds_defs_by_name[ cur_name ] = ds_defs.get( cat_name )
 
-#			-- Detector is special case
-#			--
-#	elif cur_name == 'detector_response':
-	elif cur_name.find( 'response' ) >= 0:
-	  if cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
-	    ds_names[ 'detector' ].append( cur_name )
-	    ds_names[ 'axial' ].append( cur_name )
-	    ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
-
 #			-- Fixed detector is special case
 #			--
 	elif cur_name == 'fixed_detector_response' and \
@@ -4489,6 +4502,15 @@ ds_names	dict of dataset names by dataset type
 	  ds_names[ 'fixed_detector' ].append( cur_name )
 	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'fixed_detector' ]
+
+#			-- Detector is special case
+#			--
+#	elif cur_name == 'detector_response':
+	elif cur_name.find( 'response' ) >= 0:
+	  if cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+	    ds_names[ 'detector' ].append( cur_name )
+	    ds_names[ 'axial' ].append( cur_name )
+	    ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
 
 #			-- Not a scalar
 #			--

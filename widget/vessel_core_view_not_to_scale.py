@@ -3,8 +3,7 @@
 #------------------------------------------------------------------------
 #	NAME:		vessel_core_view.py				-
 #	HISTORY:							-
-#		2017-02-27	leerw@ornl.gov				-
-#	  To scale.
+#		2017-02-25	leerw@ornl.gov				-
 #		2017-01-26	leerw@ornl.gov				-
 #	  Removed assembly index from titles.
 #		2017-01-12	leerw@ornl.gov				-
@@ -190,6 +189,7 @@ Properties:
     #self.avgValues = {}
     self.channelMode = False
 
+    self.mode = ''  # 'assy', 'core'
     self.nodalMode = False
     self.nodeAddr = -1
     self.subAddr = ( -1, -1 )
@@ -200,6 +200,367 @@ Properties:
 
     super( VesselCore2DView, self ).__init__( container, id )
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._CreateAssyDrawConfig()	-
+  #----------------------------------------------------------------------
+  def _CreateAssyDrawConfig( self, **kwargs ):
+    """Creates a draw configuration based on imposed 'size' (wd, ht ) or
+'scale' (pixels per pin) from which a size is determined.
+If neither are specified, a default 'scale' value of 24 is used.
+@param  kwargs
+    scale	pixels per pin
+    size	( wd, ht ) against which to compute the scale
+@return			config dict with keys:
+    clientSize
+    dataRange
+    fontSize
+    labelFont
+    labelSize
+    legendPilImage
+    legendSize
+    pilFont
+    +
+    assemblyRegion
+    lineWidth
+    mode = 'assy'
+    pinGap
+    pinWidth		used for pin or node width, depending on self.nodalMode
+    valueFont
+    valueFontSize
+"""
+    ds_range = self._ResolveDataRange(
+        self.curDataSet,
+	self.timeValue if self.state.scaleMode == 'state' else -1
+	##self.stateIndex if self.state.scaleMode == 'state' else -1
+	)
+    config = self._CreateBaseDrawConfig( ds_range, **kwargs )
+
+    core = self.dmgr.GetCore()
+    font_size = config[ 'fontSize' ]
+    label_size = config[ 'labelSize' ]
+    legend_pil_im = config[ 'legendPilImage' ]
+    legend_size = config[ 'legendSize' ]
+
+#		-- Must calculate scale?
+#		--
+    if 'clientSize' in config:
+      wd, ht = config[ 'clientSize' ]
+
+      # label : core : font-sp : legend
+      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
+
+      if self.nodalMode:
+        pin_adv_wd = region_wd >> 1
+      elif self.channelMode:
+        pin_adv_wd = region_wd / (core.npin + 1)
+      else:
+        pin_adv_wd = region_wd / core.npin
+
+      working_ht = max( ht, legend_size[ 1 ] )
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      if self.nodalMode:
+        pin_adv_ht = region_ht >> 1
+      elif self.channelMode:
+        pin_adv_ht = region_ht / (core.npin + 1)
+      else:
+        pin_adv_ht = region_ht / core.npin
+
+      if pin_adv_ht < pin_adv_wd:
+        pin_adv_wd = pin_adv_ht
+
+      if self.channelMode:
+        pin_gap = 0
+      else:
+        pin_gap = pin_adv_wd >> 3
+      pin_wd = max( 1, pin_adv_wd - pin_gap )
+
+      if self.nodalMode:
+        assy_wd = assy_ht = (pin_wd + pin_gap) << 1
+      elif self.channelMode:
+        assy_wd = assy_ht = (core.npin + 1) * (pin_wd + pin_gap)
+      else:
+        assy_wd = assy_ht = core.npin * (pin_wd + pin_gap)
+
+    else:
+      pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 24
+      if self.channelMode:
+        pin_gap = 0
+      else:
+        pin_gap = pin_wd >> 3
+
+      if self.nodalMode:
+        pin_wd <<= 4
+        assy_wd = assy_ht = (pin_wd + pin_gap) << 1
+      elif self.channelMode:
+        assy_wd = assy_ht = (core.npin + 1) * (pin_wd + pin_gap)
+      else:
+        assy_wd = assy_ht = core.npin * (pin_wd + pin_gap)
+
+      # label : core : font-sp : legend
+      wd = label_size[ 0 ] + assy_wd + (font_size << 1) + legend_size[ 0 ]
+      ht = max( assy_ht, legend_size[ 1 ] )
+      ht += (font_size << 1) + font_size
+
+      config[ 'clientSize' ] = ( wd, ht )
+    #end if-else
+
+    value_font_size = assy_wd >> 1
+    value_font = \
+        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
+	if value_font_size >= 6 else None
+
+    config[ 'assemblyRegion' ] = \
+        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
+    config[ 'lineWidth' ] = max( 1, pin_gap )
+    config[ 'mode' ] = 'assy'
+    config[ 'pinGap' ] = pin_gap
+    config[ 'pinWidth' ] = pin_wd
+    config[ 'valueFont' ] = value_font
+    config[ 'valueFontSize' ] = value_font_size
+
+    return  config
+  #end _CreateAssyDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._CreateAssyImage()		-
+  #----------------------------------------------------------------------
+  def _CreateAssyImage( self, tuple_in, config ):
+    """Called in background task to create the PIL image for the state.
+@param  tuple_in	0-based ( state_index, assy_ndx, axial_level )
+"""
+    state_ndx = tuple_in[ 0 ]
+    assy_ndx = tuple_in[ 1 ]
+    axial_level = tuple_in[ 2 ]
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
+
+    im = None
+
+    tuple_valid = self.dmgr.IsValid(
+	self.curDataSet,
+        assembly_addr = assy_ndx,
+	axial_level = axial_level
+	#state_index = state_ndx
+	)
+
+    core = dset = None
+    if config is None:
+      config = self.config
+    if config is not None and tuple_valid:
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
+
+    if dset is not None and core is not None:
+      if 'assemblyRegion' not in config:
+	if 'clientSize' in config:
+          config = self._CreateAssyDrawConfig( size = config[ 'clientSize' ] )
+	else:
+          config = self._CreateAssyDrawConfig( scale = config[ 'scale' ] )
+
+      assy_region = config[ 'assemblyRegion' ]
+      im_wd, im_ht = config[ 'clientSize' ]
+      font_size = config[ 'fontSize' ]
+      label_font = config[ 'labelFont' ]
+      legend_pil_im = config[ 'legendPilImage' ]
+      pil_font = config[ 'pilFont' ]
+      pin_gap = config[ 'pinGap' ]
+      pin_wd = config[ 'pinWidth' ]
+      value_font = config[ 'valueFont' ]
+      value_font_size = config[ 'valueFontSize' ]
+
+      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      #core = self.dmgr.GetCore()
+      
+#		-- "Item" refers to channel or pin
+      item_factors = None
+      if self.state.weightsMode == 'on':
+        item_factors = self.dmgr.GetFactors( self.curDataSet )
+
+      dset_array = np.array( dset )
+      dset_shape = dset.shape
+      cur_nxpin = 2 if self.nodalMode else min( core.npinx, dset_shape[ 1 ] )
+      cur_nypin = 2 if self.nodalMode else min( core.npiny, dset_shape[ 0 ] )
+
+      ds_range = config[ 'dataRange' ]
+      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      title_templ, title_size = self._CreateTitleTemplate(
+	  pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
+	  assembly_ndx = 3, axial_ndx = 2
+	  )
+
+      node_value_draw_list = []
+
+#			-- Limit axial level
+#			--
+      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
+      axial_value = self.dmgr.\
+          GetAxialValue( self.curDataSet, core_ndx = axial_level )
+
+#			-- Create image
+#			--
+      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
+      #im_pix = im.load()
+      im_draw = PIL.ImageDraw.Draw( im )
+
+      item_col_limit = cur_nxpin
+      if self.channelMode:
+        item_col_limit += 1
+      item_row_limit = cur_nypin
+      if self.channelMode:
+        item_row_limit += 1
+
+      node_ndx = 0
+      item_y = assy_region[ 1 ]
+      for item_row in xrange( item_row_limit ):
+#				-- Row label
+#				--
+	if self.showLabels:
+	  label = '%d' % (item_row + 1)
+	  label_size = label_font.getsize( label )
+	  label_y = item_y + ((pin_wd + pin_gap - label_size[ 1 ]) >> 1)
+	  im_draw.text(
+	      ( 1, label_y ),
+	      label, fill = ( 0, 0, 0, 255 ), font = label_font
+	      )
+#					-- Loop on col
+#					--
+	item_x = assy_region[ 0 ]
+	for item_col in xrange( item_col_limit ):
+#						-- Column label
+#						--
+	  if item_row == 0 and self.showLabels:
+	    label = '%d' % (item_col + 1)
+	    label_size = label_font.getsize( label )
+	    label_x = item_x + ((pin_wd + pin_gap - label_size[ 0 ]) >> 1)
+	    im_draw.text(
+	        ( label_x, 1 ), label,
+		fill = ( 0, 0, 0, 255 ), font = label_font
+	        )
+	  #end if writing column label
+#						-- Resolve value,
+#						-- apply pin factors
+	  if dset_array is None:
+	    self.logger.critical( '** B.1 dset_array is None, how did this happen **' )
+	  if self.nodalMode:
+	    value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
+	    if item_factors is None:
+	      item_factor = 1
+	    else:
+	      item_factor = item_factors[ 0, node_ndx, axial_level, assy_ndx ]
+	    node_ndx += 1
+	  else:
+	    value = dset_array[ item_row, item_col, axial_level, assy_ndx ]
+	    if item_factors is None:
+	      item_factor = 1
+	    else:
+	      item_factor = \
+	          item_factors[ item_row, item_col, axial_level, assy_ndx ]
+	  #end if-else self.nodalMode
+#						-- Check value and factor
+#						--
+	  if not ( item_factor == 0 or self.dmgr.IsBadValue( value ) ):
+	    brush_color = Widget.GetColorTuple(
+	        value - ds_range[ 0 ], value_delta, 255
+	        )
+	    pen_color = Widget.GetDarkerColor( brush_color, 255 )
+	    #brush_color = ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+
+	    if self.nodalMode:
+	      im_draw.rectangle(
+	          [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
+	          fill = brush_color, outline = pen_color
+	          )
+	      node_value_draw_list.append((
+	          self._CreateValueString( value, 3 ),
+                  Widget.GetContrastColor( *brush_color ),
+                  item_x, item_y, pin_wd, pin_wd
+                  ))
+	    else:
+	      im_draw.ellipse(
+	          [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
+	          fill = brush_color, outline = pen_color
+	          )
+	  #end if good value, not hidden by pin_factor
+
+	  item_x += pin_wd + pin_gap
+	#end for pin_col
+
+	item_y += pin_wd + pin_gap
+      #end for pin_row
+
+#			-- Draw pins
+#			--
+      if self.channelMode:
+        brush_color = ( 155, 155, 155, 128 )
+	pen_color = Widget.GetDarkerColor( brush_color, 128 )
+	pin_draw_wd = pin_wd >> 1
+	#pin_draw_wd = max( 1, pin_wd >> 2 )
+
+	pin_y = assy_region[ 1 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
+	for pin_row in range( core.npiny ):
+	  pin_x = assy_region[ 0 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
+	  for pin_col in range( core.npinx ):
+	    im_draw.ellipse(
+		[ pin_x, pin_y, pin_x + pin_draw_wd, pin_y + pin_draw_wd ],
+		fill = brush_color, outline = pen_color
+	        )
+	    pin_x += pin_wd + pin_gap
+	  #end for pin_col
+	  pin_y += pin_wd + pin_gap
+	#end for pin_row
+      #end if self.channelMode
+
+#			-- Draw values
+#			--
+      if node_value_draw_list:
+        self._DrawValues( node_value_draw_list, im_draw )
+
+#			-- Draw legend image
+#			--
+      if legend_pil_im is not None:
+        im.paste(
+	    legend_pil_im,
+	    ( assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
+	      assy_region[ 1 ] )
+	    )
+	legend_size = legend_pil_im.size
+      else:
+	legend_size = ( 0, 0 )
+
+#			-- Draw Title String
+#			--
+      item_y = max( item_y, legend_size[ 1 ] )
+      item_y += font_size >> 2
+
+      title_str = self._CreateTitleString(
+	  title_templ,
+	  assembly = assy_ndx,
+	  axial = axial_value[ 0 ],
+	  time = self.timeValue
+          )
+      title_size = pil_font.getsize( title_str )
+      title_x = max(
+	  font_size,
+	  (assy_region[ 0 ] + assy_region[ 2 ] - title_size[ 0 ]) >> 1
+#0,
+#(assy_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
+	  )
+
+      im_draw.text(
+          ( title_x, item_y ),
+	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
+          )
+
+      del im_draw
+    #end if dset is not None and core is not None
+
+    #return  im
+    return  im if im is not None else self.emptyPilImage
+  #end _CreateAssyImage
 
 
   #----------------------------------------------------------------------
@@ -338,14 +699,12 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselCore2DView._CreateDrawConfig()		-
+  #	METHOD:		VesselCore2DView._CreateCoreDrawConfig()	-
   #----------------------------------------------------------------------
-  def _CreateDrawConfig( self, **kwargs ):
+  def _CreateCoreDrawConfig( self, **kwargs ):
     """Creates a draw configuration based on imposed 'size' (wd, ht ) or
 'scale' (pixels per pin) from which a size is determined.
 If neither are specified, a default 'scale' value of 4 is used.
-The technique is to determine the number of pixels per pin, with a minimum
-of 1, meaning a forced scale might be necessary.
 @param  kwargs
     scale	pixels per pin
     size	( wd, ht ) against which to compute the scale
@@ -359,13 +718,15 @@ of 1, meaning a forced scale might be necessary.
     legendSize
     pilFont
     +
-
+    assemblyAdvance
     assemblyWidth
+    barrelBottomColOffset
+    barrelRightRowOffset
+    barrelRadiusCm	0 if not drawing
     coreRegion
-    imageSize
     lineWidth
+    mode = 'core'
     pinWidth		used for pin or node width, depending on self.nodalMode
-    pixPerCm
     valueFont
     valueFontSize
 """
@@ -376,100 +737,126 @@ of 1, meaning a forced scale might be necessary.
 	)
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
+    core = self.dmgr.GetCore()
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
     legend_pil_im = config[ 'legendPilImage' ]
     legend_size = config[ 'legendSize' ]
 
-    core = self.dmgr.GetCore()
-    vessel_tally = core.vesselTallyMesh
+    barrel_radius_cm = 0
+    barrel_bottom_col_offset = barrel_right_row_offset = -1
+    if self.vesselFlag:
+      #xxx
+      #  calc number of assemblies in talley radius region, scale factor,
+      #  scale factor
+      cell_range_left_cm = core.apitch * self.cellRange[ 0 ]
+      cell_range_top_cm = core.apitch * self.cellRange[ 1 ]
+      cell_range_right_cm = cell_range_left_cm + \
+          (core.apitch * self.cellRange[ -2 ] )
+      cell_range_bottom_cm = cell_range_top_cm + \
+          (core.apitch * self.cellRange[ -1 ] )
+      core_size_x_cm = core.apitch * core.nassx
+      core_size_y_cm = core.apitch * core.nassy
 
-#		-- We want an integral number of pixels per pin
+      br_assy_addr = core.FindBottomRightAssemblyAddr( self.cellRange )
+      br_assy_x_cm = (br_assy_addr[ 1 ] + 1) * core.apitch
+      br_assy_y_cm = (br_assy_addr[ 2 ] + 1) * core.apitch
+
+      barrel_radius_cm = math.sqrt(
+          (br_assy_x_cm * br_assy_x_cm) +
+	  (br_assy_y_cm * br_assy_y_cm)
+	  )
+
+      bottom_col, right_row = core.FindCornerAssemblyAddrs( self.cellRange )
+      barrel_bottom_col_offset = bottom_col - self.cellRange[ 0 ] + 1
+      barrel_right_row_offset = right_row - self.cellRange[ 1 ] + 1
+    #end if self.vesselFlag
+
+#		-- Must calculate scale?
 #		--
-    npin = max( core.npinx, core.npiny )
-
-    if self.nodalMode:
-      cm_per_pin = core.apitch / 2.0
-      #cm_per_pin_x = core.apitch / 2.0
-      #cm_per_pin_y = core.apitch / 2.0
-    elif self.channelMode:
-      cm_per_pin = float( core.apitch ) / (npin + 1)
-      #cm_per_pin_x = float( core.apitch ) / (core.npinx + 1)
-      #cm_per_pin_y = float( core.apitch ) / (core.npiny + 1)
-    else:
-      cm_per_pin = float( core.apitch ) / npin
-      #cm_per_pin_x = float( core.apitch ) / core.npinx
-      #cm_per_pin_y = float( core.apitch ) / core.npiny
-
-    vessel_wd_cm = self.cellRange[ -2 ] * core.apitch
-    vessel_ht_cm = self.cellRange[ -1 ] * core.apitch
-
-    if vessel_tally is not None:
-      vessel_wd_cm = max( vessel_wd_cm, vessel_tally.r[ -1 ] )
-      vessel_ht_cm = max( vessel_ht_cm, vessel_tally.r[ -1 ] )
-
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
       # label : core : font-sp : legend
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
+      assy_wd = region_wd / self.cellRange[ -2 ]
 
-      pix_per_cm_x = float( region_wd ) / vessel_wd_cm
-      pix_per_cm_y = float( region_ht ) / vessel_ht_cm
-      pix_per_pin = math.floor( min( pix_per_cm_x, pix_per_cm_y ) * cm_per_pin )
-      pix_per_pin = max( 1, int( pix_per_pin ) )
+      working_ht = max( ht, legend_size[ 1 ] )
+      #x region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
+      assy_ht = region_ht / self.cellRange[ -1 ]
+
+      if assy_ht < assy_wd:
+        assy_wd = assy_ht
+
+      if self.nodalMode:
+        pin_wd = max( 1, (assy_wd - 2) >> 1 )
+        assy_wd = pin_wd * 2
+      elif self.channelMode:
+        pin_wd = max( 1, (assy_wd - 2) / (core.npin + 1) )
+        assy_wd = pin_wd * (core.npin + 1) + 1
+      else:
+        pin_wd = max( 1, (assy_wd - 2) / core.npin )
+        assy_wd = pin_wd * core.npin + 1
+      assy_advance = assy_wd
+      core_wd = self.cellRange[ -2 ] * assy_advance
+      core_ht = self.cellRange[ -1 ] * assy_advance
 
     else:
-      pix_per_pin = int( kwargs[ 'scale' ] ) if 'scale' in kwargs else 4
+      pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
+
+      if self.nodalMode:
+        pin_wd <<= 4
+        assy_wd = pin_wd << 1
+#        if self.logger.isEnabledFor( logging.DEBUG ):
+#          self.logger.debug( 'nodalMode=%d, pin_wd=%d', self.nodalMode, pin_wd )
+      elif self.channelMode:
+        assy_wd = pin_wd * (core.npin + 1) + 1
+      else:
+        assy_wd = pin_wd * core.npin + 1
+      assy_advance = assy_wd
+
       font_size = self._CalcFontSize( 768 )
 
-    pix_per_cm = pix_per_pin / cm_per_pin
+      core_wd = region_wd = self.cellRange[ -2 ] * assy_advance
+      core_ht = region_ht = self.cellRange[ -1 ] * assy_advance
 
-    if self.nodalMode:
-      pin_wd = int( pix_per_cm ) << 4
-      assy_wd = pin_wd << 1
-    elif self.channelMode:
-      pin_wd = int( pix_per_cm )
-      assy_wd = pin_wd * (npin + 1)
-    else:
-      pin_wd = int( pix_per_cm )
-      assy_wd = pin_wd * npin
+      # label : core : font-sp : legend
+      wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
+      ht = max( core_ht, legend_size[ 1 ] )
+      ht += (font_size << 1) + font_size
 
-    region_wd = int( math.ceil( vessel_wd_cm * pix_per_cm ) )
-    region_ht = int( math.ceil( vessel_ht_cm * pix_per_cm ) )
-
-    image_wd = \
-        label_size[ 0 ] + 2 + region_wd + (font_size << 1) + legend_size[ 0 ]
-    image_ht = max(
-        label_size[ 1 ] + 2 + region_ht + (font_size << 1),
-	legend_size[ 1 ]
-	)
+      config[ 'clientSize' ] = ( wd, ht )
+    #end if-else
 
     value_font_size = assy_wd >> 1
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
 	if value_font_size >= 6 else None
 
+    config[ 'assemblyAdvance' ] = assy_advance
     config[ 'assemblyWidth' ] = assy_wd
+    config[ 'barrelBottomColOffset' ] = barrel_bottom_col_offset
+    config[ 'barrelRightRowOffset' ] = barrel_right_row_offset
+    config[ 'barrelRadiusCm' ] = barrel_radius_cm
     config[ 'coreRegion' ] = \
+        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
+    config[ 'coreFullRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, region_wd, region_ht ]
-    config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
+    config[ 'mode' ] = 'core'
     config[ 'pinWidth' ] = pin_wd
-    config[ 'pixPerCm' ] = pix_per_cm
     config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
 
     return  config
-  #end _CreateDrawConfig
+  #end _CreateCoreDrawConfig
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselCore2DView._CreateRasterImage()		-
+  #	METHOD:		VesselCore2DView._CreateCoreImage()		-
   #----------------------------------------------------------------------
-  def _CreateRasterImage( self, tuple_in, config = None ):
+  def _CreateCoreImage( self, tuple_in, config ):
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, axial_level )
 """
@@ -488,32 +875,29 @@ of 1, meaning a forced scale might be necessary.
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
 
-      #vessel_tally_group = \
-          #self.dmgr.GetVesselTallyData( self.curDataSet, self.timeValue )
-
     if dset is not None and core is not None:
       if 'coreRegion' not in config:
         if self.logger.isEnabledFor( logging.DEBUG ):
           self.logger.debug( 'coreRegion missing from config, reconfiguring' )
 	if 'clientSize' in config:
-          config = self._CreateDrawConfig( size = config[ 'clientSize' ] )
+          config = self._CreateCoreDrawConfig( size = config[ 'clientSize' ] )
 	else:
-          config = self._CreateDrawConfig( scale = config[ 'scale' ] )
+          config = self._CreateCoreDrawConfig( scale = config[ 'scale' ] )
 
+      assy_advance = config[ 'assemblyAdvance' ]
       assy_wd = config[ 'assemblyWidth' ]
-      #im_wd, im_ht = config[ 'clientSize' ]
+      im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       font_size = config[ 'fontSize' ]
-      im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]
       pin_wd = config[ 'pinWidth' ]
-      pix_per_cm = config[ 'pixPerCm' ]
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
 
-      vessel_tally_mesh = core.vesselTallyMesh
+      #dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      #core = self.dmgr.GetCore()
 
 #		-- "Item" refers to channel or pin
       item_factors = None
@@ -599,14 +983,12 @@ of 1, meaning a forced scale might be necessary.
 	  assy_ndx = core.coreMap[ assy_row, assy_col ] - 1
 
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    #item_y = assy_y + 1
-	    item_y = assy_y
+	    item_y = assy_y + 1
 
 #						-- Loop on chan/pin rows
 	    node_ndx = 0
 	    for item_row in xrange( item_row_limit ):
-	      #item_x = assy_x + 1
-	      item_x = assy_x
+	      item_x = assy_x + 1
 #							-- Loop on chan/pin cols
 	      cur_item_row = min( item_row, cur_nypin - 1 )
 	      if cur_item_row >= 0:
@@ -673,10 +1055,10 @@ of 1, meaning a forced scale might be necessary.
 	      item_y += pin_wd
 	    #end for item_row
 
-#	    im_draw.rectangle(
-#		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
-#		fill = None, outline = assy_pen
-#	        )
+	    im_draw.rectangle(
+		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
+		fill = None, outline = assy_pen
+	        )
 #-- Draw value for cross-pin integration derived datasets
 #--
 	    if dset_array is None:
@@ -690,16 +1072,11 @@ of 1, meaning a forced scale might be necessary.
 	          ))
 	    #end if draw_value_flag
 	  #end if assembly referenced
-	  else:  # if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    im_draw.rectangle(
-		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
-		fill = None, outline = assy_pen
-	        )
 
-	  assy_x += assy_wd
+	  assy_x += assy_advance
 	#end for assy_col
 
-        assy_y += assy_wd
+        assy_y += assy_advance
       #end for assy_row
 
 #			-- Draw Values
@@ -710,17 +1087,18 @@ of 1, meaning a forced scale might be necessary.
       if assy_value_draw_list:
         self._DrawValues( assy_value_draw_list, im_draw )
 
-      if vessel_tally_mesh is not None:
-	st_x = core_region[ 0 ] + core_region[ 2 ]
-	st_y = core_region[ 1 ]
-	en_x = core_region[ 0 ]
-	en_y = core_region[ 1 ] + core_region[ 3 ]
+      if self.vesselFlag:
+	st_x = (self.cellRange[ -2 ] + 0.25) * assy_advance + core_region[ 0 ]
+	st_y = config[ 'barrelRightRowOffset' ] * assy_advance + core_region[ 1 ]
+
+	en_x = config[ 'barrelBottomColOffset' ] * assy_advance + core_region[ 0 ]
+
+	en_y = (self.cellRange[ -1 ] + 0.25) * assy_advance + core_region[ 1 ]
 
 	slice_rect = [
-	    core_region[ 0 ] - core_region[ 2 ],
-	    core_region[ 1 ] - core_region[ 3 ],
-	    core_region[ 0 ] + core_region[ 2 ],
-	    core_region[ 1 ] + core_region[ 3 ]
+	    en_x + en_x - st_x,
+	    st_y + st_y - en_y,
+	    st_x, en_y
 	    ]
         im_draw.arc(
 	    slice_rect,
@@ -775,6 +1153,42 @@ of 1, meaning a forced scale might be necessary.
       #self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
     return  im  if im is not None else  self.emptyPilImage
+  #end _CreateCoreImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._CreateDrawConfig()		-
+  #----------------------------------------------------------------------
+  def _CreateDrawConfig( self, **kwargs ):
+    """
+@param  kwargs
+    scale	pixels per pin
+    size	( wd, ht ) against which to compute the scale
+@return			config dict with keys needed by _CreateRasterImage().
+"""
+#    dset = self.data.GetStateDataSet( 0, self.pinDataSet )
+#    if dset is not None and dset.shape[ 0 ] == 1 and dset.shape[ 1 ] == 4:
+#      kwargs[ 'nodal' ] = True
+    return \
+        self._CreateAssyDrawConfig( **kwargs ) if self.mode == 'assy' else \
+	self._CreateCoreDrawConfig( **kwargs )
+  #end _CreateDrawConfig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._CreateRasterImage()		-
+  #----------------------------------------------------------------------
+  def _CreateRasterImage( self, tuple_in, config_in = None ):
+    """Called in background task to create the PIL image for the state.
+The config and data attributes are good to go.
+@param  tuple_in	state tuple
+@param  config_in	optional config to use instead of self.config
+@return			PIL image
+"""
+    return \
+        self._CreateAssyImage( tuple_in, config_in ) \
+	if self.mode == 'assy' else \
+	self._CreateCoreImage( tuple_in, config_in )
   #end _CreateRasterImage
 
 
@@ -789,7 +1203,11 @@ of 1, meaning a forced scale might be necessary.
 			mode == 'core':
 			( state_index, axial_level )
 """
-    return  self.stateIndex, self.axialValue[ 1 ]
+    return \
+        ( self.stateIndex, self.assemblyAddr[ 0 ], self.axialValue[ 1 ],
+	  self.assemblyAddr[ 1 ], self.assemblyAddr[ 2 ] ) \
+        if self.mode == 'assy' else \
+        ( self.stateIndex, self.axialValue[ 1 ] )
   #end _CreateStateTuple
 
 
@@ -802,7 +1220,7 @@ of 1, meaning a forced scale might be necessary.
 """
     tip_str = ''
 
-    if cell_info is not None and cell_info[ 0 ] >= 0:
+    if self.mode == 'core' and cell_info is not None and cell_info[ 0 ] >= 0:
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       #if dset is not None and assy_ndx < dset.shape[ 3 ]:
       if dset is not None:
@@ -852,17 +1270,17 @@ of 1, meaning a forced scale might be necessary.
 
     if core is not None and core.coreMap is not None:
       if ev_x >= 0 and ev_y >= 0:
-	assy_wd = self.config[ 'assemblyWidth' ]
+	assy_advance = self.config[ 'assemblyAdvance' ]
 	core_region = self.config[ 'coreRegion' ]
 	off_x = ev_x - core_region[ 0 ]
 	off_y = ev_y - core_region[ 1 ]
         cell_x = min(
-	    int( off_x / assy_wd ) + self.cellRange[ 0 ],
+	    int( off_x / assy_advance ) + self.cellRange[ 0 ],
 	    self.cellRange[ 2 ] - 1
 	    )
 	cell_x = max( self.cellRange[ 0 ], cell_x )
         cell_y = min(
-	    int( off_y / assy_wd ) + self.cellRange[ 1 ],
+	    int( off_y / assy_advance ) + self.cellRange[ 1 ],
 	    self.cellRange[ 3 ] - 1
 	    )
 	cell_y = max( self.cellRange[ 1 ], cell_y )
@@ -871,8 +1289,8 @@ of 1, meaning a forced scale might be necessary.
 
 	pin_wd = self.config[ 'pinWidth' ]
 	if self.nodalMode:
-	  node_col = int( (off_x % assy_wd) / pin_wd )
-	  node_row = int( (off_y % assy_wd) / pin_wd )
+	  node_col = int( (off_x % assy_advance) / pin_wd )
+	  node_row = int( (off_y % assy_advance) / pin_wd )
 	  node_addr = 2 if node_row > 0 else 0
 	  if node_col > 0:
 	    node_addr += 1
@@ -881,9 +1299,9 @@ of 1, meaning a forced scale might be necessary.
 	      'channel' if self.channelMode else 'pin'
 	      )
 	else:
-	  pin_col = int( (off_x % assy_wd) / pin_wd )
+	  pin_col = int( (off_x % assy_advance) / pin_wd )
 	  if pin_col >= core.npinx: pin_col = -1
-	  pin_row = int( (off_y % assy_wd) / pin_wd )
+	  pin_row = int( (off_y % assy_advance) / pin_wd )
 	  if pin_row >= core.npiny: pin_row = -1
 	  node_addr = self.dmgr.GetNodeAddr(
 	      ( pin_col, pin_row ),
@@ -902,10 +1320,71 @@ of 1, meaning a forced scale might be necessary.
   #	METHOD:		VesselCore2DView.FindCell()			-
   #----------------------------------------------------------------------
   def FindCell( self, ev_x, ev_y ):
-    """Calls FindAssembly().
+    """Calls FindPin() in 'assy' mode or FindAssembly() in 'core' mode.
 """
-    return  self.FindAssembly( ev_x, ev_y )
+    result = None
+    if self.mode == 'assy':
+      pin = self.FindPin( ev_x, ev_y )
+      if pin is not None:
+	result = ( -1, ) + pin
+        #result = ( -1, pin[ 0 ], pin[ 1 ] )
+    else:
+      result = self.FindAssembly( ev_x, ev_y )
+
+    return  result
   #end FindCell
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView.FindPin()			-
+  #----------------------------------------------------------------------
+  def FindPin( self, ev_x, ev_y ):
+    """Finds the pin index.  Must be in 'assy' mode.
+@param  ev_x		event x coordinate (relative to this)
+@param  ev_y		event y coordinate (relative to this)
+@return			None if no match, otherwise tuple of
+			( 0-based cell_col, cell_row, node_addr )
+"""
+    result = None
+
+    core = None
+    if self.config is not None and 'assemblyRegion' in self.config:
+      core = self.dmgr.GetCore()
+
+    if core and ev_x >= 0 and ev_y >= 0:
+      assy_region = self.config[ 'assemblyRegion' ]
+      pin_size = self.config[ 'pinWidth' ] + self.config[ 'pinGap' ]
+	
+      if self.nodalMode:
+        node_col = min( int( (ev_x - assy_region[ 0 ]) / pin_size ), 1 )
+	node_row = min( int( (ev_y - assy_region[ 1 ]) / pin_size ), 1 )
+	node_addr = 2 if node_row > 0 else 0
+	if node_col > 0:
+	  node_addr += 1
+	cell_x, cell_y = self.dmgr.GetSubAddrFromNode(
+	    node_addr,
+	    'channel' if self.channelMode else 'pin'
+	    )
+
+      else:
+	cell_x = int( (ev_x - assy_region[ 0 ]) / pin_size )
+        cell_y = int( (ev_y - assy_region[ 1 ]) / pin_size )
+	if self.channelMode:
+	  cell_x = min( cell_x, core.npinx )
+	  cell_y = min( cell_y, core.npiny )
+	else:
+	  cell_x = min( cell_x, core.npinx - 1 )
+	  cell_y = min( cell_y, core.npiny - 1 )
+
+        node_addr = self.dmgr.GetNodeAddr(
+	    ( cell_x, cell_y ),
+	    'channel' if self.channelMode else 'pin'
+	    )
+	result = ( cell_x, cell_y, node_addr )
+    #end if core and ev_x >= 0 and ev_y >= 0
+
+    return  result
+  #end FindPin
 
 
   #----------------------------------------------------------------------
@@ -957,9 +1436,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetPrintScale( self ):
     """
-@return		4
+@return		24 in 'assy' mode, 4 in 'core' mode
 """
-    return  4
+    return  24 if self.mode == 'assy' else 4
   #end GetPrintScale
 
 
@@ -967,7 +1446,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		VesselCore2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Vessel Core 2D View'
+    return  'Core 2D View'
   #end GetTitle
 
 
@@ -1011,44 +1490,94 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 #			-- Core mode
 #			--
-      rel_col = self.assemblyAddr[ 1 ] - self.cellRange[ 0 ]
-      rel_row = self.assemblyAddr[ 2 ] - self.cellRange[ 1 ]
+      if self.config[ 'mode' ] == 'core':
+        rel_col = self.assemblyAddr[ 1 ] - self.cellRange[ 0 ]
+        rel_row = self.assemblyAddr[ 2 ] - self.cellRange[ 1 ]
 
-      if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
-          rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
-	assy_wd = self.config[ 'assemblyWidth' ]
-	core_region = self.config[ 'coreRegion' ]
+        if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
+            rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
+          assy_adv = self.config[ 'assemblyAdvance' ]
+	  assy_wd = self.config[ 'assemblyWidth' ]
+	  core_region = self.config[ 'coreRegion' ]
 
-	rect = [
-	    rel_col * assy_wd + core_region[ 0 ],
-	    rel_row * assy_wd + core_region[ 1 ],
-	    assy_wd, assy_wd
+	  rect = \
+	    [
+	      rel_col * assy_adv + core_region[ 0 ],
+	      rel_row * assy_adv + core_region[ 1 ],
+	      assy_wd, assy_wd
 	    ]
-	draw_list.append( ( rect, select_pen ) )
+	  draw_list.append( ( rect, select_pen ) )
 
-#				-- Core nodal
-	if self.nodalMode:
-	  node_wd = self.config[ 'pinWidth' ]
-          for i in range( len( node_addr_list ) ):
-	    node_addr = node_addr_list[ i ]
-	    if node_addr >= 0:
-	      rel_x = node_wd if node_addr in ( 1, 3 ) else half_line_wd
-	      rel_y = node_wd if node_addr in ( 2, 3 ) else half_line_wd
-	      node_rect = [
-	          rect[ 0 ] + rel_x, rect[ 1 ] + rel_y,
-		  node_wd - half_line_wd, node_wd - half_line_wd
-		  ]
-	      pen = \
-	          secondary_pen if i < len( node_addr_list ) - 1 else \
-		  primary_pen
-	      draw_list.append( ( node_rect, pen ) )
-	    #end if valid node addr
-          #end for i
-	#end if nodalMode
-      #end if cell in drawing range
+#					-- Core nodal
+	  if self.nodalMode:
+	    node_wd = self.config[ 'pinWidth' ]
+            for i in range( len( node_addr_list ) ):
+	      node_addr = node_addr_list[ i ]
+	      if node_addr >= 0:
+	        rel_x = node_wd if node_addr in ( 1, 3 ) else half_line_wd
+	        rel_y = node_wd if node_addr in ( 2, 3 ) else half_line_wd
+	        node_rect = [
+	            rect[ 0 ] + rel_x, rect[ 1 ] + rel_y,
+		    node_wd - half_line_wd, node_wd - half_line_wd
+		    ]
+		#pen = primary_pen if i == 0 else secondary_pen
+		pen = \
+		    secondary_pen if i < len( node_addr_list ) - 1 else \
+		    primary_pen
+	        draw_list.append( ( node_rect, pen ) )
+	      #end if valid node addr
+	    #end for i
+	  #end if nodalMode
+        #end if cell in drawing range
+
+#			-- Assy nodal mode
+#			--
+      elif self.nodalMode:
+        assy_region = self.config[ 'assemblyRegion' ]
+        pin_gap = self.config[ 'pinGap' ]
+	pin_wd = self.config[ 'pinWidth' ]
+	pin_adv = pin_wd + pin_gap
+
+	for i in range( len( node_addr_list ) ):
+	  node_addr = node_addr_list[ i ]
+	  if node_addr >= 0:
+	    rel_x = pin_adv if node_addr in ( 1, 3 ) else 0
+	    rel_y = pin_adv if node_addr in ( 2, 3 ) else 0
+	    node_rect = [
+		assy_region[ 0 ] + rel_x,
+		assy_region[ 1 ] + rel_y,
+		pin_wd, pin_wd
+		]
+	    #pen = primary_pen if i == 0 else secondary_pen
+	    pen = \
+	        secondary_pen if i < len( node_addr_list ) - 1 else primary_pen
+	    draw_list.append( ( node_rect, pen ) )
+	  #end if valid node addr
+	#end for i
+
+#			-- Assy not nodal mode
+#			--
+      else:  # 'assy'
+	if self.subAddr[ 0 ] >= 0 and self.subAddr[ 1 ] >= 0 and \
+	    self.subAddr[ 0 ] < core.npinx and \
+	    self.subAddr[ 1 ] < core.npiny:
+          assy_region = self.config[ 'assemblyRegion' ]
+	  pin_gap = self.config[ 'pinGap' ]
+	  pin_wd = self.config[ 'pinWidth' ]
+	  pin_adv = pin_wd + pin_gap
+	  rect = \
+	    [
+	      self.subAddr[ 0 ] * pin_adv + assy_region[ 0 ],
+	      self.subAddr[ 1 ] * pin_adv + assy_region[ 1 ],
+	      pin_adv, pin_adv
+	    ]
+	  draw_list.append( ( rect, select_pen ) )
+        #end if cell in drawing range
+      #end if-else on mode
 
 #			-- Draw?
 #			--
+      #if rect is not None:
       if draw_list:
 	new_bmap = self._CopyBitmap( bmap )
 
@@ -1077,12 +1606,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def _InitEventHandlers( self ):
     """
 """
-    #self._SetMode( 'core' )
-
-    self.bitmapCtrl.Bind( wx.EVT_CONTEXT_MENU, self._OnContextMenu )
-    #self.bitmapCtrl.Bind( wx.EVT_LEFT_DOWN, self._OnLeftDown )
-    self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, self._OnLeftUp )
-    self.bitmapCtrl.Bind( wx.EVT_MOTION, self._OnMouseMotion )
+    self._SetMode( 'core' )
   #end _InitEventHandlers
 
 
@@ -1094,10 +1618,22 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @param  tpl		tuple of state values
 @return			True if it matches the current state, false otherwise
 """
-    result = \
-        tpl is not None and len( tpl ) >= 2 and \
-        tpl[ 0 ] == self.stateIndex and \
-	tpl[ 1 ] == self.axialValue[ 1 ]
+    result = False
+
+    if self.mode == 'assy':
+      result = \
+          tpl is not None and len( tpl ) >= 5 and \
+          tpl[ 0 ] == self.stateIndex and \
+	  tpl[ 1 ] == self.assemblyAddr[ 0 ] and \
+	  tpl[ 2 ] == self.axialValue[ 1 ] and \
+	  tpl[ 3 ] == self.assemblyAddr[ 1 ] and \
+	  tpl[ 4 ] == self.assemblyAddr[ 2 ]
+
+    else:
+      result = \
+          tpl is not None and len( tpl ) >= 2 and \
+          tpl[ 0 ] == self.stateIndex and \
+	  tpl[ 1 ] == self.axialValue[ 1 ]
 
     return  result
   #end IsTupleCurrent
@@ -1194,13 +1730,12 @@ be overridden by subclasses.
   def _OnDragFinished( self, left, top, right, bottom ):
     """Do post drag things after drag processing.
 """
-    pass
-#    if right - left == 1 and bottom - top == 1:
-#      self.assemblyAddr = self.dragStartCell
-#      self._SetMode( 'assy' )
-#      self.FireStateChange( assembly_addr = self.assemblyAddr )
-#    else:
-#      self._SetMode( 'core' )
+    if right - left == 1 and bottom - top == 1:
+      self.assemblyAddr = self.dragStartCell
+      self._SetMode( 'assy' )
+      self.FireStateChange( assembly_addr = self.assemblyAddr )
+    else:
+      self._SetMode( 'core' )
   #end _OnDragFinished
 
 
@@ -1220,6 +1755,115 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._OnMouseMotionAssy()		-
+  #----------------------------------------------------------------------
+  def _OnMouseMotionAssy( self, ev ):
+    """
+"""
+    tip_str = ''
+
+    dset = None
+    pin_info = self.FindPin( *ev.GetPosition() )
+    if pin_info is not None:
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+
+    if dset is not None:
+      axial_level = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 )
+      assy_ndx = self.assemblyAddr[ 0 ]
+      pin_factors = None
+
+      if self.nodalMode:
+        if self.state.weightsMode == 'on':
+          pin_factors = self.dmgr.GetFactors( self.curDataSet )
+        node_addr = pin_info[ 2 ]
+	if node_addr < dset.shape[ 1 ] and assy_ndx < dset.shape[ 3 ]:
+	  pin_factor = 1
+	  if pin_factors is not None:
+	    pin_factor = pin_factors[ 0, node_addr, axial_level, assy_ndx ]
+          pin_value = dset[ 0, node_addr, axial_level, assy_ndx ]
+	  if not ( pin_factor == 0 or self.dmgr.IsBadValue( pin_value ) ):
+            tip_str = 'Node: %d\n%s: %g' % (
+	        node_addr + 1,
+	        self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+		pin_value
+		)
+	#end if node_addr and assy_ndx valid
+
+      else:
+        if self.state.weightsMode == 'on':
+          pin_factors = self.dmgr.GetFactors( self.curDataSet )
+        pin_addr = pin_info[ 0 : 2 ]
+        if pin_addr[ 1 ] < dset.shape[ 0 ] and \
+	    pin_addr[ 0 ] < dset.shape[ 1 ] and \
+	    assy_ndx < dset.shape[ 3 ]:
+	  pin_factor = 1
+	  if pin_factors is not None:
+	    pin_factor = pin_factors[
+	        pin_addr[ 1 ], pin_addr[ 0 ],
+		axial_level, assy_ndx
+		]
+          pin_value = \
+	      dset[ pin_addr[ 1 ], pin_addr[ 0 ], axial_level, assy_ndx ]
+	  if not ( pin_factor == 0 or self.dmgr.IsBadValue( pin_value ) ):
+	    pin_rc = ( pin_addr[ 0 ] + 1, pin_addr[ 1 ] + 1 )
+            tip_str = 'Pin: %s\n%s: %g' % (
+	        str( pin_rc ),
+	        self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+		pin_value
+		)
+      #end if-else nodalMode
+    #end if dset
+
+    self.bitmapCtrl.SetToolTipString( tip_str )
+  #end _OnMouseMotionAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._OnMouseUpAssy()		-
+  #----------------------------------------------------------------------
+  def _OnMouseUpAssy( self, ev ):
+    """
+"""
+    pin_info = self.FindPin( *ev.GetPosition() )
+    if pin_info is None:
+      pass
+
+    elif self.nodalMode:
+      node_addr = pin_info[ 2 ]
+      valid = self.dmgr.IsValid( self.curDataSet, node_addr = node_addr )
+      if valid:
+        is_aux = self.IsAuxiliaryEvent( ev )
+	if is_aux:
+	  addrs = list( self.auxNodeAddrs )
+	  if node_addr in addrs:
+	    addrs.remove( node_addr )
+	  else:
+	    addrs.append( node_addr )
+	  self.FireStateChange( aux_node_addrs = addrs )
+	else:
+          self.FireStateChange( node_addr = node_addr, aux_node_addrs = [] )
+      #end if valid
+
+    else:
+      pin_addr = pin_info[ 0 : 2 ]
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      if dset is not None:
+        if pin_addr[ 1 ] < dset.shape[ 0 ] and \
+	    pin_addr[ 0 ] < dset.shape[ 1 ] and \
+	    self.assemblyAddr[ 0 ] < dset.shape[ 3 ]:
+          pin_value = dset[
+	      pin_addr[ 1 ], pin_addr[ 0 ],
+	      min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+	      self.assemblyAddr[ 0 ]
+	      ]
+	  if not self.dmgr.IsBadValue( pin_value ):
+	    self.FireStateChange( sub_addr = pin_addr )
+      #end if dset
+    #end if-else
+  #end _OnMouseUpAssy
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._OnUnzoom()			-
   #----------------------------------------------------------------------
   def _OnUnzoom( self, ev ):
@@ -1227,7 +1871,7 @@ be overridden by subclasses.
 """
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
-      #self._SetMode( 'core' )
+      self._SetMode( 'core' )
       self.Redraw()  # self._OnSize( None )
   #end _OnUnzoom
 
@@ -1257,6 +1901,33 @@ method via super.SaveProps().
       wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
       self.FireStateChange( cur_dataset = qds_name )
   #end SetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._SetMode()			-
+  #----------------------------------------------------------------------
+  def _SetMode( self, mode ):
+    """Must be called from the UI thread.
+"""
+    if mode != self.mode:
+      if mode == 'assy':
+        self.bitmapCtrl.Bind( wx.EVT_LEFT_DOWN, None )
+#        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, None )
+#        self.bitmapCtrl.Bind( wx.EVT_MOTION, None )
+
+        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, self._OnMouseUpAssy )
+        self.bitmapCtrl.Bind( wx.EVT_MOTION, self._OnMouseMotionAssy )
+
+      else:  # if mode == 'core':
+#        self.bitmapCtrl.Bind( wx.EVT_LEFT_UP, None )
+#        self.bitmapCtrl.Bind( wx.EVT_MOTION, None )
+
+	super( VesselCore2DView, self )._InitEventHandlers()
+      #end if-else
+
+      self.mode = mode
+    #end if different mode
+  #end _SetMode
 
 
   #----------------------------------------------------------------------

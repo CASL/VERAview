@@ -489,6 +489,7 @@ Calls _CreateRasterImage().
 configuration based on the current size
 Sets the config attribute.
 """
+    #xxx if scrollable it would be self.GetClientSize()
     wd, ht = self.bitmapPanel.GetClientSize()
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'wd=%d, ht=%d', wd, ht )
