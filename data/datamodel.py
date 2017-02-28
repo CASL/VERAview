@@ -705,12 +705,12 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core.FindBottomRightAssemblyAddr()		-
+  #	METHOD:		Core.FindBottomRightAssemblyCell()		-
   #----------------------------------------------------------------------
-  def FindBottomRightAssemblyAddr( self, cell_range = None ):
+  def FindBottomRightAssemblyCell( self, cell_range = None ):
     """Locate the bottom-right assembly over the specified range
 @param  cell_range	optional ( left, top, right+1, bottom+1, ... )
-@return			0-based ( assy_ndx, col, row )
+@return			0-based ( col, row )
 """
     if cell_range is None:
       cell_range = ( 0, 0, self.nassx, self.nassy )
@@ -723,8 +723,12 @@ Properties:
       cur_x -= 1
       cur_y -= 1
 
-    return  self.coreMap[ cur_y, cur_x ], cur_x, cur_y
-  #end FindBottomRightAssemblyAddr
+    cell = (
+        min( cur_x + 1, cell_range[ 2 ] - 1 ),
+	min( cur_y + 1, cell_range[ 3 ] - 1 )
+        )
+    return  cell
+  #end FindBottomRightAssemblyCell
 
 
   #----------------------------------------------------------------------
@@ -734,7 +738,7 @@ Properties:
     """Locate the right-most on the bottom row and bottom-most on the
 right column.
 @param  cell_range	optional ( left, top, right+1, bottom+1, ... )
-@return			0-based bottom_col, right_row
+@return			0-based bottom_col, right_row indexes
 """
     if cell_range is None:
       cell_range = ( 0, 0, self.nassx, self.nassy )
@@ -756,6 +760,70 @@ right column.
 
     return  bottom_col, right_row
   #end FindCornerAssemblyAddrs
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.FindCornerRadius()				-
+  #----------------------------------------------------------------------
+  def FindCornerRadius( self, cell_range = None ):
+    """Locate the right-most on the bottom row and bottom-most on the
+right column.
+@param  cell_range	optional ( left, top, right+1, bottom+1, ... )
+@return			radius in units of assemblies (float)
+"""
+    if cell_range is None:
+      cell_range = ( 0, 0, self.nassx, self.nassy )
+
+    match_col = match_row = match_radius = -1
+    match_radius = max(
+        cell_range[ 2 ] - cell_range[ 0 ],
+	cell_range[ 3 ] - cell_range[ 1 ]
+	)
+
+    right_col, bottom_row = cell_range[ 2 ] - 1, cell_range[ 3 ] - 1
+
+#		-- By row
+#		--
+    for cur_row in xrange( bottom_row, -1, -1 ):
+      cur_col = right_col
+      h = cell_range[ 3 ] - cell_range[ 1 ]
+      h2 = h * h
+      while self.coreMap[ cur_row, cur_col ] <= 0 and \
+          cur_col > cell_range[ 0 ]:
+        cur_col -= 1
+      if cur_col >= cell_range[ 0 ]:
+        w = cur_col - cell_range[ 0 ] + 1
+	r = math.sqrt( (w * w) + h2 )
+	print >> sys.stderr, 'Y @=%d,%d, r=%f' % ( cur_col, cur_row, r )
+	if r > match_radius:
+	  match_col = cur_col
+	  match_row = cur_row
+	  match_radius = r
+    #end for y
+
+#		-- By col
+#		--
+    for cur_col in xrange( right_col, -1, -1 ):
+      cur_row = bottom_row
+      w = cell_range[ 2 ] - cell_range[ 0 ]
+      w2 = w * w
+      while self.coreMap[ cur_row, cur_col ] <= 0 and \
+	  cur_row > cell_range[ 1 ]:
+        cur_row -= 1
+      if cur_row >= cell_range[ 1 ]:
+	h = cur_row - cell_range[ 1 ] + 1
+	r = math.sqrt( w2 + (h * h) )
+	print >> sys.stderr, 'X @=%d,%d, r=%f' % ( cur_col, cur_row, r )
+	if r > match_radius:
+	  match_col = cur_col
+	  match_row = cur_row
+	  match_radius = r
+    #end for y
+
+    print >> sys.stderr, 'match col, row, radius=%d,%d,%f' % ( match_col, match_row, match_radius )
+
+    return  match_radius
+  #end FindCornerRadius
 
 
   #----------------------------------------------------------------------

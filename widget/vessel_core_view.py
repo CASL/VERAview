@@ -158,6 +158,7 @@ except Exception:
 #from bean.axial_slider import *
 #from bean.exposure_slider import *
 from data.datamodel import *
+from data.utils import *
 from event.state import *
 from raster_widget import *
 from widget import *
@@ -428,13 +429,13 @@ of 1, meaning a forced scale might be necessary.
     pix_per_cm = pix_per_pin / cm_per_pin
 
     if self.nodalMode:
-      pin_wd = int( pix_per_cm ) << 4
+      pin_wd = int( pix_per_pin ) << 4
       assy_wd = pin_wd << 1
     elif self.channelMode:
-      pin_wd = int( pix_per_cm )
+      pin_wd = pix_per_pin
       assy_wd = pin_wd * (npin + 1)
     else:
-      pin_wd = int( pix_per_cm )
+      pin_wd = pix_per_pin
       assy_wd = pin_wd * npin
 
     region_wd = int( math.ceil( vessel_wd_cm * pix_per_cm ) )
@@ -711,25 +712,44 @@ of 1, meaning a forced scale might be necessary.
         self._DrawValues( assy_value_draw_list, im_draw )
 
       if vessel_tally_mesh is not None:
-	st_x = core_region[ 0 ] + core_region[ 2 ]
-	st_y = core_region[ 1 ]
-	en_x = core_region[ 0 ]
-	en_y = core_region[ 1 ] + core_region[ 3 ]
+	# barrel ring
+	bottom_col, bottom_row = \
+	    core.FindBottomRightAssemblyCell( self.cellRange )
+	w = bottom_col - self.cellRange[ 0 ] + 0.5
+	h = bottom_row - self.cellRange[ 1 ] + 0.5
+	barrel_r = int( math.ceil( assy_wd * math.sqrt( (w * w) + (h * h) ) ) )
 
-	slice_rect = [
+#        bottom_col, right_row = core.FindCornerAssemblyAddrs( self.cellRange )
+#	d1 = right_row - self.cellRange[ 1 ] + 1
+#	d2 = bottom_col - self.cellRange[ 0 ] + 1
+#	if d1 > d2:
+#	  w = self.cellRange[ -2 ]
+#	  r = int( math.ceil( assy_wd * math.sqrt( (w * w) + (d1 * d1) ) ) )
+#	else:
+#	  h = self.cellRange[ -1 ]
+#	  r = int( math.ceil( assy_wd * math.sqrt( (d2 * d2) + (h * h) ) ) )
+#	barrel_r = r
+
+	barrel_ring_rect = [
+	    core_region[ 0 ] - barrel_r, core_region[ 1 ] - barrel_r,
+	    core_region[ 0 ] + barrel_r, core_region[ 1 ] + barrel_r,
+	    ]
+        im_draw.arc(
+	    barrel_ring_rect,
+	    0, 90, ( 0, 0, 200, 255 )
+	    )
+
+	# vessel ring
+	vessel_ring_rect = [
 	    core_region[ 0 ] - core_region[ 2 ],
 	    core_region[ 1 ] - core_region[ 3 ],
 	    core_region[ 0 ] + core_region[ 2 ],
 	    core_region[ 1 ] + core_region[ 3 ]
 	    ]
         im_draw.arc(
-	    slice_rect,
+	    vessel_ring_rect,
 	    0, 90, ( 0, 0, 200, 255 )
 	    )
-#        im_draw.chord(
-#	    slice_rect, 0, 90,
-#	    outline = ( 0, 0, 200, 255 )
-#	    )
 
 #			-- Draw Legend Image
 #			--
