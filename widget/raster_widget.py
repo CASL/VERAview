@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2017-02-28	leerw@ornl.gov				-
+#	  Using ScrolledPanel
 #		2017-02-03	leerw@ornl.gov				-
 #	  Adding white background image save option.
 #		2017-01-26	leerw@ornl.gov				-
@@ -68,7 +70,7 @@ import pdb  #pdb.set_trace()
 try:
   import wx
   import wx.lib.delayedresult as wxlibdr
-  #from wx.lib.scrolledpanel import ScrolledPanel
+  from wx.lib.scrolledpanel import ScrolledPanel
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
@@ -407,9 +409,10 @@ Paired to _BitmapThreadStart().
             self.IsTupleCurrent( cur_tuple ), bmap == self.blankBitmap
 	    )
       if bmap is not None and self.IsTupleCurrent( cur_tuple ):
-        self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
-        self.bitmapCtrl.Refresh()
-        self.bitmapCtrl.Update()
+	self._SetBitmap( self._HiliteBitmap( bmap ) )
+        #self.bitmapCtrl.SetBitmap( self._HiliteBitmap( bmap ) )
+        #self.bitmapCtrl.Refresh()
+        #self.bitmapCtrl.Update()
     #end if cur_tuple is not None and bitmap_args is not None
 
     self._BusyEnd()
@@ -466,7 +469,8 @@ Calls _CreateRasterImage().
     self.bitmapsLock.acquire()
     try:
       self.bitmapThreads.clear()
-      self.bitmapCtrl.SetBitmap( self.blankBitmap )
+      #self.bitmapCtrl.SetBitmap( self.blankBitmap )
+      self._SetBitmap( self.blankBitmap )
 
       tuples = list( self.bitmaps.keys() )
       for t in tuples:
@@ -564,9 +568,10 @@ Sets the config attribute.
       if self.IsTupleCurrent( cur_tuple ):
 	if pil_im is not None:
 	  bmap = self._HiliteBitmap( bmap )
-        self.bitmapCtrl.SetBitmap( bmap )
-        self.bitmapCtrl.Refresh()
-        self.bitmapCtrl.Update()
+        self._SetBitmap( bmap )
+        #self.bitmapCtrl.SetBitmap( bmap )
+        #self.bitmapCtrl.Refresh()
+        #self.bitmapCtrl.Update()
     #end if cur_tuple is not None and self.config is not None
   #end _CreateAndSetBitmap
 
@@ -1218,8 +1223,17 @@ does nothing.
 Subclasses that override should call this implementation.
 """
     self.overlay = wx.Overlay()
-    self.bitmapPanel = wx.Panel( self )
-    self.bitmapCtrl = wx.StaticBitmap( self.bitmapPanel, bitmap = self.blankBitmap )
+#    self.bitmapPanel = wx.Panel( self )
+#    self.bitmapCtrl = wx.StaticBitmap( self.bitmapPanel, bitmap = self.blankBitmap )
+
+    self.bitmapPanel = ScrolledPanel( self, -1 )
+    self.bitmapPanel.SetAutoLayout( True )
+    self.bitmapPanel.SetupScrolling()
+    bmp_sizer = wx.BoxSizer( wx.VERTICAL )
+    self.bitmapCtrl = \
+        wx.StaticBitmap( self.bitmapPanel, bitmap = self.blankBitmap )
+    bmp_sizer.Add( self.bitmapCtrl )
+    self.bitmapPanel.SetSizer( bmp_sizer )
 
     self._InitEventHandlers()
 
@@ -1596,6 +1610,19 @@ method via super.SaveProps().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._SetBitmap()			-
+  #----------------------------------------------------------------------
+  def _SetBitmap( self, bmap ):
+    """
+"""
+    self.bitmapCtrl.SetBitmap( bmap )
+    self.bitmapCtrl.Update()
+    self.bitmapPanel.Layout()
+    self.bitmapPanel.SetupScrolling()
+  #end _SetBitmap
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._UpdateDataSetStateValues()	-
   #----------------------------------------------------------------------
   def _UpdateDataSetStateValues( self, ds_type ):
@@ -1642,7 +1669,8 @@ Calls _UpdateStateValues().
         if tpl in self.bitmaps:
           if self.logger.isEnabledFor( logging.DEBUG ):
             self.logger.debug( '%s cache hit', self.GetTitle() )
-          self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
+          self._SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
+          #self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
 	  must_create_image = False
 
         #elif bitmap_args == self.bitmapThreadArgs:
@@ -1724,7 +1752,8 @@ Note this does not work with X11!!
         if tpl in self.bitmaps:
           if self.logger.isEnabledFor( logging.DEBUG ):
             self.logger.debug( '%s cache hit', self.GetTitle() )
-          self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
+          self._SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
+          #self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
 	  must_create_image = False
 
         else:
@@ -1742,87 +1771,6 @@ Note this does not work with X11!!
 
     self._BusyEnd()
   #end UpdateState_no_threads
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		RasterWidget.UpdateState_bitmap_threads()	-
-  # Must be called from the UI thread.
-  #----------------------------------------------------------------------
-  def UpdateState_bitmap_threads( self, **kwargs ):
-    """Called to update the components on a new state property.
-Calls _UpdateStateValues().
-@param  kwargs		any state change values plus 'resized', 'changed'
-"""
-    self._BusyBegin()
-
-    if 'scale_mode' in kwargs:
-      kwargs[ 'resized' ] = True
-
-    kwargs = self._UpdateStateValues( **kwargs )
-    changed = kwargs.get( 'changed', False )
-    resized = kwargs.get( 'resized', False )
-
-    end_busy = True
-
-    if resized:
-      self._ClearBitmaps()
-      self._Configure()
-      changed = True
-
-    if changed and self.config is not None:
-      tpl = self._CreateStateTuple()
-      bitmap_args = tpl + self.curSize + tuple( self.cellRange )
-
-      must_create_image = True
-      self.bitmapsLock.acquire()
-      try:
-        if tpl in self.bitmaps:
-          if self.logger.isEnabledFor( logging.DEBUG ):
-            self.logger.debug( '%s cache hit', self.GetTitle() )
-          self.bitmapCtrl.SetBitmap( self._HiliteBitmap( self.bitmaps[ tpl ] ) )
-	  must_create_image = False
-
-        elif bitmap_args == self.bitmapThreadArgs:
-          if self.logger.isEnabledFor( logging.DEBUG ):
-            self.logger.debug(
-	        '%s cache miss, already have thread',
-	        self.GetTitle()
-	        )
-	  must_create_image = False
-
-        else:
-          if self.logger.isEnabledFor( logging.DEBUG ):
-            self.logger.debug(
-	        '%s cache miss, creating thread',
-	        self.GetTitle()
-	        )
-	  self.bitmapThreadArgs = bitmap_args
-
-      finally:
-        self.bitmapsLock.release()
-
-      if must_create_image:
-	end_busy = False
-        RasterWidget.jobid_ += 1
-        if self.logger.isEnabledFor( logging.DEBUG ):
-          self.logger.debug(
-	      '%s starting worker, args=%s, jobid=%d',
-	      self.GetTitle(), str( tpl + self.curSize ), RasterWidget.jobid_
-	      )
-
-	th = wxlibdr.startWorker(
-	    self._BitmapThreadFinish,
-	    self._BitmapThreadStart,
-	    wargs = [ tpl, 0, RasterWidget.jobid_ ],
-	    jobID = RasterWidget.jobid_
-	    )
-      #else:
-        #self._BusyEnd()
-    #end if
-
-    if end_busy:
-      self._BusyEnd()
-  #end UpdateState_bitmap_threads
 
 
   #----------------------------------------------------------------------

@@ -792,6 +792,14 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+
+    image_wd = \
+        label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
+    image_ht = max(
+        label_size[ 1 ] + 2 + core_ht + (font_size << 1),
+	legend_size[ 1 ]
+	)
+
     value_font_size = assy_wd >> 1
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
@@ -803,6 +811,7 @@ If neither are specified, a default 'scale' value of 4 is used.
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'coreFullRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, region_wd, region_ht ]
+    config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'mode' ] = 'core'
     config[ 'pinWidth' ] = pin_wd
@@ -846,9 +855,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       assy_advance = config[ 'assemblyAdvance' ]
       assy_wd = config[ 'assemblyWidth' ]
-      im_wd, im_ht = config[ 'clientSize' ]
+      #im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       font_size = config[ 'fontSize' ]
+      im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]

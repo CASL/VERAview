@@ -2724,7 +2724,7 @@ Must be called from the UI thread.
         widget_list.append( 'widget.time_plots.TimePlots' )
 
       #xxxxx _debug_
-      _debug_ = True
+      _debug_ = False
       if _debug_:
         widget_list = [
             'widget.vessel_core_view.VesselCore2DView',
