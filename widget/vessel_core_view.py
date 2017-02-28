@@ -745,8 +745,8 @@ of 1, meaning a forced scale might be necessary.
 
 #			-- Draw Title String
 #			--
-      assy_y = max( assy_y, legend_size[ 1 ] )
-      #x assy_y += font_size >> 2
+      #assy_y = max( assy_y, legend_size[ 1 ] )
+      assy_y = max( core_region[ 1 ] + core_region[ 3 ], legend_size[ 1 ] )
       assy_y += font_size >> 1
 
       title_str = self._CreateTitleString(
