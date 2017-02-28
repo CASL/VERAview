@@ -161,13 +161,14 @@ from data.datamodel import *
 from data.utils import *
 from event.state import *
 from raster_widget import *
+from scroll_raster_widget import *
 from widget import *
 
 
 #------------------------------------------------------------------------
 #	CLASS:		VesselCore2DView				-
 #------------------------------------------------------------------------
-class VesselCore2DView( RasterWidget ):
+class VesselCore2DView( ScrollableRasterWidget ):
   """Pin-by-pin assembly view across axials and states.
 
 Properties:
@@ -448,6 +449,8 @@ of 1, meaning a forced scale might be necessary.
 	legend_size[ 1 ]
 	)
 
+    print >> sys.stderr, '[_CreateDrawConfig] image size=%d,%d' % ( image_wd, image_ht )
+
     value_font_size = assy_wd >> 1
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
@@ -559,6 +562,7 @@ of 1, meaning a forced scale might be necessary.
 
 #			-- Create image
 #			--
+      print >> sys.stderr, '[_CreateRasterImage] image size=%d,%d' % ( im_wd, im_ht )
       im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
       #im_pix = im.load()
       im_draw = PIL.ImageDraw.Draw( im )
