@@ -1526,6 +1526,8 @@ method via super.SaveProps().
     #end if
 
     if button is not None:
+      #bmap_name = 'plot' if self.mode == 'numbers' else 'numbers'
+      #bmap = Widget.GetBitmap( bmap_name + '_16x16' )
       bmap = Widget.GetBitmap( self.mode + '_16x16' )
       button.SetBitmapLabel( bmap )
       button.Update()

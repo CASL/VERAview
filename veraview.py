@@ -171,17 +171,18 @@ SCALE_MODES = \
   'Current State Point': 'state'
   }
 
-TITLE = 'VERAView Version 1.1 Build 85'
+#TITLE = 'VERAView Version 1.1 Build 85'
+TITLE = 'VERAView Version 2.0b1'
 
 TOOLBAR_ITEMS = \
   [
-    {
-    'widget': 'Vessel Core 2D View',
-    'icon': 'Core2DView.1.32.png',
-    'iconDisabled': 'Core2DView.disabled.1.32.png',
-    'type': 'pin',
-    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
-    },
+#x    {
+#x    'widget': 'Vessel Core 2D View',
+#x    'icon': 'Core2DView.1.32.png',
+#x    'iconDisabled': 'Core2DView.disabled.1.32.png',
+#x    'type': 'pin',
+#x    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
+#x    },
     {
     'widget': 'Core 2D View',
     'icon': 'Core2DView.1.32.png',
@@ -203,26 +204,6 @@ TOOLBAR_ITEMS = \
     'type': 'pin'
     },
     { 'widget': 'separator' },
-##    {
-##    'widget': 'Channel Core 2D View',
-##    'icon': 'Channel2DView.1.32.png',
-##    'iconDisabled': 'Channel2DView.disabled.1.32.png',
-##    'type': 'channel',
-##    'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
-##    },
-##    {
-##    'widget': 'Channel Axial 2D View',
-##    'icon': 'ChannelAxial2DView.1.32.png',
-##    'iconDisabled': 'ChannelAxial2DView.disabled.1.32.png',
-##    'type': 'channel',
-##    'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
-##    },
-##    {
-##    'widget': 'Channel Assembly 2D View',
-##    'icon': 'ChannelAssembly2DView.1.32.png',
-##    'iconDisabled': 'ChannelAssembly2DView.disabled.1.32.png',
-##    'type': 'channel'
-##    },
 ##    { 'widget': 'separator' },
     {
     'widget': 'Detector 2D Multi View',
@@ -230,10 +211,6 @@ TOOLBAR_ITEMS = \
     'iconDisabled': 'Detector2DView.disabled.1.32.png',
     'type': 'detector'
     },
-#    {
-#    'widget': 'Detector 2D View', 'icon': 'Detector2DView.1.32.png',
-#    'type': 'detector'
-#    },
     { 'widget': 'separator' },
     {
     'widget': 'Volume Slicer 3D View',
@@ -256,7 +233,6 @@ TOOLBAR_ITEMS = \
     'iconDisabled': 'AllAxialPlot.disabled.32.png',
     'type': '',
     'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
-#    'func': lambda d: 'exposure' in d.GetDataSetNames( 'scalar' )
     },
     {
     'widget': 'Time Plots',
@@ -277,16 +253,11 @@ WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
   'Axial Plots': 'widget.axial_plot.AxialPlot',
-##  'Channel Core 2D View': 'widget.channel_view.Channel2DView',
-##  'Channel Assembly 2D View': 'widget.channel_assembly_view.ChannelAssembly2DView',
-##  'Channel Axial 2D View': 'widget.channel_axial_view.ChannelAxial2DView',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
   'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DMultiView',
-#  'Detector 2D View': 'widget.detector_view.Detector2DView',
-#  'Time Plot': 'widget.time_plot.TimePlot',
   'Time Plots': 'widget.time_plots.TimePlots',
-  'Vessel Core 2D View': 'widget.vessel_core_view.VesselCore2DView',
+#x  'Vessel Core 2D View': 'widget.vessel_core_view.VesselCore2DView',
   'Volume 3D View': 'view3d.volume_view.Volume3DView',
   'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
   }
