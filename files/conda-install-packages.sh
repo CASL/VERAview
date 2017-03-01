@@ -1,7 +1,5 @@
 #!/bin/bash -a
 
-VERAViewDir=$(dirname "$0")
-
 #------------------------------------------------------------------------
 # If you changed the path for your per-user environment setup,
 # set the value of the CondaBinDir variable to point the bin subdir
@@ -9,17 +7,10 @@ VERAViewDir=$(dirname "$0")
 #------------------------------------------------------------------------
 CondaBinDir="$HOME/miniconda2/bin"
 [ ! -d "${CondaBinDir}" ] && CondaBinDir="$HOME/anaconda2/bin"
+Conda="${CondaBinDir}/conda"
 
-if [ "$(uname)" = "Darwin" ]; then
-  CondaExe="${CondaBinDir}/pythonw"
-else
-  CondaExe="${CondaBinDir}/python"
-fi
-
-if [ -x "${CondaExe}" ]; then
-  export ETS_TOOLKIT=wx
-  export PYTHONPATH="${VERAViewDir}:${PYTHONPATH}"
-  exec "${CondaExe}" "${VERAViewDir}/veraview.py" "$@"
+if [ -x "${Conda}" ]; then
+  exec "${Conda}" install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 else
   cat <<END >&2
