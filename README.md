@@ -10,7 +10,7 @@ are expected.  However, the snapshots in the repository represent comparatively
 stable versions intended for use.  Bugs and feature requests should be reported
 to
 
-  veraview-bugs@casl-dev.ornl.gov
+    veraview-bugs@casl-dev.ornl.gov
 
 
 ## Design Philosophy
@@ -97,7 +97,7 @@ Go to the Continuum Miniconda [download page](https://conda.io/miniconda.html)
 and click the *64-bit (exe installer)* link in the *Windows* column and
 *Python 2.7* row.  The link should be something like the following:
 
-  https://repo.continuum.io/miniconda/Miniconda2-latest-Windows-x86_64.exe
+    https://repo.continuum.io/miniconda/Miniconda2-latest-Windows-x86_64.exe
 
 After downloading the file, execute it to install the Miniconda2 environment.
 If possible, accept the defaults when prompted, including:
@@ -127,14 +127,14 @@ Otherwise, you must add the scripts folder (.e.g,
 `%userprofile%\AppData\Local\Continuum\Miniconda2\scripts`) to your path.
 Execute the following from a Command Prompt:
 
-  > conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+    > conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 Alternatively, the VERAView repo includes the batch file
 `files/conda-install-packages.bat` which will run this command, assuming
 Anaconda2 or Miniconda2 is installed in the default location.
 
-  > cd .....\VERAView
-  > files\conda-install-packages.bat
+    > cd .....\VERAView
+    > files\conda-install-packages.bat
 
 
 ### Install Canopy Packages
@@ -150,14 +150,14 @@ VERAView, `vvconda.run.bat` and `veraview.run.bat`, for Anaconda/Miniconda and
 Canopy, respectively.  If you installed Anaconda or Miniconda in a non-default
 location you will need to modify `vvconda.run.bat` to edit the first line
 
-  set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
+    set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
 
 to point to your Anaconda2 or Miniconda2 installation.
 
 Similarly, if you are using Canopy but installed in a non-default location,
 edit the file `veraview.run.bat` to change the line
 
-  set CanopyUserDir=%userprofile%\AppData\Local\Enthought\Canopy\User
+    set CanopyUserDir=%userprofile%\AppData\Local\Enthought\Canopy\User
 
 to point to the property Canopy user folder.
 
@@ -178,14 +178,14 @@ Anaconda2/Miniconda2 and Canopy, respectively.  If you installed Anaconda2 or
 Miniconda2 in a non-default location you will need to modify `vvconda.run.sh`
 to edit the line
 
-  CondaBinDir="$HOME/miniconda2/bin"
+    CondaBinDir="$HOME/miniconda2/bin"
 
 to point to your Anaconda2 or Miniconda2 installation.
 
 Similarly, if you are using Canopy but installed in a non-default location,
 edit the file `veraview.run.sh` to uncomment and change the line
 
-  #CanopyUserBinDir=custom path/Canopy_64bit/User/bin
+    #CanopyUserBinDir=custom path/Canopy_64bit/User/bin
 
 to point to the property Canopy user directory.
 
@@ -208,11 +208,11 @@ Go to the Continuum Miniconda [download page](https://conda.io/miniconda.html)
 and click the *64-bit (bash installer)* link in the *Linux* column and
 *Python 2.7* row.  The link should be something like the following:
 
-  https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+    https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 
 After downloading the file, execute it to install the Miniconda2 environment.
 
-  $ bash Miniconda2-latest-Linux-x86_64.sh
+    $ bash Miniconda2-latest-Linux-x86_64.sh
 
 If possible, accept the defaults when prompted, including:
 
@@ -240,14 +240,14 @@ default Python, the `conda` package manager should be in your path.  Otherwise,
 you must add the bin folder (.e.g, `~/miniconda2/bin`) to your path.  Execute
 the following from a bash shell:
 
-  $ conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+    $ conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 Alternatively, the VERAView repo includes the script file
 `files/conda-install-packages.sh` which will run this command, assuming
 Anaconda2 or Miniconda2 is installed in the default location.
 
-  $ cd ...../VERAView
-  $ bash files/conda-install-packages.sh
+    $ cd ...../VERAView
+    $ bash files/conda-install-packages.sh
 
 
 ### Launch VERAView
@@ -257,13 +257,13 @@ Two scripts are provided in the VERAView directory for launching VERAView,
 respectively.  If you installed Anaconda or Miniconda in a non-default location
 you will need to modify `vvconda.run.sh` to edit the first line
 
-  CondaBinDir="$HOME/miniconda2/bin"
+    CondaBinDir="$HOME/miniconda2/bin"
 
 to point to your Anaconda2 or Miniconda2 installation bin directory.
 
 Similarly, if you are using Canopy but installed in a non-default location,
 edit the file `veraview.run.sh` to uncomment and change the line
 
-  #CanopyUserBinDir=custom path/Canopy_64bit/User/bin
+    #CanopyUserBinDir=custom path/Canopy_64bit/User/bin
 
 to point to the property Canopy user folder.
