@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2017-03-01	leerw@ornl.gov				-
+#	  Calculating and setting image size.
 #		2017-01-26	leerw@ornl.gov				-
 #	  Fixed bad indexing when dealing with axial meshs (not centers).
 #	  Removed assembly index from titles.
@@ -374,6 +376,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     axialLevelsDyMin
     axialPixPerCm	used?
     coreRegion
+    imageSize
     lineWidth
     nodeWidth		if self.nodalMode
     pinWidth
@@ -498,6 +501,13 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    image_wd = \
+        label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
+    image_ht = max(
+        label_size[ 1 ] + 2 + core_ht + (font_size *3 / 2),
+	legend_size[ 1 ]
+	)
+
     axials_dy_min = sys.float_info.max
     axials_dy = []
     for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
@@ -518,6 +528,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     config[ 'axialPixPerCm' ] = axial_pix_per_cm
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
+    config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'pinWidth' ] = pin_wd
     config[ 'valueFont' ] = value_font
@@ -557,9 +568,10 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = config[ 'assemblyWidth' ]
       axial_levels_dy = config[ 'axialLevelsDy' ]
       #axial_levels_dy_min = config[ 'axialLevelsDyMin' ]
-      im_wd, im_ht = config[ 'clientSize' ]
+      #im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       font_size = config[ 'fontSize' ]
+      im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]

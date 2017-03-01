@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2017-03-01	leerw@ornl.gov				-
+#	  Calculating and setting image size.
 #		2017-01-26	leerw@ornl.gov				-
 #	  Fixed bug in _CreateRasterImage() with reference to dset_array
 #	  before definition.
@@ -420,6 +422,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     pilFont
     +
     assemblyRegion
+    imageSize
     lineWidth
     pinGap
     pinWidth
@@ -481,6 +484,13 @@ If neither are specified, a default 'scale' value of 24 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    image_wd = \
+        label_size[ 0 ] + 2 + assy_wd + (font_size << 1) + legend_size[ 0 ]
+    image_ht = max(
+        label_size[ 1 ] + 2 + assy_ht + (font_size *3 / 2),
+	legend_size[ 1 ]
+	)
+
     value_font_size = pin_wd >> 1
     value_font = \
         PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
@@ -488,6 +498,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
+    config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, pin_gap )
     config[ 'pinGap' ] = pin_gap
     config[ 'pinWidth' ] = pin_wd
@@ -601,8 +612,9 @@ If neither are specified, a default 'scale' value of 24 is used.
       config = self.config
     if config is not None and tuple_valid:
       assy_region = config[ 'assemblyRegion' ]
-      im_wd, im_ht = config[ 'clientSize' ]
+      #im_wd, im_ht = config[ 'clientSize' ]
       font_size = config[ 'fontSize' ]
+      im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
       legend_pil_im = config[ 'legendPilImage' ]
       pil_font = config[ 'pilFont' ]

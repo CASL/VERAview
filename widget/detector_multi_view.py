@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2017-03-01	leerw@ornl.gov				-
+#	  Calculating and setting image size.
 #		2016-12-27	leerw@ornl.gov				-
 #		2016-12-26	leerw@ornl.gov				-
 #	  Transition to DataModelMgr.
@@ -408,6 +410,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     coreRegion
     detectorGap
     detectorWidth
+    imageSize
     lineWidth
 """
     ds_range = self._GetDataRange()
@@ -460,10 +463,18 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
+    image_wd = \
+        label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
+    image_ht = max(
+        label_size[ 1 ] + 2 + core_ht + (font_size << 2),
+	legend_size[ 1 ]
+	)
+
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'detectorGap' ] = det_gap
     config[ 'detectorWidth' ] = det_wd
+    config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, min( 4, det_gap >> 1 ) )
 
     return  config
@@ -489,11 +500,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       config = self.config
 
     if config is not None and self.dmgr.HasData():
-      im_wd, im_ht = config[ 'clientSize' ]
+      #im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
       det_gap = config[ 'detectorGap' ]
       det_wd = config[ 'detectorWidth' ]
       font_size = config[ 'fontSize' ]
+      im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
       line_wd = config[ 'lineWidth' ]
       legend_pil_im = config[ 'legendPilImage' ]

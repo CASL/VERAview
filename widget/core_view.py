@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2017-02-28	leerw@ornl.gov				-
+#	  Calculating and setting image size.
 #		2017-01-26	leerw@ornl.gov				-
 #	  Removed assembly index from titles.
 #		2017-01-12	leerw@ornl.gov				-
@@ -716,6 +718,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     assemblyAdvance
     assemblyWidth
     coreRegion
+    imageSize
     lineWidth
     mode = 'core'
     pinWidth		used for pin or node width, depending on self.nodalMode
@@ -791,7 +794,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
-
 
     image_wd = \
         label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
