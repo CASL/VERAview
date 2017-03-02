@@ -105,7 +105,7 @@ If possible, accept the defaults when prompted, including:
 * Install for current user, not all users
 * Install location
 
-The default install location will be `AppData\Local\Continuum\Miniconda2` in
+The default install location will be `Miniconda2` in
 your home folder.  *Note, if you choose another install location, you will have
 to update the *`vvconda.run.bat`* file as noted below.*
 
@@ -123,9 +123,8 @@ You must install the following packages needed by VERAView:
 
 If during the install you chose to allow Anaconda2 or Miniconda2 to be your
 default Python, the `conda.exe` package manager should be in your path.
-Otherwise, you must add the scripts folder (.e.g,
-`%userprofile%\AppData\Local\Continuum\Miniconda2\scripts`) to your path.
-Execute the following from a Command Prompt:
+Otherwise, you must add the scripts folder (.e.g, `%userprofile%\scripts`) to
+your path.  Execute the following from a Command Prompt:
 
     > conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
