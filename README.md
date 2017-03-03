@@ -115,8 +115,9 @@ to update the *`vvconda.run.bat`* file as noted below.*
 You must install the following packages needed by VERAView:
 
 * numpy (1.9.3)
-* hp5y (2.5.0
-* matplotlib
+* hp5y (2.5.0)
+* scipy (0.16.0)
+* matplotlib (1.4.3)
 * pillow
 * wxPython (3.0)
 * mayavi (4.4.0)
@@ -126,7 +127,7 @@ default Python, the `conda.exe` package manager should be in your path.
 Otherwise, you must add the scripts folder (.e.g, `%userprofile%\scripts`) to
 your path.  Execute the following from a Command Prompt:
 
-    > conda install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+    > conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 Alternatively, the VERAView repo includes the batch file
 `files/conda-install-packages.bat` which will run this command, assuming
