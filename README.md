@@ -126,7 +126,7 @@ default Python, the `conda.exe` package manager should be in your path.
 Otherwise, you must add the scripts folder (.e.g, `%userprofile%\scripts`) to
 your path.  Execute the following from a Command Prompt:
 
-    > conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+    > conda install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 Alternatively, the VERAView repo includes the batch file
 `files/conda-install-packages.bat` which will run this command, assuming
@@ -239,7 +239,7 @@ default Python, the `conda` package manager should be in your path.  Otherwise,
 you must add the bin folder (.e.g, `~/miniconda2/bin`) to your path.  Execute
 the following from a bash shell:
 
-    $ conda install -y numpy=1.9.3 hy5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+    $ conda install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 Alternatively, the VERAView repo includes the script file
 `files/conda-install-packages.sh` which will run this command, assuming
