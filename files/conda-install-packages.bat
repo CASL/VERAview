@@ -19,7 +19,8 @@ call "%temp%\msg.vbs"
 goto finished
 
 :found
-"%CondaCommand%" install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+"%CondaCommand%" install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+
 
 :finished
 endlocal
