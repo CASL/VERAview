@@ -90,6 +90,10 @@ instructions for installing the necessary packages are below in the section
 "Installing Canopy Packages".  If you have already installed Anaconda2 or
 Miniconda2, skip to the section titled "Installing Anaconda2 Packages".
 
+If you have not already installed a Python environment, you have a choice of a
+single-click VERAView installer or manual installation of the required Python
+components followed by click the *Clone or Download* button above.
+
 
 ### Single-click Install
 
@@ -106,9 +110,10 @@ double-clicking in File Explorer or Windows Explorer) the file
 
 ### Install Miniconda2
 
-Go to the Continuum Miniconda [download page](https://conda.io/miniconda.html)
-and click the *64-bit (exe installer)* link in the *Windows* column and
-*Python 2.7* row.  The link should be something like the following:
+For a manual install of the required Python environment, go to the Continuum
+Miniconda [download page](https://conda.io/miniconda.html) and click the
+*64-bit (exe installer)* link in the *Windows* column and *Python 2.7* row.
+The link should be something like the following:
 
     https://repo.continuum.io/miniconda/Miniconda2-latest-Windows-x86_64.exe
 
