@@ -65,13 +65,13 @@ the form of simplified pressurized water reactor (PWR) geometry.
   integrated by users.
 
 * VERAView is intended to be executed locally on the user’s personal computer,
-  and is supported on Windows, Mac OS X, and Linux.
+  and is supported on Windows, Mac OSX, and Linux.
 
 
 ## System Requirements
 
 VERAView expects a Python-2.7 runtime environment with packages h5py,
-matplotlib, matplotlib, mayavi, numpy, pillo, scipy, and wxPython.
+matplotlib, mayavi, numpy, pillow, scipy, and wxPython.
 The
 [Anaconda2](https://www.continuum.io/downloads),
 [Miniconda2](https://conda.io/miniconda.html), and
@@ -93,7 +93,7 @@ Miniconda2, skip to the section titled "Installing Anaconda2 Packages".
 
 If you have not already installed a Python environment, you have a choice of a
 single-click VERAView installer or manual installation of the required Python
-components followed by click the green *Clone or download* button above.
+components followed by clicking the green *Clone or download* button above.
 
 
 ### Single-click Install
@@ -130,8 +130,8 @@ If possible, accept the defaults when prompted, including:
 
 The install location should be `Miniconda2` or
 `AppData\Local\Continuum\Miniconda2` under your home folder.  *Note, if you
-choose a different install location, you will have to update the
-*`vvconda.run.bat`* file as noted below.*
+choose a different install location, you will have to update the*
+`vvconda.run.bat` *file as noted below.*
 
 
 #### Install Anaconda2/Miniconda2 Packages
@@ -148,8 +148,9 @@ You must install the following packages needed by VERAView:
 
 If during the install you chose to allow Anaconda2 or Miniconda2 to be your
 default Python, the `conda.exe` package manager should be in your path.
-Otherwise, you must add the scripts folder (.e.g, `%userprofile%\scripts`) to
-your path.  Execute the following from a Command Prompt:
+Otherwise, you must add the `scripts` folder (.e.g,
+`%userprofile%\Miniconda2\scripts`) to your path.  Execute the following from a
+Command Prompt:
 
     > conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
@@ -269,18 +270,19 @@ as noted below.*
 You must install the following packages needed by VERAView:
 
 * numpy (1.9.3)
-* hp5y (2.5.0
-* matplotlib
+* hp5y (2.5.0)
+* scipy (0.16.0)
+* matplotlib (1.4.3)
 * pillow
 * wxPython (3.0)
 * mayavi (4.4.0)
 
 If during the install you chose to allow Anaconda2 or Miniconda2 to be your
 default Python, the `conda` package manager should be in your path.  Otherwise,
-you must add the bin folder (.e.g, `~/miniconda2/bin`) to your path.  Execute
-the following from a bash shell:
+you must add the Anaconda2/Miniconda2 `bin` folder (.e.g, `~/miniconda2/bin`)
+to your path.  Execute the following from a bash shell:
 
-    $ conda install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+    $ conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 Alternatively, the VERAView repo includes the script file
 `files/conda-install-packages.sh` which will run this command, assuming
@@ -315,4 +317,4 @@ edit the file `veraview.run.sh` to uncomment and change the line
 
     #CanopyUserBinDir=custom path/Canopy_64bit/User/bin
 
-to point to the property Canopy user folder.
+to point to the proper Canopy user folder.
