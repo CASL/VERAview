@@ -91,6 +91,19 @@ instructions for installing the necessary packages are below in the section
 Miniconda2, skip to the section titled "Installing Anaconda2 Packages".
 
 
+### Single-click Install
+
+A single-click installer that will install VERAView and the required Python
+environment (Continuum's Miniconda2) is available
+[here](https://newton.ornl.gov/casl/VERAView-2.0b1-Windows-x86_64.exe).  Note
+this 1.3 GB file includes everything you need.  The installer does not require
+elevated privileges and will install by default in your home folder.
+
+After completing the installation, you can launch VERAView by executing (i.e.,
+double-clicking in File Explorer or Windows Explorer) the file
+`vvconda.run.bat`.
+
+
 ### Install Miniconda2
 
 Go to the Continuum Miniconda [download page](https://conda.io/miniconda.html)
