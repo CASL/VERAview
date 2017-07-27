@@ -3,6 +3,14 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified LoadDataModelXxx() methods to process the reason param.
+#		2017-03-10	leerw@ornl.gov				-
+#	  Update to precisionDigits and precisionMode.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Using self.precision.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Reversed sense of mode toggle button.
 #		2017-03-01	leerw@ornl.gov				-
 #	  Calculating and setting image size.
 #		2017-01-26	leerw@ornl.gov				-
@@ -125,7 +133,8 @@ Properties:
     self.nodeAddr = -1
     self.subAddr = ( -1, -1 )
 
-    self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
+    #self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
+    self.toolButtonDefs = [ ( 'Y_16x16', 'Toggle Slice to Y-Axis', self._OnMode ) ]
 
     super( CoreAxial2DView, self ).__init__( container, id )
   #end __init__
@@ -206,7 +215,7 @@ Properties:
 	ax_offset = self.cellRange[ 3 ] - 1 - ax
 	#clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
 	cur_axial_value = \
-	    self.dmgr.GetAxialValue( self.curDataSet, core_ndx = ax )
+	    self.dmgr.GetAxialValue2( self.curDataSet, core_ndx = ax )
 	clip_data[ ax_offset, 0 ] = cur_axial_value[ 0 ]
 
 	pin_cell = 1
@@ -397,7 +406,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     legend_size = config[ 'legendSize' ]
 
     #axial_mesh = core.axialMesh
-    axial_mesh = self.dmgr.GetAxialMesh( self.curDataSet )
+    axial_mesh = self.dmgr.GetAxialMesh2( self.curDataSet )
     top_mesh_level = min( self.cellRange[ 3 ], len( axial_mesh ) - 1 )
     axial_range_cm = \
         axial_mesh[ top_mesh_level ] - axial_mesh[ self.cellRange[ 1 ] ]
@@ -729,7 +738,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		      #fill = brush_color, outline = pen_color
 		      )
 		  node_value_draw_list.append((
-		      self._CreateValueString( value, 3 ),
+		      self._CreateValueString( value ),
                       Widget.GetContrastColor( *brush_color ),
                       node_x, axial_y, node_wd, cur_dy
 		      ))
@@ -886,7 +895,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       if cell_info[ 2 ] >= 0:
 	axial_value = self.dmgr.\
-	    GetAxialValue( self.curDataSet, core_ndx = cell_info[ 2 ] )
+	    GetAxialValue2( self.curDataSet, core_ndx = cell_info[ 2 ] )
 	tip_str += ', Axial: %.2f' % axial_value[ 0 ]
       #end if cell_info[ 2 ] >= 0
     #end if dset is not None and assy_ndx < dset.shape[ 3 ]
@@ -1072,7 +1081,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
       result[ 1 ] = 0
       #result[ 3 ] = result[ 5 ] = core.nax
-      mesh = self.dmgr.GetAxialMeshCenters( self.curDataSet )
+      mesh = self.dmgr.GetAxialMeshCenters2( self.curDataSet )
       result[ 3 ] = result[ 5 ] = len( mesh )
 
     return  result
@@ -1199,7 +1208,25 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._LoadDataModelValues()		-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues( self ):
+  def _LoadDataModelValues( self, reason ):
+    """
+"""
+    if (reason & STATE_CHANGE_coordinates) > 0:
+      self.assemblyAddr = self.state.assemblyAddr
+      self.subAddr = self.state.subAddr
+    if (reason & STATE_CHANGE_curDataSet) > 0:
+      self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+
+    ds_type = self.dmgr.GetDataSetType( self.curDataSet )
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
+    self.nodalMode = self.dmgr.IsNodalType( ds_type )
+  #end _LoadDataModelValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._LoadDataModelValues_1()	-
+  #----------------------------------------------------------------------
+  def _LoadDataModelValues_1( self, reason ):
     """
 """
     #self.avgValues.clear()
@@ -1210,7 +1237,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
-  #end _LoadDataModelValues
+  #end _LoadDataModelValues_1
 
 
   #----------------------------------------------------------------------
@@ -1266,7 +1293,7 @@ be overridden by subclasses.
 
       axial_level = cell_info[ 2 ]
       axial_value = \
-          self.dmgr.GetAxialValue( self.curDataSet, core_ndx = axial_level )
+          self.dmgr.GetAxialValue2( self.curDataSet, core_ndx = axial_level )
       if axial_value[ 0 ] != self.axialValue[ 0 ]:
         state_args[ 'axial_value' ] = axial_value
 
@@ -1371,17 +1398,21 @@ method via super.SaveProps().
     if button is None:
       for ch in self.GetParent().GetControlPanel().GetChildren():
         if isinstance( ch, wx.BitmapButton ) and \
-	    ch.GetToolTip().GetTip().find( 'Toggle Slice Axis' ) >= 0:
+	    ch.GetToolTip().GetTip().find( 'Toggle Slice' ) >= 0:
           button = ch
 	  break
     #end if
 
     if button is not None:
       if self.mode == 'yz':
-        bmap = Widget.GetBitmap( 'Y_16x16' )
-      else:
         bmap = Widget.GetBitmap( 'X_16x16' )
+	tip_str = 'Toggle Slice to X-Axis'
+      else:
+        bmap = Widget.GetBitmap( 'Y_16x16' )
+	tip_str = 'Toggle Slice to Y-Axis'
+
       button.SetBitmapLabel( bmap )
+      button.SetToolTip( wx.ToolTip( tip_str ) )
       button.Update()
       self.GetParent().GetControlPanel().Layout()
     #end if

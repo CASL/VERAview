@@ -2,12 +2,19 @@
 setlocal
 
 set VERAViewDir=%~dp0
+set HOME=%userprofile%
 
 :try_0
 rem ---------------------------------------------------------------------
 rem - If you changed the path for your per-user Anaconda/Miniconda environment
 rem - setup, set the value of the CondaDir variable to point to that path.
 rem ---------------------------------------------------------------------
+set CondaDir=%VERAViewDir%Miniconda2
+if not exist "%CondaDir%\pythonw.exe" goto try_1
+set PythonCommand=%CondaDir%\pythonw.exe
+goto found
+
+:try_1
 set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
 if not exist "%CondaDir%\pythonw.exe" goto try_2
 set PythonCommand=%CondaDir%\pythonw.exe

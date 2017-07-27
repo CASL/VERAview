@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2017-03-29	leerw@ornl.gov				-
+#	  Removed MacOSX Anaconda check for dragndrop support.
 #		2016-11-26	leerw@ornl.gov				-
 #	  Added canDragNDrop class property.
 #		2016-10-25	leerw@ornl.gov				-
@@ -61,10 +63,10 @@ return false in that case.
 """
     if Config.canDragNDrop_ is None:
       Config.canDragNDrop_ = True
-      platform = sys.platform.lower()
-      prefix = sys.prefix.lower()
-      if prefix.find( 'anaconda' ) >= 0 and platform == 'darwin':
-        Config.canDragNDrop_ = False
+#      platform = sys.platform.lower()
+#      prefix = sys.prefix.lower()
+#      if prefix.find( 'anaconda' ) >= 0 and platform == 'darwin':
+#        Config.canDragNDrop_ = False
     #end if
 
     return  Config.canDragNDrop_

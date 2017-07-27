@@ -3,6 +3,21 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2017-05-13	leerw@ornl.gov				-
+#	  Removed GetDataSetPropertyNames(), added Is3D().
+#	  Added title param to _CreateLegendPilImage().
+#		2017-05-05	leerw@ornl.gov				-
+# 	  Modified HandleStateChange() to call State.ResolveLocks()
+#	  on init.
+#		2017-05-02	leerw@ornl.gov				-
+#	  Fixed bug in _OnFindMinMaxPin() passing self.stateIndex instead
+#	  of self.timeValue for with-in state max/min.
+#		2017-04-01	leerw@ornl.gov				-
+#	  Added apply_custom_range param to _ResolveDataRange().
+#		2017-03-10	leerw@ornl.gov				-
+#	  Digits and mode for precision.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Added self.precision with processing in _OnCustomScale().
 #		2017-02-03	leerw@ornl.gov				-
 #	  Adding white background image save option.
 #		2017-01-14	leerw@ornl.gov				-
@@ -107,7 +122,8 @@ except Exception:
 
 from event.state import *
 #from legend import *
-from legend2 import *
+#from legend2 import *
+from legend3 import *
 from bean.data_range_bean import *
 
 
@@ -208,6 +224,11 @@ GetEventLockSet()
   Extensions must override to define the events than can be handled and/or
   produced.  Unless the "reason" mask value is returned in the set, events of
   that type are never propagated to the widget.
+
+GetSpecialDataSetTypes()
+  Extensions must override to provide a list of special categories/types
+  of datasets that can be displayed.  Right now this is limited to
+  'bank' and 'tally'.
 
 GetTitle()
   Must be overridden by extensions to provide a nice label for the widget.
@@ -375,12 +396,15 @@ Widget Class Hierarchy
     super( Widget, self ).__init__( container, id )
 
     self.busy = False
+    self.busyLock = threading.RLock()
     #self.busyCursor = None
     self.container = container
     self.customDataRange = None
     self.dmgr = container.state.GetDataModelMgr()
     self.isLoading = False
     self.logger = Widget.logger_
+    self.precisionDigits = DEFAULT_precisionDigits
+    self.precisionMode = DEFAULT_precisionMode
     self.state = container.state
 
     #self.derivedLabels = None
@@ -402,10 +426,14 @@ Widget Class Hierarchy
     """Show indication of being busy.  Must call _EndBusy().
 Must be called from the UI thread.
 """
-    if not self.busy:
-      self.busy = True
-      self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_red ) )
-      self.container.led.Update()
+    self.busyLock.acquire()
+    try:
+      if not self.busy:
+        self.busy = True
+        self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_red ) )
+        self.container.led.Update()
+    finally:
+      self.busyLock.release()
   #end _BusyBegin
 
 
@@ -463,10 +491,14 @@ Must be called from the UI thread.
     """End indication of being busy.
 Must be called from the UI thread.
 """
-    if self.busy:
-      self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_green ) )
-      self.container.led.Update()
-      self.busy = False
+    self.busyLock.acquire()
+    try:
+      if self.busy:
+        self.container.led.SetBitmap( Widget.GetBitmap( BMAP_NAME_green ) )
+        self.container.led.Update()
+        self.busy = False
+    finally:
+      self.busyLock.release()
   #end _BusyEnd
 
 
@@ -508,7 +540,13 @@ Must be called from the UI thread.
   def _CalcFontSize( self, display_wd ):
     #limits = ( 280, 8, 1280, 28 )
     #limits = ( 280, 8, 1280, 32 )
-    limits = ( 280, 6, 1280, 32 )
+    #limits = ( 280, 6, 1280, 32 )
+##    limits = ( 280, 6, 1280, 32, 2560, 64, 3000, 92 )
+##    if display_wd >= limits[ 6 ]:
+##      size = limits[ 7 ]
+##    elif display_wd >= limits[ 4 ]:
+##      size = limits[ 5 ]
+    limits = ( 280, 6, 3840, 96 )
     if display_wd >= limits[ 2 ]:
       size = limits[ 3 ]
     elif display_wd < limits[ 0 ]:
@@ -575,45 +613,16 @@ ready for a clipboard copy.  This implementation returns None.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._CreateLegendPilImage()			-
   #----------------------------------------------------------------------
-  def _CreateLegendPilImage( self, value_range, font_size = 16 ):
+  def _CreateLegendPilImage(
+      self, value_range,
+      font_size = 16, gray = False, title = None
+      ):
     """For now this is linear only.
 @param  value_range	( min, max )
 """
-    #was 10
-    legend = Legend2( Widget.GetColorTuple, value_range, 8, font_size )
-    return  legend.image
+    return \
+    Legend3()( Widget.GetColorTuple, value_range, 10, font_size, gray, title )
   #end _CreateLegendPilImage
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget._CreateLegendPilImage_0()		-
-  #----------------------------------------------------------------------
-  def _CreateLegendPilImage_0( self, value_range, font_size = 16 ):
-    """For now this is linear only.
-@param  value_range	( min, max )
-"""
-    count = 10
-    value_delta = value_range[ 1 ] - value_range[ 0 ]
-    value_incr = value_delta / count
-
-    colors = []
-    values = []
-
-    cur_value = value_range[ 1 ]
-    values.append( cur_value )
-    for i in range( count ):
-      cur_value -= value_incr
-
-      values.append( cur_value )
-      colors.append(
-          Widget.GetColorTuple( cur_value - value_range[ 0 ], value_delta, 255 )
-	  )
-#      cur_value -= value_incr
-    #end for
-
-    legend = Legend( values, colors, font_size )
-    return  legend.image
-  #end _CreateLegendPilImage_0
 
 
   #----------------------------------------------------------------------
@@ -797,17 +806,17 @@ ToggleDataSetVisible().
   #end GetDataSetDisplayMode
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget.GetDataSetPropertyNames()		-
-  #----------------------------------------------------------------------
-  def GetDataSetPropertyNames( self ):
-    """Default list of dataset property names, to be overridden by subclasses
-to append to what's returned here.
-@return			list of property names, [ 'curDataSet' ] defined
-			here
-"""
-    return  [ 'curDataSet' ]
-  #end GetDataSetPropertyNames
+#  #----------------------------------------------------------------------
+#  #	METHOD:		Widget.GetDataSetPropertyNames()		-
+#  #----------------------------------------------------------------------
+#  def GetDataSetPropertyNames( self ):
+#    """Default list of dataset property names, to be overridden by subclasses
+#to append to what's returned here.
+#@return			list of property names, [ 'curDataSet' ] defined
+#			here
+#"""
+#    return  [ 'curDataSet' ]
+#  #end GetDataSetPropertyNames
 
 
   #----------------------------------------------------------------------
@@ -934,6 +943,20 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetSpecialDataSetTypes()			-
+  #----------------------------------------------------------------------
+  def GetSpecialDataSetTypes( self ):
+    """Accessor specifying the types of special datasets which can be
+processed in this widget.  For now this is limited to 'bank' and 'tally'.
+This implementation returns an empty list.
+
+@return			list of dataset types, cannot be None
+"""
+    return  []
+  #end GetSpecialDataSetTypes
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetState()				-
   #----------------------------------------------------------------------
   def GetState( self ):
@@ -979,18 +1002,18 @@ Returning None means no tool buttons, which is the default implemented here.
   def HandleStateChange( self, reason ):
     """Note value difference checks must occur in UpdateState()
 """
+ 
     load_mask = STATE_CHANGE_init | STATE_CHANGE_dataModelMgr
     if (reason & load_mask) > 0:
+      reason = self.state.\
+          ResolveLocks( STATE_CHANGE_ALL, self.container.eventLocks )
       self.logger.debug( 'calling _LoadDataModel()' )
       self._LoadDataModel( reason )
-      reason = STATE_CHANGE_ALL
 
-    #else:
     update_args = self.state.CreateUpdateArgs( reason )
 
     if len( update_args ) > 0:
       wx.CallAfter( self.UpdateState, **update_args )
-    #end else not a data model load
   #end HandleStateChange
 
 
@@ -1016,10 +1039,28 @@ Returning None means no tool buttons, which is the default implemented here.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.Is3D()					-
+  #----------------------------------------------------------------------
+  def Is3D( self ):
+    """
+@return			False
+"""
+    return  False
+  #end Is3D
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.IsBusy()					-
   #----------------------------------------------------------------------
   def IsBusy( self ):
-    return  self.busy
+    #return  self.busy
+    st = False
+    self.busyLock.acquire()
+    try:
+      st = self.busy
+    finally:
+      self.busyLock.release()
+    return  st
   #end IsBusy
 
 
@@ -1072,7 +1113,7 @@ method via super.SaveProps() at the end.
 """
     self.isLoading = True
     try:
-      for k in ( 'customDataRange', ):
+      for k in ( 'customDataRange', 'precisionDigits', 'precisionMode' ):
         if k in props_dict:
           setattr( self, k, props_dict[ k ] )
 
@@ -1204,10 +1245,33 @@ Must be called from the UI thread.
     if self.dataRangeDialog is None:
       self.dataRangeDialog = DataRangeDialog( self, wx.ID_ANY )
 
-    self.dataRangeDialog.ShowModal( self.customDataRange )
-    new_range = self.dataRangeDialog.GetResult()
-    if new_range != self.customDataRange:
-      self.customDataRange = self.dataRangeDialog.GetResult()
+    changed = False
+    self.dataRangeDialog.ShowModal(
+        self.customDataRange, self.precisionDigits, self.precisionMode
+	)
+
+    new_range = self.dataRangeDialog.GetRange()
+
+    if new_range[ 0 ] > new_range[ 1 ]:
+      wx.MessageBox(
+          'Minimum cannot be greater than maximum', 'Set Data Scale',
+	  wx.ICON_ERROR | wx.OK_DEFAULT
+	  )
+    elif new_range != self.customDataRange:
+      self.customDataRange = new_range
+      changed = True
+
+    new_digits = self.dataRangeDialog.GetPrecisionDigits()
+    if new_digits != self.precisionDigits:
+      self.precisionDigits = new_digits
+      change = True
+
+    new_mode = self.dataRangeDialog.GetPrecisionMode()
+    if new_mode != self.precisionMode:
+      self.precisionMode = new_mode
+      change = True
+
+    if changed:
       self.Redraw()
   #end _OnCustomScale
 
@@ -1296,7 +1360,7 @@ sub_addr changes.
     if qds_name:
       update_args = self.dmgr.FindPinMinMaxValue(
 	  mode, qds_name,
-	  -1 if all_states_flag else self.stateIndex,
+	  -1 if all_states_flag else self.timeValue,
 	  self,
           self.state.weightsMode == 'on'
           )
@@ -1319,21 +1383,32 @@ sub_addr changes.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._ResolveDataRange()			-
   #----------------------------------------------------------------------
-  def _ResolveDataRange( self, qds_name, time_value ):
+  def _ResolveDataRange(
+      self, qds_name, time_value,
+      ds_expr = None,
+      apply_custom_range = True
+      ):
     """Calls self.dmgr.GetRange() if necessary to replace NaN values in
 customDataRange.
 @param  qds_name	name of dataset, DataSetName instance
 #@param  state_ndx	explicit state index or -1 for all states
 @param  time_value	explicit time value or -1 for all statepoints
-@return			( range_min, range_max )
+@param  ds_expr		optional reference expression to apply to the dataset
+@param  apply_custom_range  True to apply self.customDataRange if it is defined
+@return			( range_min, range_max, data_min, data_max )
 """
-    ds_range = [ NAN, NAN ] \
-        if self.customDataRange is None else \
-	list( self.customDataRange )
+#    ds_range = [ NAN, NAN ] \
+#        if self.customDataRange is None else \
+#	list( self.customDataRange )
+    ds_range = \
+        list( self.customDataRange ) \
+	if apply_custom_range and self.customDataRange is not None else \
+	[ NAN, NAN ]
+    calc_range = self.dmgr.GetRange( qds_name, time_value, ds_expr )
     if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
-      calc_range = self.dmgr.GetRange( qds_name, time_value )
+      #calc_range = self.dmgr.GetRange( qds_name, time_value, ds_expr )
       if calc_range:
-        for i in xrange( len( ds_range ) ):
+        for i in xrange( len( calc_range ) ):
           if math.isnan( ds_range[ i ] ):
             ds_range[ i ] = calc_range[ i ]
 
@@ -1341,6 +1416,13 @@ customDataRange.
       ds_range[ 1 ] = 10.0
     if math.isnan( ds_range[ 0 ] ):
       ds_range[ 0 ] = -10.0
+
+    if calc_range:
+      ds_range.append( calc_range[ 0 ] )
+      ds_range.append( calc_range[ 1 ] )
+    else:
+      ds_range.append( -10.0 )
+      ds_range.append( 10.0 )
 
     return  tuple( ds_range )
   #end _ResolveDataRange
@@ -1354,7 +1436,7 @@ customDataRange.
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    for k in ( 'customDataRange', ):
+    for k in ( 'customDataRange', 'precisionDigits', 'precisionMode' ):
       props_dict[ k ] = getattr( self, k )
 
     if self.dmgr is not None:
@@ -1545,12 +1627,86 @@ submenus.
   #	METHOD:		Widget.GetColorTuple()				-
   #----------------------------------------------------------------------
   @staticmethod
-  def GetColorTuple( value, max_value, alpha = 255, debug = False ):
+  def GetColorTuple( value, max_value, alpha = 255, debug = False, gray = False ):
     """
 http://www.particleincell.com/blog/2014/colormap/
+@param  value		value offset
+@param  max_value	max value offset
+@param  alpha		alpha value [0,255]
+@param  gray		make grayscale
 @return			( red, green, blue, alpha )
 """
-    if debug and self.logger.isEnabledFor( logging.DEBUG ):
+    if debug and Widget.logger_.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'value=%f, max_value=%f', value, max_value )
+
+    use_value = min( value, max_value )
+
+    if gray:
+      if max_value <= 0.0:
+        incr = 0
+      else:
+        incr = min( 200, int( math.floor( 200.0 * use_value / max_value ) ) )
+      f = 55 + incr
+      color = ( f, f, f, alpha )
+
+    else:
+      f = float( use_value ) / max_value  if max_value > 0.0  else 0.0
+      a = (1.0 - f) / 0.25
+      x = int( math.floor( a ) )
+      y = int( math.floor( 255 * (a - x) ) )
+
+      if x == 0:
+        red = 255
+        green = y
+        blue = 0
+
+      elif x == 1:
+        red = 255 - y
+        green = 255
+        blue = 0
+
+      elif x == 2:
+        red = 0
+        green = 255
+        blue = y
+
+      elif x == 3:
+        red = 0
+        green = 255 - y
+        blue = 200
+
+      else:
+        red = 0
+        green = 0
+        blue = 100
+
+      if debug and Widget.logger_.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+            'f=%f, a=%f, x=%f, y=%f, rgb=(%d,%d,%d)',
+	    f, a, x, y, red, green, blue
+	    )
+
+      color = ( red, green, blue, alpha )
+    #end if-else gray
+
+    return  color
+  #end GetColorTuple
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetColorTuple_1()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetColorTuple_1( value, max_value, alpha = 255, debug = False, gray = False ):
+    """
+http://www.particleincell.com/blog/2014/colormap/
+@param  value		value offset
+@param  max_value	max value offset
+@param  alpha		alpha value [0,255]
+@param  gray		make grayscale
+@return			( red, green, blue, alpha )
+"""
+    if debug and Widget.logger_.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'value=%f, max_value=%f', value, max_value )
 
     use_value = min( value, max_value )
@@ -1584,14 +1740,17 @@ http://www.particleincell.com/blog/2014/colormap/
       green = 0
       blue = 100
 
-    if debug and self.logger.isEnabledFor( logging.DEBUG ):
+    if debug and Widget.logger_.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
           'f=%f, a=%f, x=%f, y=%f, rgb=(%d,%d,%d)',
 	  f, a, x, y, red, green, blue
 	  )
 
-    return  ( red, green, blue, alpha )
-  #end GetColorTuple
+    color = ( red, green, blue, alpha )
+    if gray:
+      color = Widget.ToGray( *color )
+    return  color
+  #end GetColorTuple_1
 
 
   #----------------------------------------------------------------------
@@ -1651,4 +1810,25 @@ http://www.particleincell.com/blog/2014/colormap/
   def InvertColorTuple( r, g, b ):
     return  ( 255 - r, 255 - g, 255 - b )
   #end InvertColorTuple
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.IsMainThread()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsMainThread():
+    return  threading.current_thread().name == 'MainThread'
+  #end IsMainThread
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.ToGray()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ToGray( r, g, b, alpha = 255 ):
+    """Returns a grayscale equivalent of the color.
+"""
+    gray = int( math.ceil( (r * 0.2989) + (g * 0.5870) + (b * 0.1140) ) )
+    return  ( gray, gray, gray, alpha )
+  #end ToGray
 #end Widget

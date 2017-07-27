@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		image_ops.py				        -
 #	HISTORY:							-
+#		2017-07-15	leerw@ornl.gov				-
+#	  Added CreateImage().  Allow no creation of a ProgressDialog.
 #		2015-09-17	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import glob, math, os, shutil, sys, tempfile
@@ -206,14 +208,29 @@ class WidgetImageMontager( object ):
   'result_path'		path to image to create, defaults to 'montage.png'
   'rows'		number of rows, where le 0 means no constraint
   'widgets'		list of widgets from which to extract images
+  'no_dialog'		defaults to False, if True no progress dialog
+  			is displayed
 """
     self.cols = kwargs.get( 'cols', -1 )
     self.widgets = kwargs.get( 'widgets', [] )
     self.resultPath = kwargs.get( 'result_path', 'montage.png' )
     self.rows = kwargs.get( 'rows', -1 )
+    self.noDialog = kwargs.get( 'no_dialog', False )
 
     self.totalSteps = len( self.widgets ) << 1 + 2
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetImageMontager.CreateImage()		-
+  #----------------------------------------------------------------------
+  def CreateImage( self, dialog, title = 'Create Montage Image' ):
+    """Calls _RunBegin() to create the image.
+@param  dialog		optional progress dialog
+@param  title		title for any error message boxes
+"""
+    self._RunBegin( dialog, title )
+  #end CreateImage
 
 
   #----------------------------------------------------------------------
@@ -226,9 +243,13 @@ Creates a separate thread with the _Run() method as target.
 @param  file_path	path to gif file to create
 @return			thread that was started
 """
-    dialog = \
-        wx.ProgressDialog( title, 'Creating widget images...', self.totalSteps )
-    dialog.Show()
+    if self.noDialog:
+      dialog = None
+    else:
+      dialog = wx.ProgressDialog(
+          title, 'Creating widget images...', self.totalSteps
+	  )
+      dialog.Show()
 
     wxlibdr.startWorker(
 	self._RunEnd,
@@ -256,10 +277,11 @@ Creates a separate thread with the _Run() method as target.
 
       for w in self.widgets:
         name = 'image.%03d.png' % step
-        wx.CallAfter(
-	    dialog.Update, step,
-	    'Creating widget image %d/%d' % ( step + 1, len( self.widgets ) )
-            )
+	if dialog:
+          wx.CallAfter(
+	      dialog.Update, step,
+	      'Creating widget image %d/%d' % ( step + 1, len( self.widgets ) )
+              )
 	rname = w.CreatePrintImage( os.path.join( temp_dir, name ) )
 	step += 1
       #end for
@@ -267,7 +289,8 @@ Creates a separate thread with the _Run() method as target.
 
 #			-- Open images to get sizes
 #			--
-      wx.CallAfter( dialog.Update, step, 'Creating result image' )
+      if dialog:
+        wx.CallAfter( dialog.Update, step, 'Creating result image' )
       step += 1
 
       image_names = sorted( glob.glob( os.path.join( temp_dir, '*.png' ) ) )
@@ -313,10 +336,11 @@ Creates a separate thread with the _Run() method as target.
       cur_x, cur_y = 0, 0
 
       for im in pil_images:
-        wx.CallAfter(
-	    dialog.Update, step,
-	    'Rendering image %d/%d' % ( count, len( pil_images ) )
-	    )
+	if dialog:
+          wx.CallAfter(
+	      dialog.Update, step,
+	      'Rendering image %d/%d' % ( count, len( pil_images ) )
+	      )
 
 	paste_im = im
 	if im.size[ 0 ] != im_wd or im.size[ 1 ] != im_ht:
@@ -335,7 +359,8 @@ Creates a separate thread with the _Run() method as target.
 	  cur_x += im_wd + 10
       #for images
 
-      wx.CallAfter( dialog.Update, step, 'Saving result image' )
+      if dialog:
+        wx.CallAfter( dialog.Update, step, 'Saving result image' )
       result_im.save( self.resultPath, 'PNG' )
 
     except Exception, ex :
@@ -358,7 +383,9 @@ Creates a separate thread with the _Run() method as target.
 """
     status = result.get()
     if status is not None:
-      status[ 'dialog' ].Destroy()
+      dialog = status.get( 'dialog' )
+      if dialog:
+        dialog.Destroy()
 
       messages = status.get( 'messages' )
       if messages is not None and len( messages ) > 0:

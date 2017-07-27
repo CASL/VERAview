@@ -3,6 +3,16 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2017-07-20	leerw@ornl.gov				-
+#	  Added STATE_CHANGE_forceRedraw and reordered indexes to
+#	  alphabetize.
+#		2017-07-18	leerw@ornl.gov				-
+#	  Added (de)serialization of dataModelMgr dataset thresholds.
+#		2017-03-27	leerw@ornl.gov				-
+#	  Added tallyAddr event and state property.
+#		2017-03-16	leerw@ornl.gov				-
+#	  Defaulting to the first time dataset by preference set in
+#	  TIME_DS_NAMES_LIST
 #		2017-01-04	leerw@ornl.gov				-
 #	  Firing STATE_CHANGE_dataModelMgr in _OnDataModelMgr().
 #		2016-12-28	leerw@ornl.gov				-
@@ -103,11 +113,13 @@ STATE_CHANGE_axialValue = 0x1 << 1
 STATE_CHANGE_coordinates = 0x1 << 2
 STATE_CHANGE_curDataSet = 0x1 << 3
 STATE_CHANGE_dataModelMgr = 0x1 << 4
-STATE_CHANGE_scaleMode = 0x1 << 5
-#STATE_CHANGE_stateIndex = 0x1 << 6
-STATE_CHANGE_timeDataSet = 0x1 << 7
-STATE_CHANGE_timeValue = 0x1 << 8
-STATE_CHANGE_weightsMode = 0x1 << 9
+STATE_CHANGE_forceRedraw = 0x1 << 5
+STATE_CHANGE_scaleMode = 0x1 << 6
+#STATE_CHANGE_stateIndex = 0x1 << 7
+STATE_CHANGE_tallyAddr = 0x1 << 8
+STATE_CHANGE_timeDataSet = 0x1 << 9
+STATE_CHANGE_timeValue = 0x1 << 10
+STATE_CHANGE_weightsMode = 0x1 << 11
 
 STATE_CHANGE_ALL = 0xffffffff
 
@@ -119,37 +131,9 @@ LOCKABLE_STATES = \
     ( STATE_CHANGE_coordinates, 'Coordinates' ),
     ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
-    #( STATE_CHANGE_stateIndex, 'State Point' ),
-    ( STATE_CHANGE_timeValue, 'State Point/Time' )
+    ( STATE_CHANGE_timeValue, 'State Point/Time' ),
+    ( STATE_CHANGE_tallyAddr, 'Tally Options' )
   ]
-
-
-# New, reduced set of events
-
-##  EVENT_ID_NAMES = \
-##    [
-##      ( STATE_CHANGE_assemblyIndex, 'Assembly Index' ),
-##      ( STATE_CHANGE_axialValue, 'Axial Value' ),
-##  #    ( STATE_CHANGE_channelColRow, 'Channel Column and Row' ),
-##  #    ( STATE_CHANGE_auxChannelColRows, '2ndary Channel Column and Row' ),
-##      ( STATE_CHANGE_channelDataSet, 'Channel Dataset' ),
-##  #    ( STATE_CHANGE_colRow, 'Pin/Channel Column and Row' ),
-##      ( STATE_CHANGE_colRow, 'Column and Row' ),
-##  #    ( STATE_CHANGE_auxColRows, '2ndary Pin/Channel Column and Row' ),
-##      ( STATE_CHANGE_auxColRows, '2ndary Column and Row' ),
-##      ( STATE_CHANGE_detectorDataSet, 'Detector Dataset' ),
-##      ( STATE_CHANGE_detectorIndex, 'Detector Index' ),
-##  #    ( STATE_CHANGE_pinColRow, 'Pin Column and Row' ),
-##  #    ( STATE_CHANGE_auxPinColRows, '2ndary Pin Column and Row' ),
-##      ( STATE_CHANGE_pinDataSet, 'Pin Dataset' ),
-##      ( STATE_CHANGE_scalarDataSet, 'Scalar Dataset' ),
-##      ( STATE_CHANGE_stateIndex, 'State Point Index' ),
-##      ( STATE_CHANGE_fixedDetectorDataSet, 'Fixed Detector Dataset' )
-##    ]
-
-
-#xxxxx AxialValue( tuple )  with properties
-# cm, value, coreIndex, detectorIndex, fixedDetectorIndex
 
 
 #------------------------------------------------------------------------
@@ -159,45 +143,46 @@ class State( object ):
   """Event state object.  State attributes currently in use are as follows.
 All indices are 0-based.
 
-+-------------+----------------+----------------+------------------------------+
-|             | State          |                |                              |
-| Event Name  | Attrs/Props    | Param Name     | Param Value                  |
-+=============+================+================+==============================+
-| axialValue  | axialValue     | axial_value    | ( float value(cm), core-ndx, |
-|             |                |                |   detector-index,            |
-|             |                |                |   fixed-detector-index )     |
-+-------------+----------------+----------------+------------------------------+
-| coordinates | assemblyAddr   | assembly_addr  | ( index, col, row )          |
-|             |                |                | 0-based assembly/detector    |
-|             |                |                | indexes                      |
-+-------------+----------------+----------------+------------------------------+
-|             | auxNodeAddrs   | aux_node_addrs | list of 0-based indexes      |
-+-------------+----------------+----------------+------------------------------+
-|             | auxSubAddrs    | aux_sub_addrs  | list of ( col, row )         |
-|             |                |                | 0-based channel/pin indexes  |
-+-------------+----------------+----------------+------------------------------+
-|             | nodeAddr       | node_addr      | 0-based node index in range  |
-|             |                |                | [0,3] or [0,4)               |
-+-------------+----------------+----------------+------------------------------+
-|             | subAddr        | sub_addr       | ( col, row )                 |
-|             |                |                | 0-based channel/pin indexes  |
-+-------------+----------------+----------------+------------------------------+
-| curDataSet  | curDataSet     | cur_dataset    | DataSetName instance         |
-|             |                |                | (of any type)                |
-+-------------+----------------+----------------+------------------------------+
-| dataModelMgr| dataModelMgr   | data_model_mgr | data.DataModelMgr object     |
-+-------------+----------------+----------------+------------------------------+
-| scaleMode   | scaleMode      | scale_mode     | 'all' or 'state'             |
-+-------------+----------------+----------------+------------------------------+
-| #stateIndex | stateIndex     | state_index    | 0-based state-point index    |
-+-------------+----------------+----------------+------------------------------+
-| timeDataSet | timeDataSet    | time_dataset   | dataset to use for "time"    |
-+-------------+----------------+----------------+------------------------------+
-| timeValue   | timeValue      | time_value     | time dataset value           |
-|             |                |                | (replaces stateIndex)        |
-+-------------+----------------+----------------+------------------------------+
-| weightsMode | weightsMode    | weights_mode   | 'on' or 'off'                |
-+-------------+----------------+----------------+------------------------------+
++----------------+----------------+------------------+-------------------------+
+|                | State          |                  |                         |
+| Event Name     | Attrs/Props    | Param Name       | Param Value             |
++================+================+==================+=========================+
+| axialValue     | axialValue     | axial_value      |                         |
+|                |                | ( float value(cm), core-ndx,               |
+|                |                |   detector-index, fixed-detector-index,    |
+|                |                |   tally-index, subpin-index )              |
++----------------+----------------+------------------+-------------------------+
+| coordinates    | assemblyAddr   | assembly_addr    | ( index, col, row )     |
+|                |                | 0-based assembly/detector indexes          |
++----------------+----------------+------------------+-------------------------+
+|                | auxNodeAddrs   | aux_node_addrs   | list of 0-based indexes |
++----------------+----------------+------------------+-------------------------+
+|                | auxSubAddrs    | aux_sub_addrs    | list of ( col, row )    |
+|                |                | 0-based channel/pin indexes                |
++----------------+----------------+------------------+-------------------------+
+|                | nodeAddr       | node_addr        | 0-based node index      |
+|                |                | range [0,3] or [0,4]                       |
++----------------+----------------+------------------+-------------------------+
+|                | subAddr        | sub_addr         | ( col, row )            |
+|                |                | 0-based channel/pin indexes                |
++----------------+----------------+------------------+-------------------------+
+| curDataSet     | curDataSet     | cur_dataset      | DataSetName instance    |
++----------------+----------------+------------------+-------------------------+
+| dataModelMgr   | dataModelMgr   | data_model_mgr   | data.DataModelMgr object|
++----------------+----------------+------------------+-------------------------+
+| scaleMode      | scaleMode      | scale_mode       | 'all' or 'state'        |
++----------------+----------------+------------------+-------------------------+
+| #stateIndex    | stateIndex     | state_index      | 0-based state-point ndx |
++----------------+----------------+------------------+-------------------------+
+| tallyAddr      | tallyAddr      | tally_addr       | ( name, mult, stat )    |
+|                |                | name is DataSetName instance,              |
+|                |                | mult and state are 0-based indexes         |
++----------------+----------------+------------------+-------------------------+
+| timeValue      | timeValue      | time_value       | time dataset value      |
+|                |                |                  | (replaces stateIndex)   |
++----------------+----------------+------------------+-------------------------+
+| weightsMode    | weightsMode    | weights_mode     | 'on' or 'off'           |
++----------------+----------------+------------------+-------------------------+
 """
 
 #		-- Class Attributes
@@ -205,28 +190,6 @@ All indices are 0-based.
 
   allLocks_ = None
 
-##    DS_ATTR_BY_TYPE = \
-##      {
-##      'channel':
-##        { 'attr': 'channelDataSet', 'mask': STATE_CHANGE_channelDataSet,
-##          'param': 'channel_dataset' },
-##      'detector':
-##        { 'attr': 'detectorDataSet', 'mask': STATE_CHANGE_detectorDataSet,
-##          'param': 'detector_dataset' },
-##      'fixed_detector':
-##        { 'attr': 'fixedDetectorDataSet',
-##          'mask': STATE_CHANGE_fixedDetectorDataSet,
-##          'param': 'fixed_detector_dataset' },
-##      'pin':
-##        { 'attr': 'pinDataSet', 'mask': STATE_CHANGE_pinDataSet,
-##          'param': 'pin_dataset' },
-##      'scalar':
-##        { 'attr': 'scalarDataSet', 'mask': STATE_CHANGE_scalarDataSet,
-##          'param': 'scalar_dataset' },
-##      'time':
-##        { 'attr': 'timeDataSet', 'mask': STATE_CHANGE_timeDataSet,
-##          'param': 'time_dataset' }
-##      }
 
 #		-- Object Methods
 #		--
@@ -253,6 +216,7 @@ All indices are 0-based.
     self._scaleMode = 'all'
     #self.stateIndex = -1
     self._subAddr = ( -1, -1 )
+    self._tallyAddr = ( None, 0, 0 )
     self._timeDataSet = 'state'
     self._timeValue = 0.0
     self._weightsMode = 'on'
@@ -267,13 +231,16 @@ All indices are 0-based.
   def __str__( self ):
     """This needs to be updated.  Perhaps dump the JSON sans dataModelMgr.
 """
-    coord = self._assemblyAddr + self.colRow + tuple( self.auxColRows )
-    result = 'axial=%s,coord=%s,dataset=%s,scale=%s,timeDataSet=%s,time=%f,weights=%s' % \
-        (
-	str( self._axialValue ), str( coord ),
-	self._curDataSet, self._scaleMode,
-	self._timeDataSet, self._timeValue,
-	self._weightsMode
+    fmt = \
+        'axial=%s,coord={assemblyAddr=%s,auxNodeAddrs=%s,auxSubAddrs=%s' + \
+	',nodeAddr=%s,subAddr=%s},dataset=%s,scale=%s,timeDataSet=%s' +  \
+	',time=%f,weightsMode=%s'
+    result = fmt % (
+	str( self._axialValue ), str( self._assemblyAddr ),
+	str( self._auxNodeAddrs ), str( self._auxSubAddrs ),
+	str( self._nodeAddr ), str( self._subAddr ),
+	str( self._curDataSet ), self._scaleMode,
+	self._timeDataSet, self._timeValue, self._weightsMode
         )
     return  result
   #end __str__
@@ -315,9 +282,11 @@ Keys passed and the corresponding state bit are:
   cur_dataset		STATE_CHANGE_curDataSet
   data_model_mgr	STATE_CHANGE_dataModelMgr
   node_addr		STATE_CHANGE_coordinates
+  forceRedraw		STATE_CHANGE_forceRedraw
   scale_mode		STATE_CHANGE_scaleMode
   #state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
+  tally_addr		STATE_CHANGE_tallyAddr
   time_dataset		STATE_CHANGE_timeDataSet
   time_value		STATE_CHANGE_timeValue
   weights_mode		STATE_CHANGE_weightsMode
@@ -354,6 +323,9 @@ Keys passed and the corresponding state bit are:
       self._nodeAddr = kwargs[ 'node_addr' ]
       reason |= STATE_CHANGE_coordinates
 
+    if 'force_redraw' in kwargs and kwargs.get( 'force_redraw' ):
+      reason |= STATE_CHANGE_forceRedraw
+
     if 'scale_mode' in kwargs and locks[ STATE_CHANGE_scaleMode ]:
       self._scaleMode = kwargs[ 'scale_mode' ]
       reason |= STATE_CHANGE_scaleMode
@@ -365,6 +337,10 @@ Keys passed and the corresponding state bit are:
     if 'sub_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
       self._subAddr = kwargs[ 'sub_addr' ]
       reason |= STATE_CHANGE_coordinates
+
+    if 'tally_addr' in kwargs and locks[ STATE_CHANGE_tallyAddr ]:
+      self._tallyAddr = kwargs[ 'tally_addr' ]
+      reason |= STATE_CHANGE_tallyAddr
 
     if 'time_value' in kwargs and locks[ STATE_CHANGE_timeValue ]:
       self._timeValue = kwargs[ 'time_value' ]
@@ -432,11 +408,17 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_dataModelMgr) > 0:
       update_args[ 'data_model_mgr' ] = self._dataModelMgr
 
+    if (reason & STATE_CHANGE_forceRedraw) > 0:
+      update_args[ 'force_redraw' ] = True
+
     if (reason & STATE_CHANGE_scaleMode) > 0:
       update_args[ 'scale_mode' ] = self._scaleMode
 
 #    if (reason & STATE_CHANGE_stateIndex) > 0:
 #      update_args[ 'state_index' ] = self.stateIndex
+
+    if (reason & STATE_CHANGE_tallyAddr) > 0:
+      update_args[ 'tally_addr' ] = self._tallyAddr
 
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self._timeDataSet
@@ -569,40 +551,6 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetDataSetByType()				-
-  #----------------------------------------------------------------------
-#  def GetDataSetByType( self, ds_type ):
-#    """Returns the current dataset for the type.
-#@param  ds_type		one of the categories/types defined in DataModel
-#@return			current dataset or None
-#"""
-#    result = None
-#    attr_rec = State.DS_ATTR_BY_TYPE.get( ds_type )
-#    if attr_rec and hasattr( self, attr_rec[ 'attr' ] ):
-#      result = getattr( self, attr_rec[ 'attr' ] )
-#    return  result
-#  #end GetDataSetByType
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		GetDataSetChanges()				-
-  #----------------------------------------------------------------------
-#  def GetDataSetChanges( self, reason ):
-#    """Returns a dict of dataset selection changes by category/type
-#@param  reason		reason mask
-#@return			dict by category/type of new names
-#"""
-#    changes = {}
-#    for ds_type, rec in State.DS_ATTR_BY_TYPE.iteritems():
-#      if (reason & rec[ 'mask' ]) > 0:
-#	changes[ ds_type ] = getattr( self, rec[ 'attr' ] )
-#    #end for
-#
-#    return  changes
-#  #end GetDataSetChanges
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		GetNodeAddr()					-
   #----------------------------------------------------------------------
   def GetNodeAddr( self ):
@@ -645,6 +593,17 @@ Keys passed and the corresponding state bit are:
 """
     return  self._subAddr
   #end GetSubAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetTallyAddr()					-
+  #----------------------------------------------------------------------
+  def GetTallyAddr( self ):
+    """Accessor for the tallyAddr property.
+@return			( name, mult_ndx, stat_ndx ) 0-based indexes
+"""
+    return  self._tallyAddr
+  #end GetTallyAddr
 
 
   #----------------------------------------------------------------------
@@ -699,6 +658,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     self._nodeAddr = 0
 
     self._scaleMode = 'all'
+    self._tallyAddr = ( None, 0, 0 )
     self._weightsMode = 'on'
 
     data_model = self._dataModelMgr.GetFirstDataModel()
@@ -731,12 +691,28 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       self._subAddr = data_model.NormalizeSubAddr( ( col, row ) )
 
       time_ds_names = self._dataModelMgr.ResolveAvailableTimeDataSets()
-      self._timeDataSet = \
-          'exposure'  if 'exposure' in time_ds_names else \
-	  'state'
-      ##self._timeDataSet = data_model.ResolveTimeDataSetName()
+#      self._timeDataSet = \
+#          'exposure'  if 'exposure' in time_ds_names else \
+#	  'state'
+##      self._timeDataSet = data_model.ResolveTimeDataSetName()
+      self._timeDataSet = 'state'
+      for t in TIME_DS_NAMES_LIST:
+        if t in time_ds_names:
+	  self._timeDataSet = t
+	  break
       self._dataModelMgr.SetTimeDataSet( self._timeDataSet )
       self._timeValue = self._dataModelMgr.GetTimeIndexValue( 0 )
+
+      if core.tally.IsValid():
+	ds_names = data_model.GetDataSetNames( 'tally' )
+#	ds_name = \
+#	    'vessel_tally/total'  if 'vessel_tally/total' in ds_names else \
+#	    ds_names[ 0 ]  if len( ds_names ) > 0 else \
+#	    None
+	ds_name = ds_names[ 0 ]  if len( ds_names ) > 0  else None
+	qds_name = \
+	    DataSetName( data_model.name, ds_name )  if ds_name else  None
+        self._tallyAddr = ( qds_name, 0, 0 )
 
     else:
       self._assemblyAddr = undefined3
@@ -747,8 +723,6 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       self._subAddr = undefined2
       self._timeDataSet = 'state'
       self._timeValue = 0.0
-
-    self.auxColRows = []
 
     if fire_event_flag:
       self.FireStateChange( STATE_CHANGE_init | STATE_CHANGE_dataModelMgr )
@@ -765,7 +739,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
         'nodeAddr', 'scaleMode', 'subAddr',
-	'timeDataSet', 'timeValue', 'weightsMode'
+	'tallyAddr', 'timeDataSet', 'timeValue', 'weightsMode'
         ):
       if k in props_dict:
         setattr( self, '_' + k, props_dict[ k ] )
@@ -774,6 +748,10 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       if k in props_dict:
         setattr( self, k, DataSetName( props_dict[ k ] ) )
         #setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
+
+    if 'dataModelMgr.thresholds' in props_dict:
+      self.dataModelMgr.\
+          LoadDataSetThresholds( props_dict[ 'dataModelMgr.thresholds' ] )
   #end LoadProps
 
 
@@ -879,7 +857,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
         'nodeAddr', 'scaleMode', 'subAddr',
-	'timeDataSet', 'timeValue', 'weightsMode'
+	'tallyAddr', 'timeDataSet', 'timeValue', 'weightsMode'
         ):
       props_dict[ k ] = getattr( self, '_' + k )
 
@@ -887,6 +865,9 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       qds_name = self.dataModelMgr.\
           RevertIfDerivedDataSet( getattr( self, '_' + k ) )
       props_dict[ k ] = qds_name.name
+
+    props_dict[ 'dataModelMgr.thresholds' ] = \
+        self.dataModelMgr.SaveDataSetThresholds()
   #end SaveProps
 
 
@@ -927,6 +908,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
   nodeAddr = property( GetNodeAddr )
   scaleMode = property( GetScaleMode )
   subAddr = property( GetSubAddr )
+  tallyAddr = property( GetTallyAddr )
   timeDataSet = property( GetTimeDataSet )
   timeValue = property( GetTimeValue )
   weightsMode = property( GetWeightsMode )

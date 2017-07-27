@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_diff_creator.py				-
 #	HISTORY:							-
+#		2017-07-21	leerw@ornl.gov				-
+#	  Fixing _OnCharHook for Linux.
+#		2017-03-31	leerw@ornl.gov				-
+#	  Added EVT_CHAR_HOOK
 #		2017-02-24	leerw@ornl.gov				-
 #		2017-02-16	leerw@ornl.gov				-
 #	  Added diff and interp mode comboboxes.
@@ -320,11 +324,11 @@ creating a difference dataset.
 #		--
     self.fDiffComboBox = wx.ComboBox(
         grid_panel, -1, DIFF_OPTIONS[ 0 ],
-	choices = DIFF_OPTIONS
+	choices = DIFF_OPTIONS, style = wx.CB_READONLY
 	)
     self.fInterpComboBox = wx.ComboBox(
         grid_panel, -1, INTERP_OPTIONS[ 0 ],
-	choices = INTERP_OPTIONS
+	choices = INTERP_OPTIONS, style = wx.CB_READONLY
 	)
 
     combos_sizer = wx.BoxSizer( wx.HORIZONTAL )
@@ -653,6 +657,8 @@ Must pass the 'state' parameter.
     sizer.Add( button_sizer, 0, wx.ALL | wx.EXPAND, 6 )
     sizer.Layout()
 
+    self.Bind( wx.EVT_CHAR_HOOK, self._OnCharHook )
+
     self.SetSizer( sizer )
     self.SetTitle( 'Difference Dataset Creation' )
     self.Fit()
@@ -672,6 +678,22 @@ Must pass the 'state' parameter.
 
     self.EndModal( retcode )
   #end _OnButton
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GridSizerDialog._OnCharHook()			-
+  #----------------------------------------------------------------------
+  def _OnCharHook( self, ev ):
+    code = ev.GetKeyCode()
+    if code == wx.WXK_RETURN:
+      self.EndModal( 1 )
+    elif code == wx.WXK_ESCAPE:
+      self.EndModal( 0 )
+    else:
+      ev.DoAllowNextEvent()
+
+    ev.Skip()
+  #end _OnCharHook
 
 
   #----------------------------------------------------------------------

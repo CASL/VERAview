@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified LoadDataModelXxx() methods to process the reason param.
+#		2017-03-10	leerw@ornl.gov				-
+#	  Update to precisionDigits and precisionMode.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Using self.precision.
 #		2017-02-28	leerw@ornl.gov				-
 #	  Calculating and setting image size.
 #		2017-01-26	leerw@ornl.gov				-
@@ -310,7 +316,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
-    config[ 'lineWidth' ] = max( 1, pin_gap )
+    #config[ 'lineWidth' ] = max( 1, pin_gap )
+    config[ 'lineWidth' ] = max( 1, pin_gap >> 2 )
     config[ 'mode' ] = 'assy'
     config[ 'pinGap' ] = pin_gap
     config[ 'pinWidth' ] = pin_wd
@@ -395,7 +402,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			--
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
       axial_value = self.dmgr.\
-          GetAxialValue( self.curDataSet, core_ndx = axial_level )
+          GetAxialValue2( self.curDataSet, core_ndx = axial_level )
 
 #			-- Create image
 #			--
@@ -472,7 +479,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 	          fill = brush_color, outline = pen_color
 	          )
 	      node_value_draw_list.append((
-	          self._CreateValueString( value, 3 ),
+	          self._CreateValueString( value ),
                   Widget.GetContrastColor( *brush_color ),
                   item_x, item_y, pin_wd, pin_wd
                   ))
@@ -910,7 +917,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			--
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
       axial_value = self.dmgr.\
-          GetAxialValue( self.curDataSet, core_ndx = axial_level )
+          GetAxialValue2( self.curDataSet, core_ndx = axial_level )
 
 #			-- Create image
 #			--
@@ -999,8 +1006,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	            pen_color = Widget.GetColorTuple(
 	                value - ds_range[ 0 ], value_delta, 255
 	                )
-	            brush_color = \
-		        ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
+	            brush_color = pen_color
+		        #( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
 		    #im_draw.ellipse
 	            im_draw.rectangle(
 		        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
@@ -1013,7 +1020,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		          fill = None, outline = node_pen
 		          )
 		      node_value_draw_list.append((
-			  self._CreateValueString( value, 3 ),
+			  self._CreateValueString( value ),
                           Widget.GetContrastColor( *brush_color ),
 			  item_x, item_y, pin_wd, pin_wd
 		          ))
@@ -1038,7 +1045,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    if draw_value_flag and brush_color is not None:
 	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
 	      assy_value_draw_list.append((
-	          self._CreateValueString( value, 3 ),
+	          self._CreateValueString( value ),
                   Widget.GetContrastColor( *brush_color ),
 		  assy_x, assy_y, assy_wd, assy_wd
 	          ))
@@ -1592,19 +1599,35 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		Core2DView._LoadDataModelValues()		-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues( self ):
+  def _LoadDataModelValues( self, reason ):
     """
 """
-    #self.avgValues.clear()
+    if (reason & STATE_CHANGE_coordinates) > 0:
+      self.assemblyAddr = self.state.assemblyAddr
+      self.subAddr = self.state.subAddr
+    if (reason & STATE_CHANGE_curDataSet) > 0:
+      self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+
+    ds_type = self.dmgr.GetDataSetType( self.curDataSet )
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
+    self.nodalMode = self.dmgr.IsNodalType( ds_type )
+  #end _LoadDataModelValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._LoadDataModelValues_1()		-
+  #----------------------------------------------------------------------
+  def _LoadDataModelValues_1( self ):
+    """
+"""
     self.assemblyAddr = self.state.assemblyAddr
     self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
     self.subAddr = self.state.subAddr
 
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
-    #no self.channelMode = ds_type == 'channel'
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
-  #end _LoadDataModelValues
+  #end _LoadDataModelValues_1
 
 
   #----------------------------------------------------------------------

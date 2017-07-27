@@ -3,6 +3,44 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel.py					-
 #	HISTORY:							-
+#		2017-07-20	leerw@ornl.gov				-
+#	  Checking for 'threshold' dataset attribute in STATE_0001.
+#	  Added DataModel.readMessages property to record warning messages
+#	  during Read().
+#		2017-07-18	leerw@ornl.gov				-
+#	  Replacing ignore range with threshold and using RangeExpression.
+#		2017-07-17	leerw@ornl.gov				-
+#	  Adding by ds_name ignore ranges.
+#	  Modified _ReadDataSetRange() to check for a specified
+#	  invalid range.  Calls DataUtils.ApplyIgnoreExpression().
+#		2017-06-16	leerw@ornl.gov				-
+#	  Fixed _ReadDataSetRange.
+#		2017-06-05	leerw@ornl.gov				-
+#	  Just keeping dicts of per-dataset mesh and mesh center values.
+# 	  Moved axialMeshCentersDict and axialMeshDict properties to
+#	  DataModel from Core.
+#		2017-06-02	leerw@ornl.gov				-
+#	  Adding support for per-dataset axial meshes.
+#		2017-05-31	leerw@ornl.gov				-
+#	  Added subpin_r and subpin_theta types.
+#		2017-04-25	leerw@ornl.gov				-
+#	  Added VesselGeometry.Read() and Core property vesselGeom.
+#	  Moved ExtractSymmetryExtent() implementation to Core.
+#		2017-04-03	leerw@ornl.gov				-
+#	  Added VesselGeometry.
+#	  Skipping non-numeric scalars in _ResolveDataSets().
+#		2017-03-27	leerw@ornl.gov				-
+#	  Fixing VesselTallyMesh, adding 'tally' dataset defs as a one-off.
+#	  Renaming VesselTallyMesh to VesselTallyDef.
+#		2017-03-25	leerw@ornl.gov				-
+#	  Added DataSetName.GetShortName() and shortName property.
+#		2017-03-16	leerw@ornl.gov				-
+#	  Added TIME_DS_NAMES_LIST.  Copying all time datasets in
+#	  DataModel._CreateDerivedH5File().
+#		2017-03-07	leerw@ornl.gov				-
+#	  Modified DataModel.GetFactors() to look for 'factors' attribute.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Added __ge__(), __gt__(), __le__(), and __lt__() to DataSetName.
 #		2017-02-25	leerw@ornl.gov				-
 #	  Added Core.FindBottomRightAssemblyAddr(), VesselTallyMesh class,
 #	  Core vesselTallyMesh property.
@@ -203,11 +241,12 @@
 #		2014-12-28	leerw@ornl.gov				-
 #		2014-10-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, cStringIO, h5py, logging, json, math, os, sys, \
+import bisect, copy, cStringIO, h5py, logging, json, math, os, re, sys, \
     tempfile, threading, traceback
 import numpy as np
 import pdb
 
+from data.range_expr import *
 from data.utils import *
 from event.event import *
 
@@ -245,6 +284,8 @@ COL_LABELS = \
 # by the keys in the 'avg_method' value.
 #
 # All types have keys:
+#	(group)		- optional to define group in which to look for matching
+#			  datasets
 #	label		- name used in displays
 #	shape_expr	- shape expression used to match datasets against to
 #			  determine if they are of the type, where 'core'
@@ -289,12 +330,31 @@ DATASET_DEFS = \
     'type': 'fixed_detector'
     },
 
+#  ':det_radial':
+#    {
+#    'axial_axis': 0,
+#    'copy_expr': '[ 0, : ]',
+#    'copy_shape_expr': '( 1, core.ndet )',
+#    'ds_prefix': ( 'det_radial', ),
+#    'label': 'det_radial',
+#    'shape_expr': '( core.ndet, )',
+#    'type': 'det_radial'
+#    },
+
   'pin':
     {
     'axial_axis': 2,
     'label': 'pin',
     'shape_expr': '( core.npiny, core.npinx, core.nax, core.nass )',
     'type': 'pin'
+    },
+
+  'radial_detector':  # force to detector by copying
+    {
+    'axial_axis': -1,
+    'label': 'radial_detector',
+    'shape_expr': '( core.ndet, )',
+    'type': 'radial_detector'
     },
 
   ':assembly':
@@ -433,6 +493,31 @@ DATASET_DEFS = \
     'type': 'scalar'
     },
 
+  'subpin_r':
+    {
+    'axial_axis': 3,
+    'label': 'subpin_r',
+    'shape_expr': '( core.nsubr, core.npiny, core.npinx, core.nsubax, core.nass )',
+    'type': 'subpin_r'
+    },
+
+  'subpin_theta':
+    {
+    'axial_axis': 3,
+    'label': 'subpin_theta',
+    'shape_expr': '( core.nsubtheta, core.npiny, core.npinx, core.nsubax, core.nass )',
+    'type': 'subpin_theta'
+    },
+
+  'tally':
+    {
+    'axial_axis': 0,
+    'group': 'vessel_tally',
+    'label': 'tally',
+    'shape_expr': '( core.tally.nz, core.tally.ntheta, core.tally.nr, core.tally.nmultipliers, core.tally.nstat )',
+    'type': 'tally'
+    },
+
 #  'vanadium':
 #    {
 #    'label': 'vanadium',
@@ -446,7 +531,16 @@ DATASET_DEFS = \
 #	CONST:		NAN						-
 # NaN value.
 #------------------------------------------------------------------------
-NAN = float( 'NaN' )
+#imported from utils
+#NAN = float( 'NaN' )
+
+
+#------------------------------------------------------------------------
+#	CONST:		REGEX_WS					-
+# Whitespace regex.
+#------------------------------------------------------------------------
+#imported from utils
+#REGEX_WS = re.compile( '[\s,]+' )
 
 
 #------------------------------------------------------------------------
@@ -454,7 +548,11 @@ NAN = float( 'NaN' )
 # Set of dataset names we recognize as "time" datasets.  We always add
 # 'state', the statepoint index, as a time alternative.
 #------------------------------------------------------------------------
-TIME_DS_NAMES = set([ 'exposure', 'exposure_efpd', 'hours' ])
+# List is preference order for the default
+TIME_DS_NAMES_LIST = [
+    'msecs', 'exposure', 'exposure_efpd', 'hours', 'transient_time'
+    ]
+TIME_DS_NAMES = set( TIME_DS_NAMES_LIST )
 
 
 #------------------------------------------------------------------------
@@ -472,13 +570,15 @@ Core datasets have shape ( npin, npin, nax, nass ) and are indexed by
 Properties:
   apitch		assembly pitch in cm
   axialMesh		np.ndarray of mesh values
-  axialMeshCenters	np.ndarray of center-of-mesh values
+  axialMeshCenters	np.ndarray of mesh center values
   coreLabels		( col_labels, row_labels )
   coreMap		np.ndarray of assembly indexes, row-major,
 			origin top,left (row, col)
   coreSym		symmetry value
   detectorMap		np.ndarray of assembly indexes (row, col)
   detectorMesh		np.ndarray of center-of-mesh values
+  fixedDetectorMesh		np.ndarray of mesh values
+  fixedDetectorMeshCenters	np.ndarray of center-of-mesh values
   group			HDF5 group
   nass			number of full core assemblies
   nassx			number of core assembly columns
@@ -492,11 +592,17 @@ Properties:
   npin			number of pins in each assembly
   npinx			number of pin columns
   npiny			number of pin rows
+  nsubax		number of subpin axial mesh values
+  nsubr			number of subpin radii
+  nsubtheta		number of subpin thetas
   pinVolumes		np.ndarray, row-major, origin top,left
   pinVolumesSum		sum of all pin volumes
-  fixedDetectorMesh		np.ndarray of mesh values
-  fixedDetectorMeshCenters	np.ndarray of center-of-mesh values
-  vesselTallyMesh	VesselTallyMesh instance or None
+  subPinAxialMesh	np.ndarray of subpin mesh values
+  subPinAxialMeshCenters  np.ndarray of subpin center-of-mesh values
+  subPinR		np.ndarray of subpin radius mesh values
+  subPinTheta		np.ndarray of subpin thetas
+  tallyDef		VesselTallyDef instance, never None
+  vesselGeom		VesselGeometry instance, None if not defined
 """
 
 #		-- Object Methods
@@ -588,22 +694,30 @@ Properties:
     self.fixedDetectorMesh = None
     self.fixedDetectorMeshCenters = None
     self.group = None
-    self.nass = 0
-    self.nassx = 0
-    self.nassy = 0
+    self.nass = \
+    self.nassx = \
+    self.nassy = \
     self.nax = 0
     self.nchanx = self.nchany = 0
-    self.ndet = 0
-    self.ndetax = 0
+    self.ndet = \
+    self.ndetax = \
     self.nfdetax = 0
-    self.npin = 0
-    self.npinx = 0
+    self.npin = \
+    self.npinx = \
     self.npiny = 0
+    self.nsubax = \
+    self.nsubr = \
+    self.nsubtheta = 0
     self.pinVolumes = None
     self.pinVolumesSum = 0.0
     self.ratedFlow = 0
     self.ratedPower = 0
-    self.vesselTallyMesh = None
+    self.subPinAxialMesh = None
+    self.subPinAxialMeshCenters = None
+    self.subPinR = None
+    self.subPinTheta = None
+    self.tally = VesselTallyDef()
+    self.vesselGeom = None
   #end Clear
 
 
@@ -621,6 +735,7 @@ Properties:
 	'apitch', 'coreSym', 'group', 'nass', 'nassx', 'nassy', 'nax',
 	'nchanx', 'nchany',
         'ndet', 'ndetax', 'nfdetax', 'npin', 'npinx', 'npiny',
+	'nsubax', 'nsubr', 'nsubtheta',
         'pinVolumesSum', 'ratedFlow', 'ratedPower'
         ):
       setattr( new_obj, name, getattr( self, name ) )
@@ -630,8 +745,11 @@ Properties:
 #		--
     for name in (
         'axialMesh', 'axialMeshCenters', 'coreMap',
-	'detectorMap', 'detectorMesh', 'pinVolumes',
-        'fixedDetectorMesh', 'fixedDetectorMeshCenters'
+	'detectorMap', 'detectorMesh',
+        'fixedDetectorMesh', 'fixedDetectorMeshCenters',
+	'pinVolumes',
+	'subPinAxialMesh', 'subPinAxialMeshCenters',
+	'subPinR', 'subPinTheta'
         ):
       value = getattr( self, name )
       if value is None:
@@ -641,6 +759,21 @@ Properties:
       setattr( new_obj, name, new_value )
     #end for name
 
+#		-- Dicts of numpy arrays
+#		--
+#    for name in ( 'axialMeshCentersDict', 'axialMeshDict' ):
+#      dict_value = getattr( self, name )
+#      new_dict = None
+#      if dict_value and isinstance( dict_value, dict ):
+#        new_dict = {}
+#	for n, v in dict_value.iteritems():
+#	  new_dict[ n ] = np.copy( v )
+#	#end for n, v
+#      #end if-else
+#
+#      setattr( new_obj, name, new_dict )
+#    #end for name
+
 #		-- Deep copy stuff
 #		--
     for name in ( 'coreLabels', ):
@@ -649,7 +782,7 @@ Properties:
 
 #		-- Explicit clones
 #		--
-    for name in ( 'vesselTallyMesh', ):
+    for name in ( 'tally', 'vesselGeom' ):
       value = getattr( self, name )
       new_value = None
       if value is not None and hasattr( value, 'Clone' ):
@@ -702,6 +835,43 @@ Properties:
 
     return  result
   #end CreatePinLabel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.ExtractSymmetryExtent()			-
+  #----------------------------------------------------------------------
+  def ExtractSymmetryExtent( self ):
+    """Returns the starting horizontal (left) and ending vertical (top)
+assembly 0-based indexes, inclusive, and the right and bottom indexes,
+exclusive, followed by the number of assemblies in the horizontal and vertical
+dimensions.
+@return			( left, top, right+1, bottom+1, dx, dy )
+"""
+    result = None
+
+    bottom = self.nassy
+    right = self.nassx
+
+    if self.coreSym == 4:
+#      left = self.nassx >> 1
+#      top = self.nassy >> 1
+      left = 0  if self.nassx <= 2 else  self.nassx >> 1
+      top = 0  if self.nassy <= 2 else  self.nassy >> 1
+      #special case
+      ### even means centerline not in middle of left col or top row
+      #if self.nassx % 2 == 0 and left > 0: left -= 1
+      #if self.nassy % 2 == 0 and top > 0: top -= 1
+    elif self.coreSym == 8:
+      left = self.nassx >> 2
+      top = self.nassy >> 2
+      #if self.nassx % 2 == 0 and left > 0: left -= 1
+      #if self.nassy % 2 == 0 and top > 0: top -= 1
+    else:
+      left = top = 0
+
+    result = ( left, top, right, bottom, right - left, bottom - top )
+    return  result
+  #end ExtractSymmetryExtent
 
 
   #----------------------------------------------------------------------
@@ -965,14 +1135,36 @@ Calls _GetCoreLabel().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Core.GetVesselTallyMesh()			-
+  #	METHOD:		Core.GetSubPinAxialMesh()			-
   #----------------------------------------------------------------------
-  def GetVesselTallyMesh( self ):
-    """Getter for 'vesselTallyMesh' property.
-@return			VesselTallyMesh instance or None
+  def GetSubPinAxialMesh( self ):
+    """Getter for 'subpinAxialMesh' property.
+@return			np.ndarray
 """
-    return  self.vesselTallyMesh
-  #end GetVesselTallyMesh
+    return  self.subPinAxialMesh
+  #end GetSubPinAxialMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetSubPinAxialMeshCenters()		-
+  #----------------------------------------------------------------------
+  def GetSubPinAxialMeshCenters( self ):
+    """Getter for 'subPinAxialMeshCenters' property.
+@return			np.ndarray
+"""
+    return  self.subPinAxialMeshCenters
+  #end GetSubPinAxialMeshCenters
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core.GetTally()					-
+  #----------------------------------------------------------------------
+  def GetTally( self ):
+    """Getter for the 'tally' property.
+@return			VesselTallyMesh instance, never None
+"""
+    return  self.tally
+  #end GetTally
 
 
   #----------------------------------------------------------------------
@@ -986,6 +1178,8 @@ left-to-right, and 'ylabel' if provided gives row labels top-to-bottom.
 @return			core_labels, row_labels
 """
     item = self._FindInGroup( 'xlabel', core_group, in_core_group )
+    if item is None:
+      item = self._FindInGroup( 'xlabels', core_group, in_core_group )
     if item is not None and item.shape[ 0 ] == self.nassx:
       col_labels = [
           item[ i ].replace( ' ', '' )
@@ -1001,6 +1195,8 @@ left-to-right, and 'ylabel' if provided gives row labels top-to-bottom.
 
     # Rows
     item = self._FindInGroup( 'ylabel', core_group, in_core_group )
+    if item is None:
+      item = self._FindInGroup( 'ylabels', core_group, in_core_group )
     if item is not None and item.shape[ 0 ] == self.nassy:
       row_labels = [
           item[ i ].replace( ' ', '' )
@@ -1158,6 +1354,8 @@ to be column and row labels, respectively, and the order is forced such that
 #		-- Other datasets: apitch
 #		--
     item = self._FindInGroup( 'apitch', core_group, in_core_group )
+    if item is None:
+      item = self._FindInGroup( 'Apitch', core_group, in_core_group )
     if item is not None:
       self.apitch = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
       #self.apitch = item.value.item() if len( item.shape ) > 0 else item.value
@@ -1167,10 +1365,7 @@ to be column and row labels, respectively, and the order is forced such that
 #    self.axialMesh = axial_mesh_item.value
     self.axialMesh = np.array( axial_mesh_item )
     self.nax = self.axialMesh.shape[ 0 ] - 1
-#			-- Numpy magic
-#    t = np.copy( axial_mesh_item.value )
-#    t2 = np.r_[ t, np.roll( t, -1 ) ]
-#    self.axialMeshCenters = np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+
     self.axialMeshCenters = \
         (self.axialMesh[ 0 : -1 ] + self.axialMesh[ 1 : ]) / 2.0
 
@@ -1255,34 +1450,23 @@ to be column and row labels, respectively, and the order is forced such that
     item = self._FindInGroup( 'detector_mesh', core_group )
     if item is not None:
 #				-- Detector meshes are not centers
-      t = np.copy( item )
-      self.detectorMesh = t
+      self.detectorMesh = np.copy( item )
       self.ndetax = item.shape[ 0 ]
-    else:
+    else:  # only if ndet == nass
       self.detectorMesh = self.axialMeshCenters
       self.ndetax = self.nax
     #end if detector_mesh
 
 #		-- Optional fixedDetector_axial_mesh
 #		--
-    #item = self._FindInGroup( 'vanadium_axial_mesh', core_group )
     item = self._FindInGroup( 'fixed_detector_mesh', core_group )
     if item is not None:
-      #self.fixedDetectorMesh = item.value
       self.fixedDetectorMesh = np.array( item )
-#				-- Numpy magic for centers
-      t = np.copy( item )
-      t2 = np.r_[ t, np.roll( t, -1 ) ]
+
       self.fixedDetectorMeshCenters = \
-          np.mean( t2.reshape( 2, -1 ), axis = 0 )[ : -1 ]
+(self.fixedDetectorMesh[ 0 : -1 ] + self.fixedDetectorMesh[ 1 : ]) / 2.0
       self.nfdetax = item.shape[ 0 ] - 1
     #end if fixed_detector_mesh
-
-#		-- Vessel Tally
-#		--
-    vessel_tally_group = self._FindInGroup( 'vessel_tally', core_group )
-    if vessel_tally_group is not None:
-      self.vesselTallyMesh = VesselTallyMesh( vessel_tally_group )
 
 #		-- Infer missing dimensions
 #		--
@@ -1301,14 +1485,60 @@ to be column and row labels, respectively, and the order is forced such that
         #self.npin = num_pins_ds.value[ 0 ]
     #end if
 
+#    if self.npin == 0:
+#      self.npin = self.npinx = self.npiny = 1
+
     self.nchanx = self.npinx + 1
     self.nchany = self.npiny + 1
 
-#		-- Assert NAX match b/w axial_mesh and pin_volumes
-#		--  Rely on call to Check() after DataModel.Read()
-#    if self.nax > 0 and self.pinVolumes is not None and \
-#        self.pinVolumes.shape[ 2 ] != self.nax:
-#      raise Exception( 'NAX dimension mismatch between "axial_mesh" and "pin_volumes"' )
+#		-- SubPin
+#		--
+    item = self._FindInGroup( 'subpin_axial_mesh', core_group )
+    if item is not None:
+      self.subPinAxialMesh = np.array( item )
+      self.nsubax = self.subPinAxialMesh.shape[ 0 ] - 1
+
+      self.subPinAxialMeshCenters = \
+          (self.subPinAxialMesh[ 0 : -1 ] + self.subPinAxialMesh[ 1 : ]) / 2.0
+    else:
+      self.subPinAxialMesh = self.axialMesh
+      self.subPinAxialMeshCenters = self.axialMeshCenters
+      self.nsubax = self.nax
+
+    item = self._FindInGroup( 'subpin_r', core_group )
+    if item is not None:
+      self.subPinR = np.array( item )
+      self.nsubr = self.subPinR.shape[ 0 ]
+    else:
+      item = self._FindInGroup( 'nsubr', core_group )
+      if item is not None:
+        self.nsubr = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+	n = max( 1, self.npinx )
+	incr = float( self.apitch ) / n
+	self.subPinR = np.arange( 0.0, self.apitch + (incr * 0.5), incr )
+
+    #xxx can we assume equal angles?
+    item = self._FindInGroup( 'subpin_theta', core_group )
+    if item is not None:
+      self.subPinTheta = np.array( item )
+      self.nsubtheta = self.subPinTheta.shape[ 0 ]
+    else:
+      item = self._FindInGroup( 'nsubtheta', core_group )
+      if item is not None:
+        self.nsubtheta = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+	n = max( 1, self.nsubtheta )
+	self.subPinTheta = np.arange( 0.0, 360.0, 360.0 / n )
+
+#		-- Vessel Tally
+#		--
+    vessel_tally_group = self._FindInGroup( 'vessel_tally', core_group )
+    if vessel_tally_group is not None:
+      self.tally.Read( vessel_tally_group )
+
+      extent = self.ExtractSymmetryExtent()
+      self.vesselGeom = VesselGeometry()
+      self.vesselGeom.Read( vessel_tally_group, self.apitch, extent[ -2 : ] )
+    #end if vessel_tally_group is not None
   #end _ReadImpl
 
 
@@ -1316,6 +1546,8 @@ to be column and row labels, respectively, and the order is forced such that
   #	METHOD:		Core.ToJson()					-
   #----------------------------------------------------------------------
   def ToJson( self ):
+    """Placeholder that appears might never be needed.
+"""
     obj = {}
     obj[ 'apitch' ] = self.apitch
     if self.axialMesh is not None:
@@ -1359,13 +1591,17 @@ Events:
 
 Properties:
   averagers		dict by category of average calculators
+  axialMeshCentersDict	dict by mesh type of mesh centers
+  axialMeshDict		dict by mesh type of mesh values
   channelFactors	channel weight factors
   			( npiny + 1, npinx + 1, nax, nass )
   core			Core
-  #dataSetChangeEvent	event.Event object
-  dataSetDefs		dict of dataset definitions
+  dataSetAxialMesh	dict by ds_name of explicit mesh values
+  dataSetAxialMeshCenters  dict by ds_name of explicit mesh centers
+  dataSetDefs		dict by ds_name of dataset definitions
   dataSetDefsByName	reverse lookup of dataset definitions by ds_name
   dataSetDefsLock	threading.RLock for dataSetDefs and dataSetDefsByName
+  dataSetThresholds	dict by ds_name of RangeExpression instances
   dataSetNames		dict of dataset names by category
 			  ( 'channel', 'derived', 'detector',
 			    'fixed_detector', 'pin', 'scalar' )
@@ -1456,6 +1692,8 @@ passed, Read() must be called.
     self.dataSetDefsLock = threading.RLock()
     self.rangesLock = threading.RLock()
 
+    self.readMessages = []
+
     self.Clear()
     if h5f_param is not None:
       self.Read( h5f_param )
@@ -1535,9 +1773,14 @@ passed, Read() must be called.
   #	METHOD:		DataModel.Clear()				-
   #----------------------------------------------------------------------
   def Clear( self ):
+    self.axialMeshCentersDict = {}
+    self.axialMeshDict = {}
     self.core = None
+    self.dataSetAxialMesh = {}
+    self.dataSetAxialMeshCenters = {}
     self.dataSetDefs = {}
     self.dataSetDefsByName = {}
+    self.dataSetThresholds = {}
     self.dataSetNames = {}
     self.dataSetNamesVersion = 0
     self.derivableTypesByLabel = {}
@@ -1546,6 +1789,7 @@ passed, Read() must be called.
     self.derivedStates = None
     self.h5File = None
     self.listeners = { 'newDataSet': [] }
+    self.name = ''
     self.ranges = {}
     self.rangesByStatePt = []
     self.states = []
@@ -1610,6 +1854,101 @@ passed, Read() must be called.
   #	METHOD:		DataModel.CreateAxialValue()			-
   #----------------------------------------------------------------------
   def CreateAxialValue( self, **kwargs ):
+    """Create array of axial value in cm followed by 0-based indexes.
+Parameters:
+  cm			axial value in cm
+  core_ndx		0-based core axial index
+  detector_ndx		0-based detector axial index
+  fixed_detector_ndx	0-based fixed_detector axial index
+  pin_ndx		alias for 'core_ndx'
+  subpin_ndx		0-based subpin axial index
+  tally_ndx		0-based tally axial index
+  value			alias for 'cm'
+  xxx_ndx		0-based axial index for mesh type 'xxx'
+@return			( axial_cm, pin_ndx, detector_ndx, fixed_detector_ndx,
+			  tally_ndx, subpin_ndx )
+"""
+    results = self.CreateAxialValueRec( **kwargs )
+
+    tup = (
+	results.get( 'cm', 0.0 ),
+	results.get( 'pin', -1 ),
+	results.get( 'detector', -1 ),
+	results.get( 'fixed_detector', -1 ),
+	results.get( 'tally', -1 ),
+	results.get( 'subpin', -1 )
+        )
+    return  tup
+
+#		-- Process predefined key names
+#		--
+#    det_ndx = fdet_ndx = pin_ndx = sub_ndx = tally_ndx = -1
+#    axial_cm = 0.0
+#
+#    if self.core is not None:
+#      if 'cm' in kwargs or 'value' in kwargs:
+#        axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )
+#
+#      elif ('core_ndx' in kwargs or 'pin_ndx' in kwargs) and \
+#          'pin' in self.axialMeshCentersDict:
+#	mesh = self.axialMeshCentersDict.get( 'pin' )
+#	# mesh.shape[ 0 ] == self.nax
+#        pin_ndx = kwargs.get( 'core_ndx', kwargs.get( 'pin_ndx', 0 ) )
+#        pin_ndx = max( 0, min( pin_ndx, mesh.shape[ 0 ] - 1 ) )
+#        axial_cm = self.core.axialMeshCenters[ pin_ndx ]
+#
+#      elif 'detector_ndx' in kwargs and 'detector' in self.axialMeshDict:
+#	mesh = self.axialMeshDict.get( 'detector' )
+#	# mesh.shape[ 0 ] == self.core.ndetax
+#        det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], mesh.shape[ 0 ] - 1 ) )
+#        axial_cm = mesh[ det_ndx ]
+#
+#      elif 'fixed_detector_ndx' in kwargs and \
+#	  'fixed_detector' in self.axialMeshCentersDict:
+#	mesh = self.axialMeshCentersDict.get( 'fixed_detector' )
+#	# mesh.shape[ 0 ] == self.nfdetax
+#        fdet_ndx = \
+#            max( 0, min( kwargs[ 'fixed_detector_ndx' ], mesh.shape[ 0 ] - 1 ) )
+#        axial_cm = mesh[ fdet_ndx ]
+#
+#      elif 'subpin_ndx' in kwargs and 'subpin' in self.axialMeshCentersDict:
+#	mesh = self.axialMeshCentersDict.get( 'subpin' )
+#	# mesh.shape[ 0 ] == self.core.nsubax
+#        sub_ndx = max( 0, min( kwargs[ 'subpin_ndx' ], mesh.shape[ 0 ] - 1 ) )
+#        axial_cm = mesh[ sub_ndx ]
+#
+##		-- Resolved unspecified indexes
+##		--
+#      if pin_ndx < 0 and 'pin' in self.axialMeshDict:
+#	mesh = self.axialMeshDict.get( 'pin' )
+#        pin_ndx = DataUtils.FindListIndex( mesh[ : -1 ], axial_cm )
+#
+#      if det_ndx < 0 and 'detector' in self.axialMeshDict:
+#	mesh = self.axialMeshDict.get( 'detector' )
+#        #det_ndx = DataUtils.FindListIndex( mesh, axial_cm )
+#        det_ndx = DataUtils.FindListIndex( mesh[ : -1 ], axial_cm )
+#
+#      if fdet_ndx < 0 and 'fixed_detector' in self.axialMeshDict:
+#	mesh = self.axialMeshDict.get( 'fixed_detector' )
+#        fdet_ndx = DataUtils.FindListIndex( mesh[ : -1 ], axial_cm )
+#
+#      if sub_ndx < 0 and 'subpin' in self.axialMeshDict:
+#	mesh = self.axialMeshDict.get( 'subpin' )
+#        sub_ndx = DataUtils.FindListIndex( mesh[ : -1 ], axial_cm )
+#
+#      if self.core.tally.nz > 0:
+#        tally_ndx = DataUtils.\
+#	    FindListIndex( self.core.tally.z[ : -1 ], axial_cm )
+#    #end if self.core
+#
+#    return  ( axial_cm, core_ndx, det_ndx, fdet_ndx, tally_ndx )
+  #end CreateAxialValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateAxialValue_orig()		-
+  #----------------------------------------------------------------------
+  def CreateAxialValue_orig( self, **kwargs ):
     """Create from 'core_ndx', 'detector_ndx', 'fixed_detector_ndx', or 'value'
 values.
 Parameters:
@@ -1618,12 +1957,12 @@ Parameters:
   detector_ndx		0-based detector axial index
   fixed_detector_ndx	0-based fixed_detector axial index
   pin_ndx		alias for 'core_ndx'
+  subpin_ndx		0-based subpin axial index
   value			alias for 'cm'
-@return			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx )
+@return			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx,
+			  tally_ndx )
 """
-    core_ndx = -1
-    det_ndx = -1
-    fdet_ndx = -1
+    core_ndx = det_ndx = fdet_ndx = sub_ndx = tally_ndx = -1
     axial_cm = 0.0
 
     if self.core is None:
@@ -1631,32 +1970,119 @@ Parameters:
 
     elif 'cm' in kwargs or 'value' in kwargs:
       axial_cm = kwargs.get( 'cm', kwargs.get( 'value', 0.0 ) )
-      core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      core_ndx = DataUtils.FindListIndex( self.core.axialMesh[ : -1 ], axial_cm )
       det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
-      fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+      if self.core.fixedDetectorMesh is not None:
+        fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMesh[ : -1 ], axial_cm )
+      if self.core.subPinAxialMesh is not None:
+        sub_ndx = DataUtils.FindListIndex( self.core.subPinAxialMesh, axial_cm )
 
     elif 'core_ndx' in kwargs or 'pin_ndx' in kwargs:
       core_ndx = kwargs.get( 'core_ndx', kwargs.get( 'pin_ndx', 0 ) )
       core_ndx = max( 0, min( core_ndx, self.core.nax - 1 ) )
       axial_cm = self.core.axialMeshCenters[ core_ndx ]
       det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
-      fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+      #fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+      if self.core.fixedDetectorMesh is not None:
+        fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMesh[ : -1 ], axial_cm )
+      if self.core.subPinAxialMesh is not None:
+        sub_ndx = DataUtils.FindListIndex( self.core.subPinAxialMesh, axial_cm )
 
     elif 'detector_ndx' in kwargs:
       det_ndx = max( 0, min( kwargs[ 'detector_ndx' ], self.core.ndetax - 1 ) )
       axial_cm = self.core.detectorMesh[ det_ndx ]
-      core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
-      fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+      #core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      core_ndx = DataUtils.FindListIndex( self.core.axialMesh[ : -1 ], axial_cm )
+      #fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMeshCenters, axial_cm )
+      if self.core.fixedDetectorMesh is not None:
+        fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMesh[ : -1 ], axial_cm )
+      if self.core.subPinAxialMesh is not None:
+        sub_ndx = DataUtils.FindListIndex( self.core.subPinAxialMesh, axial_cm )
 
-    elif 'fixed_detector_ndx' in kwargs:
+    elif 'fixed_detector_ndx' in kwargs and self.core.fixedDetectorMesh is not None:
       fdet_ndx = max( 0, min( kwargs[ 'fixed_detector_ndx' ], self.core.nfdetax - 1 ) )
       axial_cm = self.core.fixedDetectorMeshCenters[ fdet_ndx ]
-      #core_ndx = DataUtils.FindListIndex( self.core.axialMesh, axial_cm )
-      core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      #core_ndx = DataUtils.FindListIndex( self.core.axialMeshCenters, axial_cm )
+      core_ndx = DataUtils.FindListIndex( self.core.axialMesh[ : -1 ], axial_cm )
       det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
+      if self.core.subPinAxialMesh is not None:
+        sub_ndx = DataUtils.FindListIndex( self.core.subPinAxialMesh, axial_cm )
 
-    return  ( axial_cm, core_ndx, det_ndx, fdet_ndx )
-  #end CreateAxialValue
+    elif 'subpin_ndx' in kwargs:
+      sub_ndx = max( 0, min( kwargs[ 'subpin_ndx' ], self.core.nsubax - 1 ) )
+      axial_cm = self.core.subPinAxialMesh[ sub_ndx ]
+      core_ndx = DataUtils.FindListIndex( self.core.axialMesh[ : -1 ], axial_cm )
+      det_ndx = DataUtils.FindListIndex( self.core.detectorMesh, axial_cm )
+      if self.core.fixedDetectorMesh is not None:
+        fdet_ndx = DataUtils.FindListIndex( self.core.fixedDetectorMesh[ : -1 ], axial_cm )
+
+    if self.core.tally.nz > 0:
+      tally_ndx = DataUtils.FindListIndex( self.core.tally.z[ : -1 ], axial_cm )
+
+    return  ( axial_cm, core_ndx, det_ndx, fdet_ndx, tally_ndx )
+  #end CreateAxialValue_orig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.CreateAxialValueRec()			-
+  #----------------------------------------------------------------------
+  def CreateAxialValueRec( self, **kwargs ):
+    """Create from value or index.
+Parameters:
+  cm			axial value in cm
+  core_ndx		0-based core axial index
+  detector_ndx		0-based detector axial index
+  fixed_detector_ndx	0-based fixed_detector axial index
+  pin_ndx		alias for 'core_ndx'
+  subpin_ndx		0-based subpin axial index
+  value			alias for 'cm'
+  xxx_ndx		0-based axial index for mesh type 'xxx'
+@return			dictionary of axial index values
+"""
+    results = { 'cm': 0.0 }
+
+    if self.core is not None:
+      not_centers_names = set([ 'detector' ])
+      predef_names = \
+          set([ 'pin', 'detector', 'fixed_detector', 'subpin', 'tally' ])
+
+#		-- Process arguments
+#		--
+      for n, v in kwargs.iteritems():
+	if n == 'cm' or n == 'value':
+	  results[ 'cm' ] = kwargs.get( n )
+
+        elif n.endswith( '_ndx' ):
+	  name = n[ 0 : -4 ]
+	  if name == 'core':
+	    name = 'pin'
+	  if name in not_centers_names:
+	    mesh = self.axialMeshDict.get( name )
+	  else:
+	    mesh = self.axialMeshCentersDict.get( name )
+	  if mesh is not None:
+	    ndx = max( 0, min( v, mesh.shape[ 0 ] - 1 ) )
+	    results[ name ] = ndx
+            results[ 'cm' ] = mesh[ ndx ]
+	#end elif _ndx
+      #end for n, v
+
+#		-- Resolve missing indexes
+#		--
+      for name in predef_names:
+        ndx = results.get( name, -1 )
+	if ndx < 0 and name in self.axialMeshDict:
+	  mesh = self.axialMeshDict.get( name )
+	  if len( mesh ) > 0:
+	    ndx = DataUtils.FindListIndex( mesh[ : -1 ], results[ 'cm' ] )
+	    #ndx = min( ndx, mesh.shape[ 0 ] -1 )
+        results[ name ] = ndx
+      #end for name
+    #end if self.core
+
+    results[ 'value' ] = results[ 'cm' ]
+    return  results
+  #end CreateAxialValueRec
 
 
   #----------------------------------------------------------------------
@@ -1758,10 +2184,14 @@ are initialized.
 	else:
 	  der_name = from_group.name.replace( '/', '' )
 	  der_group = derived_file.create_group( der_name )
-	  if 'exposure' in from_group:
-	    exp_value = np.array( from_group[ 'exposure' ] )
-	    exp_ds = der_group.create_dataset( 'exposure', data = exp_value )
-		#data = from_group[ 'exposure' ].value
+#	  if 'exposure' in from_group:
+#	    exp_value = np.array( from_group[ 'exposure' ] )
+#	    exp_ds = der_group.create_dataset( 'exposure', data = exp_value )
+	  for t in TIME_DS_NAMES_LIST:
+	    if t in from_group:
+	      exp_value = np.array( from_group[ t ] )
+	      exp_ds = der_group.create_dataset( t, data = exp_value )
+	  #end for t
 
 	  derived_states.append( DerivedState( n, der_name, der_group ) )
 	#end if state h5py group exists
@@ -1891,36 +2321,9 @@ dimensions.
 @return			None if core is None, otherwise
 			( left, top, right+1, bottom+1, dx, dy )
 """
-    #bounds = ( -1, -1, -1, -1, 0, 0 )
-    #left = -1
-    #bottom = -1
-    #right = -1
-    #top = -1
-
-    result = None
-
-    if self.core is not None:
-      bottom = self.core.nassy
-      right = self.core.nassx
-
-      #xxxxx decrementing on even nassx and nassy
-      if self.core.coreSym == 4:
-	left = self.core.nassx >> 1
-	top = self.core.nassy >> 1
-	if self.core.nassx % 2 == 0 and left > 0: left -= 1
-	if self.core.nassy % 2 == 0 and top > 0: top -= 1
-      elif self.core.coreSym == 8:
-	left = self.core.nassx >> 2
-	top = self.core.nassy >> 2
-	if self.core.nassx % 2 == 0 and left > 0: left -= 1
-	if self.core.nassy % 2 == 0 and top > 0: top -= 1
-      else:
-	left = 0
-	top = 0
-
-      result = ( left, top, right, bottom, right - left, bottom - top )
-    #end if
-
+    result = \
+        self.core.ExtractSymmetryExtent()  if self.core is not None else \
+	None
     return  result
   #end ExtractSymmetryExtent
 
@@ -2257,6 +2660,8 @@ descending.  Note bisect only does ascending.
 #		-- Resolve factors to dataset if necessary
 #		--
     if ds_name and factors is not None:
+      if isinstance( factors, h5py.Dataset ):
+        factors = np.array( factors )
       ds_shape = None
       ds_type = self.GetDataSetType( ds_name )
       if ds_type:
@@ -2827,6 +3232,47 @@ Calls FindMinMaxValueAddr().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetAxialMesh()			-
+  #----------------------------------------------------------------------
+  def GetAxialMesh( self, ds_name = None, mesh_type = 'pin' ):
+    """Retrieves the mesh for the specified dataset or type.
+@param  ds_name		name of dataset for which to retrieve the axial mesh
+@param  mesh_type	'core', 'detector', 'fixed_detector', 'pin',
+			'subpin', 'tally'
+@return			np.ndarray
+"""
+    mesh = self.dataSetAxialMesh.get( ds_name )
+    if mesh is None:
+      if mesh_type == 'core':
+        mesh_type = 'pin'
+      mesh = self.axialMeshDict.get( mesh_type )
+
+    return  self.core.axialMesh  if mesh is None else  mesh
+  #end GetAxialMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetAxialMeshCenters()			-
+  #----------------------------------------------------------------------
+  def GetAxialMeshCenters( self, ds_name = None, mesh_type = 'pin' ):
+    """Retrieves the axial mesh centers for the specified dataset, or
+core.axialMeshCenters if ds_name is None or not found.
+@param  ds_name		name of dataset for which to retrieve the axial mesh
+@param  mesh_type	'core', 'detector', 'fixed_detector', 'pin',
+			'subpin', 'tally'
+@return			np.ndarray
+"""
+    mesh = self.dataSetAxialMeshCenters.get( ds_name )
+    if mesh is None:
+      if mesh_type == 'core':
+        mesh_type = 'pin'
+      mesh = self.axialMeshCentersDict.get( mesh_type )
+
+    return  self.core.axialMeshCenters  if mesh is None else  mesh
+  #end GetAxialMeshCenters
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetAverager()				-
   #----------------------------------------------------------------------
   def GetAverager( self, ds_type = None ):
@@ -2917,6 +3363,22 @@ Calls FindMinMaxValueAddr().
         ds_name[ 8 : ]  if ds_name.startswith( 'derived:' ) else \
 	ds_name
   #end GetDataSetDisplayName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetDataSetThreshold()			-
+  #----------------------------------------------------------------------
+  def GetDataSetThreshold( self, ds_name = None ):
+    """Looks up the threshold expression for the dataset name.
+@param  ds_name		dataset name, or None to return dict of all names
+@return			if ds_name is not None, the RangeExpression instance
+			for the dataset or None if not found
+			if ds_name is None, dict of RangeExpressions by name
+"""
+    return \
+	self.dataSetThresholds  if ds_name is None else \
+	self.dataSetThresholds.get( ds_name )
+  #end GetDataSetThreshold
 
 
   #----------------------------------------------------------------------
@@ -3055,31 +3517,6 @@ derived datasets.  Lazily created and cached.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetDerivedLabels_old()		-
-  #----------------------------------------------------------------------
-  def GetDerivedLabels_old( self, ds_category ):
-    """For the specified category, returns all the labels for possible
-derived datasets.  Lazily created and cached.
-"""
-    labels = self.derivedLabelsByType.get( ds_category )
-    if labels is None:
-      labels = []
-      for def_name, def_item in self.dataSetDefs.iteritems():
-        if def_name.startswith( ds_category ):
-          ndx = def_name.find( ':' )
-	  if ndx >= 0:
-	    labels.append( def_name[ ndx + 1 : ] )
-      #end for
-
-      labels.sort()
-      self.derivedLabelsByType[ ds_category ] = labels
-    #end if
-
-    return  labels
-  #end GetDerivedLabels_old
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetDerivedState()			-
   #----------------------------------------------------------------------
   def GetDerivedState( self, ndx = 0 ):
@@ -3117,14 +3554,30 @@ derived datasets.  Lazily created and cached.
 """
     result = None
 
+    dset = None
     ddef = self.GetDataSetDefByDsName( ds_name ) if ds_name else None
     if ddef:
-      #result = self.pinFactors
       ds_type = ddef[ 'type' ]
+      dset = self.GetStateDataSet( 0, ds_name )
+
+    if dset is not None:
+#		-- Set default
       result = \
           self.nodeFactors if self.IsNodalType( ds_type ) else self.pinFactors
-  
-      if ddef[ 'type' ] == 'channel':
+
+#		-- Check for 'factor' attribute
+      factor_name = None
+      if dset.attrs and 'factor' in dset.attrs:
+        factor_obj = dset.attrs[ 'factor' ]
+        factor_name = \
+	    factor_obj[ 0 ] if isinstance( factor_obj, np.ndarray ) else \
+	    str( factor_obj )
+
+      if factor_name and self.core is not None and \
+          factor_name in self.core.group:
+        result = self.core.group.get( factor_name )
+
+      elif ddef[ 'type' ] == 'channel':
         result = self.channelFactors
   
       elif ddef[ 'type' ] == ':chan_radial':
@@ -3147,7 +3600,7 @@ derived datasets.  Lazily created and cached.
 	    exec_str, {},
   	    { 'averager': self.averagers[ 'pin' ], 'result': result }
   	    )
-      #end if ddef
+      #end if dset is not None
     #end if result is None
 
     return  result
@@ -3176,17 +3629,6 @@ derived datasets.  Lazily created and cached.
 """
     return  self.h5File
   #end GetH5File
-
-
-#  #----------------------------------------------------------------------
-#  #	METHOD:		DataModel.GetId()				-
-#  #----------------------------------------------------------------------
-#  def GetId( self ):
-#    """Accessor for the 'id' property.
-#@return			ID string
-#"""
-#    return  self.id
-#  #end GetId
 
 
   #----------------------------------------------------------------------
@@ -3263,14 +3705,15 @@ derived datasets.  Lazily created and cached.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetRange()				-
   #----------------------------------------------------------------------
-  def GetRange( self, ds_name, state_ndx = -1 ):
+  def GetRange( self, ds_name, state_ndx = -1, ds_expr = None ):
     """Gets the range for the specified dataset, calculating
-if necessary.  Note all requests for range should flow through this method,
+if necessary.  Note all requests for the range should flow through this method,
 although Python doesn't allow us to enforce this.  We'll need to adopt
 the properties construct for this class soon.
 @param  ds_name		dataset name
 @param  state_ndx	optional 0-based statept index to use, or -1
 			for global range
+@param  ds_expr		optional reference expression to apply to the dataset
 @return			( min, max ), possible the range of floating point values
 """
     ds_range = None
@@ -3290,9 +3733,10 @@ the properties construct for this class soon.
 	  self.rangesByStatePt[ state_ndx ] = range_dict
       #end if-else
 
-      ds_range = range_dict.get( ds_name )
+      ds_name_key = ds_name + ds_expr  if ds_expr else  ds_name
+      ds_range = range_dict.get( ds_name_key )
       if ds_range is None:
-        ds_range = self._ReadDataSetRange( ds_name, state_ndx )
+        ds_range = self._ReadDataSetRange( ds_name, state_ndx, ds_expr )
         range_dict[ ds_name ] = ds_range
 
     finally:
@@ -3306,35 +3750,6 @@ the properties construct for this class soon.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModel.GetRange_orig()			-
-  #----------------------------------------------------------------------
-  def GetRange_orig( self, ds_name ):
-    """Gets the range for the specified dataset, calculating
-if necessary.  Note all requests for range should flow through this method,
-although Python doesn't allow us to enforce this.  We'll need to adopt
-the properties construct for this class soon.
-@param  ds_name		dataset name
-@return			( min, max ), possible the range of floating point values
-"""
-    ds_range = None
-
-    self.rangesLock.acquire()
-    try:
-      ds_range = self.ranges.get( ds_name )
-      if ds_range is None:
-        ds_range = self._ReadDataSetRange( ds_name )
-        self.ranges[ ds_name ] = ds_range
-    finally:
-      self.rangesLock.release()
-
-    if ds_range is None:
-      ds_range = DataModel.DEFAULT_range
-
-    return  ds_range
-  #end GetRange_orig
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModel.GetRanges()				-
   #----------------------------------------------------------------------
   def GetRanges( self ):
@@ -3343,6 +3758,18 @@ the properties construct for this class soon.
 """
     return  self.ranges
   #end GetRanges
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.GetReadMessages()			-
+  #----------------------------------------------------------------------
+  def GetReadMessages( self ):
+    """Accessor for the 'readMessages' property.
+@return			list of warning messages during Read(), empty
+			if no warnings
+"""
+    return  self.readMessages
+  #end GetReadMessages
 
 
   #----------------------------------------------------------------------
@@ -3385,10 +3812,7 @@ a 4D array if necessary.
 @param  ds_name		dataset name, normal or derived
 @return			h5py.Dataset object if found or None
 """
-    dset = None
-
-    st = None
-    derived_st = None
+    derived_st = dset = st = None
 
     #if ds_name is not None:
     if ds_name:
@@ -3399,7 +3823,7 @@ a 4D array if necessary.
     if st:
       self.dataSetDefsLock.acquire()
       try:
-        dset = st.GetDataSet( ds_name )
+	dset = st.GetDataSet( ds_name )
 	if dset is None and derived_st is not None:
 	  dset = derived_st.GetDataSet( ds_name )
 
@@ -3435,6 +3859,20 @@ a 4D array if necessary.
 	    #end if ds_def is not None
 	  #end if-else copy_dset
         #end if must copy
+
+#				-- Threshold for ds_name?
+#				--
+	range_expr = self.dataSetThresholds.get( ds_name )
+	if range_expr and dset is not None and derived_st is not None:
+	  thold_ds_name = 'threshold:' + ds_name
+	  thold_dset = derived_st.GetDataSet( thold_ds_name )
+	  if thold_dset is not None:
+	    dset = thold_dset
+	  else:
+	    thold_arr = range_expr.ApplyThreshold( np.array( dset ) )
+	    dset = derived_st.CreateDataSet( thold_ds_name, thold_arr )
+	#end if dset
+
       finally:
         self.dataSetDefsLock.release()
     #end if st and derived_st
@@ -3800,16 +4238,27 @@ for NaN.  For now, we just assume 0.0 is "no data".
   #	METHOD:		DataModel.NormalizeAxialValue()			-
   #----------------------------------------------------------------------
   def NormalizeAxialValue( self, axial_value ):
+    """
+@param  axial_value	( cm, core_ndx, det_ndx, fdet_ndx, tally_ndx, subpin_ndx )
+"""
     if self.core is None:
-      result = ( -1.0, -1, -1, -1 )
+      result = ( -1.0, -1, -1, -1, -1, -1 )
     else:
-      result = \
-        (
+      result_arr = [
         axial_value[ 0 ],
         max( 0, min( axial_value[ 1 ], self.core.nax -1 ) ),
         max( 0, min( axial_value[ 2 ], self.core.ndetax -1 ) ),
         max( 0, min( axial_value[ 3 ], self.core.nfdetax -1 ) )
-        )
+        ]
+      result_arr.append(
+	  max( 0, min( axial_value[ 4 ], self.core.tally.nz - 1 ) )
+	  if len( axial_value ) > 4 else -1
+          )
+      result_arr.append(
+	  max( 0, min( axial_value[ 5 ], self.core.nsubax - 1 ) )
+	  if len( axial_value ) > 5 else -1
+          )
+      result = tuple( result_arr )
     return  result
   #end NormalizeAxialValue
 
@@ -3930,13 +4379,14 @@ being one greater in each dimension.
 @param  h5f_param	either an h5py.File instance or the name of an
 			HDF5 file (.h5)
 """
+    del self.readMessages[ : ]
+
     if isinstance( h5f_param, h5py.File ):
       self.h5File = h5f_param
     else:
       self.h5File = h5py.File( str( h5f_param ) )
     self.name = os.path.splitext( os.path.basename( self.h5File.filename ))[ 0 ]
 
-    #xxxx special read of state_0001 for detector_response
     self.core = Core( self.h5File )
     self.states = State.ReadAll( self.h5File )
 
@@ -3949,8 +4399,34 @@ being one greater in each dimension.
 
 #		-- Special check for vessel_tally
 #		--
-    if self.core.vesselTallyMesh is None and 'vessel_tally' in st_group:
-      self.core.vesselTallyMesh = VesselTallyMesh( vessel_tally_group )
+    if self.core.tally.z is None and 'vessel_tally' in st_group:
+      self.core.tally.Read( st_group[ 'vessel_tally' ] )
+
+#		-- Resolve axial meshes
+#		--
+    self.axialMeshDict[ 'pin' ] = self.core.axialMesh
+    self.axialMeshCentersDict[ 'pin' ] = self.core.axialMeshCenters
+
+    if self.core.detectorMesh is not None:
+      self.axialMeshDict[ 'detector' ] = self.core.detectorMesh
+
+    if self.core.fixedDetectorMesh is not None and \
+        self.core.fixedDetectorMeshCenters is not None:
+      self.axialMeshDict[ 'fixed_detector' ] = self.core.fixedDetectorMesh
+      self.axialMeshCentersDict[ 'fixed_detector' ] = \
+          self.core.fixedDetectorMeshCenters
+
+    if self.core.subPinAxialMesh is not None and \
+        self.core.subPinAxialMeshCenters is not None:
+      self.axialMeshDict[ 'subpin' ] = self.core.subPinAxialMesh
+      self.axialMeshCentersDict[ 'subpin' ] = self.core.subPinAxialMeshCenters
+
+    if self.core.tally.nz > 0:
+      t = np.array( self.core.tally.z )
+      #tc = (t[ 0 : -1 ] + t[ 1 : ]) / 2.0
+      tc = np.array( self.core.tally.zcenters )
+      self.axialMeshDict[ 'tally' ] = t
+      self.axialMeshCentersDict[ 'tally' ] = tc
 
 #		-- Assert on pin_powers
 #		--
@@ -3965,10 +4441,11 @@ being one greater in each dimension.
 
 #		-- Special check to get core.npin if pin_volumes
 #		-- missing from CORE
-    #if self.core.npin == 0 and 'pin_powers' in st_group:
     if self.core.npin == 0 and pin_powers_shape is not None:
       self.core.npinx = self.core.npiny = \
       self.core.npin = pin_powers_shape[ 0 ]
+      self.core.nchanx = self.core.npinx + 1
+      self.core.nchany = self.core.npiny + 1
 
 #		-- Assert on pin_powers shape
 #		--
@@ -3983,9 +4460,9 @@ being one greater in each dimension.
 
 #		-- Resolve everything
 #		--
-#xxxxx return messages about datasets ignored due to bad shapes, beavrs.h5
-    self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames = \
-        self._ResolveDataSets( self.core, st_group )
+    #self.dataSetDefs, self.dataSetDefsByName, self.dataSetNames =
+    self.readMessages += self._ResolveDataSets( self.core, st_group )
+
 #			-- Only use time datasets that appear in all statepts
     #self.dataSetNames[ 'time' ] = State.ResolveTimeDataSets( self.states )
     self.derivableTypesByLabel = {}
@@ -4087,7 +4564,6 @@ being one greater in each dimension.
 			by sub_addr, np.ndarray for other datasets,
 			mesh_values is a np.ndarray
 """
-    #result = None
     mesh_values = result = None
 
     state_index = self.NormalizeStateIndex( state_index )
@@ -4106,11 +4582,14 @@ being one greater in each dimension.
         sub_addrs = [ sub_addrs ]
 
       mesh_values = \
-          self.core.GetDetectorMesh() \
+	  self.GetAxialMesh( ds_name, 'detector' ) \
 	    if ds_type == 'detector' else \
-          self.core.GetFixedDetectorMeshCenters()  \
+	  self.GetAxialMeshCenters( ds_name, 'fixed_detector' ) \
 	    if ds_type == 'fixed_detector' else \
-          self.core.GetAxialMeshCenters()
+          self.GetAxialMeshCenters( ds_name )
+          #self.core.GetDetectorMesh() \
+          #self.core.GetFixedDetectorMeshCenters()  \
+          #self.core.GetAxialMeshCenters()
       if not isinstance( mesh_values, np.ndarray ):
         mesh_values = np.array( mesh_values )
 
@@ -4189,18 +4668,105 @@ being one greater in each dimension.
   #----------------------------------------------------------------------
   #	METHOD:		DataModel._ReadDataSetRange()			-
   #----------------------------------------------------------------------
-  def _ReadDataSetRange( self, ds_name, state_ndx = -1 ):
+  def _ReadDataSetRange( self, ds_name, state_ndx = -1, ds_expr = None ):
     """Scans the data for the range.  Could be very time consuming.
-@param  ds_name		dataset name, where a prefix of 'extra:' means it's
-			an extra dataset
+@param  ds_name		dataset name
 @param  state_ndx	optional 0-based statept index in which to search
+@param  ds_expr		optional reference expression to apply to the dataset
+			(e.g., '[ :, :, :, 0, 0 ]')
+"""
+    vmin = vmax = NAN
+
+    if ds_name:
+      search_range = \
+          xrange( self.GetStatesCount() )  if state_ndx < 0 else \
+	  xrange( state_ndx, state_ndx + 1 )
+
+#		-- For each state point
+#		--
+      for i in search_range:
+#        st = self.GetState( i )
+#	derived_st = self.GetDerivedState( i )
+#
+#	dset = st.GetDataSet( ds_name )
+#	if dset is None:
+#	  dset = derived_st.GetDataSet( ds_name )
+
+	dset = self.GetStateDataSet( i, ds_name )
+
+        if dset is not None:
+	  if ds_expr:
+	    dset_array = eval( 'dset' + ds_expr )
+	  else:
+	    dset_array = np.array( dset )
+
+	  if len( dset_array.shape ) > 0:
+# threshold now processed in GetStateDataSet
+#					-- Check for ignore range
+#					--
+#	    ignore_expr = self.dataSetIgnoreRanges.get( ds_name )
+#            if ignore_expr:
+#	      dset_array = \
+#	          DataUtils.ApplyIgnoreExpression( dset_array, ignore_expr )
+
+#					-- Find max and min values
+#					--
+	    cur_max = np.nanmax( dset_array )
+	    if math.isnan( vmax ) or cur_max > vmax:
+	      vmax = cur_max
+
+	    cur_nz = dset_array[ np.nonzero( dset_array ) ]
+	    if len( cur_nz ) > 0:
+	      #cur_min = np.amin( cur_nz )
+	      cur_min = np.nanmin( cur_nz )
+	      if math.isnan( vmin ) or cur_min < vmin:
+	        vmin = cur_min
+	  else:
+	    cur_value = dset_array.item()
+	    if math.isnan( vmax ) or cur_value > vmax:
+	      vmax = cur_value
+	    if math.isnan( vmin ) or cur_value < vmin:
+	      vmin = cur_value
+	  #end if-else isinstance
+	#end if dset
+      #end for states
+    #end if ds_name
+
+    vmin_nan = math.isnan( vmin )
+    vmax_nan = math.isnan( vmax )
+    if vmin_nan and vmax_nan:
+      range_min = -10.0
+      range_max = 10.0
+    elif vmin_nan:
+      range_min = range_max = vmax
+    elif vmax_nan:
+      range_min = range_max = vmin
+    else:
+      range_min = vmin
+      range_max = vmax
+
+    if range_min == range_max:
+      range_max = 1.0  if range_min == 0.0 else  range_min + (range_min / 10.0)
+
+    return  ( range_min, range_max )
+  #end _ReadDataSetRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel._ReadDataSetRange_1()			-
+  #----------------------------------------------------------------------
+  def _ReadDataSetRange_1( self, ds_name, state_ndx = -1, ds_expr = None ):
+    """Scans the data for the range.  Could be very time consuming.
+@param  ds_name		dataset name
+@param  state_ndx	optional 0-based statept index in which to search
+@param  ds_expr		optional reference expression to apply to the dataset
+			(e.g., '[ :, :, :, 0, 0 ]')
 """
     range_min = -sys.float_info.max
     range_max = sys.float_info.max
 
     if ds_name:
       vmin = vmax = NAN
-      #for i in range( len( self.GetStates() ) ):
       search_range = \
           xrange( self.GetStatesCount() )  if state_ndx < 0 else \
 	  xrange( state_ndx, state_ndx + 1 )
@@ -4214,10 +4780,11 @@ being one greater in each dimension.
 	  dset = derived_st.GetDataSet( ds_name )
 
         if dset:
-	  dset_array = np.array( dset )
+	  if ds_expr:
+	    dset_array = eval( 'dset' + ds_expr )
+	  else:
+	    dset_array = np.array( dset )
 
-	  #xxxx always array
-	  #if isinstance( dset_array, np.ndarray ):
 	  if len( dset_array.shape ) > 0:
 	    #cur_max = np.amax( dset_array )
 	    cur_max = np.nanmax( dset_array )
@@ -4246,8 +4813,12 @@ being one greater in each dimension.
         range_max = vmax
     #end if ds_name
 
-    return  ( range_min, range_max )
-  #end _ReadDataSetRange
+    #return  ( range_min, range_max )
+    return \
+	( range_min - (range_min / 10.0), range_max ) \
+        if range_min == range_max else \
+        ( range_min, range_max )
+  #end _ReadDataSetRange_1
 
 
   #----------------------------------------------------------------------
@@ -4501,18 +5072,26 @@ required.
   #	METHOD:		DataModel._ResolveDataSets()			-
   #----------------------------------------------------------------------
   def _ResolveDataSets( self, core, st_group ):
-    """Thread-safe method to build three dicts:
-ds_defs		dataset definitions by dataset type
-ds_defs_by_name	dataset definition by dataset name
-ds_names	dict of dataset names by dataset type
-		'axial', 'scalar', 'time', plus types defined in DATASET_DEFS
+    """Non thread-safe method to update the following properties:
+dataSetDefs		dict of dataset definitions by dataset type
+dataSetDefsByName 	dict of dataset definitions by dataset name
+dataSetNames		dict of dataset names by dataset type
+			'axial', 'scalar', 'time', plus types defined in
+			DATASET_DEFS
+dataSetAxialMesh	dict of axial meshes by dataset name
+dataSetAxialMeshCenters	dict of axial mesh centers by dataset name
+
 @param  core		core object, cannot be None
 @param  st_group	h5py.Group for first state group, cannot be None
-@return			ds_defs, ds_defs_by_name, ds_names
+@return			array of error messages, empty list if none
 """
+    messages = []
     ds_defs = copy.deepcopy( DATASET_DEFS )
     ds_defs_by_name = {}
     ds_names = { 'axial': [], 'scalar': [], 'time': [ 'state' ] }
+
+    ds_axial_mesh = {}
+    ds_axial_mesh_centers = {}
 
 #		-- Resolve dataset defs
 #		--
@@ -4525,7 +5104,7 @@ ds_names	dict of dataset names by dataset type
         def_item[ 'copy_shape' ] = eval( def_item[ 'copy_shape_expr' ] )
     #end for
 
-#		-- Walk datasets
+#		-- Walk statepoint datasets in st_group
 #		--
     scalar_shape = ( 1, )
 
@@ -4534,18 +5113,54 @@ ds_names	dict of dataset names by dataset type
           isinstance( st_group[ cur_name ], h5py.Group ) or
 	  cur_name.startswith( 'copy:' )
 	  ):
-        cur_shape = st_group[ cur_name ].shape
+	cur_dset = st_group[ cur_name ]
+        cur_shape = cur_dset.shape
+	cur_axial_mesh = cur_axial_mesh_centers = None
+
+#			-- Look for explicit threshold
+        if cur_dset.attrs and 'threshold' in cur_dset.attrs:
+	  try:
+	    attr_obj = cur_dset.attrs[ 'threshold' ]
+	    expr = \
+	        attr_obj[ 0 ]  if isinstance( attr_obj, np.ndarray ) else \
+		str( attr_obj )
+	    self.SetDataSetThreshold( cur_name, expr )
+	  except Exception, ex:
+	    msg = 'Invalid threshold for dataset {0:s}'.\
+	        format( DataSetName( self.name, cur_name ).name )
+	    self.logger.exception( msg )
+	    messages.append( msg + ': ' + str( ex ) )
+
+#			-- Look for explicit axial_mesh
+        if cur_dset.attrs and 'axial_mesh' in cur_dset.attrs:
+	  attr_obj = cur_dset.attrs[ 'axial_mesh' ]
+	  axial_mesh_name = \
+	      attr_obj[ 0 ]  if isinstance( attr_obj, np.ndarray ) else \
+	      str( attr_obj )
+	  if axial_mesh_name not in self.axialMeshDict:
+	    if axial_mesh_name in core.group:
+	      cur_axial_mesh = np.array( core[ axial_mesh_name ] )
+	      cur_axial_mesh_centers = \
+                  (cur_axial_mesh[ 0 : -1 ] + cur_axial_mesh[ 1 : ]) / 2.0
+	      self.axialMeshDict[ axial_mesh_name ] = cur_axial_mesh
+	      self.axialMeshCentersDict[ axial_mesh_name ] = cur_axial_mesh_centers
+	  else:
+	    cur_axial_mesh = self.axialMeshDict.get( axial_mesh_name )
+	    cur_axial_mesh_centers = \
+	        self.axialMeshCentersDict.get( axial_mesh_name )
+        #end if cur_dset.attrs and 'axial_mesh' in cur_dset.attrs
 
 #			-- Scalar is special case
 #			--
+	#bank_pos, emulate as individual scalars
         if len( cur_shape ) == 0 or cur_shape == scalar_shape:
 	  cat_name = None
 	  if cur_name in TIME_DS_NAMES:
 	    cat_name = 'time'
 	  else:
 	    for def_name, def_item in ds_defs.iteritems():
-	      if def_name != 'scalar' and def_item[ 'shape' ] == scalar_shape:
-	        #for ds_prefix in def_item[ 'ds_prefix' ].split( ',' ):
+	      if def_name != 'scalar' and def_item[ 'shape' ] == scalar_shape \
+	          and 'ds_prefix' in def_item:
 	        for ds_prefix in def_item[ 'ds_prefix' ]:
 		  if cur_name.startswith( ds_prefix + '_' ):
 		    cat_name = def_name
@@ -4556,29 +5171,58 @@ ds_names	dict of dataset names by dataset type
 	    #end for def_name, def_item
 	  #end if-else on cur_name
 
-	  if cat_name is None:
-	    cat_name = 'scalar'
-	  ds_names[ cat_name ].append( cur_name )
+#	  if cat_name is None:
+#	    cat_name = 'scalar'
+#	  ds_names[ cat_name ].append( cur_name )
+#	  ds_defs_by_name[ cur_name ] = ds_defs.get( cat_name )
 
-	  ds_defs_by_name[ cur_name ] = ds_defs.get( cat_name )
+	  if cat_name is None:
+	    test_data = st_group.get( cur_name )
+	    test_value = \
+	       test_data[ () ]  if len( cur_shape ) == 0 else  test_data[ 0 ]
+	    skip = \
+	        isinstance( test_value, np.string_ ) or \
+	        isinstance( test_value, np.bool_ )
+	    if not skip:
+	      cat_name = 'scalar'
+	  #end if cat_name is None
+
+	  if cat_name:
+	    ds_names[ cat_name ].append( cur_name )
+	    ds_defs_by_name[ cur_name ] = ds_defs.get( cat_name )
 
 #			-- Fixed detector is special case
 #			--
 	elif cur_name == 'fixed_detector_response' and \
 	    cur_shape == ds_defs[ 'fixed_detector' ][ 'shape' ] and \
-	    core.fixedDetectorMeshCenters is not None:
+	    (core.fixedDetectorMeshCenters is not None or
+	    cur_axial_mesh_centers is not None):
 	  ds_names[ 'fixed_detector' ].append( cur_name )
 	  ds_names[ 'axial' ].append( cur_name )
 	  ds_defs_by_name[ cur_name ] = ds_defs[ 'fixed_detector' ]
 
-#			-- Detector is special case
+#x	  if cur_axial_mesh is None:
+#x	    cur_axial_mesh = core.fixedDetectorMesh
+#x	    cur_axial_mesh_centers = core.fixedDetectorMeshCenters
+
+#			-- If 'detector' and ':assembly' shapes match must
+#			-- disambiguate on name
 #			--
-#	elif cur_name == 'detector_response':
-	elif cur_name.find( 'response' ) >= 0:
-	  if cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
-	    ds_names[ 'detector' ].append( cur_name )
-	    ds_names[ 'axial' ].append( cur_name )
-	    ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
+##	elif cur_name == 'detector_response':
+#	elif cur_name.find( 'response' ) >= 0:
+#	  if cur_shape == ds_defs[ 'detector' ][ 'shape' ]:
+#	    ds_names[ 'detector' ].append( cur_name )
+#	    ds_names[ 'axial' ].append( cur_name )
+#	    ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
+	elif core.ndetax == core.nax and core.ndet == core.nass and \
+	    cur_shape == ds_defs[ 'detector' ][ 'shape' ] and \
+	    cur_name.find( 'detector' ) >= 0:
+	  ds_names[ 'detector' ].append( cur_name )
+	  ds_names[ 'axial' ].append( cur_name )
+	  ds_defs_by_name[ cur_name ] = ds_defs[ 'detector' ]
+
+#x	  if cur_axial_mesh is None:
+#x	    cur_axial_mesh = core.detectorMesh
 
 #			-- Not a scalar
 #			--
@@ -4588,8 +5232,22 @@ ds_names	dict of dataset names by dataset type
 	  for def_name, def_item in ds_defs.iteritems():
 #	    if cur_shape == def_item[ 'shape' ] and \
 #	      (def_name != 'fixed_detector' or core.fixedDetectorMeshCenters is None):
-	    if def_name in ( 'detector', 'fixed_detector' ):
+#	    if def_name in ( 'detector', 'fixed_detector' ):
+#	      pass
+
+	    if 'group' in def_item:
 	      pass
+
+	    elif def_name == 'detector' and \
+	        self.core.nax == self.core.ndetax and \
+		self.core.ndet == self.core.nass:
+	      pass
+
+	    elif def_name == 'fixed_detector' and \
+	        self.core.nax == self.core.nfdetax and \
+		self.core.ndet == self.core.nass:
+	      pass
+
 	    elif cur_shape == def_item[ 'shape' ]:
 	      if 'ds_prefix' not in def_item:
 	        cat_item = def_item
@@ -4619,17 +5277,64 @@ ds_names	dict of dataset names by dataset type
 	        cur_shape_expr.find( 'core.ndetax' ) >= 0 or \
 		cur_shape_expr.find( 'core.nfdetax' ) >= 0:
 	      ds_names[ 'axial' ].append( cur_name )
+
+#x	    if cur_axial_mesh is None:
+#x	      if cat_item[ 'type' ] == 'detector':
+#x	        cur_axial_mesh = core.detectorMesh
+#x	      elif cat_item[ 'type' ] == 'fixed_detector':
+#x	        cur_axial_mesh = core.fixedDetectorMesh
+#x	        cur_axial_mesh_centers = core.fixedDetectorMeshCenters
+#x	      else:
+#x	        cur_axial_mesh = core.axialMesh
+#x	        cur_axial_mesh_centers = core.axialMeshCenters
+#x	    #end if cur_axial_mesh
 	  #if cat_item
         #end if-else on shape
+
+	if cur_axial_mesh is not None:
+	  ds_axial_mesh[ cur_name ] = cur_axial_mesh
+	if cur_axial_mesh_centers is not None:
+	  ds_axial_mesh_centers[ cur_name ] = cur_axial_mesh_centers
       #end if not a copy
     #end for st_group keys
+
+#		-- Now, those in subgroups
+#		--
+    for def_name, def_item in ds_defs.iteritems():
+      sub_group = sub_group_name = None
+      if 'group' in def_item and def_item[ 'group' ] in st_group:
+	sub_group_name = def_item[ 'group' ]
+	if sub_group_name in st_group and \
+	    isinstance( st_group[ sub_group_name ], h5py.Group ):
+	  sub_group = st_group[ sub_group_name ]
+
+      if sub_group is not None:
+	for cur_name in sub_group:
+	  if not isinstance( sub_group[ cur_name ], h5py.Group ):
+            cur_shape = sub_group[ cur_name ].shape
+	    if cur_shape == def_item[ 'shape' ]:
+	      cur_path_name = sub_group_name + '/' + cur_name
+	      ds_names[ def_item[ 'type' ] ].append( cur_path_name )
+	      ds_defs_by_name[ cur_path_name ] = def_item
+	  #end if not an h5py.Group
+	#end for cur_name
+      #end if sub_group
+    #end for def_name, def_item
 
 #		-- Sort names
 #		--
     for name in ds_names:
       ds_names[ name ].sort()
 
-    return  ds_defs, ds_defs_by_name, ds_names
+#		-- Set property values
+    #return  ds_defs, ds_defs_by_name, ds_names
+    self.dataSetDefs = ds_defs
+    self.dataSetDefsByName = ds_defs_by_name
+    self.dataSetNames = ds_names
+    self.dataSetAxialMesh = ds_axial_mesh
+    self.dataSetAxialMeshCenters = ds_axial_mesh_centers
+
+    return  messages
   #end _ResolveDataSets
 
 
@@ -4642,6 +5347,54 @@ ds_names	dict of dataset names by dataset type
       match_name = self._CreateDerivedDataSet( ds_category, derived_label, ds_name )
     return  match_name
   #end ResolveDerivedDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.ResolveRangeExpression()		-
+  #----------------------------------------------------------------------
+  def ResolveRangeExpression( self, *op_value_pairs ):
+    """Creates a single expression satisfying the specified expressions.
+@param  ds_name		dataset name
+@param  op_value_pairs	sequence of op-value pairs, where op is one of
+			'=', '<', '<=', '>', '>='
+@return			expression on "x"
+"""
+    above_op = above_value = below_op = below_value = None
+
+    for i in xrange( 0, len( op_value_pairs ) - 1, 2 ):
+      op = op_value_pairs[ i ]
+      value = op_value_pairs[ i + 1 ]
+
+      if op in ( '<', '<=' ):
+        if not below_op or value > below_value:
+	  below_op = op
+	  below_value = value
+        elif value == below_value and below_op == '<' and op == '<=':
+	  below_op = op
+
+      elif op in ( '>', '>=' ):
+        if not above_op or value < above_value:
+	  above_op = op
+	  above_value = value
+        elif value == above_value and above_op == '>' and op == '>=':
+	  above_op = op
+
+      elif op == '=' and not (above_op or below_op):
+        above_op = '>='
+	below_op = '<='
+	above_value = below_value = value
+    #end for i
+
+    expr = ''
+    if above_op:
+      #if expr: expr += ' and '
+      expr += 'x ' + above_op + ' ' + '{0:.6g}'.format( above_value )
+    if below_op:
+      if expr: expr += ' and '
+      expr += 'x ' + below_op + ' ' + '{0:.6g}'.format( below_value )
+
+    return  expr
+  #end ResolveRangeExpression
 
 
   #----------------------------------------------------------------------
@@ -4668,6 +5421,59 @@ other derived types we pass 'pin'.
 
     return  ds_name
   #end RevertIfDerivedDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModel.SetDataSetThreshold()			-
+  #----------------------------------------------------------------------
+  def SetDataSetThreshold( self, ds_name, range_expr = None ):
+    """Adds or replaces the threshold RangeExpression the specified
+dataset.
+@param  ds_name		dataset name
+@param  range_expr	either an expression string, a RangeExpression
+			instance, or None to remove the threshold
+@exception		on expression parse error
+"""
+    if ds_name:
+      if range_expr:
+        if not isinstance( range_expr, RangeExpression ):
+          range_expr = RangeExpression( str( range_expr ) )
+        self.dataSetThresholds[ ds_name ] = range_expr
+
+      elif ds_name in self.dataSetThresholds:
+        del self.dataSetThresholds[ ds_name ]
+
+#		-- Clear any calculated ranges
+#		--
+      key_list = []
+      for key in self.ranges.keys():
+        if key.startswith( ds_name ):
+	  key_list.append( key )
+      for key in key_list:
+        del self.ranges[ key ]
+
+      for i in xrange( len( self.rangesByStatePt ) ):
+	range_dict = self.rangesByStatePt[ i ]
+        key_list = []
+	for key in range_dict.keys():
+	  if key.startswith( ds_name ):
+	    key_list.append( key )
+        for key in key_list:
+          del range_dict[ key ]
+      #end for i
+
+#		-- Clear any threshold datasets
+#		--
+      threshold_name = 'threshold:' + ds_name
+      if self.derivedStates:
+        for ndx in xrange( len( self.derivedStates ) ):
+          derived_st = self.derivedStates[ ndx ]
+	  if derived_st.HasDataSet( threshold_name ):
+	    derived_st.RemoveDataSet( threshold_name )
+        #end for ndx
+      #end if self.derivedStates
+    #end if ds_name
+  #end SetDataSetThreshold
 
 
   #----------------------------------------------------------------------
@@ -4946,6 +5752,26 @@ class DataSetName( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__ge__()				-
+  #----------------------------------------------------------------------
+  def __ge__( self, that ):
+    return \
+        self._name >= that._name  if isinstance( that, DataSetName ) else \
+	self._name >= str( that )
+  #end __ge__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__gt__()				-
+  #----------------------------------------------------------------------
+  def __gt__( self, that ):
+    return \
+        self._name > that._name  if isinstance( that, DataSetName ) else \
+	self._name > str( that )
+  #end __gt__
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetName.__hash__()				-
   #----------------------------------------------------------------------
   def __hash__( self ):
@@ -5002,32 +5828,23 @@ __init__( dict_value )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataSetName.__init__1()				-
+  #	METHOD:		DataSetName.__le__()				-
   #----------------------------------------------------------------------
-  def __init__1( self, qname = '', model_name = '', ds_name = '' ):
-    """The qname parameter is used if provided.
-@param  qname		qualified name, overrides other params
-@param  model_name	model name
-@param  ds_name		dataset name
-"""
-    self._modelName = ''
-    self._displayName = ''
-    self._name = ''
+  def __le__( self, that ):
+    return \
+        self._name <= that._name  if isinstance( that, DataSetName ) else \
+	self._name <= str( that )
+  #end __le__
 
-    if qname:
-      self._name = qname
-      ndx = qname.find( '|' )
-      if ndx > 0:
-        self._modelName = qname[ 0 : ndx ]
-	self._displayName = qname[ ndx + 1 : ]
-      else:
-        self._displayName = qname
 
-    else:
-      self._modelName = model_name
-      self._displayName = ds_name
-      self._name = model_name + '|' + ds_name  if model_name else  ds_name
-  #end __init__1
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.__lt__()				-
+  #----------------------------------------------------------------------
+  def __lt__( self, that ):
+    return \
+        self._name < that._name  if isinstance( that, DataSetName ) else \
+	self._name < str( that )
+  #end __lt__
 
 
   #----------------------------------------------------------------------
@@ -5092,6 +5909,17 @@ __init__( dict_value )
   #end GetName
 
 
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetName.GetShortName()			-
+  #----------------------------------------------------------------------
+  def GetShortName( self ):
+    return \
+        self._modelName[ : 3 ] + '|' + self._displayName \
+	if self._modelName else \
+	self._displayName
+  #end GetShortName
+
+
 #		-- Property Definitions
 #		--
 
@@ -5112,6 +5940,12 @@ __init__( dict_value )
   #	PROPERTY:	name						-
   #----------------------------------------------------------------------
   name = property( GetName )
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTY:	shortName					-
+  #----------------------------------------------------------------------
+  shortName = property( GetShortName )
 
 
 #		-- Static Methods
@@ -5409,7 +6243,8 @@ NOT process derived datasets as does DataModel.GetStateDataSet().
   #----------------------------------------------------------------------
   @staticmethod
   def ResolveTimeDataSets( states ):
-    """
+    """No longer called from State.Init() in favor of
+DataModelMgr.ResolveAvailableTimeDataSets().
 @param  states		list of State objects
 @return			list of time datasets, always including 'state'
 """
@@ -5491,11 +6326,10 @@ class DerivedState( State ):
 
 
 #------------------------------------------------------------------------
-#	CLASS:		VesselTallyMesh					-
+#	CLASS:		VesselGeometry					-
 #------------------------------------------------------------------------
-class VesselTallyMesh( object ):
-  """Encapsulates vessel tally grid/mesh information.
-Total dataset shape ( z, theta, r, multiplier, stat )
+class VesselGeometry( object ):
+  """
 """
 
 
@@ -5504,11 +6338,200 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.__init__()			-
+  #	METHOD:		VesselGeometry.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self,
+      assy_pitch = 21.5,
+      symmetry_size = ( 8, 8 ),
+      baffle_wd = 3.0,
+      barrel_inner = 187.96,
+      barrel_outer = 193.68,
+      liner_inner = 219.15,
+      liner_outer = 219.71,
+      pad_inner = 194.64,
+      pad_outer = 201.63,
+      pad_angles = ( 45, ),
+      pad_arc = 32,
+      vessel_outer = 241.70
+      ):
+    """Lengths except for pad_arc are in cm.
+@param  assy_pitch	assembly pitch
+@param  symmetry_size	( cols, rows ) ExtractSymmetryExtent()[ 4 5 ]
+@param  baffle_wd	baffle width
+@param  barrel_inner	radius of barrel inner ring
+@param  barrel_outer	radius of barrel outer ring
+@param  liner_inner	radius of liner inner ring
+@param  liner_outer	radius of liner outer ring
+@param  pad_inner	radius of pad inner ring
+@param  pad_outer	radius of pad outer ring
+@param  pad_angles	list of angles in degrees
+@param  pad_arc		pad arc length in degrees
+@param  vessel_outer	radius of vessel outer ringer
+"""
+    self._Config(
+        assy_pitch,
+        symmetry_size,
+        baffle_wd, barrel_inner, barrel_outer,
+        liner_inner, liner_outer,
+        pad_inner, pad_outer, pad_angles, pad_arc,
+        vessel_outer
+        )
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselGeometry.Clone()				-
+  #----------------------------------------------------------------------
+  def Clone( self ):
+    """Deep copy.
+"""
+    new_obj = self.__class__()
+
+#		-- Scalars and references
+#		--
+    #for name in ( '_fluxIndex', '_meanIndex' ):
+    for name in (
+        'baffleSize',
+        'barrelInner', 'barrelInnerOffset',
+	'barrelOuter', 'barrelOuterOffset',
+        'barrelSize', 'coreRadius',
+        'linerInner', 'linerInnerOffset',
+        'linerOuter', 'linerOuterOffset', 'linerSize',
+	'padAngles', 'padArc', 'padSize',
+        'padInner', 'padInnerOffset',
+        'padOuter', 'padOuterOffset',
+        'vesselOuter', 'vesselOuterOffset'
+        ):
+      setattr( new_obj, name, getattr( self, name ) )
+    #end for name
+
+    return  new_obj
+  #end Clone
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselGeometry._Config()			-
+  #----------------------------------------------------------------------
+  def _Config( self,
+      assy_pitch = 21.5,
+      symmetry_size = ( 8, 8 ),
+      baffle_wd = 3.0,
+      barrel_inner = 187.96,
+      barrel_outer = 193.68,
+      liner_inner = 219.15,
+      liner_outer = 219.71,
+      pad_inner = 194.64,
+      pad_outer = 201.63,
+      pad_angles = ( 45, ),
+      pad_arc = 32,
+      vessel_outer = 241.70
+      ):
+    """Lengths except for pad_arc are in cm.
+@param  assy_pitch	assembly pitch
+@param  symmetry_size	( cols, rows ) ExtractSymmetryExtent()[ 4 5 ]
+@param  baffle_wd	baffle width
+@param  barrel_inner	radius of barrel inner ring
+@param  barrel_outer	radius of barrel outer ring
+@param  liner_inner	radius of liner inner ring
+@param  liner_outer	radius of liner outer ring
+@param  pad_inner	radius of pad inner ring
+@param  pad_outer	radius of pad outer ring
+@param  pad_angles	list of angles in degrees
+@param  pad_arc		pad arc length in degrees
+@param  vessel_outer	radius of vessel outer ringer
+"""
+    self.coreRadius = assy_pitch * max( *symmetry_size )
+    self.baffleSize = baffle_wd
+
+    self.barrelInner = barrel_inner
+    self.barrelInnerOffset = barrel_inner - self.coreRadius
+    self.barrelOuter = barrel_outer
+    self.barrelOuterOffset = barrel_outer - self.coreRadius
+    self.barrelSize = barrel_outer - barrel_inner
+
+    self.linerInner = liner_inner
+    self.linerInnerOffset = liner_inner - self.coreRadius
+    self.linerOuter = liner_outer
+    self.linerOuterOffset = liner_outer - self.coreRadius
+    self.linerSize = liner_outer - liner_inner
+
+    self.padInner = pad_inner
+    self.padInnerOffset = pad_inner - self.coreRadius
+    self.padOuter = pad_outer
+    self.padOuterOffset = pad_outer - self.coreRadius
+    self.padSize = pad_outer - pad_inner
+    self.padAngles = pad_angles
+    self.padArc = pad_arc
+
+    self.vesselOuter = vessel_outer
+    self.vesselOuterOffset = vessel_outer - self.coreRadius
+  #end _Config
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselGeometry.Read()				-
+  #----------------------------------------------------------------------
+  def Read( self, h5_group, assy_pitch = 21.5, symmetry_size = ( 8, 8 ) ):
+    """
+"""
+    kwargs = dict( assy_pitch = assy_pitch, symmetry_size = symmetry_size )
+
+    for ds_name, name in (
+	( 'barrel_inner_radius', 'barrel_inner' ),
+	( 'barrel_outer_radius', 'barrel_outer' ),
+	( 'liner_inner_radius', 'liner_inner' ),
+	( 'liner_outer_radius', 'liner_outer' ),
+	( 'pad_arc', 'pad_arc' ),
+	( 'pad_inner_radius', 'pad_inner' ),
+	( 'pad_outer_radius', 'pad_outer' ),
+	( 'vessel_outer_radius', 'vessel_outer' ),
+        ):
+      item = h5_group.get( ds_name )
+      if item is not None:
+	kwargs[ name ] = item[ 0 ] if len( item.shape ) > 0 else item[ () ]
+    #end for
+
+    inner = h5_group.get( 'baffle_inner_radius' )
+    outer = h5_group.get( 'baffle_outer_radius' )
+    if inner is not None and outer is not None:
+      inner_value = inner[ 0 ] if len( inner.shape ) > 0 else inner[ () ]
+      outer_value = outer[ 0 ] if len( outer.shape ) > 0 else outer[ () ]
+      kwargs[ 'baffle_wd' ] = outer_value - inner_value
+
+    item = h5_group.get( 'pad_angles' )
+    if item is not None:
+      if len( item.shape ) > 0:
+        kwargs[ 'pad_angles' ] = tuple( np.array( item ).tolist() )
+      else:
+        kwargs[ 'pad_angles' ] = ( item[ () ], )
+
+    self._Config( **kwargs )
+  #end Read
+
+#end VesselGeometry
+
+
+#------------------------------------------------------------------------
+#	CLASS:		VesselTallyDef					-
+#------------------------------------------------------------------------
+class VesselTallyDef( object ):
+  """Encapsulates vessel tally grid/mesh information.
+Total dataset shape ( z, theta, r, multiplier, stat )
+For now, we only process 'mean' stat and 'flux' multiplier.
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.__init__()			-
   #----------------------------------------------------------------------
   def __init__( self, h5_group = None ):
     """
-@param  h5_group	optional "CORE/vessel_tally" group, if None must
+@param  h5_group	optional "CORE/vessel_tally" or
+			"STATE_0001/vessel_tally" group, if None must
 			call Read()
 """
     self.Clear()
@@ -5518,20 +6541,29 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.Clear()				-
+  #	METHOD:		VesselTallyDef.Clear()				-
   #----------------------------------------------------------------------
   def Clear( self ):
-    self._fluxIndex = 0  # multipler_names
-    self._meanIndex = 0  # mesh_stat
+    #self._fluxIndex = 0  # multipler_names
+    #self._meanIndex = 0  # mesh_stat
+
+    self._nmultipliers = \
+    self._nr = \
+    self._nstat = \
+    self._ntheta = \
+    self._nz = 0
+
+    self._multiplierNames = None
     self._r = None
     self._stat = None
     self._theta = None
     self._z = None
+    self._zcenters = None
   #end Clear
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.Clone()				-
+  #	METHOD:		VesselTallyDef.Clone()				-
   #----------------------------------------------------------------------
   def Clone( self ):
     """Deep copy.
@@ -5540,13 +6572,14 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 #		-- Scalars and references
 #		--
-    for name in ( '_fluxIndex', '_meanIndex' ):
+    #for name in ( '_fluxIndex', '_meanIndex' ):
+    for name in ( '_nmultipliers', '_nr', '_nstat', '_ntheta', '_nz' ):
       setattr( new_obj, name, getattr( self, name ) )
     #end for name
 
 #		-- Numpy arrays
 #		--
-    for name in ( '_r', '_stat', '_theta', '_z' ):
+    for name in ( '_multiplierNames', '_r', '_stat', '_theta', '_z' ):
       value = getattr( self, name )
       if value is None:
         new_value = None
@@ -5560,23 +6593,71 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.GetFluxIndex()			-
+  #	METHOD:		VesselTallyDef.GetFluxIndex()			-
   #----------------------------------------------------------------------
-  def GetFluxIndex( self ):
-    return  self._fluxIndex
-  #end GetFluxIndex
+#  def GetFluxIndex( self ):
+#    return  self._fluxIndex
+#  #end GetFluxIndex
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.GetMeanIndex()			-
+  #	METHOD:		VesselTallyDef.GetMeanIndex()			-
   #----------------------------------------------------------------------
-  def GetMeanIndex( self ):
-    return  self._meanIndex
-  #end GetMeanIndex
+#  def GetMeanIndex( self ):
+#    return  self._meanIndex
+#  #end GetMeanIndex
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.GetR()				-
+  #	METHOD:		VesselTallyDef.GetMultiplierNames()		-
+  #----------------------------------------------------------------------
+  def GetMultiplierNames( self ):
+    return  self._multiplierNames
+  #end GetMultiplierNames
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetNMultipliers()		-
+  #----------------------------------------------------------------------
+  def GetNMultipliers( self ):
+    return  self._nmultipliers
+  #end GetNMultipliers
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetNR()				-
+  #----------------------------------------------------------------------
+  def GetNR( self ):
+    return  self._nr
+  #end GetNR
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetNStat()			-
+  #----------------------------------------------------------------------
+  def GetNStat( self ):
+    return  self._nstat
+  #end GetNStat
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetNTheta()			-
+  #----------------------------------------------------------------------
+  def GetNTheta( self ):
+    return  self._ntheta
+  #end GetNTheta
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetNZ()				-
+  #----------------------------------------------------------------------
+  def GetNZ( self ):
+    return  self._nz
+  #end GetNZ
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetR()				-
   #----------------------------------------------------------------------
   def GetR( self ):
     return  self._r
@@ -5584,7 +6665,15 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.GetTheta()			-
+  #	METHOD:		VesselTallyDef.GetStat()			-
+  #----------------------------------------------------------------------
+  def GetStat( self ):
+    return  self._stat
+  #end GetStat
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.GetTheta()			-
   #----------------------------------------------------------------------
   def GetTheta( self ):
     return  self._theta
@@ -5592,7 +6681,7 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.GetZ()				-
+  #	METHOD:		VesselTallyDef.GetZ()				-
   #----------------------------------------------------------------------
   def GetZ( self ):
     return  self._z
@@ -5600,11 +6689,33 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		VesselTallyMesh.Read()				-
+  #	METHOD:		VesselTallyDef.GetZCenters()			-
+  #----------------------------------------------------------------------
+  def GetZCenters( self ):
+    return  self._zcenters
+  #end GetZCenters
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.IsValid()			-
+  #----------------------------------------------------------------------
+  def IsValid( self ):
+    """
+@return			True if this is valid, False if invalid or empty
+"""
+    return \
+        self._nmultipliers > 0 and self._nr > 1 and \
+	self._nstat > 0 and self._ntheta > 0 and \
+	self._nz > 0
+  #end IsValid
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselTallyDef.Read()				-
   #----------------------------------------------------------------------
   def Read( self, h5_group ):
     """
-@param  h5_group	"CORE/vessel_tally" group
+@param  h5_group	"CORE/vessel_tally" or "STATE_0001/vessel_tally" group
 """
     self.Clear()
 
@@ -5617,49 +6728,80 @@ Total dataset shape ( z, theta, r, multiplier, stat )
 #		--
     missing = []
 
-    for name in ( '_r', '_theta', '_z' ):
+    for name in ( '_r', '_stat', '_theta', '_z' ):
       ds_name = 'mesh' + name
       if ds_name in h5_group:
-        setattr( self, name, np.array( h5_group[ ds_name ] ) )
+	value = np.array( h5_group[ ds_name ] )
+        setattr( self, name, value )
+	setattr( self, name.replace( '_', '_n' ), len( value ) - 1 )
       else:
-        missing.append( '"%s" not found' % ds_name )
+	missing.append( ds_name )
+        #missing.append( '"%s" not found' % ds_name )
     #end for name
 
-    if missing:
-      raise Exception( ', '.join( missing ) )
+    if self._z is not None and self._nz > 0:
+      zarray = np.array( self._z )
+      self._zcenters = (zarray[ : -1 ] + zarray[ 1 : ]) / 2.0
+
+    for ds_name, attr_name, n_name in (
+        ( 'multiplier_names', '_multiplierNames', '_nmultipliers' ),
+        ( 'mesh_stat', '_stat', '_nstat' ),
+	):
+      if ds_name in h5_group:
+        value = np.array( h5_group[ ds_name ] )
+	setattr( self, attr_name, value )
+	setattr( self, n_name, len( value ) )
+      else:
+        missing.append( ds_name )
+    #end for ds_name, attr_name
 
 #		-- Read index labels
 #		--
-    if 'mesh_stat' in h5_group:
-      dset = h5_group[ 'mesh_stat' ]
-      if len( dset.shape ) > 0:
-        for i in xrange( dset.shape[ 0 ] ):
-	  if dset[ i ] == 'mean':
-	    self._meanIndex = i
-	    break
-    #end if 'mesh_stat'
+#    if 'mesh_stat' in h5_group:
+#      dset = h5_group[ 'mesh_stat' ]
+#      if len( dset.shape ) > 0:
+#        for i in xrange( dset.shape[ 0 ] ):
+#	  if dset[ i ] == 'mean':
+#	    self._meanIndex = i
+#	    break
+#    else:
+#      missing.append( 'mesh_stat' )
+#    #end if 'mesh_stat'
 
-    if 'multiplier_names' in h5_group:
-      dset = h5_group[ 'multiplier_names' ]
-      if len( dset.shape ) > 0:
-        for i in xrange( dset.shape[ 0 ] ):
-	  if dset[ i ] == 'flux':
-	    self._fluxIndex = i
-	    break
-    #end if 'multiplier_names'
+#    if 'multiplier_names' in h5_group:
+#      dset = h5_group[ 'multiplier_names' ]
+#      if len( dset.shape ) > 0:
+#        for i in xrange( dset.shape[ 0 ] ):
+#	  if dset[ i ] == 'flux':
+#	    self._fluxIndex = i
+#	    break
+#    else:
+#      missing.append( 'multiplier_names' )
+#    #end if 'multiplier_names'
+
+    if missing:
+      raise Exception( 'Not found: ' + ', '.join( missing ) )
   #end Read
 
 
 #		-- Properties
 #		--
 
-  fluxIndex = property( GetFluxIndex )
-  meanIndex = property( GetMeanIndex )
+  #fluxIndex = property( GetFluxIndex )
+  #meanIndex = property( GetMeanIndex )
+  multiplierNames = property( GetMultiplierNames )
+  nmultipliers = property( GetNMultipliers )
+  nr = property( GetNR )
+  nstat = property( GetNStat )
+  ntheta = property( GetNTheta )
+  nz = property( GetNZ )
   r = property( GetR )
+  stat = property( GetStat )
   theta = property( GetTheta )
   z = property( GetZ )
+  zcenters = property( GetZCenters )
 
-#end VesselTallyMesh
+#end VesselTallyDef
 
 
 #------------------------------------------------------------------------

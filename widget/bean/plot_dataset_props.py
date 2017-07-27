@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_dataset_props.py				-
 #	HISTORY:							-
+#		2017-07-21	leerw@ornl.gov				-
+#	  Fixing _OnCharHook for Linux.
+#		2017-03-31	leerw@ornl.gov				-
+#	  Added EVT_CHAR_HOOK.
+#		2017-03-24	leerw@ornl.gov				-
+#	  Explicit assign of each dataset to an axis.
 #		2016-12-12	leerw@ornl.gov				-
 #	  Updated with DataSetName keys.
 #		2016-05-27	leerw@ornl.gov				-
@@ -11,7 +17,7 @@
 #		2016-05-19	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, json, math, os, sys
-#import pdb  #pdb.set_trace()
+import pdb  #pdb.set_trace()
 
 try:
 #  import wx, wx.lib.newevent
@@ -56,7 +62,7 @@ bottom axis check, and scale value text control.
 
     #wx.LIST_AUTOSIZE only works the first time
     #wx.LIST_AUTOSIZE_FILL(-3)
-    self.InsertColumn( 0, 'Dataset', width = 164 )
+    self.InsertColumn( 0, 'Dataset', width = 200 )
     self.InsertColumn( 1, axis1 + ' Axis' )
     self.InsertColumn( 2, axis2 + ' Axis' )
     self.InsertColumn( 3, 'Scale', width = 128 )
@@ -125,9 +131,9 @@ values.
       other_axis_col = 1 if col == 2 else 2
       self.GetItemWindow( row, other_axis_col ).SetValue( False )
 
-      for i in range( self.GetItemCount() ):
-        if i != row:
-	  self.GetItemWindow( i, col ).SetValue( False )
+#      for i in range( self.GetItemCount() ):
+#        if i != row:
+#	  self.GetItemWindow( i, col ).SetValue( False )
       #end for
     #end if
   #end _OnCheck
@@ -304,6 +310,8 @@ class PlotDataSetPropsDialog( wx.Dialog ):
 	)
     sizer.Add( button_sizer, 0, wx.ALL | wx.EXPAND, 6 )
 
+    self.Bind( wx.EVT_CHAR_HOOK, self._OnCharHook )
+
     self.SetSize( wx.Size( 640, 400 ) )
     self.SetTitle( 'DataSet Plot Properties' )
     #sizer.Layout()
@@ -329,6 +337,23 @@ class PlotDataSetPropsDialog( wx.Dialog ):
 
     self.EndModal( retcode )
   #end _OnButton
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog._OnCharHook()			-
+  #----------------------------------------------------------------------
+  def _OnCharHook( self, ev ):
+    code = ev.GetKeyCode()
+    if code == wx.WXK_RETURN:
+      self.fProps = self.fBean.GetProps()
+      self.EndModal( wx.ID_OK )
+    elif code == wx.WXK_ESCAPE:
+      self.EndModal( wx.ID_CANCEL )
+    else:
+      ev.DoAllowNextEvent()
+
+    ev.Skip()
+  #end _OnCharHook
 
 
   #----------------------------------------------------------------------

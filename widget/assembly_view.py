@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		assembly_view.py				-
 #	HISTORY:							-
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified LoadDataModelXxx() methods to process the reason param.
+#		2017-03-10	leerw@ornl.gov				-
+#	  Update to precisionDigits and precisionMode.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Using self.precision.
 #		2017-03-01	leerw@ornl.gov				-
 #	  Calculating and setting image size.
 #		2017-01-26	leerw@ornl.gov				-
@@ -326,7 +332,7 @@ Attrs/properties:
         row_text += ',"(%d,%d)"' % ( rc[ 0 ] + 1, rc[ 1 ] + 1 )
       csv_text += row_text + '\n'
 
-      mesh_centers = self.dmgr.GetAxialMeshCenters( self.curDataSet )
+      mesh_centers = self.dmgr.GetAxialMeshCenters2( self.curDataSet )
       for axial_level in range( dset_shape[ 2 ] - 1, -1, -1 ):
 	row_text = '%.3f' % mesh_centers[ axial_level ]
 	for rc in sub_addrs:
@@ -499,7 +505,8 @@ If neither are specified, a default 'scale' value of 24 is used.
     config[ 'assemblyRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
     config[ 'imageSize' ] = ( image_wd, image_ht )
-    config[ 'lineWidth' ] = max( 1, pin_gap )
+    #config[ 'lineWidth' ] = max( 1, pin_gap )
+    config[ 'lineWidth' ] = max( 1, pin_gap >> 2 )
     config[ 'pinGap' ] = pin_gap
     config[ 'pinWidth' ] = pin_wd
     config[ 'valueFont' ] = value_font
@@ -654,7 +661,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			-- Limit axial level
       axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
       axial_value = self.dmgr.\
-          GetAxialValue( self.curDataSet, core_ndx = axial_level )
+          GetAxialValue2( self.curDataSet, core_ndx = axial_level )
 
 #			-- Create image
 #			--
@@ -751,7 +758,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 	    if value_font is not None:
 	      value_draw_list.append((
-	          self._CreateValueString( value, 3 ),
+	          self._CreateValueString( value ),
                   Widget.GetContrastColor( *brush_color ),
                   item_x, item_y, pin_wd, pin_wd
                   ))
@@ -1019,6 +1026,17 @@ Subclasses should override as needed.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		AssemblyView.GetPrintScale()			-
+  #----------------------------------------------------------------------
+  def GetPrintScale( self ):
+    """Should be overridden by subclasses.
+@return		28
+"""
+    return  32
+  #end GetPrintScale
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView.GetTitle()			-
   #----------------------------------------------------------------------
   def GetTitle( self ):
@@ -1112,7 +1130,26 @@ Subclasses should override as needed.
   #----------------------------------------------------------------------
   #	METHOD:		Assembly2DView._LoadDataModelValues()		-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues( self ):
+  def _LoadDataModelValues( self, reason ):
+    """This noop version should be implemented in subclasses to initialize
+attributes/properties that aren't already set in _LoadDataModel():
+  axialValue
+  stateIndex
+"""
+    if (reason & STATE_CHANGE_coordinates) > 0:
+      self.assemblyAddr = self.state.assemblyAddr
+      self.subAddr = self.state.subAddr
+    if (reason & STATE_CHANGE_curDataSet) > 0:
+      self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+
+    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
+  #end _LoadDataModelValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._LoadDataModelValues_1()		-
+  #----------------------------------------------------------------------
+  def _LoadDataModelValues_1( self ):
     """This noop version should be implemented in subclasses to initialize
 attributes/properties that aren't already set in _LoadDataModel():
   axialValue
@@ -1123,7 +1160,7 @@ attributes/properties that aren't already set in _LoadDataModel():
     self.subAddr = self.state.subAddr
 
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
-  #end _LoadDataModelValues
+  #end _LoadDataModelValues_1
 
 
   #----------------------------------------------------------------------

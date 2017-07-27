@@ -10,7 +10,7 @@ CondaBinDir="$HOME/miniconda2/bin"
 Conda="${CondaBinDir}/conda"
 
 if [ -x "${Conda}" ]; then
-  exec "${Conda}" install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+  exec "${Conda}" install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0 libgfortran=1
 
 else
   cat <<END >&2

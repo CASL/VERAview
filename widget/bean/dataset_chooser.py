@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		dataset_chooser.py				-
 #	HISTORY:							-
+#		2017-07-21	leerw@ornl.gov				-
+#	  Fixing _OnCharHook for Linux.
+#		2017-03-31	leerw@ornl.gov				-
+#	  Added EVT_CHAR_HOOK.
 #		2015-05-28	leerw@ornl.gov				-
 #	  Added scrolled panel.
 #		2015-05-12	leerw@ornl.gov				-
@@ -581,6 +585,8 @@ Must pass the 'ds_names' parameter.
     sizer.Add( button_sizer, 0, wx.ALL | wx.EXPAND, 6 )
     sizer.Layout()
 
+    self.Bind( wx.EVT_CHAR_HOOK, self._OnCharHook )
+
     self.SetSizer( sizer )
     self.SetTitle( 'DataSet Chooser' )
     self.Fit()
@@ -603,6 +609,23 @@ Must pass the 'ds_names' parameter.
 
     self.EndModal( retcode )
   #end _OnButton
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog._OnCharHook()			-
+  #----------------------------------------------------------------------
+  def _OnCharHook( self, ev ):
+    code = ev.GetKeyCode()
+    if code == wx.WXK_RETURN:
+      self.fResult = self.fBean.value
+      self.EndModal( wx.ID_OK )
+    elif code == wx.WXK_ESCAPE:
+      self.EndModal( wx.ID_CANCEL )
+    else:
+      ev.DoAllowNextEvent()
+
+    ev.Skip()
+  #end _OnCharHook
 
 
   #----------------------------------------------------------------------

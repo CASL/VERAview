@@ -367,8 +367,10 @@ derivedMenu if requested in the constructor.
       have_derived_flag = False
 
       types_in = \
-          self.dataSetTypesIn if self.dataSetTypesIn is not None else \
+          self.dataSetTypesIn  if self.dataSetTypesIn is not None else \
 	  self.dataModel.GetDataSetNames().keys()
+      if 'tally' in types_in:
+        types_in.remove( 'tally' )
       del self.dataSetTypes[ : ]
       for k in sorted( types_in ):
 	if k != 'axial':
@@ -624,7 +626,8 @@ derivedMenu if requested in the constructor.
 	  #end for dtype
 #					-- Create per-type menus
 	  item_ndx = 0
-	  cur_selection = self.state.GetCurDataSet()
+	  #cur_selection = self.state.GetCurDataSet()
+	  cur_selection = self._GetCurDataSet()
 	  for dtype, dataset_names in sorted( names_by_type.iteritems() ):
 	    dtype_menu = wx.Menu()
 	    for name in sorted( dataset_names ):
@@ -819,6 +822,16 @@ or Widget is responsible for calling UpdateMenu().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetsMenu.FindDataSetItem()			-
+  #----------------------------------------------------------------------
+  def FindDataSetItem( self, qds_name ):
+    """
+"""
+    pass
+  #end FindDataSetItem
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetsMenu.Init()				-
   #----------------------------------------------------------------------
   def Init( self ):
@@ -834,17 +847,15 @@ or Widget is responsible for calling UpdateMenu().
   #	METHOD:		DataSetsMenu._LoadDataModelMgr()		-
   #----------------------------------------------------------------------
   def _LoadDataModelMgr( self ):
-    """Here we determine the available dataset types, create model
-submenu (DataSetMenus), and create the derivedMenu if
-requested in the constructor and there is only one DataModel.
+    """Here we set up listeners.
 """
-    #dmgr = State.FindDataModelMgr( self.state )
     dmgr = self.state.dataModelMgr
     if dmgr is not None and not self.isLoaded:
       self.isLoaded = True
       dmgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
       dmgr.AddListener( 'modelAdded', self._OnModelAdded )
       dmgr.AddListener( 'modelRemoved', self._OnModelRemoved )
+      # Only if not already loaded, event handlers do this otherwise
       self.UpdateAllMenus( dmgr )
     #end if dmgr
   #end _LoadDataModelMgr
@@ -922,9 +933,15 @@ only recreate all the menus when necessary.
 	  model_name in self.modelSubMenus:
         menu_item_id = self.FindItem( model_name )
 	if menu_item_id != wx.NOT_FOUND:
-	  self.DestroyItem( menu_item_id )
-          del self.modelSubMenus[ model_name ]
-	  update_all = False
+#	  self.DestroyItem( menu_item_id )
+#          del self.modelSubMenus[ model_name ]
+#	  update_all = False
+	  try:
+            del self.modelSubMenus[ model_name ]
+	    self.DestroyItem( menu_item_id )
+	    update_all = False
+	  except Exception, ex:
+	    pass
       #end if dmgr
 
       if update_all:
@@ -974,6 +991,38 @@ Reset() on all the model submenus.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetsMenu._StartListening()			-
+  #----------------------------------------------------------------------
+  def _StartListening( self, dmgr = None ):
+    """Activate listeners.
+"""
+    if dmgr is None:
+      dmgr = self.state.dataModelMgr
+    if dmgr is not None:
+      dmgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
+      dmgr.AddListener( 'modelAdded', self._OnModelAdded )
+      dmgr.AddListener( 'modelRemoved', self._OnModelRemoved )
+    #end if dmgr
+  #end _StartListening
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataSetsMenu._StopListening()			-
+  #----------------------------------------------------------------------
+  def _StopListening( self, dmgr = None ):
+    """Deactivate listeners.
+"""
+    if dmgr is None:
+      dmgr = self.state.dataModelMgr
+    if dmgr is not None:
+      dmgr.RemoveListener( 'dataSetAdded', self._OnDataSetAdded )
+      dmgr.RemoveListener( 'modelAdded', self._OnModelAdded )
+      dmgr.RemoveListener( 'modelRemoved', self._OnModelRemoved )
+    #end if dmgr
+  #end _StopListening
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetsMenu.UpdateAllMenus()			-
   #----------------------------------------------------------------------
   def UpdateAllMenus( self, dmgr = None ):
@@ -984,7 +1033,8 @@ Reset() on all the model submenus.
     self.modelSubMenus = {}
 
     if dmgr is None:
-      dmgr = State.FindDataModelMgr( self.state )
+      #dmgr = State.FindDataModelMgr( self.state )
+      dmgr = self.state.dataModelMgr
     if dmgr is not None:
       if dmgr.GetDataModelCount() == 1:
         self.modelSubMenus[ 'self' ] = self

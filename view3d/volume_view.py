@@ -2,6 +2,11 @@
 #------------------------------------------------------------------------
 #	NAME:		volume_view.py					-
 #	HISTORY:							-
+#		2017-05-13	leerw@ornl.gov				-
+#	  Added Is3D().
+#		2017-05-05	leerw@ornl.gov				-
+#	  Added {Load,Save}Props(), modified LoadDataModel() to process
+#	  the reason param.
 #		2017-01-09	leerw@ornl.gov				-
 #	  Migrating to DataModelMgr.
 #		2016-10-26	leerw@ornl.gov				-
@@ -360,9 +365,49 @@ class Volume3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView.Is3D()				-
+  #----------------------------------------------------------------------
+  def Is3D( self ):
+    """
+@return			True
+"""
+    return  True
+  #end Is3D
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Volume3DView._LoadDataModel()			-
   #----------------------------------------------------------------------
   def _LoadDataModel( self, reason ):
+    if self.dmgr.HasData() and not self.isLoaded:
+      self.isLoaded = True
+
+      if (reason & STATE_CHANGE_curDataSet) > 0:
+        self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+
+      if (reason & STATE_CHANGE_coordinates) > 0:
+        self.assemblyAddr = self.state.assemblyAddr
+        self.subAddr = self.state.subAddr
+
+      if (reason & STATE_CHANGE_axialValue) > 0:
+        self.axialValue = self.dmgr.\
+            GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+
+      if (reason & STATE_CHANGE_timeValue) > 0:
+        self.timeValue = self.state.timeValue
+        self.stateIndex = self.dmgr.\
+            GetTimeValueIndex( self.timeValue, self.curDataSet )
+
+      self.coreExtent = self.dmgr.ExtractSymmetryExtent()
+      self._UpdateData()
+    #end if
+  #end _LoadDataModel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView._LoadDataModel_1()			-
+  #----------------------------------------------------------------------
+  def _LoadDataModel_1( self, reason ):
     if self.dmgr.HasData() and not self.isLoaded:
       self.isLoaded = True
 
@@ -379,7 +424,23 @@ class Volume3DView( Widget ):
 
       self._UpdateData()
     #end if
-  #end _LoadDataModel
+  #end _LoadDataModel_1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView.LoadProps()			-
+  #----------------------------------------------------------------------
+  def LoadProps( self, props_dict ):
+    """Called to load properties.  This implementation is a noop and should
+be overridden by subclasses.
+@param  props_dict	dict object from which to deserialize properties
+"""
+    for k in ( 'assemblyAddr', 'subAddr' ):
+      if k in props_dict:
+        setattr( self, k, props_dict[ k ] )
+
+    super( Volume3DView, self ).LoadProps( props_dict )
+  #end LoadProps
 
 
   #----------------------------------------------------------------------
@@ -390,6 +451,21 @@ class Volume3DView( Widget ):
       wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
       self.FireStateChange( cur_dataset = qds_name )
   #end SetDataSet
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView.SaveProps()			-
+  #----------------------------------------------------------------------
+  def SaveProps( self, props_dict ):
+    """Called to save properties.  Subclasses should override calling this
+method via super.SaveProps().
+@param  props_dict	dict object to which to serialize properties
+"""
+    super( Volume3DView, self ).SaveProps( props_dict )
+
+    for k in ( 'assemblyAddr', 'subAddr' ):
+      props_dict[ k ] = getattr( self, k )
+  #end SaveProps
 
 
   #----------------------------------------------------------------------

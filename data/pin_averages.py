@@ -1,6 +1,9 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2017-03-07	godfreyat@ornl.gov			-
+#	  Checking "factor" attribute, defaulting to self.pinWeights in
+#	  calc_average().
 #		2016-11-23	godfreyat@ornl.gov			-
 #	  New calc_pin_radial_node_avg() implementation.
 #		2016-10-04	leerw@ornl.gov				-
@@ -92,8 +95,24 @@ be called before use.
     if dset is not None:
       errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
       try:
+	factor_weights = None
+	if dset.attrs and 'factor' in dset.attrs:
+          factor_obj = dset.attrs[ 'factor' ]
+	  factor_name = \
+	      factor_obj[ 0 ] if isinstance( factor_obj, np.ndarray ) else \
+	      str( factor_obj )
+
+	  if self.core is not None:
+	    factor_weights = self.core.group.get( factor_name )
+	  if factor_weights is not None and len( factor_weights.shape ) != 4:
+	    factor_weights = None
+	#end if 'factor'
+
+	if factor_weights is None:
+	  factor_weights = self.pinWeights
+
 	data = np.array( dset )
-	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
+	avg = np.sum( data * factor_weights, axis = avg_axis ) / avg_weights
 	if len( avg.shape ) > 0:
           avg[ avg == np.inf ] = 0.0
 	avg = np.nan_to_num( avg )

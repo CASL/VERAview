@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified LoadDataModel() to process the reason param.
 #		2017-02-03	leerw@ornl.gov				-
 #	  Adding white background image save option.
 #		2017-01-26	leerw@ornl.gov				-
@@ -43,7 +45,7 @@
 #------------------------------------------------------------------------
 import logging, math, os, sys, tempfile, time, traceback
 import numpy as np
-#import pdb  # pdb.set_trace()
+#import pdb # pdb.set_trace()
 
 try:
   import wx
@@ -252,29 +254,41 @@ Support Methods
   #	METHOD:		CreatePrintImage()				-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path, bgcolor = None ):
+    """
+"""
     result = None
 
     if self.fig is not None:
-      if self.cursorLine is not None:
-        self.cursorLine.set_visible( False )
-      if self.axline is not None:
-        self.axline.set_visible( False )
+      #if wx.IsMainThread():
+      if Widget.IsMainThread():
+        if self.cursorLine is not None:
+          self.cursorLine.set_visible( False )
+        if self.axline is not None:
+          self.axline.set_visible( False )
 
       if bgcolor and hasattr( bgcolor, '__iter__' ) and len( bgcolor ) >= 3:
 	fc = tuple( [ bgcolor[ i ] / 255.0 for i in xrange( 3 ) ] )
       else:
         fc = self.fig.get_facecolor()
+
+# Sleep needed when animating to prevent matplotlib errors generating
+# tick marks on Mac.  Some day we must figure out why.  It seems to have
+# to do with wxPython and the MainThread.
+      time.sleep( 0.5 )
       self.fig.savefig(
-          file_path, dpi = 144, format = 'png', orientation = 'landscape',
+          file_path, dpi = 216, format = 'png', orientation = 'landscape',
 	  facecolor = fc
 	  )
+          # dpi = 144
       result = file_path
 
-      if self.axline is not None:
-        self.axline.set_visible( True )
-      if self.cursorLine is not None:
-        self.cursorLine.set_visible( True )
-      self.canvas.draw()
+      #if wx.IsMainThread():
+      if Widget.IsMainThread():
+        if self.axline is not None:
+          self.axline.set_visible( True )
+        if self.cursorLine is not None:
+          self.cursorLine.set_visible( True )
+        self.canvas.draw()
     #end if
 
     return  result
@@ -384,17 +398,8 @@ model.
 xxx need loaded flag set when LoadProps() is called so you don't call
 _LoadDataModelValues()
 """
-#    if self.dmgr.HasData() and not self.isLoaded:
-#      self.isLoaded = True
-#      update_args = self._LoadDataModelValues()
-#      #x wx.CallAfter( self.UpdateState, **update_args )
-
-##    if not self.isLoading:
-##      self._LoadDataModelValues()
-##      if (reason & (STATE_CHANGE_init | STATE_CHANGE_dataModelMgr)) > 0
-
     if not self.isLoading:
-      update_args = self._LoadDataModelValues()
+      update_args = self._LoadDataModelValues( reason )
       if 'replot' in update_args:
         wx.CallAfter( self.UpdateState, replot = True )
   #end _LoadDataModel
@@ -403,7 +408,7 @@ _LoadDataModelValues()
   #----------------------------------------------------------------------
   #	METHOD:		_LoadDataModelValues()				-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues( self ):
+  def _LoadDataModelValues( self, reason ):
     """This noop version should be implemented in subclasses to create a dict
 to be passed to UpdateState().  Assume self.dmgr is valid.
 @return			dict to be passed to UpdateState()
@@ -438,6 +443,7 @@ be overridden by subclasses.
     #end for k
 
     super( PlotWidget, self ).LoadProps( props_dict )
+    self.container.dataSetMenu.UpdateAllMenus()
     wx.CallAfter( self.UpdateState, replot = True )
   #end LoadProps
 
@@ -505,42 +511,6 @@ be overridden by subclasses.
 
     self.canvas.SetToolTipString( tip_str )
   #end _OnMplMouseMotion
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnMplMouseMotion_old()				-
-  #----------------------------------------------------------------------
-  def _OnMplMouseMotion_old( self, ev ):
-    tip_str = ''
-
-    if ev.inaxes is None:
-      self.cursor = None
-      if self.cursorLine is not None:
-        self.cursorLine.set_visible( False )
-        self.canvas.draw()
-      #self.canvas.SetToolTipString( '' )
-
-    elif ev.inaxes == self.ax:
-      if self.cursorLine is None:
-        self.cursorLine = \
-	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
-	    if self.refAxis == 'y' else \
-	    self.ax.axvline( color = 'k', linestyle = '--', linewidth = 1 ) \
-
-      self.cursor = ( ev.xdata, ev.ydata )
-      if self.refAxis == 'y':
-        self.cursorLine.set_ydata( ev.ydata )
-      else:
-        self.cursorLine.set_xdata( ev.xdata )
-      self.cursorLine.set_visible( True )
-      self.canvas.draw()
-
-      tip_str = self._CreateToolTipText( ev )
-      #self.canvas.SetToolTipString( tip_str )
-    #end elif
-
-    self.canvas.SetToolTipString( tip_str )
-  #end _OnMplMouseMotion_old
 
 
   #----------------------------------------------------------------------
@@ -712,7 +682,6 @@ Must be called from the UI thread.
     if replot:
       self._UpdateDataSetValues()
       self._UpdatePlot()
-    #end if replot
 
     elif redraw:
       self.canvas.draw()
@@ -729,7 +698,7 @@ Must be called from the UI thread.
 @return			kwargs with 'redraw' and/or 'replot'
 """
     replot = kwargs.get( 'replot', False )
-    redraw = kwargs.get( 'redraw', False )
+    redraw = kwargs.get( 'redraw', kwargs.get( 'force_redraw', False ) )
 
     if 'data_model_mgr' in kwargs:
       replot = True

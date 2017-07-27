@@ -3,6 +3,20 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2017-06-05	leerw@ornl.gov				-
+#	  Fixed sizing to allow for title string with many datasets
+#	  active.
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified LoadDataModelXxx() methods to process the reason param.
+#		2017-03-10	leerw@ornl.gov				-
+#	  Update to precisionDigits and precisionMode.
+#		2017-03-06	leerw@ornl.gov				-
+#	  Using fixed_detector dataset for background color in numbers
+#	  mode if no detector dataset is selected.
+#		2017-03-04	leerw@ornl.gov				-
+#	  Reversed sense of mode toggle button.
+#	  Applying self.precision.
+#	  In "numbers" mode, drawing background with outline color.
 #		2017-03-01	leerw@ornl.gov				-
 #	  Calculating and setting image size.
 #		2016-12-27	leerw@ornl.gov				-
@@ -101,7 +115,7 @@ FIXED_LINE_COLORS = [
 
 LINE_COLORS = [
     ( 0, 0, 0, 255 ),
-    ( 240, 163, 255, 255 ),
+#    ( 240, 163, 255, 255 ),
     ( 0, 117, 220, 255 ),
     ( 153, 63, 0, 255 ),
     ( 76, 0, 92, 255 ),
@@ -160,7 +174,7 @@ Attrs/properties:
     self.lineColorGrid = ( 200, 200, 200, 255 )
     self.lineColorFixedCenter = ( 255, 255, 255, 255 )
 
-    self.toolButtonDefs = [ ( 'plot_16x16', 'Toggle Mode', self._OnMode ) ]
+    self.toolButtonDefs = [ ( 'numbers_16x16', 'Toggle Mode to Numbers', self._OnMode ) ]
 
     super( Detector2DMultiView, self ).__init__( container, id )
   #end __init__
@@ -203,9 +217,10 @@ Attrs/properties:
 
 #			-- Detector datasets
 #			--
-      det_mesh = self.dmgr.GetDetectorMesh()
+      #det_mesh = self.dmgr.GetDetectorMesh()
+      det_mesh = self.dmgr.GetAxialMesh2( None, 'detector' )
       if det_mesh is not None and len( det_mesh ) > 0 and \
-          len( self.detectorDataSets ) > 0:
+          len( det_mesh ) > 0:
         for qds_name in sorted( self.detectorDataSets ):
 	  dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
           if dset is not None:
@@ -214,13 +229,14 @@ Attrs/properties:
 	    csv_text += self.dmgr.GetDataSetDisplayName( qds_name ) + '\n'
 #						-- Header row
             row_text = 'Row,Mesh'
-            for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+            for det_col in xrange( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
               row_text += ',' + core.GetColLabel( det_col )
 #              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
             csv_text += row_text + '\n'
 
 #						-- Data rows
-	    cur_det_mesh = self.dmgr.GetDetectorMesh( qds_name )
+	    #cur_det_mesh = self.dmgr.GetDetectorMesh( qds_name )
+	    cur_det_mesh = self.dmgr.GetAxialMesh2( qds_name, 'detector' )
             for det_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
 #              row_label = core.coreLabels[ 1 ][ det_row ]
               row_label = core.GetRowLabel( det_row )
@@ -245,9 +261,10 @@ Attrs/properties:
 
 #			-- Fixed detector datasets
 #			--
-      fdet_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      #fdet_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      fdet_mesh_centers = self.dmgr.GetAxialMeshCenters2( None, 'fixed_detector' )
       if fdet_mesh_centers is not None and len( fdet_mesh_centers ) > 0 and \
-          len( self.fixedDetectorDataSets ) > 0:
+          len( fdet_mesh_centers ) > 0:
         for qds_name in sorted( self.fixedDetectorDataSets ):
 	  dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
           if dset is not None:
@@ -255,13 +272,15 @@ Attrs/properties:
 	    csv_text += self.dmgr.GetDataSetDisplayName( qds_name ) + '\n'
 #						-- Header row
             row_text = 'Row,Mesh Center'
-            for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+            for det_col in xrange( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
               row_text += ',' + core.GetColLabel( det_col )
 #              row_text += ',' + core.coreLabels[ 0 ][ det_col ]
             csv_text += row_text + '\n'
 
 #						-- Data rows
-	    cur_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters( qds_name )
+	    #cur_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters( qds_name )
+	    cur_mesh_centers = \
+	        self.dmgr.GetAxialMeshCenters2( qds_name, 'fixed_detector' )
             for det_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
               row_label = core.GetRowLabel( det_row )
 	      for ax_ndx in xrange( len( cur_mesh_centers ) - 1, -1, -1 ):
@@ -312,9 +331,9 @@ Attrs/properties:
 
 #			-- Detector datasets
 #			--
-      det_mesh = self.dmgr.GetDetectorMesh()
-      if det_mesh is not None and len( det_mesh ) > 0 and \
-          len( self.detectorDataSets ) > 0:
+      #det_mesh = self.dmgr.GetDetectorMesh()
+      det_mesh = self.dmgr.GetAxialMesh2( None, 'detector' )
+      if det_mesh is not None and len( det_mesh ) > 0 and len( det_mesh ) > 0:
         header_row_text = 'Mesh'
 	data_rows = []
         for ax_ndx in xrange( len( det_mesh ) - 1, -1, -1 ):
@@ -328,8 +347,10 @@ Attrs/properties:
 
 	    row_ndx = 0
             for ax_ndx in xrange( len( det_mesh ) - 1, -1, -1 ):
-	      cur_ax_ndx = \
-	          self.dmgr.GetDetectorMeshIndex( det_mesh[ ax_ndx ], qds_name )
+#	      cur_ax_ndx = self.dmgr.\
+#	          GetDetectorMeshIndex( det_mesh[ ax_ndx ], qds_name )
+	      cur_ax_ndx = self.dmgr.\
+	          GetAxialMeshIndex( det_mesh[ ax_ndx ], qds_name, 'detector' )
 	      cur_value = \
 	          dset_value[ cur_ax_ndx, det_ndx ] \
 		  if cur_ax_ndx >= 0 else \
@@ -347,9 +368,10 @@ Attrs/properties:
 
 #			-- Fixed detector datasets
 #			--
-      fdet_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      #fdet_mesh_centers = self.dmgr.GetFixedDetectorMeshCenters()
+      fdet_mesh_centers = self.dmgr.GetAxialMeshCenters2( None, 'fixed_detector' )
       if fdet_mesh_centers is not None and len( fdet_mesh_centers ) > 0 and \
-          len( self.fixedDetectorDataSets ) > 0:
+          len( fdet_mesh_centers ) > 0:
         header_row_text = 'Mesh Center'
 	data_rows = []
         for ax_ndx in xrange( len( fdet_mesh_centers ) - 1, -1, -1 ):
@@ -364,8 +386,11 @@ Attrs/properties:
 	    row_ndx = 0
 	    ax_range = xrange( len( fdet_mesh_centers ) - 1, -1, -1 )
             for ax_ndx in ax_range:
-	      cur_ax_ndx = self.dmgr.GetFixedDetectorMeshCentersIndex(
-	          fdet_mesh_centers[ ax_ndx ], qds_name
+#	      cur_ax_ndx = self.dmgr.GetFixedDetectorMeshCentersIndex(
+#	          fdet_mesh_centers[ ax_ndx ], qds_name
+#		  )
+	      cur_ax_ndx = self.dmgr.GetAxialMeshCentersIndex(
+	          fdet_mesh_centers[ ax_ndx ], qds_name, 'fixed_detector'
 		  )
 	      cur_value = \
 	          dset_value[ cur_ax_ndx, det_ndx ] \
@@ -422,6 +447,10 @@ If neither are specified, a default 'scale' value of 4 is used.
     legend_pil_im = config[ 'legendPilImage' ]
     legend_size = config[ 'legendSize' ]
 
+    ds_name_count = len( self.detectorDataSets ) + len( self.fixedDetectorDataSets )
+    #title_line_count = (ds_name_count >> 1) + 1
+    title_line_count = max( 1, (ds_name_count + 1) >> 1 )
+
 #		-- Must calculate scale?
 #		--
     if 'clientSize' in config:
@@ -433,8 +462,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       working_ht = max( ht, legend_size[ 1 ] )
       # allow for multiple title lines
-      #region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 2)
+      ##region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      #region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 2)
+      region_ht = working_ht - label_size[ 1 ] - 2 - \
+          (font_size * (title_line_count + 1))
       det_adv_ht = region_ht / self.cellRange[ -1 ]
 
       if det_adv_ht < det_adv_wd:
@@ -457,8 +488,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       # label : core : font-sp : legend
       wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
       ht = max( core_ht, legend_size[ 1 ] )
-      #ht += (font_size << 1) + font_size
-      ht += (font_size << 2)
+      #ht += (font_size << 2)
+      ht += (font_size * (title_line_count + 1))
 
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
@@ -466,7 +497,8 @@ If neither are specified, a default 'scale' value of 4 is used.
     image_wd = \
         label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
     image_ht = max(
-        label_size[ 1 ] + 2 + core_ht + (font_size << 2),
+        #label_size[ 1 ] + 2 + core_ht + (font_size << 2),
+        label_size[ 1 ] + 2 + core_ht + (font_size * (title_line_count + 1)),
 	legend_size[ 1 ]
 	)
 
@@ -552,19 +584,25 @@ If neither are specified, a default 'scale' value of 4 is used.
 	if dset is not None:
 	  first_det_values = np.array( dset )
 	  first_axial_value = self.dmgr.\
-	      GetAxialValue( qds_name, cm = self.axialValue[ 0 ] )
-#	for d in sorted( self.detectorDataSets ):
-#	  dset = self.data.GetStateDataSet( state_ndx, d )
-#	  if dset is not None:
-#	    first_det_values = dset.value
-#	  break
+	      GetAxialValue2( qds_name, cm = self.axialValue[ 0 ] )
+          first_axial_ndx = 2
       #end if len
+
+      if first_det_values is None and len( self.fixedDetectorDataSets ) > 0:
+        qds_name = sorted( self.fixedDetectorDataSets )[ 0 ]
+	dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+	if dset is not None:
+	  first_det_values = np.array( dset )
+	  first_axial_value = self.dmgr.\
+	      GetAxialValue2( qds_name, cm = self.axialValue[ 0 ] )
+          first_axial_ndx = 3
+      #end if
 
 #			-- Loop on rows
 #			--
       #det_y = 1
       det_y = core_region[ 1 ]
-      for det_row in range( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
+      for det_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
         detmap_row = core.detectorMap[ det_row, : ]
 
 #				-- Row label
@@ -581,7 +619,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				-- Loop on col
 #				--
 	det_x = core_region[ 0 ]
-	for det_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	for det_col in xrange( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
 #					-- Column label
 #					--
 	  if det_row == self.cellRange[ 1 ] and self.showLabels:
@@ -601,8 +639,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 #						-- Draw rectangle
 	    if first_det_values is None:
 	      color_ds_value = ds_range[ 0 ]
-	    elif first_axial_value[ 2 ] >= 0:
-	      color_ds_value = first_det_values[ first_axial_value[ 2 ], det_ndx ]
+#	    elif first_axial_value[ 2 ] >= 0:
+#	      color_ds_value = first_det_values[ first_axial_value[ 2 ], det_ndx ]
+	    elif first_axial_value[ first_axial_ndx ] >= 0:
+	      color_ds_value = \
+	      first_det_values[ first_axial_value[ first_axial_ndx ], det_ndx ]
 	    else:
 	      color_ds_value = np.average( first_det_values[ :, det_ndx ] )
 	    #end if first_det_values is None
@@ -610,12 +651,15 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        color_ds_value - ds_range[ 0 ], value_delta, 255
 	        )
 
-#	    fill_color = self.fillColorOperable
-#	    if ds_operable is not None and len( ds_operable ) > det_ndx and \
-#	        ds_operable[ det_ndx ] != 0:
-#	      fill_color = self.fillColorUnoperable
+#	    cur_debug = det_row == 4 and det_col == 10
+#            if self.dmgr.IsDetectorOperable( det_ndx, self.timeValue, debug = cur_debug ):
             if self.dmgr.IsDetectorOperable( det_ndx, self.timeValue ):
-	      fill_color = self.fillColorOperable
+	      #fill_color = self.fillColorOperable
+	      if self.mode == 'numbers' and first_det_values is not None:
+	        fill_color = pen_color
+		pen_color =  Widget.GetDarkerColor( pen_color, 255 )
+	      else:
+	        fill_color = self.fillColorOperable
 	    else:
 	      fill_color = self.fillColorUnoperable
 
@@ -624,7 +668,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	        fill = fill_color, outline = pen_color
 	        )
 
-#						-- Draw plot grid lines
+#						-- Draw number
 	    if self.mode == 'numbers':
 	      #self.axialValue[ 2 or 3 ]
               self._DrawNumbers(
@@ -636,7 +680,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  value_font = value_font,
 		  value_font_size = value_font_size
 	          )
-
+#						-- Draw plot
 	    else:
               self._DrawPlots(
 		  im_draw,
@@ -686,14 +730,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				-- Find end of this line
 	end = len( title_items )
         line_y = title_items[ start ][ 2 ]
-	for i in range( start, len( title_items ) ):
+	for i in xrange( start, len( title_items ) ):
 	  if title_items[ i ][ 2 ] != line_y:
 	    end = i
 	    break
 
         wd = title_items[ end - 1 ][ 4 ]
 	line_x = (core_region[ 0 ] + core_region[ 2 ] - wd) >> 1
-	for i in range( start, end ):
+	for i in xrange( start, end ):
 	  item = title_items[ i ]
 	  im_draw.text(
 	      ( line_x + item[ 1 ], det_y + line_y ),
@@ -786,8 +830,11 @@ If neither are specified, a default 'scale' value of 4 is used.
     ht = y + cur_size[ 1 ]
 
     color_ndx = 0
-    for qds_name in sorted( self.detectorDataSets ):
-      #phrase = '%s, ' % qds_name.displayName
+#    for qds_name in sorted( self.detectorDataSets ):
+    names = \
+        list( sorted( self.detectorDataSets ) ) + \
+        list( sorted( self.fixedDetectorDataSets ) )
+    for qds_name in names:
       phrase = '%s, ' % self.dmgr.GetDataSetDisplayName( qds_name )
       cur_size = pil_font.getsize( phrase )
       xend = x + cur_size[ 0 ]
@@ -802,29 +849,28 @@ If neither are specified, a default 'scale' value of 4 is used.
       results.append( ( phrase, x, y, color, xend ) )
       x = xend
       wd = max( wd, x )
-      #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for qds_name
 
-    #color_ndx = 0
-    for qds_name in sorted( self.fixedDetectorDataSets ):
-      phrase = '%s, ' % qds_name.displayName
-      cur_size = pil_font.getsize( phrase )
-      xend = x + cur_size[ 0 ]
-      if xend > max_wd - 2:
-        x = 0
-	xend = x + cur_size[ 0 ]
-	y = ht
-	ht += cur_size[ 1 ] + 1
-
-      #color = FIXED_LINE_COLORS[ color_ndx ]
-      color = LINE_COLORS[ color_ndx ]
-      results.append( ( phrase, x, y, color, xend ) )
-      x = xend
-      wd = max( wd, x )
-      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
-      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
-    #end for qds_name
+##    #color_ndx = 0
+#    for qds_name in sorted( self.fixedDetectorDataSets ):
+#      phrase = '%s, ' % qds_name.displayName
+#      cur_size = pil_font.getsize( phrase )
+#      xend = x + cur_size[ 0 ]
+#      if xend > max_wd - 2:
+#        x = 0
+#	xend = x + cur_size[ 0 ]
+#	y = ht
+#	ht += cur_size[ 1 ] + 1
+#
+#      #color = FIXED_LINE_COLORS[ color_ndx ]
+#      color = LINE_COLORS[ color_ndx ]
+#      results.append( ( phrase, x, y, color, xend ) )
+#      x = xend
+#      wd = max( wd, x )
+#      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+#      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
+#    #end for qds_name
 
     return  results
   #end _CreateTitleStrings2
@@ -886,12 +932,13 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       dset = self.dmgr.GetH5DataSet( qds_name, time_value )
       axial_tuple = \
-          self.dmgr.GetAxialValue( qds_name, cm = axial_value[ 0 ] )
+          self.dmgr.GetAxialValue2( qds_name, cm = axial_value[ 0 ] )
       if dset is not None and \
           dset.shape[ 1 ] > det_ndx and \
 	  dset.shape[ 0 ] > axial_tuple[ 2 ]:
 	value_str, value_size, tfont = self._CreateValueDisplay(
-	    dset.value[ axial_tuple[ 2 ], det_ndx ], 3, value_font, det_wd
+	    dset[ axial_tuple[ 2 ], det_ndx ],
+	    value_font, det_wd
 	    )
 	draw_items.append((
 	    value_str, center_x - (value_size[ 0 ] >> 1), text_y,
@@ -913,13 +960,14 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
       axial_tuple = \
-          self.dmgr.GetAxialValue( qds_name, cm = axial_value[ 0 ] )
+          self.dmgr.GetAxialValue2( qds_name, cm = axial_value[ 0 ] )
       if dset is not None and \
-          dset.value.shape[ 1 ] > det_ndx and \
-	  dset.value.shape[ 0 ] > axial_tuple[ 3 ]:
+          dset.shape[ 1 ] > det_ndx and \
+	  dset.shape[ 0 ] > axial_tuple[ 3 ]:
 	value_str, value_size, tfont = self._CreateValueDisplay(
-	    dset.value[ axial_tuple[ 3 ], det_ndx ], 3,
-	    value_font, det_wd, value_font_size
+	    dset[ axial_tuple[ 3 ], det_ndx ],
+	    value_font, det_wd
+	    #value_font, det_wd, font_size = value_font_size
 	    )
 	if value_str:
 	  draw_items.append((
@@ -986,8 +1034,10 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       values = None
       dset = self.dmgr.GetH5DataSet( qds_name, time_value )
-      det_mesh = self.dmgr.GetDetectorMesh( qds_name )
-      if dset is not None and dset.shape[ 1 ] > det_ndx:
+      #det_mesh = self.dmgr.GetDetectorMesh( qds_name )
+      det_mesh = self.dmgr.GetAxialMesh2( qds_name, 'detector' )
+      if dset is not None and dset.shape[ 1 ] > det_ndx and \
+          det_mesh is not None:
         dset_values = dset[ :, det_ndx ]
         if len( dset_values ) == len( det_mesh ):
 	  values = dset_values
@@ -995,7 +1045,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       if values is not None:
         last_x = None
 	last_y = None
-	for i in range( len( values ) ):
+	for i in xrange( len( values ) ):
 	  dy = (axial_max - det_mesh[ i ]) * axial_factor
 	  dx = (values[ i ] - value_min) * value_factor
 	  cur_x = det_x + 1 + dx
@@ -1029,22 +1079,29 @@ If neither are specified, a default 'scale' value of 4 is used.
       if dm:
         dset = self.dmgr.GetH5DataSet( qds_name, time_value )
 	core = dm.GetCore()
-      if dset is not None and dset.shape[ 1 ] > det_ndx:
+	det_mesh = self.dmgr.GetAxialMesh2( qds_name, 'fixed_detector' )
+	det_mesh_c = self.dmgr.GetAxialMeshCenters2( qds_name, 'fixed_detector' )
+      if dset is not None and dset.shape[ 1 ] > det_ndx and \
+          det_mesh is not None and det_mesh_c is not None:
         dset_values = dset[ :, det_ndx ]
-        if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
+#        if len( dset_values ) == len( core.fixedDetectorMeshCenters ):
+        if len( dset_values ) == len( det_mesh_c ):
 	  values = dset_values
 
       if values is not None:
-        for i in range( len( values ) ):
-	  dy_center = \
-	      (axial_max - core.fixedDetectorMeshCenters[ i ]) * \
-	      axial_factor
-	  dy_lo = \
-	      (axial_max - core.fixedDetectorMesh[ i ]) * \
-	      axial_factor
-	  dy_hi = \
-	      (axial_max - core.fixedDetectorMesh[ i + 1 ]) * \
-	      axial_factor
+        for i in xrange( len( values ) ):
+#	  dy_center = \
+#	      (axial_max - core.fixedDetectorMeshCenters[ i ]) * \
+#	      axial_factor
+#	  dy_lo = \
+#	      (axial_max - core.fixedDetectorMesh[ i ]) * \
+#	      axial_factor
+#	  dy_hi = \
+#	      (axial_max - core.fixedDetectorMesh[ i + 1 ]) * \
+#	      axial_factor
+	  dy_center = (axial_max - det_mesh_c[ i ]) * axial_factor
+	  dy_lo = (axial_max - det_mesh[ i ]) * axial_factor
+	  dy_hi = (axial_max - det_mesh[ i + 1 ]) * axial_factor
 	  dx = (values[ i ] - value_min) * value_factor
 	  cur_x = det_x + 1 + dx
 	  cur_ylo = det_y + 1 + dy_lo
@@ -1139,13 +1196,13 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     axial_mesh_min = None
 
     if len( self.detectorDataSets ) > 0:
-      det_mesh = self.dmgr.GetDetectorMesh()
+      #det_mesh = self.dmgr.GetDetectorMesh()
+      det_mesh = self.dmgr.GetAxialMesh2( None, 'detector' )
       axial_mesh_max = np.amax( det_mesh )
       axial_mesh_min = np.amin( det_mesh )
 
     if len( self.fixedDetectorDataSets ) > 0:
-      #using core.fixedDetectorMesh instead of core.fixedDetectorMeshCenters
-      fdet_mesh = self.dmgr.GetFixedDetectorMesh()
+      fdet_mesh = self.dmgr.GetAxialMesh2( None, 'fixed_detector' )
       if axial_mesh_max == None:
         axial_mesh_max = np.amax( fdet_mesh )
         axial_mesh_min = np.amin( fdet_mesh )
@@ -1172,7 +1229,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return		dataset name (DataSetName instance) or None
 """
     qds_name = None
-    if len( self.detectorDataSets ) > 0:
+#    if len( self.detectorDataSets ) > 0:
+    if len( self.detectorDataSets ) == 1:
       qds_name = iter( self.detectorDataSets ).next()
 
     return  qds_name
@@ -1189,7 +1247,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     ds_max = None
     ds_min = None
     for qds_name in self.detectorDataSets.union( self.fixedDetectorDataSets ):
-      cur_min, cur_max = self._ResolveDataRange(
+      cur_min, cur_max, data_min, data_max = self._ResolveDataRange(
           qds_name,
 	  self.timeValue if self.state.scaleMode == 'state' else -1
 	  #self.stateIndex if self.state.scaleMode == 'state' else -1
@@ -1360,7 +1418,31 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView._LoadDataModelValues()	-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues( self ):
+  def _LoadDataModelValues( self, reason ):
+    """
+"""
+    if (reason & STATE_CHANGE_coordinates) > 0:
+      self.detectorAddr = self.state.assemblyAddr
+
+    if (reason & STATE_CHANGE_curDataSet) > 0:
+      self.detectorDataSets.clear()
+      self.fixedDetectorDataSets.clear()
+
+      qds_name = self.dmgr.GetFirstDataSet( 'detector' )
+      if qds_name:
+        self.detectorDataSets.add( qds_name )
+
+      qds_name = self.dmgr.GetFirstDataSet( 'fixed_detector' )
+      if qds_name:
+        self.fixedDetectorDataSets.add( qds_name )
+    #end if (reason & STATE_CHANGE_curDataSet)
+  #end _LoadDataModelValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._LoadDataModelValues_1()	-
+  #----------------------------------------------------------------------
+  def _LoadDataModelValues_1( self ):
     """
 """
     self.detectorAddr = self.state.assemblyAddr
@@ -1374,7 +1456,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     qds_name = self.dmgr.GetFirstDataSet( 'fixed_detector' )
     if qds_name:
       self.fixedDetectorDataSets.add( qds_name )
-  #end _LoadDataModelValues
+  #end _LoadDataModelValues_1
 
 
   #----------------------------------------------------------------------
@@ -1402,6 +1484,7 @@ be overridden by subclasses.
         getattr( self, m )( props_dict[ p ] )
 
     super( Detector2DMultiView, self ).LoadProps( props_dict )
+    self.container.dataSetMenu.UpdateAllMenus()
   #end LoadProps
 
 
@@ -1526,10 +1609,16 @@ method via super.SaveProps().
     #end if
 
     if button is not None:
-      #bmap_name = 'plot' if self.mode == 'numbers' else 'numbers'
-      #bmap = Widget.GetBitmap( bmap_name + '_16x16' )
-      bmap = Widget.GetBitmap( self.mode + '_16x16' )
+      #bmap = Widget.GetBitmap( self.mode + '_16x16' )
+      if self.mode == 'plot':
+	bmap = Widget.GetBitmap( 'numbers_16x16' )
+	tip_str = 'Toggle Mode to Numbers'
+      else:
+	bmap = Widget.GetBitmap( 'plot_16x16' )
+	tip_str = 'Toggle Mode to Plot'
+
       button.SetBitmapLabel( bmap )
+      button.SetToolTip( wx.ToolTip( tip_str ) )
       button.Update()
       self.GetParent().GetControlPanel().Layout()
     #end if
@@ -1580,7 +1669,7 @@ Must be called from the event thread.
     if 'axial_value' in kwargs:
       value_cm = kwargs[ 'axial_value' ][ 0 ]
       if value_cm != self.axialValue[ 0 ]:
-        self.axialValue = self.dmgr.GetAxialValue( cm = value_cm )
+        self.axialValue = self.dmgr.GetAxialValue2( None, cm = value_cm )
         kwargs[ 'resized' ] = True
         del kwargs[ 'axial_value' ]
     #end if 'axial_value'

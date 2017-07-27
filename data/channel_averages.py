@@ -60,11 +60,10 @@ be called before use.
 	      factor_obj[ 0 ] if isinstance( factor_obj, np.ndarray ) else \
 	      str( factor_obj )
 
-	  factor_weights = self.core.group.get( factor_name )
+	  if self.core is not None:
+	    factor_weights = self.core.group.get( factor_name )
 	  if factor_weights is not None and len( factor_weights.shape ) != 4:
 	    factor_weights = None
-	  #if factor_weights is not None and len( factor_weights.shape ) == 4:
-          #  avg_weights = np.sum( factor_weights, axis = avg_axis )
 	#end if 'factor'
 
 	if factor_weights is None:

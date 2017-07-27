@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2017-07-17	leerw@ornl.gov				-
+#	  Added DataUtils.ApplyIgnoreExpression().
+#		2017-06-07	leerw@ornl.gov				-
+#	  Added MergeLists(0.
 #		2017-01-12	leerw@ornl.gov				-
 #	  Marginal improvement in NormalizeValueLabels() to account for
 #	  exponential and non-exponential labels.
@@ -24,9 +28,14 @@
 #	  Added defaultDataSetName property.
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import bisect, copy, logging, math, os, sys
+import bisect, copy, logging, math, os, re, sys
 import numpy as np
 import pdb
+
+
+NAN = float( 'nan' )
+
+REGEX_WS = re.compile( '[\s,t]+' )
 
 
 #------------------------------------------------------------------------
@@ -42,6 +51,46 @@ class DataUtils( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		ApplyIgnoreExpression()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ApplyIgnoreExpression( arr, ignore_expr ):
+    """Returns only the values not in the ignore range.  Useful for finding
+min and max.
+@param  arr		np.ndarray
+@param  ingore_expr	ignore expression to apply to arr
+@return			new np.ndarray
+"""
+    result = arr
+
+    if ignore_expr:
+      tokens = REGEX_WS.split( ignore_expr )
+      where_str = var_name = None
+
+      if len( tokens ) == 7 and tokens[ 3 ] == 'and':
+	one = ' '.join( tokens[ : 3 ] )
+	two = ' '.join( tokens[ 4 : ] )
+        where_str = '({0:s}) & ({1:s})'.format( one, two )
+	var_name = tokens[ 0 ]
+
+      elif len( tokens ) == 3:
+        where_str = ' '.join( tokens[ : 3 ] )
+	var_name = tokens[ 0 ]
+
+      if where_str and var_name:
+	temp_array = arr[ np.logical_not( np.isnan( arr ) ) ]
+	temp_array = np.reshape( temp_array, arr.shape )
+        where_str = where_str.replace( var_name, 'temp_array' )
+
+	eval_str = 'temp_array[ np.where( {0:s} ) ]'.format( where_str )
+	result = eval( eval_str )
+    #end if ignore_expr
+
+    return  result
+  #end ApplyIgnoreExpression
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		CalcDistance()					-
   #----------------------------------------------------------------------
   @staticmethod
@@ -52,6 +101,50 @@ class DataUtils( object ):
     dy = y2 - y1
     return  math.sqrt( (dx * dx ) + (dy * dy) )
   #end CalcDistance
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ChangeIgnoreValues()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ChangeIgnoreValues( arr, ignore_expr, new_value = NAN ):
+    """
+@param  arr		np.ndarray
+@param  ingore_expr	ignore expression to apply to data
+@param  new_value	new value for values in the ignore range
+@return			new np.ndarray
+"""
+    #result = np.copy( arr )
+    result = arr
+
+    if ignore_expr:
+      tokens = REGEX_WS.split( ignore_expr )
+      mask_str = var_name = None
+
+      if len( tokens ) == 7 and tokens[ 3 ] == 'and':
+	one = ' '.join( tokens[ : 3 ] )
+	two = ' '.join( tokens[ 4 : ] )
+        mask_str = '({0:s}) | ({1:s})'.format( one, two )
+	var_name = tokens[ 0 ]
+
+      elif len( tokens ) == 3:
+        mask_str = ' '.join( tokens[ : 3 ] )
+	var_name = tokens[ 0 ]
+
+      if mask_str and var_name:
+        temp_arr = np.copy( arr )
+        mask_str = mask_str.replace( var_name, 'temp_arr' )
+	eval_str = \
+	    'np.logical_and( np.logical_not( np.isnan( temp_arr ) ), {0:s} )'.\
+	    format( mask_str )
+        temp_mask = eval( eval_str )
+	np.place( temp_arr, temp_mask, new_value )
+	result = temp_arr
+      #end if mask_str and var_name
+    #end if ignore_expr
+
+    return  result
+  #end ChangeIgnoreValues
 
 
   #----------------------------------------------------------------------
@@ -92,7 +185,8 @@ descending.  Note bisect only does ascending.
 """
     match_ndx = -1
 
-    if values is not None and len( values ) > 0:
+    if values is not None and hasattr( values, '__iter__' ) and \
+        len( values ) > 0:
       if not mode:
         mode = 'd' if values[ 0 ] > values[ -1 ] else 'a'
 
@@ -129,9 +223,11 @@ descending.  Note bisect only does ascending.
   #----------------------------------------------------------------------
   @staticmethod
   def FormatFloat1( value, size = 3 ):
-    result1 = ('%%.%dg' % size) % value
-    result2 = ('%%%dg' % size) % value
-    return  result2 if len( result2 ) <= len( result1 ) else result1
+    #result1 = ('%%.%dg' % size) % value
+    #result2 = ('%%%dg' % size) % value
+    result1 = ('{0:.%dg}' % size).format( value )
+    result2 = ('{0:%dg}' % size).format( value )
+    return  result2  if len( result2 ) <= len( result1 ) else  result1
   #end FormatFloat1
 
 
@@ -165,7 +261,9 @@ descending.  Note bisect only does ascending.
       ivalue += 1
 
     value = ivalue / shift * basis
-    result = ('%%.%dg' % size) % value
+    #result = ('%%.%dg' % size) % value
+    fmt = '{0:.%dg}' % size
+    result = fmt.format( value )
     if result.startswith( '0.' ):
       result = result[ 1 : ]
 
@@ -213,6 +311,20 @@ descending.  Note bisect only does ascending.
       result = '-' + result
     return  result
   #end FormatFloat3
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		FormatFloat4()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def FormatFloat4( value, digits = 3, mode = 'general' ):
+    """Used in raster widgets.
+"""
+    fmt_char = 'f' if mode and mode.startswith( 'fixed' ) else 'g'
+    fmt = '{0:.%d%s}' % ( digits, fmt_char )
+    result = fmt.format( value )
+    return  result
+  #end FormatFloat4
 
 
   #----------------------------------------------------------------------
@@ -268,7 +380,32 @@ must match how _CreateDerivedNames() builds the derived type name.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		NormalizeNodeAddr()				-
+  #	METHOD:		DataUtils.MergeList()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def MergeList( master, *values ):
+    """Updates master with values allowing duplicate values.
+Both are assumed to be in ascending order.
+@param  master		master list to update, created if necessary
+@param  values		values to add
+@return			master or new list if master is None
+"""
+    if values:
+      if master is None:
+        master = list( values )
+      else:
+        for v in values:
+	  ndx = bisect.bisect_right( master, v )
+	  master.insert( ndx, v )
+	#end for v
+    #end if values
+
+    return  master
+  #end MergeList
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.NormalizeNodeAddr()			-
   #----------------------------------------------------------------------
   @staticmethod
   def NormalizeNodeAddr( ndx ):
@@ -280,7 +417,7 @@ must match how _CreateDerivedNames() builds the derived type name.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		NormalizeNodeAddrs()				-
+  #	METHOD:		DataUtils.NormalizeNodeAddrs()			-
   #----------------------------------------------------------------------
   @staticmethod
   def NormalizeNodeAddrs( addr_list ):
@@ -296,7 +433,7 @@ must match how _CreateDerivedNames() builds the derived type name.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		NormalizeValueLabels()				-
+  #	METHOD:		DataUtils.NormalizeValueLabels()		-
   #----------------------------------------------------------------------
   @staticmethod
   def NormalizeValueLabels( labels ):
@@ -365,67 +502,6 @@ must match how _CreateDerivedNames() builds the derived type name.
       #end for
     #end if we have labels
   #end NormalizeValueLabels
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		NormalizeValueLabels_0()			-
-  #----------------------------------------------------------------------
-  @staticmethod
-  def NormalizeValueLabels_0( labels ):
-    """Reformats labels to have a consistent size and number of decimal places.
-@param  labels		list of labels, updated in-line
-@return			labels parameter
-"""
-#		-- Noop if no labels
-#		--
-    if labels is not None and len( labels ) > 0:
-#			-- Find longest, count labels with exponents
-#			--
-      longest = None
-      for label in labels:
-        if longest is None or len( label ) > len( longest ):
-          longest = label
-      #end for
-#			-- Exponent?
-#			--
-      #pdb.set_trace()
-      long_e_ndx = longest.find( 'e' )
-      if long_e_ndx >= 0:
-        longest = longest[ : long_e_ndx ]
-
-#			-- Determine number of decimals
-#			--
-      dot_ndx = longest.find( '.' )
-      decimals = len( longest ) - 1 - dot_ndx  if dot_ndx >= 0  else 0
-
-#			-- Fix labels
-#			--
-      for i in range( len( labels ) ):
-        cur_label = labels[ i ]
-	e_ndx = cur_label.find( 'e' )
-
-	mantissa = cur_label[ : e_ndx ]  if e_ndx >= 0  else cur_label
-
-        dot_ndx = mantissa.find( '.' )
-	cur_decimals = len( mantissa ) - 1 - dot_ndx  if dot_ndx >= 0  else 0
-
-	if cur_decimals < decimals:
-	  new_label = \
-	      cur_label[ : e_ndx ]  if e_ndx >= 0  else \
-	      cur_label
-	  if dot_ndx < 0:
-	    new_label += '.'
-
-          new_label += '0' * (decimals - cur_decimals)
-
-	  if e_ndx >= 0:
-	    new_label += cur_label[ e_ndx : ]
-
-          labels[ i ] = new_label
-        #end if adding decimals
-      #end for
-    #end if we have labels
-  #end NormalizeValueLabels_0
 
 
   #----------------------------------------------------------------------

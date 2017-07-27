@@ -7,7 +7,9 @@ VERAViewDir=$(dirname "$0")
 # set the value of the CondaBinDir variable to point the bin subdir
 # under that path.
 #------------------------------------------------------------------------
-CondaBinDir="$HOME/miniconda2/bin"
+CondaBinDir="${VERAViewDir}/miniconda2/bin"
+
+[ ! -d "${CondaBinDir}" ] && CondaBinDir="$HOME/miniconda2/bin"
 [ ! -d "${CondaBinDir}" ] && CondaBinDir="$HOME/anaconda2/bin"
 
 if [ "$(uname)" = "Darwin" ]; then

@@ -3,6 +3,21 @@
 #------------------------------------------------------------------------
 #	NAME:		raster_widget.py				-
 #	HISTORY:							-
+#		2017-05-13	leerw@ornl.gov				-
+#	  Added legend_title param to _CreateBaseDrawConfig(), passed
+#	  to _CreateLegendPilImage().
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified LoadDataModelXxx() methods to process the reason param.
+#		2017-04-01	leerw@ornl.gov				-
+#	  Added self.formatter, calling self.formatter.Format() in
+#	  _CreateValueString().
+#		2017-03-28	leerw@ornl.gov				-
+#	  Added DrawArcPoly2().
+#		2017-03-10	leerw@ornl.gov				-
+#	  Modified _CreateValue{Display,String}() to handle precision
+#	  digits and mode and use string.format().
+#		2017-03-08	leerw@ornl.gov				-
+#	  Added DrawArc().
 #		2017-02-28	leerw@ornl.gov				-
 #	  Using ScrolledPanel
 #		2017-02-03	leerw@ornl.gov				-
@@ -81,6 +96,7 @@ except Exception:
   raise ImportError, 'The Python Imaging Library (PIL) required for this component'
 
 from event.state import *
+from data.rangescaler import *
 from widget import *
 
 
@@ -276,9 +292,8 @@ _CreateValueString()
     self.curSize = None
     self.dragStartCell = None
     self.dragStartPosition = None
+    self.formatter = RangeScaler()
     #self.isLoaded = False
-
-    self._imcount = 0
 
     self.showLabels = True
     self.showLegend = True
@@ -586,6 +601,7 @@ called from subclass _CreateDrawConfig() methods.
 @param  kwargs
     scale	pixels per smallest drawing unit
     size	( wd, ht ) against which to compute the scale
+    legend_title  optional legend title
 @return			config dict with keys:
     clientSize      (if size specified)
     dataRange
@@ -604,15 +620,17 @@ called from subclass _CreateDrawConfig() methods.
       wd, ht = kwargs[ 'size' ]
       if self.logger.isEnabledFor( logging.DEBUG ):
         self.logger.debug( 'size=%d,%d', wd, ht )
-      #font_size = self._CalcFontSize( wd )
-      #font_size = self._CalcFontSize( min( wd, ht ) )
       font_size = self._CalcFontSize( min( 600, max( wd, ht ) ) )
 
     else:
-      font_size = self._CalcFontSize( 600 )
+      font_size = self._CalcFontSize( 200 * self.GetPrintFontScale() )
 
     if self.showLegend:
-      legend_pil_im = self._CreateLegendPilImage( ds_range, font_size )
+      legend_pil_im = self._CreateLegendPilImage(
+          ds_range, font_size,
+	  gray = kwargs.get( 'gray', False ),
+	  title = kwargs.get( 'legend_title' )
+	  )
       legend_size = legend_pil_im.size
     else:
       legend_pil_im = None
@@ -768,6 +786,8 @@ Must be called from the UI thread.
   #	METHOD:		RasterWidget.CreatePrintImage()			-
   #----------------------------------------------------------------------
   def CreatePrintImage( self, file_path, bgcolor = None ):
+    """
+"""
     config = self._CreateDrawConfig( scale = self.GetPrintScale() )
     pil_im = self._CreateRasterImage( self._CreateStateTuple(), config )
 
@@ -1013,41 +1033,53 @@ _CreateRasterImage().
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateValueDisplay()		-
   #----------------------------------------------------------------------
-  def _CreateValueDisplay( self, value, precision, font, display_wd, font_size = 0 ):
+  def _CreateValueDisplay(
+       self, value, font, display_wd,
+       prec_digits = None,
+       prec_mode = None,
+       font_size = 0
+       ):
     """Creates  string representation of the value that fits in the
 requested width for the specified font.
 @param  value		value to represent
-@param  precision	requested precision
 @param  font		rendering font
 @param  display_wd	pixel width available for display
+@param  prec_digits	optional override of self.precisionDigits
+@param  prec_mode	optional override of self.precisionMode
 @param  font_size	optional size for dynamic resize
 @return			( string of optimal length, ( wd, ht ), font )
 """
-    value_str = self._CreateValueString( value, precision )
+    if prec_digits is None:
+      prec_digits = self.precisionDigits
+    if prec_mode is None:
+      prec_mode = self.precisionMode
+
+    value_str = self._CreateValueString( value, prec_digits, prec_mode )
     value_size = font.getsize( value_str )
-    eval_str = value_str if len( value_str ) >= precision else '9' * precision
+    eval_str = \
+        value_str  if len( value_str ) >= prec_digits else \
+	'9' * prec_digits
     eval_size = font.getsize( eval_str )
 
     #if value_size[ 0 ] >= display_wd:
-    if eval_size[ 0 ] >= display_wd:
-      precision -= 1
-      value_str = self._CreateValueString( value, precision )
+    while eval_size[ 0 ] >= display_wd and font_size > 6:
+      font_size = int( font_size * 0.8 )
+      font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+      value_str = self._CreateValueString( value, prec_digits, prec_mode )
       value_size = font.getsize( value_str )
-      eval_str = value_str if len( value_str ) >= precision else '9' * precision
+      eval_str = \
+          value_str  if len( value_str ) >= prec_digits else \
+	  '9' * prec_digits
       eval_size = font.getsize( eval_str )
 
-#new stuff
-      #if value_size[ 0 ] >= display_wd and font_size > 7:
-      if eval_size[ 0 ] >= display_wd and font_size > 7:
-        font_size = int( font_size * 0.8 )
-        font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
-        value_str = self._CreateValueString( value, precision )
-        value_size = font.getsize( value_str )
+    if eval_size[ 0 ] >= display_wd and prec_digits > 1:
+      prec_digits -= 1
+      value_str = self._CreateValueString( value, prec_digits, prec_mode )
+      value_size = font.getsize( value_str )
 
-      if value_size[ 0 ] >= display_wd:
-	value_str = ''
-	value_size = ( 0, 0 )
-#new stuff
+    if value_size[ 0 ] >= display_wd:
+      value_str = ''
+      value_size = ( 0, 0 )
 
     return  ( value_str, value_size, font )
   #end _CreateValueDisplay
@@ -1056,16 +1088,21 @@ requested width for the specified font.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._CreateValueString()		-
   #----------------------------------------------------------------------
-  def _CreateValueString( self, value, precision = 3 ):
+  def _CreateValueString( self, value, prec_digits = None, prec_mode = None ):
     """Creates the string representation of minimal length for a value to
 be displayed in a cell.
 @param  value		value to represent
-@param  precision	requested precision
+@param  prec_digits	optional override of self.precisionDigits
+@param  prec_mode	optional override of self.precisionMode
 @return			string of minimal length
 """
-    if value < 0.0:
-      precision -= 1
-    value_str = DataUtils.FormatFloat2( value, precision )
+    if prec_digits is None:
+      prec_digits = self.precisionDigits
+    if prec_mode is None:
+      prec_mode = self.precisionMode
+
+    #value_str = DataUtils.FormatFloat4( value, prec_digits, prec_mode )
+    value_str = self.formatter.Format( value, prec_digits, prec_mode )
     e_ndx = value_str.lower().find( 'e' )
     #if e_ndx > 1:
     if e_ndx > 0:
@@ -1076,9 +1113,385 @@ be displayed in a cell.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.DrawArc()				-
+  #----------------------------------------------------------------------
+  def DrawArc(
+      self, draw, bbox, start, end, fill,
+      width = 1, units = 'deg'
+      ):
+    """Fills a functional shortfall in PIL.ImageDraw.Draw by drawing an arc
+with a specified line thickness.  Calls PIL.ImageDraw.line(), which takes
+a width param.
+@param  draw		PIL.ImageDraw.Draw instance
+@param  bbox		bounding box
+#@param  origin_x	origin X coordinate
+#@param  origin_y	origin Y coordinate
+#@param  radius		radius
+@param  start		arc start angle
+@param  end		arc end angle
+@param  fill		fill/line color
+@param  width		line width
+@param  units		angle units, either 'deg' or 'rad', defaulting to the
+			former
+"""
+#    bbox = [
+#	origin_x - radius, origin_y - radius,
+#	origin_x + radius, origin_y + radius
+#        ]
+
+    st_rad = start * math.pi / 180.0  if units != 'rad'  else start
+    en_rad = end * math.pi / 180.0  if units != 'rad'  else end
+    #seg_incr = 2.0 * math.pi / 180.0
+    seg_incr = math.pi / 180.0
+    seg_incr_half = seg_incr / 2.0
+
+    #st_rad -= seg_incr_half
+    en_rad -= seg_incr_half
+
+    rx = (bbox[ 2 ] - bbox[ 0 ]) / 2
+    ry = (bbox[ 3 ] - bbox[ 1 ]) / 2
+
+    cx = bbox[ 0 ] + rx
+    cy = bbox[ 1 ] + ry
+    seg_len = (rx + ry) * seg_incr / 2.0
+
+    while st_rad < en_rad:
+      cur_angle = st_rad + seg_incr_half
+      cur_cos = math.cos( cur_angle )
+      cur_sin = math.sin( cur_angle )
+      x = cur_cos * rx + cx
+      y = cur_sin * ry + cy
+
+      dx = seg_len * -cur_sin * rx / (rx + ry)
+      dy = seg_len * cur_cos * ry / (rx + ry)
+      draw.line(
+	  [ x - dx, y - dy, x + dx, y + dy ],
+	  fill = fill,
+	  width = width
+          )
+
+      st_rad += seg_incr_half
+    #end while
+  #end DrawArc
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.DrawArcPoly()			-
+  #----------------------------------------------------------------------
+  def DrawArcPoly(
+      self, draw, bbox, start, end, fill,
+      width = 1, units = 'deg'
+      ):
+    """Fills a functional shortfall in PIL.ImageDraw.Draw by drawing an arc
+with a specified line thickness.  Calls PIL.ImageDraw.polygon() multiple times.
+@param  draw		PIL.ImageDraw.Draw instance
+@param  bbox		bounding box
+@param  start		arc start angle
+@param  end		arc end angle
+@param  fill		fill/line color
+@param  width		line width
+@param  units		angle units, either 'deg' or 'rad', defaulting to the
+			former
+"""
+    st_rad = start * math.pi / 180.0  if units != 'rad'  else start
+    en_rad = end * math.pi / 180.0  if units != 'rad'  else end
+    if en_rad < st_rad:
+      en_rad += 2.0 * math.pi
+
+    seg_incr = math.pi / 180.0
+    half_seg_incr = seg_incr / 2.0
+
+    #incr_count = int( math.ceil( (en_rad - st_rad) / seg_incr ) )
+    #st_rad -= seg_incr_half
+    #en_rad -= seg_incr_half
+
+    rx = (bbox[ 2 ] - bbox[ 0 ]) / 2
+    ry = (bbox[ 3 ] - bbox[ 1 ]) / 2
+
+    cx = bbox[ 0 ] + rx
+    cy = bbox[ 1 ] + ry
+
+    half_wd = width >> 1
+
+#	-- Inside poly loop
+    inner_pts = []
+    cur_rad = st_rad
+    while cur_rad <= en_rad:
+      if len( inner_pts ) == 0:
+        inner_pts.append(
+            int( math.cos( cur_rad ) * (rx - half_wd) + cx )
+	    )
+        inner_pts.append(
+            int( math.sin( cur_rad ) * (ry - half_wd) + cy )
+	    )
+
+      if cur_rad + half_seg_incr <= en_rad:
+        inner_pts.append(
+	    int( math.cos( cur_rad + half_seg_incr ) * (rx - half_wd) + cx )
+	    )
+        inner_pts.append(
+	    int( math.sin( cur_rad + half_seg_incr ) * (ry - half_wd) + cy )
+	    )
+      if cur_rad + seg_incr <= en_rad:
+        inner_pts.append(
+	    int( math.cos( cur_rad + seg_incr ) * (rx - half_wd) + cx )
+	    )
+        inner_pts.append(
+	    int( math.sin( cur_rad + seg_incr ) * (ry - half_wd) + cy )
+	    )
+
+      cur_rad += seg_incr
+    #end while
+
+    inner_pts.append( int( math.cos( en_rad ) * (rx - half_wd) + cx ) )
+    inner_pts.append( int( math.sin( en_rad ) * (ry - half_wd) + cy ) )
+
+    if width <= 2:
+      draw.line( inner_pts, fill = fill, width = width )
+
+    else:
+#		-- Outside poly loop
+      outer_pts = []
+      cur_rad = en_rad
+      while cur_rad >= st_rad:
+        if len( outer_pts ) == 0:
+          outer_pts.append(
+	      int( math.cos( cur_rad ) * (rx + half_wd) + cx )
+	      )
+          outer_pts.append(
+	      int( math.sin( cur_rad ) * (ry + half_wd) + cy )
+	      )
+
+        if cur_rad - half_seg_incr >= st_rad:
+          outer_pts.append(
+	      int( math.cos( cur_rad - half_seg_incr ) * (rx + half_wd) + cx )
+	      )
+          outer_pts.append(
+	      int( math.sin( cur_rad - half_seg_incr ) * (ry + half_wd) + cy )
+	      )
+        if cur_rad - seg_incr >= st_rad:
+          outer_pts.append(
+	      int( math.cos( cur_rad - seg_incr ) * (rx + half_wd) + cx )
+	      )
+          outer_pts.append(
+	      int( math.sin( cur_rad - seg_incr ) * (ry + half_wd) + cy )
+	      )
+
+        cur_rad -= seg_incr
+      #end while
+
+      outer_pts.append( int( math.cos( st_rad ) * (rx + half_wd) + cx ) )
+      outer_pts.append( int( math.sin( st_rad ) * (ry + half_wd) + cy ) )
+
+      pts = inner_pts + outer_pts
+      pts.append( pts[ 0 ] )
+      pts.append( pts[ 1 ] )
+
+      draw.polygon( pts, fill = fill, outline = fill )
+    #end if-else width <= 2
+  #end DrawArcPoly
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.DrawArcPoly2()			-
+  #----------------------------------------------------------------------
+  def DrawArcPoly2(
+      self, draw_color_pairs, bbox, start, end,
+      width = 1, units = 'deg'
+      ):
+    """Fills a functional shortfall in PIL.ImageDraw.Draw by drawing an arc
+with a specified line thickness.  Calls PIL.ImageDraw.polygon() multiple times.
+This version applies the calculcated segements to mulitiple PIL.ImageDraw
+instances.
+@param  draw_color_pairs  sequence of ( PIL.ImageDraw.Draw instance,
+			color value ) pairs
+			cannot be None, wasteful to be empty
+@param  bbox		bounding box
+@param  start		arc start angle
+@param  end		arc end angle
+@param  fill		fill/line color
+@param  width		line width
+@param  units		angle units, either 'deg' or 'rad', defaulting to the
+			former
+"""
+    st_rad = start * math.pi / 180.0  if units != 'rad'  else start
+    en_rad = end * math.pi / 180.0  if units != 'rad'  else end
+    if en_rad < st_rad:
+      en_rad += 2.0 * math.pi
+
+    seg_incr = math.pi / 180.0
+    half_seg_incr = seg_incr / 2.0
+
+    #incr_count = int( math.ceil( (en_rad - st_rad) / seg_incr ) )
+    #st_rad -= seg_incr_half
+    #en_rad -= seg_incr_half
+
+    rx = (bbox[ 2 ] - bbox[ 0 ]) / 2
+    ry = (bbox[ 3 ] - bbox[ 1 ]) / 2
+
+    cx = bbox[ 0 ] + rx
+    cy = bbox[ 1 ] + ry
+
+    half_wd = width >> 1
+
+#	-- Inside poly loop
+    inner_pts = []
+    cur_rad = st_rad
+    while cur_rad <= en_rad:
+      if len( inner_pts ) == 0:
+        inner_pts.append(
+            int( math.cos( cur_rad ) * (rx - half_wd) + cx )
+	    )
+        inner_pts.append(
+            int( math.sin( cur_rad ) * (ry - half_wd) + cy )
+	    )
+
+      if cur_rad + half_seg_incr <= en_rad:
+        inner_pts.append(
+	    int( math.cos( cur_rad + half_seg_incr ) * (rx - half_wd) + cx )
+	    )
+        inner_pts.append(
+	    int( math.sin( cur_rad + half_seg_incr ) * (ry - half_wd) + cy )
+	    )
+      if cur_rad + seg_incr <= en_rad:
+        inner_pts.append(
+	    int( math.cos( cur_rad + seg_incr ) * (rx - half_wd) + cx )
+	    )
+        inner_pts.append(
+	    int( math.sin( cur_rad + seg_incr ) * (ry - half_wd) + cy )
+	    )
+
+      cur_rad += seg_incr
+    #end while
+
+    inner_pts.append( int( math.cos( en_rad ) * (rx - half_wd) + cx ) )
+    inner_pts.append( int( math.sin( en_rad ) * (ry - half_wd) + cy ) )
+
+    if width <= 2:
+      #draw.line( inner_pts, fill = fill, width = width )
+      for draw, color in draw_color_pairs:
+        draw.line( inner_pts, fill = color, width = width )
+
+    else:
+#		-- Outside poly loop
+      outer_pts = []
+      cur_rad = en_rad
+      while cur_rad >= st_rad:
+        if len( outer_pts ) == 0:
+          outer_pts.append(
+	      int( math.cos( cur_rad ) * (rx + half_wd) + cx )
+	      )
+          outer_pts.append(
+	      int( math.sin( cur_rad ) * (ry + half_wd) + cy )
+	      )
+
+        if cur_rad - half_seg_incr >= st_rad:
+          outer_pts.append(
+	      int( math.cos( cur_rad - half_seg_incr ) * (rx + half_wd) + cx )
+	      )
+          outer_pts.append(
+	      int( math.sin( cur_rad - half_seg_incr ) * (ry + half_wd) + cy )
+	      )
+        if cur_rad - seg_incr >= st_rad:
+          outer_pts.append(
+	      int( math.cos( cur_rad - seg_incr ) * (rx + half_wd) + cx )
+	      )
+          outer_pts.append(
+	      int( math.sin( cur_rad - seg_incr ) * (ry + half_wd) + cy )
+	      )
+
+        cur_rad -= seg_incr
+      #end while
+
+      outer_pts.append( int( math.cos( st_rad ) * (rx + half_wd) + cx ) )
+      outer_pts.append( int( math.sin( st_rad ) * (ry + half_wd) + cy ) )
+
+      pts = inner_pts + outer_pts
+      pts.append( pts[ 0 ] )
+      pts.append( pts[ 1 ] )
+
+      for draw, color in draw_color_pairs:
+	#black = ( 100, 100, 100, 255 ) if hasattr( color, '__iter__' ) > 1 else 100
+        #draw.polygon( pts, fill = color, outline = black )
+        draw.polygon( pts, fill = color, outline = color )
+    #end if-else width <= 2
+  #end DrawArcPoly2
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._DrawValues()			-
   #----------------------------------------------------------------------
   def _DrawValues( self, draw_list, im_draw, font_size = 0 ):
+    """Draws value text.
+@param  draw_list	list of ( str, color, x, y, wd, ht )
+@param  im_draw		PIL.ImageDraw.Draw reference
+@param  font_size	font size hint
+"""
+    if draw_list and im_draw is not None:
+#			-- Align numbers
+#			--
+      labels = []
+      for item in draw_list:
+        labels.append( item[ 0 ] )
+      #RangeScaler.Format() now calls its own ForceSigDigits() method
+      #self.formatter.AlignNumbers( labels )
+
+#			-- Find widest string
+#			--
+      smallest_wd = sys.maxint
+      smallest_ht = sys.maxint
+      widest_str = ""
+      widest_len = 0
+      #for item in draw_list:
+      for i in xrange( len( draw_list ) ):
+        item = draw_list[ i ]
+	if item[ -2 ] < smallest_wd:
+	  smallest_wd = item[ -2 ]
+	if item[ -1 ] < smallest_ht:
+	  smallest_ht = item[ -1 ]
+	cur_len = len( labels[ i ] )
+        if cur_len > widest_len:
+	  widest_str = labels[ i ]
+	  widest_len = cur_len
+      #end for item
+
+      if font_size == 0:
+        font_size = smallest_wd >> 1
+      font_size = min( font_size, 28 )
+
+#			-- Reduce font size if necessary
+#			--
+      font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+      value_size = font.getsize( widest_str )
+      while value_size[ 0 ] >= smallest_wd or value_size[ 1 ] >= smallest_ht:
+        font_size = int( font_size * 0.8 )
+        if font_size < 6:
+	  value_size = ( 0, 0 )
+        else:
+          font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+	  value_size = font.getsize( widest_str )
+
+      if value_size[ 0 ] > 0:
+        #for item in draw_list:
+        for i in xrange( len( draw_list ) ):
+          item = draw_list[ i ]
+	  value_size = font.getsize( labels[ i ] )
+          value_x = item[ 2 ] + ((item[ 4 ] - value_size[ 0 ]) >> 1)
+	  value_y = item[ 3 ] + ((item[ 5 ] - value_size[ 1 ]) >> 1)
+	  im_draw.text(
+	      ( value_x, value_y ), labels[ i ],
+	      fill = item[ 1 ], font = font
+	      )
+        #end for item
+      #end if value_size
+    #end if draw_list and im_draw is not None
+  #end _DrawValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget._DrawValues_unaligned()		-
+  #----------------------------------------------------------------------
+  def _DrawValues_unaligned( self, draw_list, im_draw, font_size = 0 ):
     """Draws value text.
 @param  draw_list	list of ( str, color, x, y, wd, ht )
 @param  im_draw		PIL.ImageDraw.Draw reference
@@ -1105,32 +1518,34 @@ be displayed in a cell.
       if font_size == 0:
         font_size = smallest_wd >> 1
 
+      font_size = min( font_size, 28 )
+
 #			-- Reduce font size if necessary
 #			--
-    font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
-    value_size = font.getsize( widest_str )
-    #while value_size[ 0 ] >= smallest_wd:
-    while value_size[ 0 ] >= smallest_wd or value_size[ 1 ] >= smallest_ht:
-      font_size = int( font_size * 0.8 )
-      if font_size < 6:
-	value_size = ( 0, 0 )
-      else:
-        font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
-	value_size = font.getsize( widest_str )
-    #end if draw_list
+      font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+      value_size = font.getsize( widest_str )
+      #while value_size[ 0 ] >= smallest_wd:
+      while value_size[ 0 ] >= smallest_wd or value_size[ 1 ] >= smallest_ht:
+        font_size = int( font_size * 0.8 )
+        if font_size < 6:
+	  value_size = ( 0, 0 )
+        else:
+          font = PIL.ImageFont.truetype( self.valueFontPath, font_size )
+	  value_size = font.getsize( widest_str )
 
-    if value_size[ 0 ] > 0:
-      for item in draw_list:
-	value_size = font.getsize( item[ 0 ] )
-        value_x = item[ 2 ] + ((item[ 4 ] - value_size[ 0 ]) >> 1)
-	value_y = item[ 3 ] + ((item[ 5 ] - value_size[ 1 ]) >> 1)
-	im_draw.text(
-	    ( value_x, value_y ), item[ 0 ],
-	    fill = item[ 1 ], font = font
-	    )
-      #end for item
-    #end if value_size
-  #end _DrawValues
+      if value_size[ 0 ] > 0:
+        for item in draw_list:
+	  value_size = font.getsize( item[ 0 ] )
+          value_x = item[ 2 ] + ((item[ 4 ] - value_size[ 0 ]) >> 1)
+	  value_y = item[ 3 ] + ((item[ 5 ] - value_size[ 1 ]) >> 1)
+	  im_draw.text(
+	      ( value_x, value_y ), item[ 0 ],
+	      fill = item[ 1 ], font = font
+	      )
+        #end for item
+      #end if value_size
+    #end if draw_list and im_draw is not None
+  #end _DrawValues_unaligned
 
 
   #----------------------------------------------------------------------
@@ -1166,6 +1581,17 @@ Subclasses should override as needed.
 """
     return  self.dmgr.ExtractSymmetryExtent()
   #end GetInitialCellRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RasterWidget.GetPrintFontScale()		-
+  #----------------------------------------------------------------------
+  def GetPrintFontScale( self ):
+    """Should be overridden by subclasses.
+@return		4
+"""
+    return  4
+  #end GetPrintFontScale
 
 
   #----------------------------------------------------------------------
@@ -1279,26 +1705,24 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
 """
     #super( RasterWidget, self )._LoadDataModel()
     if self.dmgr.HasData() and not self.isLoading:
-      #self.isLoaded = True
-      self._LoadDataModelValues()
+      self._LoadDataModelValues( reason )
 
 #		-- Do here what is not dependent on size
 #		--
       self.cellRange = list( self.GetInitialCellRange() )
       del self.cellRangeStack[ : ]
 
-      self.axialValue = self.dmgr.\
-          GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
-      #self.stateIndex = self.state.stateIndex
-      self.timeValue = self.state.timeValue
+      if (reason & STATE_CHANGE_axialValue) > 0:
+        self.axialValue = self.dmgr.\
+            GetAxialValue2( self.curDataSet, cm = self.state.axialValue[ 0 ] )
 
-#x      with self.bitmapsLock:
-#x        self.bitmapThreadArgs = None
+      if (reason & STATE_CHANGE_timeValue) > 0:
+        self.timeValue = self.state.timeValue
 
       self.stateIndex = self.dmgr.\
           GetTimeValueIndex( self.timeValue, self.curDataSet )
 
-      wx.CallAfter( self._LoadDataModelUI )
+      wx.CallAfter( self._LoadDataModelUI, reason )
     #end if
   #end _LoadDataModel
 
@@ -1306,7 +1730,7 @@ Calls _LoadDataModelValues() and _LoadDataModelUI().
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._LoadDataModelUI()			-
   #----------------------------------------------------------------------
-  def _LoadDataModelUI( self ):
+  def _LoadDataModelUI( self, reason ):
     """This implementation is a noop and may be implemented by subclasses
 to perform any GUI component initialization that depends on self.state
 or self.dmgr.
@@ -1320,7 +1744,7 @@ Must be called on the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._LoadDataModelValues()		-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues( self ):
+  def _LoadDataModelValues( self, reason ):
     """This noop version should be implemented in subclasses to initialize
 attributes/properties that aren't already set in _LoadDataModel():
   axialValue
@@ -1785,7 +2209,7 @@ will be called.
 @return			kwargs with 'changed' and/or 'resized'
 """
     changed = kwargs.get( 'changed', False )
-    resized = kwargs.get( 'resized', False )
+    resized = kwargs.get( 'resized', kwargs.get( 'force_redraw', False ) )
 
 #    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
 #      changed = True
@@ -1796,7 +2220,7 @@ will be called.
 	self.curDataSet:
       changed = True
       self.axialValue = self.dmgr.\
-          GetAxialValue( self.curDataSet, cm = kwargs[ 'axial_value' ][ 0 ] )
+          GetAxialValue2( self.curDataSet, cm = kwargs[ 'axial_value' ][ 0 ] )
     #end if 'axial_value'
 
     if 'data_model_mgr' in kwargs:
@@ -1838,7 +2262,7 @@ will be called.
         self._UpdateDataSetStateValues( ds_type )
 	self.container.GetDataSetMenu().Reset()
         self.axialValue = self.dmgr.\
-            GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
+            GetAxialValue2( self.curDataSet, cm = self.axialValue[ 0 ] )
         self.stateIndex = \
 	  max( 0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet ) )
 

@@ -3,6 +3,19 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2017-05-13	leerw@ornl.gov				-
+#	  Checking widget.Is3D() before adding "Show in New Window" to
+#	  widget menu.
+#		2017-05-05	leerw@ornl.gov				-
+#	  Modified _OnShowInNewWindow() to pass no_init to
+#	  VeraViewFrame.CreateWindow().  Processing no_init param in
+#	  _InitUI().
+#		2017-03-29	leerw@ornl.gov				-
+#	  Apparently have fixed the Anaconda/MacOS segv result from
+#	  _OnShowInNewWindow() by delaying Destroy() call to
+#	  _DestroyMuchLater().
+#		2017-03-28	leerw@ornl.gov				-
+#	  Added tally menu and button.
 #		2017-02-03	leerw@ornl.gov				-
 #	  Adding white background image save option.
 #		2016-12-08	leerw@ornl.gov				-
@@ -77,11 +90,12 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, logging, math, os, sys
+import functools, logging, math, os, sys, time
 import pdb  #pdb.set_trace()
 
 try:
   import wx
+  import wx.lib.delayedresult as wxlibdr
 except Exception:
   raise ImportError( "The wxPython module is required" )
 
@@ -134,13 +148,11 @@ class AnimationCallback( object ):
 
 
   def __call__( self, i, n, msg = None ):
-    n = max( n, 1 )
-
     if self.logger.isEnabledFor( logging.DEBUG ):
-      self.logger.debug(
-          '%d/%d (%.2f%%) %s',
-	  i, n, i * 100.0 / n, '' if msg is None else msg
-	  )
+      if msg:
+        self.logger.debug( msg )
+      else:
+        self.logger.debug( '%d/%d', i, n )
   #end __call__
 
 
@@ -219,6 +231,8 @@ widget.
     self.logger = widget.Widget.logger_
     self.parent = parent
     self.state = state
+    self.tallyMenu = None
+    self.tallyMenuButton = None
     self.widget = None
     self.widgetClassPath = widget_classpath
     self.widgetMenu = None
@@ -349,6 +363,26 @@ definition array for a pullright.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_DestroyMuchLater()				-
+  #----------------------------------------------------------------------
+  def _DestroyMuchLater( self ):
+    """Waits before calling Destroy().
+"""
+    def doneit( result ):
+      if result.get():
+        self.Destroy()
+    #end doneit
+
+    def doit():
+      time.sleep( 2.0 )
+      return  True
+    #end doit
+
+    wxlibdr.startWorker( doneit, doit, wargs = [] )
+  #end _DestroyMuchLater
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		FindMenuItem()					-
   #----------------------------------------------------------------------
   def FindMenuItem( self, menu, *labels ):
@@ -449,6 +483,8 @@ definition array for a pullright.
     reason = self.state.ResolveLocks( reason, self.eventLocks )
     if reason != STATE_CHANGE_noop:
       self.widget.HandleStateChange( reason )
+
+    #xxxx STATE_CHANGE_tallyAddr to update menu?
   #end HandleStateChange
 
 
@@ -458,6 +494,11 @@ definition array for a pullright.
   def _InitUI( self, widget_classpath, **kwargs ):
     #dmgr = State.FindDataModelMgr( self.state )
     dmgr = self.state.GetDataModelMgr()
+
+    no_init = False
+    if 'no_init' in kwargs:
+      no_init = kwargs[ 'no_init' ]
+      del kwargs[ 'no_init' ]
 
 #		-- Instantiate Widget
 #		--
@@ -606,6 +647,61 @@ definition array for a pullright.
 	  )
     #end if dataset_types
 
+#		-- Tally menu button
+#		--
+    special_types = self.widget.GetSpecialDataSetTypes()
+    tally = dmgr.GetCore().tally
+    if 'tally' in special_types and tally.IsValid():
+      tally_qds_defs = []
+      for qds_name in dmgr.GetDataSetQNames( None, 'tally' ):
+        tally_qds_defs.append({
+	    'label': dmgr.GetDataSetDisplayName( qds_name ),
+	    'kind': wx.ITEM_RADIO,
+	    'handler': functools.partial( self._OnTally, 0, qds_name )
+	    })
+
+      tally_mult_defs = []
+      for i in xrange( tally.nmultipliers ):
+        tally_mult_defs.append({
+	    'label': tally.multiplierNames[ i ],
+	    'kind': wx.ITEM_RADIO,
+	    'handler': functools.partial( self._OnTally, 1, i )
+	    })
+
+      tally_stat_defs = []
+      for i in xrange( tally.nstat ):
+        tally_stat_defs.append({
+	    'label': tally.stat[ i ],
+	    'kind': wx.ITEM_RADIO,
+	    'handler': functools.partial( self._OnTally, 2, i )
+	    })
+
+      tally_menu_defs = [
+	  { 'label': 'Select Tally Dataset', 'submenu': tally_qds_defs },
+	  { 'label': 'Select Tally Multiplier', 'submenu': tally_mult_defs },
+	  { 'label': 'Select Tally Stat', 'submenu': tally_stat_defs }
+          ]
+      self.tallyMenu = self._CreateMenuFromDef( None, tally_menu_defs )
+
+      self.tallyMenuButton = wx.BitmapButton(
+          control_panel, -1,
+	  widget.Widget.GetBitmap( 'tally_icon_16x16' )
+	  )
+
+      self.tallyMenuButton.SetToolTip( wx.ToolTip( 'Tally Options' ) )
+      self.tallyMenuButton.Bind(
+          wx.EVT_BUTTON,
+	  functools.partial(
+	      self._OnPopupMenu,
+	      self.tallyMenuButton, self.tallyMenu
+	      )
+	  )
+      cp_sizer.Add(
+          self.tallyMenuButton, 0,
+	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
+	  )
+    #end if 'tally'
+
 #		-- Widget menu
 #		--
     self.widgetMenu = wx.Menu()
@@ -669,7 +765,7 @@ definition array for a pullright.
     #end if anim_indexes for this widget
 
 #			-- Save image
-    if Config.CanDragNDrop():
+    if Config.CanDragNDrop() and not self.widget.Is3D():
       show_item = \
           wx.MenuItem( self.widgetMenu, wx.ID_ANY, 'Show in New Window' )
       self.Bind( wx.EVT_MENU, self._OnShowInNewWindow, show_item )
@@ -689,7 +785,14 @@ definition array for a pullright.
 	)
 
     self.widgetMenuButton.SetToolTip( wx.ToolTip( 'Widget Functions' ) )
-    self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
+    #self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
+    self.widgetMenuButton.Bind(
+        wx.EVT_BUTTON,
+	functools.partial(
+	    self._OnPopupMenu,
+	    self.widgetMenuButton, self.widgetMenu
+	    )
+	)
     cp_sizer.Add(
         self.widgetMenuButton, 0,
 	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
@@ -722,8 +825,9 @@ definition array for a pullright.
     vbox.Layout()
 
     self.state.AddListener( self )
-    self.widget.Init()
-    self.dataSetMenu.Init()
+    if not no_init:
+      self.widget.Init()
+      self.dataSetMenu.Init()
     #self.widget.SetState( self.state )
   #end _InitUI
 
@@ -746,6 +850,8 @@ definition array for a pullright.
 """
     self.widget.LoadProps( props_dict )
     self.dataSetMenu.Init()
+    # now called in Init()
+    #self.dataSetMenu.UpdateAllMenus()
   #end LoadProps
 
 
@@ -765,7 +871,7 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   #	METHOD:		OnClose()					-
   #----------------------------------------------------------------------
-  def OnClose( self, ev ):
+  def OnClose( self, ev, destroy_now = True ):
     """
 """
     if self.state is not None and self.widget is not None:
@@ -774,7 +880,12 @@ definition array for a pullright.
         self.dataSetMenu.Dispose()
 
 #    self.Close()
-    self.Destroy()
+    # This causes a segv for Anaconda under MacOS after _OnShowInNewWindow().
+    if destroy_now:
+      wx.CallAfter( self.Destroy )
+    else:
+      self.Hide()
+      self._DestroyMuchLater()
   #end OnClose
 
 
@@ -845,7 +956,8 @@ definition array for a pullright.
     widget_props = WidgetConfig.CreateWidgetProps( self.widget )
     widget_json = WidgetConfig.Encode( widget_props )
 
-    drag_source = wx.DropSource( ev.GetEventObject() )
+    #drag_source = wx.DropSource( ev.GetEventObject() )
+    drag_source = wx.DropSource( self )
     drag_data = wx.TextDataObject( widget_json )
     drag_source.SetData( drag_data )
 
@@ -906,7 +1018,8 @@ definition array for a pullright.
 
 	elif label.find( 'pin axial' ) >= 0:
 	  animator = PinAxialAnimator(
-              self.widget, callback = AnimationCallback()
+              self.widget, callback = AnimationCallback(),
+	      logger = self.logger
 	      )
 
 	elif label.find( 'state' ) >= 0:
@@ -931,13 +1044,35 @@ definition array for a pullright.
   #	METHOD:		_OnShowInNewWindow()				-
   #----------------------------------------------------------------------
   def _OnShowInNewWindow( self, ev ):
+    """Creates a new window containing just this container's widget.
+"""
+    widget_props = WidgetConfig.CreateWidgetProps( self.widget )
+    self.GetTopLevelParent().CreateWindow( widget_props, no_init = True )
+
+    # Note the call to Destroy() in OnClose() results in segv under
+    # Anaconda on MacOS.  Hence, we have this really-do-it-later tango.
+    # With 'wxPython-3.0.0.0 osx-cocoa (classic)', there is no DestroyLater()
+    # method.
+    wx.CallAfter( self.OnClose, None, False )
+  #end _OnShowInNewWindow
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnTally()					-
+  #----------------------------------------------------------------------
+  def _OnTally( self, addr_ndx, value, ev ):
     """
 """
-    #self.GetTopLevelParent().CreateWindow( self )
-    widget_props = WidgetConfig.CreateWidgetProps( self.widget )
-    self.GetTopLevelParent().CreateWindow( widget_props )
-    wx.CallAfter( self.OnClose, None )
-  #end _OnShowInNewWindow
+    if ev is not None:
+      ev.Skip()
+
+    tally_addr = []
+    for i in xrange( len( self.state.tallyAddr ) ):
+      tally_addr.append(
+	  value  if addr_ndx == i else  self.state.tallyAddr[ i ]
+          )
+    self.FireStateChange( tally_addr = tally_addr )
+  #end _OnTally
 
 
   #----------------------------------------------------------------------
@@ -945,6 +1080,7 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   def _OnWidgetMenu( self, ev ):
     """
+@deprecated  just call _OnPopupMenu().
 """
     # Only for EVT_CONTEXT_MENU
     #pos = ev.GetPosition()
@@ -975,7 +1111,6 @@ Must be called from the UI event thread
 
     if file_path is not None:
       animator.Run( file_path )
-      #animator.Start( file_path )
     #end if we have a destination file path
   #end SaveWidgetAnimatedImage
 

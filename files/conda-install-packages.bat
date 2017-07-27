@@ -1,14 +1,26 @@
 @echo off
 setlocal
 
-:try_mini
+:try_0
 set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
-if not exist "%CondaDir%\scripts\conda.exe" goto try_full
+if not exist "%CondaDir%\scripts\conda.exe" goto try_1
 set CondaCommand=%CondaDir%\scripts\conda.exe
 goto found
 
-:try_full
+:try_1
+set CondaDir=%userprofile%\Miniconda2
+if not exist "%CondaDir%\scripts\conda.exe" goto try_2
+set CondaCommand=%CondaDir%\scripts\conda.exe
+goto found
+
+:try_2
 set CondaDir=%userprofile%\AppData\Local\Continuum\Anaconda2
+if not exist "%CondaDir%\scripts\conda.exe" goto try_3
+set CondaCommand=%CondaDir%\scripts\conda.exe
+goto found
+
+:try_3
+set CondaDir=%userprofile%\Anaconda2
 if not exist "%CondaDir%\scripts\conda.exe" goto not_found
 set CondaCommand=%CondaDir%\scripts\conda.exe
 goto found
@@ -19,8 +31,7 @@ call "%temp%\msg.vbs"
 goto finished
 
 :found
-"%CondaCommand%" install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
-
+"%CondaCommand%" install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
 
 :finished
 endlocal
