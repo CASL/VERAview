@@ -1,6 +1,9 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2017-08-21	godfreyat@ornl.gov			-
+# 	  Fixing _calc_weights() to make the middle (line of symmetry)
+#	  pin index 0 for an even number of assemblies (lines 453-4).
 #		2017-03-07	godfreyat@ornl.gov			-
 #	  Checking "factor" attribute, defaulting to self.pinWeights in
 #	  calc_average().
@@ -447,16 +450,14 @@ be called before use.
     if core.coreSym == 4:
       mass = massx = core.nassx >> 1
       massy = core.nassy >> 1
-      mpin = mpinx = core.npinx >> 1
-      mpiny = core.npiny >> 1
-      pxlo = np.zeros( [ core.nass ], dtype = int )
-      pylo = np.zeros( [ core.nass ], dtype = int )
+#      mpin = mpinx = core.npinx >> 1
+#      mpiny = core.npiny >> 1
+      mpin = mpinx = 0 if core.nassx % 2 == 0  else core.npinx >> 1
+      mpiny = 0 if core.nassy % 2 == 0  else core.npiny >> 1
+      pxlo = np.zeros( [ core.nass ], dtype = int )  # core.nassy?
+      pylo = np.zeros( [ core.nass ], dtype = int )  # core.nassx?
 #			-- Assemblies on the line of symmetry start at the
 #			-- middle pin
-#x      for i in xrange( mass, core.nassx ):
-#x        pxlo[ core.coreMap[ i, mass ] - 1 ] = mpin
-#x        pylo[ core.coreMap[ mass, i ] - 1 ] = mpin
-
       for j in xrange( massy, core.nassy ):
         pxlo[ core.coreMap[ j, massx ] - 1 ] = mpinx
       for i in xrange( massx, core.nassx ):
