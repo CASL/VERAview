@@ -299,7 +299,7 @@ application installer script or manual installation of the required Python
 components followed by clicking the green *Clone or download* button above.
 
 
-### Application Installater Script
+### Application Installer Script
 
 An application installer that will install VERAView and the required Python
 environment (Continuum's Miniconda2) is available
@@ -391,3 +391,43 @@ location you will need to modify `vvconda.run.sh` to edit the first line
 to point to your Anaconda2 or Miniconda2 installation.  If you are using Canopy
 or an alternate environment, modify the script as needed to launch in your
 environment.
+
+
+## Updating From the Repository
+
+After you have installed VERAView you can update it from the repository.  You
+will reuse the Miniconda2 environment that was installed with VERAView or which
+you set up manually.  The following steps assume you ran one of the platform
+installers linked above.  Otherwise, you must manually edit the
+`vvconda.run.bat` as described in the manual install sections above.
+
+(1) Rename your current VERAView installation subdirectory from `VERAView`
+(Windows) or `veraview` (Mac OS X, Linux) to `veraview.old`.
+
+(2) In the directory containing `veraview.old`, execute `git` to clone the
+repository.
+
+    $ git clone https://github.com/CASL/VERAview veraview
+
+  This will create a new subdirectory named `veraview`.  Note also if you have
+  already cloned the repo, it is only necessary to run `git pull` in the
+  `veraview` subdir to update it.
+
+(3) Move the `miniconda2` subdir in `veraview.old` to the new `veraview`
+repository subdir.  On Windows, there are a couple of additional files to move:
+`vvconda.run.exe` and `veraview.ico`.
+
+    (Windows)
+    > cd veraview
+    > move ..\veraview.old\miniconda2 .
+    > move ..\veraview.old\veraview.ico .
+    > move ..\veraview.old\vvconda.run.exe .
+
+    > move ..\veraview.old\vvconda.run.exe .
+    (Mac OS X, Linux)
+    $ cd veraview
+    $ mv ../veraview.old/miniconda2 .
+
+You can launch VERAView by executing the launch script or executable.  For
+Windows this is `vvconda.run.exe` or `vvconda.run.bat`.  For Mac OS X and Linux
+this is `vvconda.run.sh`.
