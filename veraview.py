@@ -205,7 +205,7 @@ SCALE_MODES = \
   }
 
 #TITLE = 'VERAView Version 1.1 Build 85'
-TITLE = 'VERAView Version 2.1b2'
+TITLE = 'VERAView Version 2.1b3'
 
 TOOLBAR_ITEMS = \
   [
