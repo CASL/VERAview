@@ -117,11 +117,11 @@ double-clicking in File Explorer or Windows Explorer) the file
 `vvconda.run.exe` in the `VERAView` folder.
 
 
-### Manual Install
+### Manual Installation
 
 #### Install Miniconda2
 
-For a manual install of the required Python environment, go to the Continuum
+To manually install the required Python environment, go to the Continuum
 Miniconda [download page](https://conda.io/miniconda.html) and click the
 *64-bit (exe installer)* link in the *Windows* column and *Python 2.7* row.
 The link should be something like the following:
@@ -217,11 +217,11 @@ After completing the installation, you launch VERAView by double-clicking
 under `Contents/MacOS` in the app installation directory.
 
 
-### Manual Install
+### Manual Installation
 
 #### Install Miniconda2
 
-For a manual install of the required Python environment, go to the Continuum
+To manually install the required Python environment, go to the Continuum
 Miniconda [download page](https://conda.io/miniconda.html) and click the
 *64-bit (bash installer)* link in the *Mac OS X* column and *Python 2.7* row.
 The link should be something like the following:
@@ -317,11 +317,11 @@ After completing the installation, you launch VERAView by double-clicking
 under `Contents/MacOS` in the app installation directory.
 
 
-### Manual Install
+### Manual Installation
 
 #### Install Miniconda2
 
-For a manual install of the required Python environment, go to the Continuum
+To manually install the required Python environment, go to the Continuum
 Miniconda [download page](https://conda.io/miniconda.html) and click the
 *64-bit (bash installer)* link in the *Linux* column and *Python 2.7* row.
 The link should be something like the following:
@@ -399,35 +399,49 @@ After you have installed VERAView you can update it from the repository.  You
 will reuse the Miniconda2 environment that was installed with VERAView or which
 you set up manually.  The following steps assume you ran one of the platform
 installers linked above.  Otherwise, you must manually edit the
-`vvconda.run.bat` as described in the manual install sections above.
+`vvconda.run.bat` or `vvconda.run.sh` file as described in the Manual
+Installation section above.
 
-(1) Rename your current VERAView installation subdirectory from `VERAView`
-(Windows) or `veraview` (Mac OS X, Linux) to `veraview.old`.
+(1) Open a shell and make your VERAView installation directory current.
 
-(2) In the directory containing `veraview.old`, execute `git` to clone the
-repository.
+*Windows*
 
-    $ git clone https://github.com/CASL/VERAview veraview
+Open a Command Prompt window and `cd` to your VERAView installation directory.
+For example, if VERAView is installed in your home folder:
 
-  This will create a new subdirectory named `veraview`.  Note also if you have
-  already cloned the repo, it is only necessary to run `git pull` in the
-  `veraview` subdir to update it.
+    > cd /d %userprofile%\VERAView
 
-(3) Move the `miniconda2` subdir in `veraview.old` to the new `veraview`
-repository subdir.  On Windows, there are a couple of additional files to move:
-`vvconda.run.exe` and `veraview.ico`.
+*Mac*
 
-    (Windows)
-    > cd veraview
-    > move ..\veraview.old\miniconda2 .
-    > move ..\veraview.old\veraview.ico .
-    > move ..\veraview.old\vvconda.run.exe .
+Open a Terminal window and `cd` to the `Contents/MacOS` subdir under
+the `VERAview.app` directory where VERAView was installed.  This should be
+either the root Applications directory (`/Applications/VERAview.app`) or
+the one in your home directory (`~/Applications/VERAview.app`).
 
-    > move ..\veraview.old\vvconda.run.exe .
-    (Mac OS X, Linux)
-    $ cd veraview
-    $ mv ../veraview.old/miniconda2 .
+    $ cd /Applications/VERAview.app/Contents/MacOS
+
+or
+
+    $ cd ~/Applications/VERAview.app/Contents/MacOS
+
+*Linux*
+
+Open a Bash shell and `cd` to the VERAView installation directory.  For
+example, if VERAView were installed in your home directory:
+
+    $ cd ~/veraview
+
+
+(2) If you have yet to clone the repository, execute `git` to clone it to the
+VERAView installation directory (which should be current):
+
+    $ git clone https://github.com/CASL/VERAview .
+
+If you have previously cloned the repository, you need only pull:
+
+    $ git pull
 
 You can launch VERAView by executing the launch script or executable.  For
 Windows this is `vvconda.run.exe` or `vvconda.run.bat`.  For Mac OS X and Linux
-this is `vvconda.run.sh`.
+this is `vvconda.run.sh`.  Also, on the Mac double-clicking the VERAview
+application icon in the Finder Applications folder should launch VERAView.
