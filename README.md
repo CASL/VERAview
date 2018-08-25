@@ -96,7 +96,7 @@ VERAView is developed and tested with the Anaconda Python-2 environment.  Our
 experience is that Anaconda provides a consistent environment on the three
 platforms, thus Anaconda is our recommended runtime environment, and we only
 provide instructions for it.  The
-[Anaconda2](https://www.continuum.io/downloads) or
+[Anaconda2](https://www.anaconda.com/download/) or
 [Miniconda2](https://conda.io/miniconda.html)
 environment provides all the necessary requirements as pre-built packages,
 but packages required by VERAView must be installed.
@@ -269,7 +269,7 @@ containing all packages required by VERAView.
 
 An installer script containing VERAView with the required Python
 environment is available
-[here](https://newton.ornl.gov/casl/VERAView-2.3.0-Linux-x86_64.dmg).
+[here](https://newton.ornl.gov/casl/VERAView-2.3.0-Linux-x86_64.sh).
 The installer does not require root privileges but can be installed as root.
 When run as root, the default installation path is `/usr/local/veraview-2.3.0`.
 Otherwise the default install path is `$HOME/veraview-2.3.0`.  Execute the
