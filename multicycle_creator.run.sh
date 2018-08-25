@@ -1,16 +1,23 @@
 #!/bin/bash -a
 
+VERAViewDir=$(dirname "$0")
+
 #------------------------------------------------------------------------
 # If you changed the path for your per-user environment setup,
 # set the value of the CondaBinDir variable to point the bin subdir
 # under that path.
 #------------------------------------------------------------------------
-CondaBinDir="$HOME/miniconda2/bin"
-[ ! -d "${CondaBinDir}" ] && CondaBinDir="$HOME/anaconda2/bin"
-Conda="${CondaBinDir}/conda"
+CondaBinDir="${VERAViewDir}/miniconda2/bin"
 
-if [ -x "${Conda}" ]; then
-  exec "${Conda}" install -y numpy=1.9.3 h5py=2.5.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+[ ! -d "${CondaBinDir}" ] && CondaBinDir="$HOME/miniconda2/bin"
+[ ! -d "${CondaBinDir}" ] && CondaBinDir="$HOME/anaconda2/bin"
+
+CondaExe="${CondaBinDir}/python"
+
+if [ -x "${CondaExe}" ]; then
+  export ETS_TOOLKIT=wx
+  export PYTHONPATH="${VERAViewDir}:${PYTHONPATH}"
+  exec "${CondaExe}" "${VERAViewDir}/data/multicycle_creator.py" "$@"
 
 else
   cat <<END >&2

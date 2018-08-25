@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		excore_output_bean.py				-
 #	HISTORY:							-
+#		2018-03-02	leerw@ornl.gov				-
+#	  Renamed FluenceSynthesizer to ExcoreCreator.
 #		2017-07-21	leerw@ornl.gov				-
 #	  Fixing _OnCharHook for Linux.
 #		2017-07-07	leerw@ornl.gov				-
@@ -18,10 +20,8 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
-#from data.datamodel import *
-#from data.datamodel_mgr import *
-from data.fluence_synth import *
-#from widget.bean.dataset_menu import *
+from data.excore_creator import *
+#from data.fluence_synth import *
 
 
 #------------------------------------------------------------------------
@@ -29,7 +29,7 @@ from data.fluence_synth import *
 #------------------------------------------------------------------------
 class ExcoreOutputBean( wx.Panel ):
   """Panel with controls for selecting MPACT and Shift files, specifying
-the output file, and executing a FluenceSynthesizer instance.
+the output file, and executing an ExcoreCreator instance.
 """
 
 
@@ -70,7 +70,7 @@ the output file, and executing a FluenceSynthesizer instance.
   #----------------------------------------------------------------------
   def _CreateTaskBegin( self, mpact_path, shift_path, output_path ):
     try:
-      obj = FluenceSynthesizer()
+      obj = ExcoreCreator()
       obj( mpact_path, shift_path, output_path )
       result = output_path
     except Exception, ex:
@@ -221,7 +221,7 @@ the output file, and executing a FluenceSynthesizer instance.
 #		-- Output panel
 #		--
     self.fOutputField = wx.TextCtrl(
-	grid_panel, -1, '',
+	grid_panel, -1, 'out.excore.h5',
 	size = ( name_wd, name_ht )
         )
     #self.fOutputField.SetEditable( False )

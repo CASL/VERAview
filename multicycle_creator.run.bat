@@ -48,7 +48,7 @@ set PythonCommand=python
 
 :found
 set PYTHONPATH=%VERAViewDir%;%PYTHONPATH%
-"%PythonCommand%" "%VERAViewDir%data\fluence_synth.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
+"%PythonCommand%" "%VERAViewDir%data\multicycle_creator.py" %1 %2 %3 %4 %5 %6 %7 %8 %9
 
 :finished
 endlocal

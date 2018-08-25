@@ -612,7 +612,7 @@ Must pass the 'ds_names' parameter.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataRangeDialog._OnCharHook()			-
+  #	METHOD:		DataSetChooserDialog._OnCharHook()		-
   #----------------------------------------------------------------------
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()

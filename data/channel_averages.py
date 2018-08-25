@@ -1,6 +1,9 @@
 #------------------------------------------------------------------------
 #	NAME:		channel_averages.py				-
 #	HISTORY:							-
+#		2018-05-21	leerw@ornl.gov				-
+#	  Added calc_{max,min}(), renamed calc_average() to calc_avg() for
+#	  naming consistency.
 #		2017-02-03	leerw@ornl.gov				-
 #	  Worked with Andrew to add fix_weights(), called from
 #	  calc_average().
@@ -37,14 +40,15 @@ be called before use.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		calc_average()					-
+  #	METHOD:		calc_avg()					-
   #----------------------------------------------------------------------
-  def calc_average( self, dset, avg_axis ):
+  def calc_avg( self, dset, avg_axis ):
     """
-@param  dset		h5py.Dataset object
-@param  avg_axis	axis for averaging
-@return			calculated average np.ndarray, or None if averages
-			cannot be calculated for this dataset
+    Args:
+        dset (h5py.Dataset): dataset object
+	avg_axis (int or tuple): axis for averaging
+    Returns:
+        np.ndarray: calculated average or None if no-can-do for this dataset
 """
     avg = None
     factor_weights = None
@@ -99,8 +103,7 @@ be called before use.
     #end if
 
     return  avg
-    #return  avg, factor_weights
-  #end calc_average
+  #end calc_avg
 
 
   #----------------------------------------------------------------------
@@ -108,40 +111,157 @@ be called before use.
   #----------------------------------------------------------------------
   def calc_channel_assembly_avg( self, dset ):
 #    assembly_weights = np.sum( pin_weights, axis = ( 0, 1 ) )
-    return  self.calc_average( dset, ( 0, 1 ) )
+    return  self.calc_avg( dset, ( 0, 1 ) )
   #end calc_channel_assembly_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_assembly_max()			-
+  #----------------------------------------------------------------------
+  def calc_channel_assembly_max( self, dset ):
+    return  self.calc_max( dset, ( 0, 1 ) )
+  #end calc_channel_assembly_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_assembly_min()			-
+  #----------------------------------------------------------------------
+  def calc_channel_assembly_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1 ) )
+  #end calc_channel_assembly_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_channel_axial_avg()			-
   #----------------------------------------------------------------------
   def calc_channel_axial_avg( self, dset ):
-    return  self.calc_average( dset, ( 0, 1, 3 ) )
+    pdb.set_trace()
+    return  self.calc_avg( dset, ( 0, 1, 3 ) )
   #end calc_channel_axial_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_axial_max()			-
+  #----------------------------------------------------------------------
+  def calc_channel_axial_max( self, dset ):
+    pdb.set_trace()
+    return  self.calc_max( dset, ( 0, 1, 3 ) )
+  #end calc_channel_axial_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_axial_min()			-
+  #----------------------------------------------------------------------
+  def calc_channel_axial_min( self, dset ):
+    pdb.set_trace()
+    return  self.calc_min( dset, ( 0, 1, 3 ) )
+  #end calc_channel_axial_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_channel_core_avg()				-
   #----------------------------------------------------------------------
   def calc_channel_core_avg( self, dset ):
-    return  self.calc_average( dset, ( 0, 1, 2, 3 ) )
+    return  self.calc_avg( dset, ( 0, 1, 2, 3 ) )
   #end calc_channel_core_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_core_max()				-
+  #----------------------------------------------------------------------
+  def calc_channel_core_max( self, dset ):
+    return  self.calc_max( dset, ( 0, 1, 2, 3 ) )
+  #end calc_channel_core_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_core_min()				-
+  #----------------------------------------------------------------------
+  def calc_channel_core_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1, 2, 3 ) )
+  #end calc_channel_core_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_channel_radial_assembly_avg()		-
   #----------------------------------------------------------------------
   def calc_channel_radial_assembly_avg( self, dset ):
-    return  self.calc_average( dset, ( 0, 1, 2 ) )
+    return  self.calc_avg( dset, ( 0, 1, 2 ) )
   #end calc_channel_radial_assembly_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_radial_assembly_max()		-
+  #----------------------------------------------------------------------
+  def calc_channel_radial_assembly_max( self, dset ):
+    return  self.calc_max( dset, ( 0, 1, 2 ) )
+  #end calc_channel_radial_assembly_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_radial_assembly_min()		-
+  #----------------------------------------------------------------------
+  def calc_channel_radial_assembly_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1, 2 ) )
+  #end calc_channel_radial_assembly_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_channel_radial_avg()			-
   #----------------------------------------------------------------------
   def calc_channel_radial_avg( self, dset ):
-    return  self.calc_average( dset, 2 )
+    return  self.calc_avg( dset, 2 )
   #end calc_channel_radial_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_radial_max()			-
+  #----------------------------------------------------------------------
+  def calc_channel_radial_max( self, dset ):
+    return  self.calc_max( dset, 2 )
+  #end calc_channel_radial_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_channel_radial_min()			-
+  #----------------------------------------------------------------------
+  def calc_channel_radial_min( self, dset ):
+    return  self.calc_min( dset, 2 )
+  #end calc_channel_radial_min
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_max()					-
+  #----------------------------------------------------------------------
+  def calc_max( self, dset, max_axis ):
+    """
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	max_axis (int or tuple): axes across which to take the max
+    Returns:
+        np.ndarray: max values dataset
+"""
+    result = np.nanmax( dset, axis = max_axis )
+    return  np.nan_to_num( result )
+  #end calc_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_min()					-
+  #----------------------------------------------------------------------
+  def calc_min( self, dset, min_axis ):
+    """Calls ``pin_averages.Averages.calc_aggregate()`` with a min function.
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	min_axis (int or tuple): axes across which to take the min
+    Returns:
+        np.ndarray: min values dataset
+"""
+    d = np.copy( dset )
+    d[ d == 0.0 ] = np.nan
+    result = np.nanmin( d, axis = min_axis )
+    return  np.nan_to_num( result )
+  #end calc_min
 
 
   #----------------------------------------------------------------------

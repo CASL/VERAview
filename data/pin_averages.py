@@ -1,6 +1,18 @@
 #------------------------------------------------------------------------
 #	NAME:		pin_averages.py					-
 #	HISTORY:							-
+#		2018-08-17	godfreyat@ornl.gov			-
+#	  Unsuccessful experimentation with calc_max().
+#		2018-05-25	godfreyat@ornl.gov			-
+#	  Fixed calc_axial_offset() to survive all zero weights.
+#		2018-05-21	godfreyat@ornl.gov			-
+#		2018-05-20	godfreyat@ornl.gov			-
+#	  Added calc_{max,min}(), renamed calc_average() to calc_avg() for
+#	  naming consistency.
+#		2018-02-10	godfreyat@ornl.gov			-
+#	  Beginning migration to multiple functions in addition to average,
+#	  max, min, stddev, abs max, sum, weighted sum, rms, index
+#	  (all but max, min, sum weighted)
 #		2017-08-21	godfreyat@ornl.gov			-
 # 	  Fixing _calc_weights() to make the middle (line of symmetry)
 #	  pin index 0 for an even number of assemblies (lines 453-4).
@@ -30,7 +42,7 @@
 #	  Re-fitting to use VERAView DataModel.
 #		2016-01-28	godfreyam@ornl.gov			-
 #------------------------------------------------------------------------
-import h5py, os, sys
+import bisect, h5py, os, six, sys
 import numpy as np
 import pdb
 
@@ -65,93 +77,239 @@ be called before use.
 	  pin_powers	  reference pin_powers np.ndarray
 	  pin_factors	  optional already-computed factors
 """
+    self.fDict = {}
     if len( args ) >= 2:
       self.load( *args )
-
-    else:
-      self.core = \
-      self.assemblyWeights = \
-      self.assemblyNodeWeights = \
-      self.axialWeights = \
-      self.coreWeights = \
-      self.nodeWeights = \
-      self.pinWeights = \
-      self.radialAssemblyWeights = \
-      self.radialNodeWeights = \
-      self.radialWeights = \
-      None
   #end __init__
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		calc_average()					-
+  #	METHOD:		calc_aggregate()				-
   #----------------------------------------------------------------------
-  def calc_average( self, dset, avg_weights, avg_axis ):
-    """
-@param  dset		h5py.Dataset object
-@param  avg_weights	weights to apply as a denominator to the data sum
-@param  avg_axis	axes defining shape for resulting average
-@return			np.ndarray
+  def calc_aggregate( self, dset, dset_factors, agg_axis, agg_weights, func ):
+    """Applies an aggregation function (e.g., avg, sum, stddev) after
+retrieving or if necessary calculating factor weights.  The ``agg_weights``
+are to be the denominator for weighted aggregations.  The ``func`` param
+is a function returning the resulting array that is passed the dataset
+np.ndarray, the factor_weights np.ndarray, the axis int or tuple, and
+``agg_weights``.
+
+    Args:
+        dset (h5py.Dataset): Dataset being aggregated.
+	dset_factors (np.ndarray): If agg_weights is not None, factors to
+	    apply to ``dset`` before
+	    averaging, None to default to "pinWeights".  Note a "factor"
+	    attribute on ``dset`` overrides this parameter.
+	agg_axis (int or tuple): Axis across which the aggregation is to occur.
+	agg_weights (np.ndarray): Applied as the normalizing denominator,
+	    so it must be of the correct shape to apply after aggregating
+	    across ``agg_axis``.
+	func (callable):
+	    np.ndarray
+	    func(
+	        data : np.ndarray,
+		factors : np.ndarray,
+		axis : int or tuple,
+		agg_weights : np.ndarray
+		)
+    Returns:
+        (np.ndarray): Array resulting from the aggregation operation.
 """
-    #errors_args = { 'divide': 'ignore', 'invalid': 'ignore' }
-    avg = None
+    result = None
     if dset is not None:
       errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
       try:
-	factor_weights = None
-	if dset.attrs and 'factor' in dset.attrs:
+	factors = None
+	if isinstance( dset, h5py.Dataset ) and \
+	    dset.attrs and 'factor' in dset.attrs:
           factor_obj = dset.attrs[ 'factor' ]
 	  factor_name = \
 	      factor_obj[ 0 ] if isinstance( factor_obj, np.ndarray ) else \
 	      str( factor_obj )
 
 	  if self.core is not None:
-	    factor_weights = self.core.group.get( factor_name )
-	  if factor_weights is not None and len( factor_weights.shape ) != 4:
-	    factor_weights = None
+	    factors = self.core.group.get( factor_name )
+	  if factors is not None and len( factors.shape ) != 4:
+	    factors = None
 	#end if 'factor'
 
-	if factor_weights is None:
-	  factor_weights = self.pinWeights
+	if factors is None:
+	  factors = self.pinWeights
+
+	if dset_factors is not None:
+	  factors = factors * dset_factors
+	  agg_weights = agg_weights * np.sum( dset_factors, axis = agg_axis )
 
 	data = np.array( dset )
-	avg = np.sum( data * factor_weights, axis = avg_axis ) / avg_weights
-	if len( avg.shape ) > 0:
-          avg[ avg == np.inf ] = 0.0
-	avg = np.nan_to_num( avg )
+	#result = np.sum( data * factor_weights, axis = agg_axis ) / agg_weights
+	result = func( data, factors, agg_axis, agg_weights )
+
+	#if len( result.shape ) > 0:
+        #  result[ result == np.inf ] = 0.0
+	result = np.nan_to_num( result )
       finally:
 	np.seterr( **errors_save )
     #end if
 
-    return  avg
-  #end calc_average
+    return  result
+  #end calc_aggregate
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		calc_average_old()				-
+  #	METHOD:		calc_avg()					-
   #----------------------------------------------------------------------
-  def calc_average_old( self, data, avg_weights, avg_axis, **errors_args ):
-    """
-@param  data		np.ndarray with dataset values to average
-@param  avg_weights	weights to apply as a denominator to the data sum
-@param  avg_axis	axes defining shape for resulting average
-@return			np.ndarray
+  def calc_avg( self, dset, weights_name, avg_axis ):
+    """Calls ``pin_averages.Averages.calc_aggregate()`` with a weighted
+averaging function.
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	weights_name (str): name of normal weights to apply.
+	avg_axis (int or tuple): axes across which to calc the average
+    Returns:
+        np.ndarray: average dataset
+    Raises:
+        AssertionError: if ``weights_name`` is not found
+
+Not quite:
+  \\frac
+    { sum{ x_y * x_factors * x_initial_mass } }
+    { sum{ x_factors * x_initial_mass } }
 """
-    avg = None
-    if data is not None:
-      if errors_args:
-        errors_save = np.seterr( **errors_args )
-        #errors = np.seterr( invalid = 'ignore' )
-      try:
-	avg = np.sum( data * self.pinWeights, axis = avg_axis ) / avg_weights
-	avg = np.nan_to_num( avg )
-      finally:
-	if errors_args:
-          np.seterr( **errors_save )
-    #end if
+    weights = self.fDict.get( weights_name )
+    assert weights is not None, 'Weights not found: ' + weights_name
 
-    return  avg
-  #end calc_average_old
+#    dset_factors = None
+#    if dset.name.endswith( '_exposures' ):
+#      exp_name = self._get_exposure_name( weights_name )
+#      exp_weights = self.fDict.get( exp_name )
+#      dset_factors = self.fDict.get( 'initialMass' )
+#      if exp_weights is not None and dset_factors is not None:
+#        weights = exp_weights
+    weights, dset_factors = \
+        self._resolve_weights_and_factors( dset, weights_name )
+
+    return \
+    self.calc_aggregate(
+        dset, dset_factors, avg_axis, weights,
+	lambda d, f, a, w: np.sum( d * f, axis = a ) / w
+	)
+  #end calc_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_axial_offset()				-
+  #----------------------------------------------------------------------
+  def calc_axial_offset( self, pin_powers_dset ):
+    """
+"""
+    axial_mesh = self.core.axialMesh
+    weights = self.fDict.get( 'pinWeights' )
+    pin_data = np.array( pin_powers_dset )
+    inside_shape = list( pin_data.shape )
+    inside_shape[ 2 ] = len( axial_mesh - 1 )
+
+    axial_powers = []
+    for k in range( len( axial_mesh ) - 1 ):  # pin_data.shape[ 2 ]
+      cur_weights = weights[ :, :, k, : ]
+      cur_weights_sum = cur_weights.sum()
+      if cur_weights_sum == 0.0:
+	cur_powers = np.zeros( inside_shape )
+        axial_powers.append( 0.0 )
+      else:
+	cur_powers = \
+	    np.sum( pin_data[ :, :, k, : ] * cur_weights ) / cur_weights_sum
+      axial_powers.append( cur_powers )
+
+    axial_middle = (axial_mesh[ 0 ] + axial_mesh[ -1 ]) / 2.0
+    kmid = bisect.bisect_left( axial_mesh, axial_middle )
+    if axial_middle == axial_mesh[ kmid ]:
+      bot_en = top_st = kmid
+    else:
+      bot_en = kmid - 1
+      top_st = kmid + 1
+
+    power_top = power_bot = 0.0
+    for k in range( bot_en ):
+      #print k, axial_powers[ k ], axial_mesh[ k ], axial_mesh[ k + 1 ]
+      power_bot += axial_powers[ k ] * (axial_mesh[ k + 1 ] - axial_mesh[ k ])
+
+    for k in range( top_st, len( axial_mesh ) - 1 ):
+      #print k, axial_powers[ k ], axial_mesh[ k ], axial_mesh[ k + 1 ]
+      power_top += axial_powers[ k ] * (axial_mesh[ k + 1 ] - axial_mesh[ k ] )
+
+    if top_st != bot_en:
+      power_bot += axial_powers[ kmid ] * (axial_middle - axial_mesh[ kmid ])
+      power_top += axial_powers[ kmid ] * (axial_mesh[ top_st ] - axial_middle)
+
+    return  (power_top - power_bot) / (power_top + power_bot) * 100.0
+  #end calc_axial_offset
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_max()					-
+  #----------------------------------------------------------------------
+  def calc_max( self, dset, weights_name, max_axis ):
+    """Calls ``pin_averages.Averages.calc_aggregate()`` with a weighted
+averaging function in max values across ``max_axis``.
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	weights_name (str): name of normal weights to apply.
+	max_axis (int or tuple): axes across which to take the max
+        dset (h5py.Dataset): Dataset instance.
+    Returns:
+        np.ndarray: max values dataset
+"""
+    result = np.nanmax( dset, axis = max_axis )
+    return  np.nan_to_num( result )
+  #end calc_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_calc_max_no()					-
+  #----------------------------------------------------------------------
+  def _calc_max_no( self, dset, weights_name, max_axis ):
+    """Calls ``pin_averages.Averages.calc_aggregate()`` with a weighted
+averaging function in max values across ``max_axis``.
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	weights_name (str): name of normal weights to apply.
+	max_axis (int or tuple): axes across which to take the max
+        dset (h5py.Dataset): Dataset instance.
+    Returns:
+        np.ndarray: max values dataset
+"""
+    weights = self.fDict.get( weights_name )
+    assert weights is not None, 'Weights not found: ' + weights_name
+
+    weights, dset_factors = \
+        self._resolve_weights_and_factors( dset, weights_name )
+
+    return \
+    self.calc_aggregate(
+        dset, dset_factors, max_axis, weights,
+	lambda d, f, a, w: np.nanmax( d, axis = a )
+#	lambda d, f, a, w: np.nanmax( d * f, axis = a ) / w
+	)
+  #end _calc_max_no
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_min()					-
+  #----------------------------------------------------------------------
+  def calc_min( self, dset, weights_name, min_axis ):
+    """Calls ``pin_averages.Averages.calc_aggregate()`` with a min function.
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	weights_name (str): name of normal weights to apply.
+	min_axis (int or tuple): axes across which to take the min
+    Returns:
+        np.ndarray: min values dataset
+"""
+    d = np.copy( dset )
+    d[ d == 0.0 ] = np.nan
+    result = np.nanmin( d, axis = min_axis )
+    return  np.nan_to_num( result )
+  #end calc_min
 
 
   #----------------------------------------------------------------------
@@ -228,7 +386,8 @@ be called before use.
 	    pin_weights[ :, :, k, l ]
 	    )
   
-    if core.coreSym==4 and core.nassx%2==1 and core.npinx%2==1:     # if quarter symmetry and odd assem
+    #if quarter symmetry and odd assem
+    if core.coreSym==4 and core.nassx%2==1 and core.npinx%2==1:
       mass = core.nassx / 2
       for i in xrange(mass,core.nassx):
         l=self.core.coreMap[mass,i]-1
@@ -292,27 +451,73 @@ be called before use.
   #	METHOD:		calc_pin_assembly_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_assembly_avg( self, dset ):
-    return  self.calc_average( dset, self.assemblyWeights, ( 0, 1 ) )
-    #return  self.calc_average( dset.value, self.assemblyWeights, ( 0, 1 ) )
+    return  self.calc_avg( dset, 'assemblyWeights', ( 0, 1 ) )
   #end calc_pin_assembly_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_assembly_max()				-
+  #----------------------------------------------------------------------
+  def calc_pin_assembly_max( self, dset ):
+    return  self.calc_max( dset, 'assemblyWeights', ( 0, 1 ) )
+  #end calc_pin_assembly_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_assembly_min()				-
+  #----------------------------------------------------------------------
+  def calc_pin_assembly_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1 ) )
+  #end calc_pin_assembly_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_axial_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_axial_avg( self, dset ):
-    return  self.calc_average( dset, self.axialWeights, ( 0, 1, 3 ) )
-    #return  self.calc_average( dset.value, self.axialWeights, ( 0, 1, 3 ) )
+    return  self.calc_avg( dset, 'axialWeights', ( 0, 1, 3 ) )
   #end calc_pin_axial_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_axial_max()				-
+  #----------------------------------------------------------------------
+  def calc_pin_axial_max( self, dset ):
+    return  self.calc_max( dset, 'axialWeights', ( 0, 1, 3 ) )
+  #end calc_pin_axial_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_axial_min()				-
+  #----------------------------------------------------------------------
+  def calc_pin_axial_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1, 3 ) )
+  #end calc_pin_axial_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_core_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_core_avg( self, dset ):
-    return  self.calc_average( dset, self.coreWeights, ( 0, 1, 2, 3 ) )
-    #return  self.calc_average( dset.value, self.coreWeights, ( 0, 1, 2, 3 ) )
+    return  self.calc_avg( dset, 'coreWeights', ( 0, 1, 2, 3 ) )
+    #return  self.calc_avg( dset, self.coreWeights, ( 0, 1, 2, 3 ) )
   #end calc_pin_core_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_core_max()				-
+  #----------------------------------------------------------------------
+  def calc_pin_core_max( self, dset ):
+    return  self.calc_max( dset, 'coreWeights', ( 0, 1, 2, 3 ) )
+  #end calc_pin_core_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_core_min()				-
+  #----------------------------------------------------------------------
+  def calc_pin_core_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1, 2, 3 ) )
+  #end calc_pin_core_min
 
 
   #----------------------------------------------------------------------
@@ -345,21 +550,72 @@ be called before use.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_node_max()				-
+  #----------------------------------------------------------------------
+  def calc_pin_node_max( self, dset ):
+    result = np.nanmax( dset, axis = ( 2, 3 ) )
+    return  result
+  #end calc_pin_node_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_node_min()				-
+  #----------------------------------------------------------------------
+  def calc_pin_node_min( self, dset ):
+    d = np.copy( dset )
+    d[ d == 0.0 ] = np.nan
+    result = np.nanmin( d, axis = ( 2, 3 ) )
+    return  result
+  #end calc_pin_node_min
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		calc_pin_radial_assembly_avg()			-
   #----------------------------------------------------------------------
   def calc_pin_radial_assembly_avg( self, dset ):
-    return  self.calc_average( dset, self.radialAssemblyWeights, ( 0, 1, 2 ) )
-    #self.calc_average( dset.value, self.radialAssemblyWeights, ( 0, 1, 2 ) )
+    return  self.calc_avg( dset, 'radialAssemblyWeights', ( 0, 1, 2 ) )
   #end calc_pin_radial_assembly_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_assembly_max()			-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_assembly_max( self, dset ):
+    return  self.calc_max( dset, 'radialAssemblyWeights', ( 0, 1, 2 ) )
+  #end calc_pin_radial_assembly_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_assembly_min()			-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_assembly_min( self, dset ):
+    return  self.calc_min( dset, ( 0, 1, 2 ) )
+  #end calc_pin_radial_assembly_min
 
 
   #----------------------------------------------------------------------
   #	METHOD:		calc_pin_radial_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_radial_avg( self, dset ):
-    return  self.calc_average( dset, self.radialWeights, 2 )
-    #self.calc_average( dset.value, self.radialWeights, 2 )
+    return  self.calc_avg( dset, 'radialWeights', 2 )
+    #return  self.calc_avg( dset, self.radialWeights, 2 )
   #end calc_pin_radial_avg
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_max()				-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_max( self, dset ):
+    return  self.calc_max( dset, 'radialWeights', 2 )
+  #end calc_pin_radial_max
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_pin_radial_min()				-
+  #----------------------------------------------------------------------
+  def calc_pin_radial_min( self, dset ):
+    return  self.calc_min( dset, 2 )
+  #end calc_pin_radial_min
 
 
   #----------------------------------------------------------------------
@@ -382,47 +638,16 @@ be called before use.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		calc_pin_radial_node_avg_wrong()		-
-  #----------------------------------------------------------------------
-  def calc_pin_radial_node_avg_wrong( self, dset ):
-    avg = np.zeros( ( 1, 4, 1, self.core.nass ), dtype = np.float64 )
-
-    errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
-    try:
-      for l in xrange( self.core.nass ):
-        for k in xrange( self.core.nax ):
-	  node_sum = self._calc_node_sum(
-	      self.core, self.assemblyNodeWeights,
-	      dset[ :, :, k, l ] * self.pinWeights[ :, :, k, l]
-	      )
-          for n in xrange( 4 ):
-	    avg[ 0, :, 0, l ] += node_sum[ n ]
-
-      avg = self._fix_node_factors( avg )
-      for n in xrange( 4 ):
-        avg[ 0, n, 0, : ] /= self.radialNodeWeights[ n, : ]
-
-      avg[ avg == np.inf ] = 0.0
-      avg = np.nan_to_num( avg )
-    finally:
-      np.seterr( **errors_save )
-
-    return  avg
-  #end calc_pin_radial_node_avg_wrong
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		_calc_weights()					-
   #----------------------------------------------------------------------
   def _calc_weights( self, core, ref_pin_powers, pin_factors = None ):
-    """
-@param  core		DataModel.Core object
-@param  ref_pin_powers	'pin_powers' data as an np.ndarray
-@param  pin_factors	optional factors to use for pinWeights
-@return			( pin_weights, assembly_weights, axial_weights,
-			  core_weights, radial_assembly_weights,
-			  radial_weights, assy_node_weights,
-			  node_weights, radial_node_weights )
+    """Updates self.fDict.
+    Args:
+        core (DataModel.Core): Core instance.
+	ref_pin_powers (np.ndarray): "pin_powers" as an array
+	pin_factors (np.ndarray): optional factors to use for "pinWeights"
+    Returns:
+        dict: self.fDict
 """
 # Get the geometry information ----------------------------------------
 #map=f['CORE']['core_map']               # get core map
@@ -495,6 +720,7 @@ be called before use.
 #			-- Start with zero weights
 #			--
       pin_weights = np.zeros( ref_pin_powers.shape, dtype = np.float64 )
+      ref_pin_powers[ np.isnan( ref_pin_powers ) ] = 0.0
 
 #			-- Full core, weight is 1 for non-zero power
 #			--
@@ -531,24 +757,53 @@ be called before use.
       for k in xrange( core.nax ):
         pin_weights[ :, :, k, : ] *= \
 	    (core.axialMesh[ k + 1 ] - core.axialMesh[ k ])
-    #end else must calculate pin_weights
+    #end else pin_factors is None
 
-    assembly_weights = np.sum( pin_weights, axis = ( 0, 1 ) )
-    axial_weights = np.sum( pin_weights, axis = ( 0, 1, 3 ) )
-    core_weights = np.sum( pin_weights, axis = ( 0, 1, 2, 3 ) )
-    radial_assembly_weights = np.sum( pin_weights, axis = ( 0, 1, 2 ) )
-    radial_weights = np.sum( pin_weights, axis = 2 )
+    self.fDict[ 'pinWeights' ] = pin_weights
+
+#			-- "Normal" averaging weights
+#			--
+    self.fDict[ 'assemblyWeights' ] = np.sum( pin_weights, axis = ( 0, 1 ) )
+    self.fDict[ 'axialWeights' ] = np.sum( pin_weights, axis = ( 0, 1, 3 ) )
+    self.fDict[ 'coreWeights' ] = np.sum( pin_weights, axis = ( 0, 1, 2, 3 ) )
+    self.fDict[ 'radialAssemblyWeights' ] = \
+        np.sum( pin_weights, axis = ( 0, 1, 2 ) )
+    self.fDict[ 'radialWeights' ] = np.sum( pin_weights, axis = 2 )
 
 #			-- Calculate node weights
 #			--
-    assy_node_weights = self._calc_node_assembly_weights( core )
-    node_weights, radial_node_weights = \
+    self.fDict[ 'assemblyNodeWeights' ] = assy_node_weights = \
+        self._calc_node_assembly_weights( core )
+    self.fDict[ 'nodeWeights' ], \
+    self.fDict[ 'radialNodeWeights' ] = \
         self._calc_node_weights( core, assy_node_weights, pin_weights )
 
-    return  \
-        pin_weights, assembly_weights, axial_weights, core_weights, \
-        radial_assembly_weights, radial_weights, assy_node_weights, \
-	node_weights, radial_node_weights
+#			-- Special exposure weights?
+#			--
+    initial_mass = None
+    for n in ( 'pin_initial_mass', 'initial_mass' ):
+      if n in core.group:
+	self.fDict[ 'initialMass' ] = initial_mass = \
+	    np.array( core.group[ n ] )
+	break
+    #xxx assume 'factor' attribute is initial_maass for _exposure datasets
+    #xxx do this on-the-fly in _calc_aggregate()
+    if initial_mass is not None:
+      self.fDict[ 'exposurePinWeights' ] = exp_pin_weights = \
+          pin_weights * initial_mass
+      self.fDict[ 'exposureAssemblyWeights' ] = \
+          np.sum( exp_pin_weights, axis = ( 0, 1 ) )
+      self.fDict[ 'exposureAxialWeights' ] = \
+          np.sum( exp_pin_weights, axis = ( 0, 1, 3 ) )
+      self.fDict[ 'exposureCoreWeights' ] = \
+          np.sum( exp_pin_weights, axis = ( 0, 1, 2, 3 ) )
+      self.fDict[ 'exposureRadialAssemblyWeights' ] = \
+          np.sum( exp_pin_weights, axis = ( 0, 1, 2 ) )
+      self.fDict[ 'exposureRadialWeights' ] = \
+          np.sum( exp_pin_weights, axis = 2 )
+    #end if initial_mass is not None
+
+    return  self.fDict
   #end _calc_weights
 
 
@@ -561,25 +816,53 @@ be called before use.
 @return			same factors, updated
 """
     # if quarter symmetry and odd assem
-    if self.core.coreSym==4 and self.core.nassx%2==1 and self.core.npinx%2==1:
+    if self.core.coreSym == 4 and self.core.nassx % 2 == 1 and \
+        self.core.npinx % 2 == 1:
       mass = self.core.nassx / 2
-      for i in xrange(mass,self.core.nassx):
+      for i in xrange( mass, self.core.nassx ):
         l=self.core.coreMap[mass,i]-1
         if l>=0:
-          avg[ 0, 2,:,l]+=avg[ 0, 0,:,l]
-          avg[ 0, 3,:,l]+=avg[ 0, 1,:,l]
-          avg[ 0, 0,:,l]=0
-          avg[ 0, 1,:,l]=0
+          avg[ 0, 2, :, l ] += avg[ 0, 0, :, l ]
+          avg[ 0, 3, :, l ] += avg[ 0, 1, :, l ]
+          avg[ 0, 0, :, l ] = 0
+          avg[ 0, 1, :, l ] = 0
 
         l=self.core.coreMap[i,mass]-1
         if l>=0:
-          avg[ 0, 1,:,l]+=avg[ 0, 0,:,l]
-          avg[ 0, 3,:,l]+=avg[ 0, 2,:,l]
-          avg[ 0, 0,:,l]=0
-          avg[ 0, 2,:,l]=0
+          avg[ 0, 1, :, l ] += avg[ 0, 0, :, l ]
+          avg[ 0, 3, :, l ] += avg[ 0, 2, :, l ]
+          avg[ 0, 0, :, l ] = 0
+          avg[ 0, 2, :, l ] = 0
 
     return  avg
   #end _fix_node_factors
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		get_dataset_basename()				-
+  #----------------------------------------------------------------------
+  def get_dataset_basename( self, dset ):
+    """Returns the base name sans parents.
+"""
+    name = None
+    if dset is not None:
+      ndx = dset.name.rfind( '/' )
+      name = dset.name  if ndx < 0 else  dset.name[ ndx + 1 : ]
+    return  name
+  #end get_dataset_basename
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_get_exposure_name()				-
+  #----------------------------------------------------------------------
+  def _get_exposure_name( self, name ):
+    """Converts the weights name to an exposure equivalent, e.g.
+'assemblyWeights' becomes 'exposureAssemblyWeights'.
+"""
+    if name:
+      name = 'exposure' + name[ 0 ].upper() + name[ 1 : ]
+    return  name
+  #end _get_exposure_name
 
 
   #----------------------------------------------------------------------
@@ -594,18 +877,70 @@ be called before use.
 @param  pin_factors	optional factors to use for pinWeights
 """
     self.core = core
-    #self.statept = statept
-
-    self.pinWeights, \
-    self.assemblyWeights, \
-    self.axialWeights, \
-    self.coreWeights, \
-    self.radialAssemblyWeights, \
-    self.radialWeights, \
-    self.assemblyNodeWeights, \
-    self.nodeWeights, \
-    self.radialNodeWeights = \
     self._calc_weights( core, ref_pin_powers, pin_factors )
   #end load
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_resolve_weights_and_factors()			-
+  #----------------------------------------------------------------------
+  def _resolve_weights_and_factors( self, dset, weights_name ):
+    """Checks for "_exposures" dataset, 'initialMass' from CORE, and
+exposures factors.
+    Args:
+        dset (h5py.Dataset): Dataset instance.
+	weights_name (str): name of normal weights to apply.
+    Returns:
+	tuple: weights, optional factors
+"""
+    weights = self.fDict.get( weights_name )
+
+    factors = None
+    if dset.name.endswith( '_exposures' ):
+      exp_name = self._get_exposure_name( weights_name )
+      exp_weights = self.fDict.get( exp_name )
+      factors = self.fDict.get( 'initialMass' )
+      if exp_weights is not None and factors is not None:
+        weights = exp_weights
+
+    return  weights, factors
+  #end _resolve_weights_and_factors
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTIES							-
+  #----------------------------------------------------------------------
+  assemblyNodeWeights = \
+      property( lambda self: self.fDict.get( 'assemblyNodeWeights' ) )
+  assemblyWeights = \
+      property( lambda self: self.fDict.get( 'assemblyWeights' ) )
+  axialWeights = \
+      property( lambda self: self.fDict.get( 'axialWeights' ) )
+  coreWeights = \
+      property( lambda self: self.fDict.get( 'coreWeights' ) )
+  exposureAssemblyWeights = \
+      property( lambda self: self.fDict.get( 'exposureAssemblyWeights' ) )
+  exposureAxialWeights = \
+      property( lambda self: self.fDict.get( 'exposureAxialWeights' ) )
+  exposureCoreWeights = \
+      property( lambda self: self.fDict.get( 'exposureCoreWeights' ) )
+  exposurePinWeights = \
+      property( lambda self: self.fDict.get( 'exposurePinWeights' ) )
+  exposureRadialAssemblyWeights = \
+      property( lambda self: self.fDict.get( 'exposureRadialAssemblyWeights' ) )
+  exposureRadialWeights = \
+      property( lambda self: self.fDict.get( 'exposureRadialWeights' ) )
+  initialMass = \
+      property( lambda self: self.fDict.get( 'initialMass' ) )
+  nodeWeights = \
+      property( lambda self: self.fDict.get( 'nodeWeights' ) )
+  pinWeights = \
+      property( lambda self: self.fDict.get( 'pinWeights' ) )
+  radialAssemblyWeights = \
+      property( lambda self: self.fDict.get( 'radialAssemblyWeights' ) )
+  radialNodeWeights = \
+      property( lambda self: self.fDict.get( 'radialNodeWeights' ) )
+  radialWeights = \
+      property( lambda self: self.fDict.get( 'radialWeights' ) )
 
 #end Averages

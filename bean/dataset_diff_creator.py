@@ -86,6 +86,17 @@ creating a difference dataset.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetDiffCreatorBean.__del__()		-
+  #----------------------------------------------------------------------
+  def __del__( self ):
+    if self.fCompDataSetMenu is not None:
+      self.fCompDataSetMenu.Dispose()
+    if self.fRefDataSetMenu is not None:
+      self.fRefDataSetMenu.Dispose()
+  #end __del__
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetDiffCreatorBean.__init__()		-
   #----------------------------------------------------------------------
   def __init__( self, parent, state, id = -1 ):
@@ -271,6 +282,7 @@ creating a difference dataset.
     self.fRefDataSetMenu = DataSetsMenu(
 	self.fState, binder = self, mode = 'subsingle',
 	ds_types = all_types,
+	show_core_datasets = True,
 	widget = MenuWidget( self.fRefNameField, self.OnNameUpdate )
         )
 
@@ -440,6 +452,12 @@ Called on the UI thread.
       msg = 'Please select a comparison dataset'
     elif len( diff_ds_name ) == 0:
       msg = 'Please enter a difference (result) dataset name'
+
+#		-- Difference name already exists?
+    if msg == '':
+      diff_qds_name = DataSetName( comp_qds_name.modelName, diff_ds_name )
+      if self.fState.dataModelMgr.GetDataSetType( diff_qds_name ):
+        msg = 'Difference Name "' + diff_ds_name + '" already exists'
 
     if msg:
       wx.MessageDialog( self, msg, 'Create Difference Dataset' ).\

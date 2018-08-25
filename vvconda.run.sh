@@ -21,6 +21,7 @@ fi
 if [ -x "${CondaExe}" ]; then
   export ETS_TOOLKIT=wx
   export PYTHONPATH="${VERAViewDir}:${PYTHONPATH}"
+  echo "CondaExe=${CondaExe}"
   exec "${CondaExe}" "${VERAViewDir}/veraview.py" "$@"
 
 else

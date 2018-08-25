@@ -3,6 +3,13 @@
 #------------------------------------------------------------------------
 #	NAME:		data_range_bean.py				-
 #	HISTORY:							-
+#		2018-06-22	leerw@ornl.gov				-
+#	  Disallowing "inf" in range fields.
+#		2018-06-19	leerw@ornl.gov				-
+#	  Added DataRangeBean.Check().
+#		2018-03-31	leerw@ornl.gov				-
+#		2018-03-30	leerw@ornl.gov				-
+#	  Adding Scale Type and Colormap.
 #		2017-07-21	leerw@ornl.gov				-
 #	  Fixing _OnCharHook for Linux.
 #		2017-03-30	leerw@ornl.gov				-
@@ -25,6 +32,7 @@ except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
 from event.state import *
+from widget.colormaps import *
 
 
 #------------------------------------------------------------------------
@@ -35,12 +43,17 @@ from event.state import *
 #DataRangeEvent, EVT_DATA_RANGE = wx.lib.newevent.NewEvent()
 
 
+DEFAULT_colormap = 'jet'
 DEFAULT_precisionDigits = 3
-DEFAULT_precisionMode = 'General'
+DEFAULT_precisionMode = 'general'
+DEFAULT_scaleType = '(dataset default)'
+
 
 EMPTY_RANGE = ( float( 'NaN' ), float( 'NaN' ) )
 
-MODE_OPTIONS = [ 'Fixed', DEFAULT_precisionMode ]
+MODE_OPTIONS = [ 'Fixed', DEFAULT_precisionMode.title() ]
+
+SCALE_TYPES = [ DEFAULT_scaleType.title(), 'Linear', 'Log' ]
 
 
 #------------------------------------------------------------------------
@@ -63,29 +76,87 @@ Attributes/properties:
   #----------------------------------------------------------------------
   def __init__(
       self, container, id = -1,
+      bitmap_func = None,
       range_in = EMPTY_RANGE,
       digits_in = DEFAULT_precisionDigits,
-      mode_in = DEFAULT_precisionMode
+      mode_in = DEFAULT_precisionMode,
+      colormap_in = DEFAULT_colormap,
+      scale_type_in = DEFAULT_scaleType,
+      enable_scale_and_cmap = True
       ):
     """
-@param  value		initial value
 """
     super( DataRangeBean, self ).__init__( container, id )
 
+    self.fBitmapFunc = bitmap_func
     self.fRange = EMPTY_RANGE
 
+    self.fColormapBitmap = \
+    self.fColormapButton = \
+    self.fColormapMenu = \
     self.fPrecisionModeCtrl = \
-    self.fPrecisionDigitsCtrl = None
+    self.fPrecisionDigitsCtrl = \
+    self.fScaleTypeCtrl = None
     self.fRangeFields = []
 
     if range_in:
       self.SetRange( range_in, False )
 
-    self._InitUI()
+    self._InitUI( enable_scale_and_cmap )
+    self.SetColormap( colormap_in )
     self.SetPrecisionDigits( digits_in )
     self.SetPrecisionMode( mode_in )
+    self.SetScaleType( scale_type_in )
     self._UpdateRangeControls()
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.Check()				-
+  #----------------------------------------------------------------------
+  def Check( self ):
+    """
+"""
+    if (self.fRange[ 0 ] < 0.0 or self.fRange[ 1 ] < 0.0) and \
+        self.GetScaleType() == 'log':
+      self.SetScaleType( 'linear' )
+      wx.MessageBox(
+          'Cannot use "log" scale with negative values',
+	  'Set Data Range and Scale', wx.OK, None
+	  )
+  #end Check
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._CreateMenu()			-
+  #----------------------------------------------------------------------
+  def _CreateMenu( self, options ):
+    """
+    Args:
+        options (dict): dictionary of pullrights and colormap names
+"""
+    menu = wx.Menu()
+
+    for label, names in sorted( options.iteritems() ):
+      submenu = wx.Menu()
+
+      for name in names:
+        if name == '-':
+	  submenu.AppendSeparator()
+        else:
+	  item = wx.MenuItem( submenu, wx.ID_ANY, name )
+	  if self.fBitmapFunc:
+	    item.SetBitmap( self.fBitmapFunc( 'cmap_' + name ) )
+	  self.Bind( wx.EVT_MENU, self._OnColormap, item )
+	  submenu.AppendItem( item )
+      #end for name in names
+
+      subitem = wx.MenuItem( menu, wx.ID_ANY, label, subMenu = submenu )
+      menu.AppendItem( subitem )
+    #end for label, names in sorted( options.iteritems() )
+
+    return  menu
+  #end _CreateMenu
 
 
   #----------------------------------------------------------------------
@@ -99,6 +170,15 @@ Attributes/properties:
     self.fPrecisionModeCtrl.Enable( flag )
     self.fPrecisionDigitsCtrl.Enable( flag )
   #end Enable
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.GetColormap()			-
+  #----------------------------------------------------------------------
+  def GetColormap( self ):
+#    return  str( self.fColormapCtrl.GetValue() ).lower()
+    return  self.fColormapButton.GetLabel()
+  #end GetColormap
 
 
   #----------------------------------------------------------------------
@@ -126,15 +206,23 @@ Attributes/properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.GetScaleType()			-
+  #----------------------------------------------------------------------
+  def GetScaleType( self ):
+    return  str( self.fScaleTypeCtrl.GetValue() ).lower()
+  #end GetScaleType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean._InitUI()				-
   #----------------------------------------------------------------------
-  def _InitUI( self ):
+  def _InitUI( self, enable_scale_and_cmap = True ):
     """Builds this panel.
 """
 #		-- Panel
 #		--
     panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
-    panel_sizer = wx.FlexGridSizer( 5, 2, 6, 4 )
+    panel_sizer = wx.FlexGridSizer( 7, 2, 6, 4 )
     panel_sizer.SetFlexibleDirection( wx.HORIZONTAL )
     panel.SetSizer( panel_sizer )
 
@@ -186,6 +274,53 @@ Attributes/properties:
 	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
 	)
 
+    label = wx.StaticText(
+	panel, wx.ID_ANY, label = 'Scale Type:',
+	style = wx.ALIGN_RIGHT
+        )
+    self.fScaleTypeCtrl = wx.ComboBox(
+	panel, wx.ID_ANY, DEFAULT_scaleType,
+	choices = SCALE_TYPES,
+	style = wx.CB_READONLY
+        )
+    panel_sizer.Add( label, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
+    panel_sizer.Add(
+        self.fScaleTypeCtrl, 0,
+	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
+	)
+    if not enable_scale_and_cmap:
+      self.fScaleTypeCtrl.Enable( False )
+
+#		-- Colormap is embedded in second column
+    cmap_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    self.fColormapButton = wx.Button( panel, label = 'X' * 16 )
+    self.fColormapButton.Bind( wx.EVT_BUTTON, self._OnColormapButton )
+
+    cmap_bitmap = \
+        self.fBitmapFunc( 'cmap_' + DEFAULT_colormap ) \
+	if self.fBitmapFunc else \
+	wx.EmptyBitmap( 8 ,8 )
+    self.fColormapBitmap = wx.StaticBitmap( panel, bitmap = cmap_bitmap )
+    cmap_sizer.Add(
+	self.fColormapButton, 1, wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT, 4
+        )
+    cmap_sizer.Add(
+        self.fColormapBitmap, 0,
+	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, 0
+	)
+
+    label = wx.StaticText(
+	panel, wx.ID_ANY, label = 'Colormap:',
+	style = wx.ALIGN_RIGHT
+        )
+    panel_sizer.Add( label, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
+    panel_sizer.Add(
+        cmap_sizer, 0,
+	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
+	)
+    if not enable_scale_and_cmap:
+      self.fColormapButton.Enable( False )
+
 #		-- Panel button
 #		--
     reset_button = wx.Button( panel, label = '&Reset' )
@@ -216,9 +351,37 @@ Attributes/properties:
         message, 0,
 	wx.ALIGN_CENTRE_HORIZONTAL | wx.ALIGN_TOP | wx.ALL | wx.EXPAND, 6
 	)
-    sizer.AddStretchSpacer()
+    #sizer.AddStretchSpacer()
     self.Fit()
   #end _InitUI
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnColormap()			-
+  #----------------------------------------------------------------------
+  def _OnColormap( self, ev ):
+    """
+"""
+    ev.Skip()
+    menu = ev.GetEventObject()
+    item = menu.FindItemById( ev.GetId() )
+    if item:
+      self.SetColormap( item.GetItemLabelText() )
+  #end _OnColormap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnColormapButton()		-
+  #----------------------------------------------------------------------
+  def _OnColormapButton( self, ev ):
+    """
+"""
+    ev.Skip()
+    if self.fColormapMenu is None:
+      self.fColormapMenu = self._CreateMenu( COLORMAP_DEFS )
+
+    ev.GetEventObject().PopupMenu( self.fColormapMenu, ( 0, 0 ) )
+  #end _OnColormapButton
 
 
   #----------------------------------------------------------------------
@@ -251,10 +414,27 @@ Attributes/properties:
     """
 """
     ev.Skip()
+    self.SetColormap( DEFAULT_colormap )
     self.SetPrecisionDigits( DEFAULT_precisionDigits )
     self.SetPrecisionMode( DEFAULT_precisionMode )
     self.SetRange( EMPTY_RANGE )
+    self.SetScaleType( DEFAULT_scaleType )
   #end _OnReset
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.SetColormap()			-
+  #----------------------------------------------------------------------
+  def SetColormap( self, cmap_in ):
+    #self.fColormapCtrl.SetValue( cmap_in )
+    #self.fColormapCtrl.Update()
+    self.fColormapButton.SetLabel( cmap_in )
+    self.fColormapButton.Update()
+
+    if self.fBitmapFunc:
+      self.fColormapBitmap.SetBitmap( self.fBitmapFunc( 'cmap_' + cmap_in ) )
+      self.fColormapBitmap.Update()
+  #end SetColormap
 
 
   #----------------------------------------------------------------------
@@ -270,11 +450,10 @@ Attributes/properties:
   #	METHOD:		DataRangeBean.SetPrecisionMode()		-
   #----------------------------------------------------------------------
   def SetPrecisionMode( self, mode_in ):
-    value = \
-	MODE_OPTIONS[ 0 ] \
-	if mode_in and mode_in.lower() == MODE_OPTIONS[ 0 ].lower() else \
-	MODE_OPTIONS[ 1 ]
-    self.fPrecisionModeCtrl.SetValue( value )
+    mode_in = mode_in.title()
+    if mode_in not in MODE_OPTIONS:
+      mode_in = DEFAULT_precisionMode
+    self.fPrecisionModeCtrl.SetValue( mode_in )
     self.fPrecisionModeCtrl.Update()
   #end SetPrecisionMode
 
@@ -305,13 +484,31 @@ Attributes/properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.SetScaleType()			-
+  #----------------------------------------------------------------------
+  def SetScaleType( self, type_in ):
+    type_in = type_in.title()
+    if type_in not in SCALE_TYPES:
+      type_in = DEFAULT_scaleType
+    self.fScaleTypeCtrl.SetValue( type_in )
+    self.fScaleTypeCtrl.Update()
+  #end SetScaleType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean._UpdateRange()			-
   #----------------------------------------------------------------------
   def _UpdateRange( self ):
     new_value = []
     for i in range( len( self.fRange ) ):
       try:
-        cur_value = float( self.fRangeFields[ i ].GetValue() )
+        #cur_value = float( self.fRangeFields[ i ].GetValue() )
+	cur_str = self.fRangeFields[ i ].GetValue()
+	if cur_str and cur_str.lower().find( 'inf' ) >= 0:
+	  cur_value = float( 'NaN' )
+	  self.fRangeFields[ i ].SetValue( 'NaN' )
+        else:
+          cur_value = float( self.fRangeFields[ i ].GetValue() )
       except:
         cur_value = float( 'NaN' )
 	self.fRangeFields[ i ].SetValue( 'NaN' )
@@ -354,41 +551,61 @@ Properties:
   #----------------------------------------------------------------------
   #	PROPERTY:	DataRangeDialog.bean				-
   #----------------------------------------------------------------------
-  @property
-  def bean( self ):
-    """reference to bean, read-only"""
-    return  self.fBean
-  #end bean.getter
+#  @property
+#  def bean( self ):
+#    """reference to bean, read-only"""
+#    return  self.fBean
+#  #end bean.getter
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTY:	DataRangeDialog.colormap			-
+  #----------------------------------------------------------------------
+#  @property
+#  def colormap( self ):
+#    """colormap name, read-only"""
+#    return  self.fBean.GetColormap()
+#  #end colormap.getter
 
 
   #----------------------------------------------------------------------
   #	PROPERTY:	DataRangeDialog.digits				-
   #----------------------------------------------------------------------
-  @property
-  def digits( self ):
-    """precision digits, read-only"""
-    return  self.fBean.GetPrecisionDigits()
-  #end digits.getter
+#  @property
+#  def digits( self ):
+#    """precision digits, read-only"""
+#    return  self.fBean.GetPrecisionDigits()
+#  #end digits.getter
 
 
   #----------------------------------------------------------------------
   #	PROPERTY:	DataRangeDialog.mode				-
   #----------------------------------------------------------------------
-  @property
-  def mode( self ):
-    """precision mode, read-only"""
-    return  self.fBean.GetPrecisionMode()
-  #end mode.getter
+#  @property
+#  def mode( self ):
+#    """precision mode, read-only"""
+#    return  self.fBean.GetPrecisionMode()
+#  #end mode.getter
 
 
   #----------------------------------------------------------------------
   #	PROPERTY:	DataRangeDialog.range				-
   #----------------------------------------------------------------------
-  @property
-  def range( self ):
-    """range value, read-only"""
-    return  self.fBean.GetRange()
-  #end range.getter
+#  @property
+#  def range( self ):
+#    """range value, read-only"""
+#    return  self.fBean.GetRange()
+#  #end range.getter
+
+
+  #----------------------------------------------------------------------
+  #	PROPERTY:	DataRangeDialog.scaletype			-
+  #----------------------------------------------------------------------
+#  @property
+#  def scaletype( self ):
+#    """scaletype, read-only"""
+#    return  self.fBean.GetScaleType()
+#  #end scaletype.getter
 
 
 #		-- Object Methods
@@ -418,11 +635,40 @@ Properties:
 #    style |= wx.RESIZE_BORDER
 #    kwargs[ 'style' ] = style
 
+    bitmap_func = kwargs.get( 'bitmap_func' )
+    if not hasattr( bitmap_func, '__call__' ):
+      bitmap_func = None
+
+    if 'bitmap_func' in kwargs:
+      del kwargs[ 'bitmap_func' ]
+    if 'enable_scale_and_cmap' in kwargs:
+      enable_scale_and_cmap = kwargs[ 'enable_scale_and_cmap' ]
+      del kwargs[ 'enable_scale_and_cmap' ]
+
     super( DataRangeDialog, self ).__init__( *args, **kwargs )
 
     self.fBean = None
-    self._InitUI()
+    self._InitUI(
+        bitmap_func = bitmap_func,
+	enable_scale_and_cmap = enable_scale_and_cmap
+	)
   #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog.GetBean()			-
+  #----------------------------------------------------------------------
+  def GetBean( self ):
+    return  self.fBean
+  #end GetBean
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog.GetColormap()			-
+  #----------------------------------------------------------------------
+  def GetColormap( self ):
+    return  self.fBean.GetColormap()
+  #end GetColormap
 
 
   #----------------------------------------------------------------------
@@ -450,17 +696,34 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog.GetScaleType()			-
+  #----------------------------------------------------------------------
+  def GetScaleType( self ):
+    return  self.fBean.GetScaleType()
+  #end GetScaleType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataRangeDialog._InitUI()			-
   #----------------------------------------------------------------------
   def _InitUI(
       self,
+      bitmap_func = None,
       range_in = None,
       digits_in = DEFAULT_precisionDigits,
-      mode_in = DEFAULT_precisionMode
+      mode_in = DEFAULT_precisionMode,
+      scale_type_in = DEFAULT_scaleType,
+      colormap_in = DEFAULT_colormap,
+      enable_scale_and_cmap = True
       ):
     self.fBean = DataRangeBean(
-        self, -1, range_in,
-	DEFAULT_precisionDigits, DEFAULT_precisionMode
+        self, -1, bitmap_func,
+        range_in = range_in,
+        digits_in = DEFAULT_precisionDigits,
+        mode_in = DEFAULT_precisionMode,
+        scale_type_in = DEFAULT_scaleType,
+        colormap_in = DEFAULT_colormap,
+        enable_scale_and_cmap = enable_scale_and_cmap
 	)
 
     button_sizer = wx.BoxSizer( wx.HORIZONTAL )
@@ -506,6 +769,7 @@ Properties:
     retcode = 0 if obj.GetLabel() == 'Cancel' else  1
 
     if obj.GetLabel() != 'Cancel':
+      self.fBean.Check()
       self.fResult = self.fBean.GetRange()
 
     self.EndModal( retcode )
@@ -536,15 +800,35 @@ Properties:
       self,
       range_in = None,
       digits_in = DEFAULT_precisionDigits,
-      mode_in = None
+      mode_in = None,
+      scale_type_in = DEFAULT_scaleType,
+      colormap_in = DEFAULT_colormap
       ):
 #    self.fResult = range_in
 #    if range_in is not None:
 #      self.fBean.SetRange( range_in )
+    self.fBean.SetColormap( colormap_in )
     self.fBean.SetPrecisionDigits( digits_in )
     self.fBean.SetPrecisionMode( mode_in )
     self.fBean.SetRange( range_in )
+    self.fBean.SetScaleType( scale_type_in )
     super( DataRangeDialog, self ).ShowModal()
   #end ShowModal
+
+
+#		-- Property Definitions
+#		--
+
+  bean = property( GetBean )
+
+  colormap = property( GetColormap )
+
+  digits = property( GetPrecisionDigits )
+
+  mode = property( GetPrecisionMode )
+
+  range = property( GetRange )
+
+  scaletype = property( GetScaleType )
 
 #end DataRangeDialog

@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		volume_view.py					-
 #	HISTORY:							-
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-05-13	leerw@ornl.gov				-
 #	  Added Is3D().
 #		2017-05-05	leerw@ornl.gov				-
@@ -63,7 +65,8 @@ class Volume3DView( Widget ):
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
-    self.axialValue = ( 0.0, -1, -1 )
+    #self.axialValue = ( 0.0, -1, -1 )
+    self.axialValue = AxialValue()
     self.coreExtent = None  # left, top, right + 1, bottom + 1, dx, dy
     self.curDataSet = None
 
@@ -248,14 +251,14 @@ class Volume3DView( Widget ):
       valid = self.dmgr.IsValid(
           self.curDataSet,
           assembly_addr = self.assemblyAddr[ 0 ],
-	  axial_level = self.axialValue[ 1 ]
+	  axial_level = self.axialValue.pinIndex
 	  )
 
     core = self.dmgr.GetCore()
     if valid and core is not None:
       #pos = self.viz.GetSlicePosition()
       # z, x, y
-      z = self.meshLevels[ self.axialValue[ 1 ] ]
+      z = self.meshLevels[ self.axialValue.pinIndex ]
 
       assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
       x = core.npinx * assy_col + self.subAddr[ 0 ]
@@ -273,9 +276,22 @@ class Volume3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView._CreateMenuDef()			-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self ):
+    """
+"""
+    menu_def = super( Volume3DView, self )._CreateMenuDef()
+    new_menu_def = \
+        [ x for x in menu_def if x.get( 'label' ) != 'Edit Data Scale...' ]
+    return  new_menu_def
+  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Volume3DView.CreatePrintImage()			-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path ):
+  def CreatePrintImage( self, file_path, bgcolor = None, hilite = False ):
     result = None
 
     if self.viz is not None:
@@ -336,6 +352,18 @@ class Volume3DView( Widget ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Volume3DView.GetUsesScaleAndCmap()		-
+  #----------------------------------------------------------------------
+  def GetUsesScaleAndCmap( self ):
+    """
+    Returns:
+        boolean: False
+"""
+    return  False
+  #end GetUsesScaleAndCmap
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Volume3DView._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
@@ -391,7 +419,7 @@ class Volume3DView( Widget ):
 
       if (reason & STATE_CHANGE_axialValue) > 0:
         self.axialValue = self.dmgr.\
-            GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+            GetAxialValue( self.curDataSet, cm = self.state.axialValue.cm )
 
       if (reason & STATE_CHANGE_timeValue) > 0:
         self.timeValue = self.state.timeValue
@@ -415,7 +443,7 @@ class Volume3DView( Widget ):
 
       self.assemblyAddr = self.state.assemblyAddr
       self.axialValue = self.dmgr.\
-          GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+          GetAxialValue( self.curDataSet, cm = self.state.axialValue.cm )
       self.coreExtent = self.dmgr.ExtractSymmetryExtent()
       self.stateIndex = self.dmgr.\
           GetTimeValueIndex( self.state.timeValue, self.curDataSet )
@@ -515,7 +543,7 @@ method via super.SaveProps().
 	self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
       if 'axial_value' in kwargs and \
-          kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ] and \
+          kwargs[ 'axial_value' ][ 0 ] != self.axialValue.cm and \
 	  self.curDataSet:
         position_changed = True
         self.axialValue = self.dmgr.\
@@ -551,12 +579,13 @@ method via super.SaveProps().
         if ds_type and ds_type in self.GetDataSetTypes():
           data_changed = True
           self.curDataSet = kwargs[ 'cur_dataset' ]
-	  self.container.GetDataSetMenu().Reset()
 	  self.axialValue = self.dmgr.\
-	      GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
+	      GetAxialValue( self.curDataSet, cm = self.axialValue.cm )
 	  self.stateIndex = max(
 	      0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet )
 	      )
+	  self.container.GetDataSetMenu().Reset()
+	  wx.CallAfter( self.container.GetDataSetMenu().UpdateAllMenus )
 
       if data_changed:
         self._UpdateData()

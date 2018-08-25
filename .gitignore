@@ -3,3 +3,6 @@
 *-
 *.1
 *.pyc
+build
+dist
+stuff

@@ -3,6 +3,28 @@
 #------------------------------------------------------------------------
 #	NAME:		vessel_core_view.py				-
 #	HISTORY:							-
+#		2018-05-04	leerw@ornl.gov				-
+#	  Fixing color mapping, drawing tally cells outside in.
+#		2018-03-02	leerw@ornl.gov				-
+#	  Migrating to _CreateEmptyBitmapAndDC().
+#		2018-02-05	leerw@ornl.gov				-
+#	  Moving Linux/GTK/X11 image manipulation to the UI thread.
+#		2018-02-03	leerw@ornl.gov				-
+#	  Fixed buggy axial value handling b/w pin and tally datasets.
+#		2017-12-01	leerw@ornl.gov				-
+#	  Checking for thetaIndex-only change in tallyAddr in
+#	  _UpdateStateValues() to avoid recreating the image.
+#		2017-11-16	leerw@ornl.gov				-
+#	  Migratingt to wx.Bitmap instead of PIL.Image.
+#		2017-09-23	leerw@ornl.gov				-
+#	  Using new TallyAddress class.
+#		2017-09-14	leerw@ornl.gov				-
+#	  Fixed bug in LoadProps() where tallyAddr[0] must be converted
+#	  from a dict to a DataSetName instance.
+#		2017-09-11	leerw@ornl.gov				-
+# 	  Minor cleanup while creating through vessel_core_axial_view.py.
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-07-14	leerw@ornl.gov				-
 #	  Fixed pad display.
 #		2017-05-19	leerw@ornl.gov				-
@@ -18,138 +40,6 @@
 #		2017-03-27	leerw@ornl.gov				-
 #		2017-02-27	leerw@ornl.gov				-
 #	  To scale.
-#		2017-01-26	leerw@ornl.gov				-
-#	  Removed assembly index from titles.
-#		2017-01-12	leerw@ornl.gov				-
-#	  Integrating channel datasets.
-#		2016-12-16	leerw@ornl.gov				-
-#	  Setting self.nodalMode in _LoadDataModelValues().
-#		2016-12-09	leerw@ornl.gov				-
-#		2016-12-08	leerw@ornl.gov				-
-#	  Migrating to new DataModelMgr.
-#		2016-10-26	leerw@ornl.gov				-
-#	  Using logging.
-#		2016-10-24	leerw@ornl.gov				-
-#	  Calling _ResolveDataRange() instead of DataModel.GetRange()
-#	  directly.
-#		2016-10-22	leerw@ornl.gov				-
-#	  Calling DataModel.Core.Get{Col,Row}Label().
-#		2016-10-20	leerw@ornl.gov				-
-#	  In nodalMode, hiliting assembly in white and node in red.
-#	  Calling DataModel.GetFactors().
-#		2016-10-17	leerw@ornl.gov				-
-#	  New approach where all dataset types are "primary".
-#	  Added auxNodeAddrs and nodeAddr attributes.
-#		2016-10-14	leerw@ornl.gov				-
-#	  Using new _DrawValues() method.
-#		2016-10-01	leerw@ornl.gov				-
-#	  Better handling with nodalMode attribute.
-#		2016-09-30	leerw@ornl.gov				-
-#	  Adding support for nodal derived types.
-#		2016-09-29	leerw@ornl.gov				-
-#	  Trying to prevent overrun of values displayed in cells.
-#		2016-09-20	leerw@ornl.gov				-
-#	  Fixed bug where brush_color might not have been defined when
-#	  writing values.
-#		2016-09-19	leerw@ornl.gov				-
-#	  Using state.weightsMode to determine use of pinFactors.
-#		2016-09-14	leerw@ornl.gov				-
-#	  Using DataModel.pinFactors to determine no-value cells.
-#		2016-08-15	leerw@ornl.gov				-
-#	  New State events.
-#		2016-08-10	leerw@ornl.gov				-
-#	  Changed _CreateClipboardData() signature.
-#		2016-08-02	leerw@ornl.gov				-
-#	  Merging colrow events.
-#		2016-07-09	leerw@ornl.gov				-
-#	  Added assembly label in clipboard headers.
-#		2016-06-27	leerw@ornl.gov				-
-#	  Added {Load,Save}Props().
-#		2016-04-18	leerw@ornl.gov				-
-#	  Using State.scaleMode.
-#		2016-03-14	leerw@ornl.gov				-
-#	  Added _OnFindMax().
-#		2016-03-07	leerw@ornl.gov				-
-#	  Adding numbers for 'asy_' datasets.
-#		2016-02-29	leerw@ornl.gov				-
-#	  Calling Redraw() instead of _OnSize( None ).
-#		2016-02-25	leerw@ornl.gov				-
-#	  Modified _CreateToolTipText() to report the value of an
-#	  assembly average or derived dataset.
-#		2016-02-17	leerw@ornl.gov				-
-#	  Added copy selection.
-#		2016-02-11	leerw@ornl.gov				-
-#	  Supporting pin:assembly datasets by duplicating the last pin
-#	  value in each dimension.
-#		2016-02-10	leerw@ornl.gov				-
-#	  Title template and string creation now inherited from
-#	  RasterWidget.
-#		2016-02-09	leerw@ornl.gov				-
-#	  Start on customizing title based on dataset shape.
-#		2016-02-08	leerw@ornl.gov				-
-#	  Changed GetDataSetType() to GetDataSetTypes().
-#		2016-01-25	leerw@ornl.gov				-
-#	  Cleaning up the menu mess.
-#		2016-01-22	leerw@ornl.gov				-
-#	  Adding clipboard copy.
-#		2015-11-28	leerw@ornl.gov				-
-#	  Calling DataModel.IsNoDataValue() instead of checking for
-#	  gt value to draw.
-#		2015-11-23	leerw@ornl.gov				-
-#	  Fixed some bugs.
-#		2015-11-19	leerw@ornl.gov				-
-#	  Adding support for 'extra' datasets.
-#		2015-11-18	leerw@ornl.gov				-
-#	  Relaxing to allow any axial and assembly dimensions.
-#		2015-08-31	leerw@ornl.gov				-
-#	  Added GetAnimationIndexes().
-#		2015-07-27	leerw@ornl.gov				-
-#	  Fixing order of dataset references to row, col, axial, assy
-#	  instead of col, row, ...
-#		2015-06-17	leerw@ornl.gov				-
-# 	  Extending RasterWidget.
-#		2015-06-15	leerw@ornl.gov				-
-#	  Refactoring.
-#		2015-05-26	leerw@ornl.gov				-
-#	  Migrating to global state.timeDataSet.
-#		2015-05-21	leerw@ornl.gov				-
-#	  Showing legend now optional.
-#		2015-05-18	leerw@ornl.gov				-
-#	  Making the showing of assembly labels an option.
-#		2015-05-11	leerw@ornl.gov				-
-#	  Changed State.axialLevel to axialValue.
-#		2015-04-22	leerw@ornl.gov				-
-#	  Showing currently selected assembly.
-#		2015-04-10	leerw@ornl.gov				-
-#	  Minor fixes and removing sliders (now on VeraViewFrame).
-#		2015-04-04	leerw@ornl.gov				-
-#	  Zoom display to an assembly view.
-#		2015-03-25	leerw@ornl.gov				-
-#	  Many fixes and additions, most notably the SetDataSet()
-#	  capability.  Also fixed some zooming issues and added
-#	  the bitmapsLock protocol in _UpdateStateAndAxial().
-#		2015-03-19	leerw@ornl.gov				-
-#	  Trying per-menu item handler.
-#		2015-03-11	leerw@ornl.gov				-
-#	  Using ExposureSliderBean.
-#		2015-03-06	leerw@ornl.gov				-
-#	  New Widget.GetImage() for 'loading' image.
-#	  Starting ellipse drawing at pixel (1,1).
-#		2015-02-07	leerw@ornl.gov				-
-#	  Processing average powers.
-#		2015-02-06	leerw@ornl.gov				-
-#	  Added tooltip.
-#		2015-01-30	leerw@ornl.gov				-
-#	  Added CreateMenu().
-#		2015-01-28	leerw@ornl.gov				-
-#	  Starting cell range and zoom processing.
-#		2015-01-24	leerw@ornl.gov				-
-#		2015-01-19	leerw@ornl.gov				-
-#	  Re-designing
-#		2015-01-16	leerw@ornl.gov				-
-#		2015-01-07	leerw@ornl.gov				-
-#	  Added popup on assembly.
-#		2015-01-06	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import logging, math, os, sys, threading, time, timeit, traceback
 import numpy as np
@@ -162,57 +52,15 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
-try:
-  import PIL.Image, PIL.ImageDraw, PIL.ImageFont
-  #from PIL import Image, ImageDraw
-except Exception:
-  raise ImportError, 'The Python Imaging Library (PIL) is required for this component'
-
-#from bean.axial_slider import *
-#from bean.exposure_slider import *
 from data.datamodel import *
 from data.utils import *
 from event.state import *
 from raster_widget import *
-#from scroll_raster_widget import *
 from widget import *
 
 
-#	-- Vessel component inputs
-##DEF_core_size = 21.5 * 8
-##
-##DEF_baffel_wd_cm = 3.0
-##
-##DEF_barrel_inner_cm = 187.96
-##DEF_barrel_outer_cm = 193.68
-##
-##DEF_liner_inner_cm = 219.15
-##DEF_liner_outer_cm = 219.71
-##
-##DEF_pad_angles_deg = ( 45, )
-##DEF_pad_inner_cm = 194.64
-##DEF_pad_len_deg = 32
-##DEF_pad_outer_cm = 201.63
-##
-##DEF_vessel_outer_ring_cm = 241.70
-
-#	-- Vessel component derived
-##DEF_barrel_inner_offset_cm = DEF_barrel_inner_cm - DEF_core_size
-##DEF_barrel_outer_offset_cm = DEF_barrel_outer_cm - DEF_core_size
-##DEF_barrel_wd_cm = DEF_barrel_outer_cm - DEF_barrel_inner_cm
-
-##DEF_liner_inner_offset_cm = DEF_liner_inner_cm - DEF_core_size
-##DEF_liner_outer_offset_cm = DEF_liner_outer_cm - DEF_core_size
-##DEF_liner_wd_cm = DEF_liner_outer_cm - DEF_liner_inner_cm
-
-##DEF_pad_inner_offset_cm = DEF_pad_inner_cm - DEF_core_size
-##DEF_pad_outer_offset_cm = DEF_pad_outer_cm - DEF_core_size
-##DEF_pad_wd_cm = DEF_pad_outer_cm - DEF_pad_inner_cm
-
-##DEF_vessel_outer_ring_offset_cm = DEF_vessel_outer_ring_cm - DEF_core_size
-
-
 PI_OVER_2 = math.pi / 2.0
+RADS_PER_DEG = math.pi / 180.0
 TWO_PI = math.pi * 2.0
 
 
@@ -229,14 +77,11 @@ class VesselCore2DView( RasterWidget ):
            ss 219.71        ! vessel liner OR / vessel IR (cm)
            cs 241.70        ! vessel OR (cm)
 
-  pad ss  194.64 201.63 32 45 135 225 315 ! neutron pad ID,OD arc lenth
-(degrees), and angular positions (degre
+  pad ss  194.64 201.63 32 45 135 225 315 ! neutron pad ID,OD arc length
+(degrees), and angular positions (degrees)
 
 Properties:
 """
-
-#  MENU_ID_unzoom = 10000
-#  MENU_DEFS = [ ( 'Unzoom', MENU_ID_unzoom ) ]
 
 
 #		-- Object Methods
@@ -249,18 +94,16 @@ Properties:
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
     self.auxNodeAddrs = []
-    self.avgDataSet = None
-    #self.avgValues = {}
     self.channelMode = False
 
-    self.mode = ''
     self.nodalMode = False
     self.nodeAddr = -1
     self.subAddr = ( -1, -1 )
-    self.tallyAddr = ( '', -1, -1 )
+			# DataSetName, multipler_ndx, stat_ndx
+    #self.tallyAddr = ( None, -1, -1 )
+    self.tallyAddr = DataModel.CreateEmptyTallyAddress()
 
-    #self.vesselFlag = True
-    self.vesselShowPad = True  # True
+    self.vesselShowPad = True
 			# -- offsets in cm to edge given current cellRange
     self.vesselOffset = [ 0, 0 ]
 
@@ -294,21 +137,22 @@ Properties:
     csv_text = None
 
     core = dset = None
-    z_ndx = self.axialValue[ 4 ]
+    z_ndx = self.axialValue.tallyIndex
     if z_ndx >= 0:
-      dset = self.dmgr.GetH5DataSet( self.tallyAddr[ 0 ], self.timeValue )
+      dset = self.dmgr.GetH5DataSet( self.tallyAddr.name, self.timeValue )
       core = self.dmgr.GetCore()
       z_ndx = min( z_ndx, core.tally.nz - 1 )
 
     if dset is not None and core is not None:
-      break_angle = PI_OVER_2  if core.coreSym == 4 else  TWO_PI
+      break_angle = TWO_PI  if core.coreSym == 1 else  PI_OVER_2
       dset_array = np.array( dset )
 
-      csv_text = '"%s (mult=%s,stat=%s): axial=%.3f; %s=%.3g"\n' % (
-	  self.dmgr.GetDataSetDisplayName( self.tallyAddr[ 0 ] ),
-	  core.tally.multiplierNames[ self.tallyAddr[ 1 ] ],
-	  core.tally.stat[ self.tallyAddr[ 2 ] ],
-	  self.axialValue[ 0 ],
+      #csv_text = '"%s (mult=%s,stat=%s): axial=%.3f; %s=%.3g"\n'
+      csv_text = '"%s (mult=%s,stat=%s): z=%.3f; %s=%.3g"\n' % (
+	  self.dmgr.GetDataSetDisplayName( self.tallyAddr.name ),
+	  core.tally.multiplierNames[ self.tallyAddr.multIndex ],
+	  core.tally.stat[ self.tallyAddr.statIndex ],
+	  core.tally.z[ z_ndx ], # self.axialValue.cm,
 	  self.state.timeDataSet,
 	  self.timeValue
           )
@@ -319,9 +163,11 @@ Properties:
         for ti in xrange( core.tally.ntheta ):
 	  start = core.tally.theta[ ti ]
 	  if start >= break_angle:  break
-	  value = \
-	   dset_array[ z_ndx, ti, ri, self.tallyAddr[ 1 ], self.tallyAddr[ 2 ] ]
-	  row = '%.7g,%.7g,%.7g\n' % \
+	  value = dset_array[
+	      z_ndx, ti, ri,
+	      self.tallyAddr.multIndex, self.tallyAddr.statIndex
+	      ]
+	  row = '%.3f,%.7g,%.7g\n' % \
 	      ( core.tally.r[ ri ], core.tally.theta[ ti ], value )
 	  csv_text += row
 	#end for ti
@@ -339,7 +185,44 @@ Properties:
     """Retrieves the data for the state, axial, and assembly.
 @return			text or None
 """
-    return  self._CreateClipboardDisplayedData()
+    csv_text = None
+
+    core = dset = None
+    z_ndx = self.axialValue.tallyIndex
+    theta_ndx = self.tallyAddr.thetaIndex
+    if z_ndx >= 0 and theta_ndx >= 0:
+      dset = self.dmgr.GetH5DataSet( self.tallyAddr.name, self.timeValue )
+      core = self.dmgr.GetCore()
+      z_ndx = min( z_ndx, core.tally.nz - 1 )
+      theta_ndx = min( theta_ndx, core.tally.ntheta - 1 )
+
+    if dset is not None and core is not None:
+      dset_array = np.array( dset )
+
+      #csv_text = '"%s (mult=%s,stat=%s): axial=%.3f; theta=%.3f, %s=%.3g"\n'
+      csv_text = '"%s (mult=%s,stat=%s): z=%.3f; theta=%.3f, %s=%.3g"\n' % (
+	  self.dmgr.GetDataSetDisplayName( self.tallyAddr.name ),
+	  core.tally.multiplierNames[ self.tallyAddr.multIndex ],
+	  core.tally.stat[ self.tallyAddr.statIndex ],
+	  core.tally.z[ z_ndx ], # self.axialValue.cm,
+	  core.tally.theta[ theta_ndx ],
+	  self.state.timeDataSet,
+	  self.timeValue
+          )
+      csv_text += 'r,value\n'
+
+      r_start_ndx = self.config[ 'radiusStartIndex' ]
+      for ri in xrange( r_start_ndx, core.tally.nr ):
+	value = dset_array[
+	    z_ndx, theta_ndx, ri,
+	    self.tallyAddr.multIndex, self.tallyAddr.statIndex
+	    ]
+	row = '%.3f,%.7g\n' % ( core.tally.r[ ri ], value )
+	csv_text += row
+      #end for ri
+    #end if dset is not None and core is not None
+
+    return  csv_text
   #end _CreateClipboardSelectedData
 
 
@@ -353,17 +236,21 @@ If neither are specified, a default 'scale' value of 4 is used.
 The technique is to determine the number of pixels per pin, with a minimum
 of 1, meaning a forced scale might be necessary.
 @param  kwargs
-    scale	pixels per pin
+    scale	pixels per pin (deprecated)
+    scale_type  'linear' or 'log', defaulting to 'linear'
     size	( wd, ht ) against which to compute the scale
+    tally_scale_type  'linear' or 'log', defaulting to 'log'
 @return			config dict with keys:
     clientSize
     dataRange
+    font
     fontSize
     labelFont
     labelSize
-    legendPilImage
+    legendBitmap
     legendSize
-    pilFont
+    mapper
+    valueFont
     +
 
     assemblyWidth
@@ -372,7 +259,6 @@ of 1, meaning a forced scale might be necessary.
     lineWidth
     pinWidth		used for pin or node width, depending on self.nodalMode
     pixPerCm
-    valueFont
     valueFontSize
     vesselRegion
 
@@ -388,7 +274,12 @@ of 1, meaning a forced scale might be necessary.
     padRadius		(pixels)
     padWidth		(pixels)
     radiusStartIndex
-    vesselGeometry	(VesselGeometry instance)
+    tallyDataRange
+    tallyDataSetExpr
+    tallyLegendBitmap
+    tallyLegendSize
+    tallyMapper
+    thetaStopIndex	exclusive
     vesselRadius	(pixels)
 """
     ds_range = self._ResolveDataRange(
@@ -396,47 +287,81 @@ of 1, meaning a forced scale might be necessary.
 	self.timeValue if self.state.scaleMode == 'state' else -1,
 	apply_custom_range = False
 	)
-    kwargs[ 'gray' ] = False  # True
-    kwargs[ 'legend_title' ] = \
-        self.dmgr.GetDataSetDisplayName( self.curDataSet )
+    kwargs[ 'colormap_name' ] = 'jet'
+    if 'scale_type' not in kwargs:
+      kwargs[ 'scale_type' ] = self.dmgr.GetDataSetScaleType( self.curDataSet )
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
-    legend_pil_im = config[ 'legendPilImage' ]
+    legend_bmap = config[ 'legendBitmap' ]
     legend_size = config[ 'legendSize' ]
 
     core = self.dmgr.GetCore()
     vessel_geom = core.vesselGeom
     vessel_tally = core.tally
-    #tally_addr = self.state.tallyAddr
 
     radius_start_ndx = 1
-    tally_ds_range = tally_legend_pil_im = None
+    tally_ds_expr = tally_ds_range = tally_legend_pil_im = None
     tally_legend_size = ( 0, 0 )
+    theta_stop_ndx = vessel_tally.ntheta
+
     if vessel_geom is not None and vessel_tally.IsValid() and \
-        self.tallyAddr[ 0 ] is not None:
-      #vessel_geom = VesselGeometry( core.apitch, self.cellRange[ -2 : ] )
+        self.tallyAddr.name is not None:
       rndx = DataUtils.FindListIndex( vessel_tally.r, vessel_geom.linerOuter )
       if rndx > 1:
         radius_start_ndx = min( rndx, vessel_tally.nr - 1 )
-      expr = '[:,:,%d:,%d,%d]' % \
-          ( radius_start_ndx, self.tallyAddr[ 1 ], self.tallyAddr[ 2 ] )
+      if core.coreSym == 4:
+        tndx = DataUtils.FindListIndex( vessel_tally.theta, PI_OVER_2 )
+	if vessel_tally.theta[ tndx ] == PI_OVER_2:
+	  tndx -= 1
+	theta_stop_ndx = min( tndx + 1, vessel_tally.ntheta )
+      tally_ds_expr = '[:,:%d,%d:,%d,%d]' % (
+          theta_stop_ndx, radius_start_ndx,
+	  self.tallyAddr.multIndex, self.tallyAddr.statIndex
+	  )
       tally_ds_range = self._ResolveDataRange(
-          self.tallyAddr[ 0 ],
+          self.tallyAddr.name,
           self.timeValue if self.state.scaleMode == 'state' else -1,
-	  expr
+	  ds_expr = tally_ds_expr
           )
+
+      if 'tally_scale_type' not in kwargs:
+        tally_scale_type = self._ResolveScaleType( self.tallyAddr.name )
+        #tally_scale_type = self.dmgr.GetDataSetScaleType( self.tallyAddr.name )
+      else:
+        tally_scale_type = kwargs[ 'tally_scale_type' ]
+      if tally_scale_type == 'log':
+	tally_ds_range = self.dmgr.NormalizeLogRange( tally_ds_range )
+        norm = colors.LogNorm(
+	    vmin = max( tally_ds_range[ 0 ], 1.0e-16 ),
+	    vmax = max( tally_ds_range[ 1 ], 1.0e-16 ),
+	    clip = True
+	    )
+      else:
+        norm = colors.Normalize(
+	    vmin = tally_ds_range[ 0 ], vmax = tally_ds_range[ 1 ], clip = True
+	    )
+      tally_mapper = cm.ScalarMappable(
+          norm = norm,
+	  cmap = cm.get_cmap( self.colormapName )  # Config.defaultCmapName_
+	  )
+
       if self.showLegend:
-	tally_ds_name = self.dmgr.GetDataSetDisplayName( self.tallyAddr[ 0 ] )
+	tally_ds_name = self.dmgr.GetDataSetDisplayName( self.tallyAddr.name )
 	ndx = tally_ds_name.find( '/' )
 	if ndx >= 0:
 	  tally_ds_name = tally_ds_name[ ndx + 1 : ]
-        tally_legend_pil_im = self._CreateLegendPilImage(
-	    tally_ds_range, font_size,
+	tally_legend_bmap = self._CreateLegendBitmap(
+	    tally_ds_range,
+	    font_size = font_size,
+	    mapper = tally_mapper,
+	    ntick_values = 8,
+	    scale_type = tally_scale_type,
 	    title = tally_ds_name
 	    )
-        tally_legend_size = tally_legend_pil_im.size
+        tally_legend_size = \
+	    ( tally_legend_bmap.GetWidth(), tally_legend_bmap.GetHeight() )
     #end if vessel_tally
 
 #		-- We want an integral number of pixels per pin
@@ -459,25 +384,40 @@ of 1, meaning a forced scale might be necessary.
       else:
 	core_offset_cm = 0.0
 
-      vessel_wd_cm = max(
-          core_wd_cm + core_offset_cm + vessel_geom.vesselOuterOffset,
-	  vessel_tally.r[ -1 ]
-	  )
-      vessel_ht_cm = max(
-          core_ht_cm + core_offset_cm + vessel_geom.vesselOuterOffset,
-          vessel_tally.r[ -1 ]
-	  )
+      if core.coreSym == 4:
+        vessel_wd_cm = max(
+            core_wd_cm + core_offset_cm + vessel_geom.vesselOuterOffset,
+	    vessel_tally.r[ -1 ]
+	    )
+        vessel_ht_cm = max(
+            core_ht_cm + core_offset_cm + vessel_geom.vesselOuterOffset,
+            vessel_tally.r[ -1 ]
+	    )
+      elif core.coreSym == 1:
+        vessel_wd_cm = max(
+            core_wd_cm + (vessel_geom.vesselOuterOffset * 2.0),
+	    vessel_tally.r[ -1 ] * 2.0
+	    )
+        vessel_ht_cm = max(
+            core_ht_cm + (vessel_geom.vesselOuterOffset * 2.0),
+            vessel_tally.r[ -1 ] * 2.0
+	    )
+      else:
+        vessel_wd_cm = core_wd_cm
+	vessel_ht_cm = core_ht_cm
     #end if vessel_tally
 
+    #xxxxx _CreateBaseDrawConfig() sets
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
       # label : core : font-sp : legend : legend
       #   plus 1 pix for baffle, wd and ht
+      #xxxxx revisit font_size, bigger than pixel
       vessel_wd = \
           wd - label_size[ 0 ] - 2 - (font_size << 1) - \
 	  legend_size[ 0 ] - tally_legend_size[ 0 ]
-      working_ht = max( ht, max( legend_size[ 1 ], tally_legend_size[ 1 ] ) )
+      working_ht = max( ht, legend_size[ 1 ], tally_legend_size[ 1 ] )
       vessel_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
 
       pix_per_cm_x = float( vessel_wd ) / vessel_wd_cm
@@ -505,23 +445,19 @@ of 1, meaning a forced scale might be necessary.
     core_wd = self.cellRange[ -2 ] * assy_wd
     core_ht = self.cellRange[ -1 ] * assy_wd
 
-    #region_wd = int( math.ceil( vessel_wd_cm * pix_per_cm ) )
-    #region_ht = int( math.ceil( vessel_ht_cm * pix_per_cm ) )
     vessel_wd = int( math.ceil( pix_per_cm * vessel_wd_cm ) )
     vessel_ht = int( math.ceil( pix_per_cm * vessel_ht_cm ) )
 
+    region_x = label_size[ 0 ] + 2
+    region_y = label_size[ 1 ] + 2
     image_wd = \
-        label_size[ 0 ] + 2 + vessel_wd + (font_size << 1) + \
+        region_x + vessel_wd + (font_size << 1) + \
 	legend_size[ 0 ] + tally_legend_size[ 0 ]
-    image_ht = max(
-        label_size[ 1 ] + 2 + vessel_ht + (font_size << 1),
-	max( legend_size[ 1 ], tally_legend_size[ 1 ] )
-	)
+    image_ht = \
+        max( region_y + vessel_ht, legend_size[ 1 ], tally_legend_size[ 1 ] ) + \
+	(font_size << 2)
 
     value_font_size = assy_wd >> 1
-    value_font = \
-        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
-	if value_font_size >= 6 else None
 
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'coreRegion' ] = \
@@ -530,14 +466,11 @@ of 1, meaning a forced scale might be necessary.
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'pinWidth' ] = pin_wd
     config[ 'pixPerCm' ] = pix_per_cm
-    config[ 'valueFont' ] = value_font
     config[ 'valueFontSize' ] = value_font_size
     config[ 'vesselRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, vessel_wd, vessel_ht ]
 
     if tally_ds_range is not None:
-      core_cm = max( core_wd_cm, core_ht_cm )
-
       baffle_wd = \
          max( 1, int( math.ceil( vessel_geom.baffleSize * pix_per_cm ) ) )
 
@@ -563,12 +496,17 @@ of 1, meaning a forced scale might be necessary.
       config[ 'padRadius' ] = pad_r
       config[ 'padWidth' ] = pad_wd
       config[ 'radiusStartIndex' ] = radius_start_ndx
-      config[ 'vesselGeom' ] = vessel_geom
-      config[ 'vesselRadius' ] = vessel_r
 
       config[ 'tallyDataRange' ] = tally_ds_range
-      config[ 'tallyLegendPilImage' ] = tally_legend_pil_im
-      config[ 'tallyLegendSize' ] = tally_legend_size
+      config[ 'tallyDataSetExpr' ] = tally_ds_expr
+      config[ 'tallyMapper' ] = tally_mapper
+
+      config[ 'thetaStopIndex' ] = theta_stop_ndx
+      config[ 'vesselRadius' ] = vessel_r
+
+      if self.showLegend:
+        config[ 'tallyLegendBitmap' ] = tally_legend_bmap
+        config[ 'tallyLegendSize' ] = tally_legend_size
     #end if vessel_tally
 
     return  config
@@ -576,19 +514,36 @@ of 1, meaning a forced scale might be necessary.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._CreateMenuDef()		-
+  #----------------------------------------------------------------------
+  def _CreateMenuDef( self ):
+    """
+"""
+    menu_def = super( VesselCore2DView, self )._CreateMenuDef()
+    new_menu_def = \
+        [ x for x in menu_def if x.get( 'label' ) != 'Unzoom' ]
+    return  new_menu_def
+  #end _CreateMenuDef
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
-@param  tuple_in	0-based ( state_index, axial_level )
+
+    Args:
+        tuple_in: (tuple) 0-based indexes
+	    ( state_index, pin axial_level, tally axial level )
 """
     #start_time = timeit.default_timer()
     state_ndx = tuple_in[ 0 ]
-    axial_level = tuple_in[ 1 ]
+    pin_axial_level = tuple_in[ 1 ]
+    tally_mesh_ndx = tuple_in[ 2 ]
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
 
-    im = None
+    bmap = None
 
     core = dset = None
     if config is None:
@@ -598,6 +553,7 @@ of 1, meaning a forced scale might be necessary.
       core = self.dmgr.GetCore()
 
     if dset is not None and core is not None:
+      #xxxxx needed?
       if 'coreRegion' not in config:
         if self.logger.isEnabledFor( logging.DEBUG ):
           self.logger.debug( 'coreRegion missing from config, reconfiguring' )
@@ -607,23 +563,24 @@ of 1, meaning a forced scale might be necessary.
           config = self._CreateDrawConfig( scale = config[ 'scale' ] )
 
       assy_wd = config[ 'assemblyWidth' ]
-      #im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
+      font = config[ 'font' ]
       font_size = config[ 'fontSize' ]
       im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
-      legend_pil_im = config[ 'legendPilImage' ]
-      pil_font = config[ 'pilFont' ]
+      legend_bmap = config[ 'legendBitmap' ]
+      legend_size = config[ 'legendSize' ]
+      mapper = config[ 'mapper' ]
       pin_wd = config[ 'pinWidth' ]
       pix_per_cm = config[ 'pixPerCm' ]
       tally_ds_range = config.get( 'tallyDataRange' )
-      tally_legend_pil_im = config.get( 'tallyLegendPilImage' )
+      tally_legend_bmap = config.get( 'tallyLegendBitmap' )
+      tally_legend_size = config.get( 'tallyLegendSize' )
       value_font = config[ 'valueFont' ]
       value_font_size = config[ 'valueFontSize' ]
       vessel_region = config[ 'vesselRegion' ]
 
       vessel_tally = core.tally
-      #tally_addr = self.state.tallyAddr
 
 #		-- "Item" refers to channel or pin
       item_factors = None
@@ -646,21 +603,26 @@ of 1, meaning a forced scale might be necessary.
       #end if-else self.nodalMode
 
       ds_range = config[ 'dataRange' ]
-      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+      #value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-#      title_templ, title_size = self._CreateTitleTemplate(
-#	  pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
-#	  axial_ndx = 2
-#	  )
+#			-- Limit axial level
+#			--
+      pin_axial_level = min( pin_axial_level, dset_shape[ 2 ] - 1 )
+      pin_axial_value = self.dmgr.\
+          GetAxialValue( self.curDataSet, pin_ndx = pin_axial_level )
+      tally_axial_value = self.dmgr.\
+          GetAxialValue( self.curDataSet, tally_ndx = tally_mesh_ndx )
+
       additional = None
       if tally_ds_range is not None:
-        additional = '%s (%s/%s)' % (
-	    self.dmgr.GetDataSetDisplayName( self.tallyAddr[ 0 ] ),
-	    vessel_tally.multiplierNames[ self.tallyAddr[ 1 ] ],
-	    vessel_tally.stat[ self.tallyAddr[ 2 ] ]
+        additional = '%s (%s/%s) at %.3f' % (
+	    self.dmgr.GetDataSetDisplayName( self.tallyAddr.name ),
+	    vessel_tally.multiplierNames[ self.tallyAddr.multIndex ],
+	    vessel_tally.stat[ self.tallyAddr.statIndex ],
+	    tally_axial_value.cm
 	    )
       title_templ, title_size = self._CreateTitleTemplate2(
-	  pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
+	  font, self.curDataSet, dset_shape, self.state.timeDataSet,
 	  axial_ndx = 2,
 	  additional = additional
 	  )
@@ -672,20 +634,23 @@ of 1, meaning a forced scale might be necessary.
       node_value_draw_list = []
       assy_value_draw_list = []
 
-#			-- Limit axial level
-#			--
-      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
-      axial_value = self.dmgr.\
-          GetAxialValue2( self.curDataSet, core_ndx = axial_level )
-
 #			-- Create image
 #			--
-      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
-      im_draw = PIL.ImageDraw.Draw( im )
-      #im_draw = PIL.ImageDraw.Draw( im, 'RGBA' )
+      bmap, dc = self._CreateEmptyBitmapAndDC( im_wd, im_ht )
+      gc = self._CreateGraphicsContext( dc )
+      trans_brush = self._CreateTransparentBrush( gc )
+      trans_color_arr = np.array([ 0, 0, 0, 0 ], dtype = np.uint8 )
 
-      assy_pen = ( 155, 155, 155, 255 )
-      node_pen = ( 100, 100, 100, 255 )
+      if self.showLabels:
+        glabel_font = gc.CreateFont( label_font, wx.BLACK )
+	gc.SetFont( glabel_font )
+
+      assy_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	  wx.Colour( 155, 155, 155, 255 ), 1, wx.PENSTYLE_SOLID
+          ) )
+      node_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	  wx.Colour( 100, 100, 100, 255 ), 1, wx.PENSTYLE_SOLID
+          ) )
 
 #			-- Loop on assembly rows
 #			--
@@ -695,12 +660,11 @@ of 1, meaning a forced scale might be necessary.
 #				--
 	if self.showLabels:
 	  label = core.GetRowLabel( assy_row )
-	  label_size = pil_font.getsize( label )
-	  label_y = assy_y + ((assy_wd - label_size[ 1 ]) >> 1)
-	  im_draw.text(
-	      ( 1, label_y ),
-	      label, fill = ( 0, 0, 0, 255 ), font = label_font
-	      )
+	  #label_size = pil_font.getsize( label )
+	  label_size = gc.GetFullTextExtent( label )
+	  label_y = assy_y + ((assy_wd - label_size[ 1 ]) / 2.0)
+	  gc.DrawText( label, 1, label_y )
+
 #				-- Loop on col
 #				--
 	assy_x = core_region[ 0 ]
@@ -710,12 +674,10 @@ of 1, meaning a forced scale might be necessary.
 #					--
 	  if assy_row == self.cellRange[ 1 ] and self.showLabels:
 	    label = core.GetColLabel( assy_col )
-	    label_size = pil_font.getsize( label )
-	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
-	    im_draw.text(
-	        ( label_x, 1 ),
-	        label, fill = ( 0, 0, 0, 255 ), font = label_font
-	        )
+	    #label_size = pil_font.getsize( label )
+	    label_size = gc.GetFullTextExtent( label )
+	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) / 2.0)
+	    gc.DrawText( label, label_x, 1 )
 	  #end if writing column label
 
 	  assy_ndx = core.coreMap[ assy_row, assy_col ] - 1
@@ -723,6 +685,15 @@ of 1, meaning a forced scale might be necessary.
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    #item_y = assy_y + 1
 	    item_y = assy_y
+
+#						-- Map to colors
+	    cur_array = dset_array[ :, :, pin_axial_level, assy_ndx ]
+            colors = mapper.to_rgba( cur_array, bytes = True )
+            if item_factors is not None:
+	      cur_factors = item_factors[ :, :, pin_axial_level, assy_ndx ]
+	      colors[ cur_factors == 0 ] = trans_color_arr
+	    colors[ np.isnan( cur_array ) ] = trans_color_arr
+	    colors[ np.isinf( cur_array ) ] = trans_color_arr
 
 #						-- Loop on chan/pin rows
 	    node_ndx = 0
@@ -734,54 +705,31 @@ of 1, meaning a forced scale might be necessary.
 	      if cur_item_row >= 0:
 	        for item_col in range( item_col_limit ):
 	          cur_item_col = min( item_col, cur_nxpin - 1 )
-#-- Resolve value, apply pin factors
-		  value = 0.0
-		  item_factor = 0
-	          if dset_array is None:
-	            self.logger.critical( '** B.2 dset_array is None, how did this happen **' )
-		  if cur_item_col >= 0:
-		    if self.nodalMode:
-		      value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
-		      if item_factors is None:
-		        item_factor = 1
-		      else:
-	                item_factor = \
-		            item_factors[ 0, node_ndx, axial_level, assy_ndx ]
-		      node_ndx += 1
-		    else:
-		      value = dset_array[
-		          cur_item_row, cur_item_col, axial_level, assy_ndx
-		          ]
-	              if item_factors is None:
-	                item_factor = 1
-		      else:
-	                item_factor = item_factors[
-		            cur_item_row, cur_item_col, axial_level, assy_ndx
-		            ]
-		    #end if-else self.nodalMode
-		  #end if cur_item_col
+		  if self.nodalMode:
+		    cur_color = colors[ 0, node_ndx ]
+		  else:
+		    cur_color = colors[ cur_item_row, cur_item_col ]
 
-#-- Check value and pin_factor
-#--
-	          if not ( item_factor == 0 or self.dmgr.IsBadValue( value ) ):
-	            pen_color = Widget.GetColorTuple(
-	                value - ds_range[ 0 ], value_delta, 255,
-			gray = False  # True
-	                )
+		  if cur_color[ 3 ] > 0:
+		    pen_color = cur_color.tolist()
+	            gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+		        wx.Colour( *pen_color ), 1, wx.PENSTYLE_SOLID
+	                ) ) )
 	            brush_color = pen_color
-		        #( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
-	            im_draw.rectangle(
-		        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
-		        fill = brush_color, outline = pen_color
-		        )
+	            gc.SetBrush( gc.CreateBrush(
+		        wx.TheBrushList.FindOrCreateBrush(
+	                    wx.Colour( *brush_color ), wx.BRUSHSTYLE_SOLID
+			    )
+		        ) )
+	            gc.DrawRectangle( item_x, item_y, pin_wd + 1, pin_wd + 1 )
 
 		    if self.nodalMode:
-	              im_draw.rectangle(
-		          [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
-		          fill = None, outline = node_pen
-		          )
+		      gc.SetBrush( trans_brush )
+		      gc.SetPen( node_pen )
+	              gc.DrawRectangle( item_x, item_y, pin_wd + 1, pin_wd + 1 )
+		      value = dset_array[ 0, node_ndx, pin_axial_level, assy_ndx ]
 		      node_value_draw_list.append((
-			  self._CreateValueString( value, 3 ),
+			  self._CreateValueString( value ),
                           Widget.GetContrastColor( *brush_color ),
 			  item_x, item_y, pin_wd, pin_wd
 		          ))
@@ -789,27 +737,23 @@ of 1, meaning a forced scale might be necessary.
 	          #end if good value, not hidden by pin_factor
 
 	          item_x += pin_wd
+		  if self.nodalMode:
+		    node_ndx += 1
 	        #end for item_col
 	      #end if cur_item_row >= 0
 
 	      item_y += pin_wd
 	    #end for item_row
 
-# outline rectagle
-#	    im_draw.rectangle(
-#		[ assy_x, assy_y, assy_x + assy_wd, assy_y + assy_wd ],
-#		fill = None, outline = assy_pen
-#	        )
-
 	    if draw_value_flag and brush_color is not None:
-	      value = dset_array[ 0, 0, axial_level, assy_ndx ]
+	      value = dset_array[ 0, 0, pin_axial_level, assy_ndx ]
 	      assy_value_draw_list.append((
 	          self._CreateValueString( value, 3 ),
                   Widget.GetContrastColor( *brush_color ),
 		  assy_x, assy_y, assy_wd, assy_wd
 	          ))
 	    #end if draw_value_flag
-	  #end if assembly referenced
+
 	  else:  # if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
 	    pass
 #	    im_draw.rectangle(
@@ -826,88 +770,78 @@ of 1, meaning a forced scale might be necessary.
 #			-- Draw values
 #			--
       if node_value_draw_list:
-        self._DrawValues( node_value_draw_list, im_draw )
+        self._DrawValuesWx( node_value_draw_list, gc )
 
       if assy_value_draw_list:
-        self._DrawValues( assy_value_draw_list, im_draw )
+        self._DrawValuesWx( assy_value_draw_list, gc )
 
 #			-- Draw vessel components and tally
 #			--
       if tally_ds_range is not None:
-        self._DrawVesselComponents( im_draw, config )
+        self._DrawVesselComponents( gc, config )
 
 #			-- Draw Legend Image
 #			--
-      if legend_pil_im is not None:
-        im.paste(
-	    legend_pil_im,
-	    ( vessel_region[ 0 ] + vessel_region[ 2 ] + 2 + font_size,
-	      vessel_region[ 1 ] )
+      if legend_bmap is not None:
+	gc.DrawBitmap(
+	    legend_bmap,
+	    vessel_region[ 0 ] + vessel_region[ 2 ] + 2 + font_size, 2,
+	    legend_bmap.GetWidth(), legend_bmap.GetHeight()
 	    )
-	legend_size = legend_pil_im.size
       else:
 	legend_size = ( 0, 0 )
 
-      if tally_legend_pil_im is not None:
+      if tally_legend_bmap is not None:
 	at = (
 	    vessel_region[ 0 ] + vessel_region[ 2 ] + 2 + font_size +
 	    legend_size[ 0 ],
-	    vessel_region[ 1 ]
+	    2 # vessel_region[ 1 ]
 	    )
-        im.paste( tally_legend_pil_im, at )
-	tally_legend_size = tally_legend_pil_im.size
+	gc.DrawBitmap(
+	    tally_legend_bmap, at[ 0 ], at[ 1 ],
+	    tally_legend_bmap.GetWidth(), tally_legend_bmap.GetHeight()
+	    )
       else:
 	tally_legend_size = ( 0, 0 )
 
 #			-- Draw Title String
 #			--
-      #assy_y = max( assy_y, legend_size[ 1 ] )
       assy_y = max(
           vessel_region[ 1 ] + vessel_region[ 3 ],
 	  max( legend_size[ 1 ], tally_legend_size[ 1 ] )
 	  )
-      assy_y += font_size >> 1
+      #assy_y += font_size >> 1
+      assy_y += font_size >> 2
 
       title_str = self._CreateTitleString(
 	  title_templ,
-	  axial = axial_value[ 0 ],
+	  axial = self.axialValue.cm,
 	  time = self.timeValue
 	  #time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
           )
-      title_size = pil_font.getsize( title_str )
-      title_x = max(
-	  font_size,
-	  (vessel_region[ 0 ] + vessel_region[ 2 ] - title_size[ 0 ]) >> 1
+      self._DrawStringsWx(
+	  gc, font,
+	  ( title_str, ( 0, 0, 0, 255 ),
+	    vessel_region[ 0 ], assy_y,
+	    im_wd - vessel_region[ 0 ] - (font_size << 2),
+	    'c' )
 	  )
-      im_draw.text(
-          ( title_x, assy_y ),
-	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
-          )
 
 #			-- Draw vessel tally values
-#			-- (last to avoid another ImageDraw instance
-      if tally_ds_range is not None and self.tallyAddr[ 0 ] is not None:
-	tally_im = PIL.Image.new( 'RGBA', im.size )
-	tally_draw = PIL.ImageDraw.Draw( tally_im )
-	mask_im = PIL.Image.new( 'L', im.size, 0 )
-	mask_draw = PIL.ImageDraw.Draw( mask_im )
-	self._DrawTallyCells(
-	      tally_draw, mask_draw, config,
-	      vessel_tally, self.tallyAddr
-	      )
-	im = PIL.Image.composite( tally_im, im, mask_im )
-      #end if tally_ds_range
+#			--
+      if tally_ds_range is not None and self.tallyAddr.name is not None:
+	self._DrawTallyCells( gc, config )
 
 #			-- Finished
 #			--
-      del im_draw
+      dc.SelectObject( wx.NullBitmap )
     #end if config exists
 
     #elapsed_time = timeit.default_timer() - start_time
     #if self.logger.isEnabledFor( logging.DEBUG ):
       #self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
-    return  im  if im is not None else  self.emptyPilImage
+    return  bmap  if bmap is not None else  self.emptyBitmap
   #end _CreateRasterImage
 
 
@@ -916,13 +850,11 @@ of 1, meaning a forced scale might be necessary.
   #----------------------------------------------------------------------
   def _CreateStateTuple( self ):
     """
-@return			mode == 'assy':
-			( state_index, assy_ndx, axial_level,
-			  assy_col, assy_row )
-			mode == 'core':
-			( state_index, axial_level )
+@return			state_index, axial_level, tally_index
 """
-    return  self.stateIndex, self.axialValue[ 1 ]
+    #return  self.stateIndex, self.axialValue.pinIndex
+    return  \
+        self.stateIndex, self.axialValue.pinIndex, self.axialValue.tallyIndex
   #end _CreateStateTuple
 
 
@@ -941,7 +873,7 @@ of 1, meaning a forced scale might be necessary.
       if dset is not None:
         core = self.dmgr.GetCore()
         assy_ndx = min( cell_info[ 0 ], dset.shape[ 3 ] - 1 )
-        axial_level = min( self.axialValue[ 1 ], dset.shape[ 2 ] - 1 ),
+        axial_level = min( self.axialValue.tallyIndex, dset.shape[ 2 ] - 1 ),
         assy_addr_display = core.CreateAssyLabel( *cell_info[ 1 : 3 ] )
 	value = None
 
@@ -969,9 +901,9 @@ of 1, meaning a forced scale might be necessary.
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._DrawBaffle()			-
   #----------------------------------------------------------------------
-  def _DrawBaffle( self, im_draw, config ):
+  def _DrawBaffle( self, gc, config ):
     """Handles drawing the baffle.  This needs a better algorithm.
-@param  im_draw		PIL.ImageDraw instance
+@param  gc		wx.GraphicsContext instance
 @param  config		draw configuration dict
 """
     assy_wd = config[ 'assemblyWidth' ]
@@ -1048,37 +980,160 @@ of 1, meaning a forced scale might be necessary.
       assy_y -= assy_wd
     #end while
 
-    if len( pt_list ) > 0:
-      im_draw.line( pt_list, fill = ( 155, 155, 155, 255 ), width = baffle_wd )
+#    if len( pt_list ) > 0:
+#      im_draw.line( pt_list, fill = ( 155, 155, 155, 255 ), width = baffle_wd )
+    if len( pt_list ) >= 4:
+      path = gc.CreatePath()
+      path.MoveToPoint( pt_list[ 0 ], pt_list[ 1 ] )
+      for i in xrange( 2, len( pt_list ) - 1, 2 ):
+        path.AddLineToPoint( pt_list[ i ], pt_list[ i + 1 ] )
+
+      cur_pen = wx.ThePenList.FindOrCreatePen(
+          wx.Colour( 155, 155, 155, 255 ), baffle_wd, wx.PENSTYLE_SOLID
+          )
+      cur_pen.SetCap( wx.CAP_BUTT )
+      gc.SetPen( gc.CreatePen( cur_pen ) )
+      gc.StrokePath( path )
+    #end if len( pt_list ) >= 4
   #end _DrawBaffle
 
 
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._DrawTallyCells()		-
   #----------------------------------------------------------------------
-  def _DrawTallyCells( self, im_draw, mask_draw, config, tally_def, tally_addr ):
+  def _DrawTallyCells( self, gc, config ):
     """Handles drawing tally data.
-@param  im_draw		PIL.ImageDraw instance
+@param  gc		wx.GraphicsContext instance
 @param  config		draw configuration dict
-@param  tally_def	VesselTallyDef instance
-@param  tally_addr	( qds_name, mult_ndx, stat_ndx )
 """
 
-    core = dset = None
+    dset = None
+    core = self.dmgr.GetCore()
     ds_range = config.get( 'tallyDataRange' )
-    z_ndx = self.axialValue[ 4 ]
+    z_ndx = self.axialValue.tallyIndex
     if z_ndx >= 0 and ds_range is not None:
-      core = self.dmgr.GetCore()
-      dset = self.dmgr.GetH5DataSet( tally_addr[ 0 ], self.timeValue )
-      z_ndx = min( z_ndx, tally_def.nz - 1 )
+      dset = self.dmgr.GetH5DataSet( self.tallyAddr.name, self.timeValue )
+      z_ndx = min( z_ndx, core.tally.nz - 1 )
 
     if dset is not None and core is not None:
-      break_angle = PI_OVER_2  if core.coreSym == 4 else  TWO_PI
+      amode = gc.GetAntialiasMode()
+      cmode = gc.GetCompositionMode()
+      gc.SetAntialiasMode( wx.ANTIALIAS_NONE )  # _DEFAULT
+      gc.SetCompositionMode( wx.COMPOSITION_SOURCE )  # _OVER
+
+      #break_angle = PI_OVER_2  if core.coreSym == 4 else  TWO_PI
       dset_array = np.array( dset )
-      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+      trans_color_arr = np.array([ 0, 0, 0, 0 ], dtype = np.uint8 )
 
       pix_per_cm = config[ 'pixPerCm' ]
       r_start_ndx = config[ 'radiusStartIndex' ]
+      tally_mapper = config[ 'tallyMapper' ]
+      th_stop_ndx = config[ 'thetaStopIndex' ]
+      vessel_region = config[ 'vesselRegion' ]
+
+      vessel_origin = vessel_region[ 0 : 2 ]
+      if config[ 'coreOffsetCm' ] > 0:
+        assy_wd = config[ 'assemblyWidth' ]
+        vessel_origin[ 0 ] += assy_wd >> 1
+        vessel_origin[ 1 ] += assy_wd >> 1
+
+#		-- Map to colors
+#		--
+      cur_array = dset_array[
+          z_ndx, :, :, self.tallyAddr.multIndex, self.tallyAddr.statIndex
+	  ]
+      #cur_array[ cur_array <= 0.0 ] = np.nan
+      colors = tally_mapper.to_rgba( cur_array, bytes = True )
+      colors[ np.isnan( cur_array ) ] = trans_color_arr
+      colors[ np.isinf( cur_array ) ] = trans_color_arr
+      colors[ cur_array < tally_mapper.norm.vmin ] = trans_color_arr
+      colors[ cur_array > tally_mapper.norm.vmax ] = trans_color_arr
+
+#		-- Outer loop is r
+#		--
+#      for ri in xrange( r_start_ndx, core.tally.nr ):
+      for ri in xrange( core.tally.nr - 1, r_start_ndx - 1, -1 ):
+#	if ri == r_start_ndx:
+#	  r1_wd = int( math.ceil( core.tally.r[ ri ] * pix_per_cm ) )
+#	r2_wd = int( math.ceil( core.tally.r[ ri + 1 ] * pix_per_cm ) )
+	if ri == core.tally.nr - 1:
+	  r2_wd = int( math.ceil( core.tally.r[ ri + 1 ] * pix_per_cm ) )
+        r1_wd = int( math.ceil( core.tally.r[ ri ] * pix_per_cm ) )
+
+	cur_r = (r1_wd + r2_wd) >> 1
+	#cur_wd = max( 1, r2_wd - r1_wd + 1 )
+	cur_wd = max( 1, r2_wd - r1_wd )
+
+#			-- Inner loop is theta
+#			--
+	last_theta = min(
+	    core.tally.theta[ min( th_stop_ndx, core.tally.ntheta - 1 ) ],
+	    TWO_PI
+	    )
+	for ti in xrange( 0, th_stop_ndx ):
+	  start = core.tally.theta[ ti ]
+	  end = min(
+	      core.tally.theta[ ti + 1 ],
+	      last_theta
+	      )
+	  cur_color = colors[ ti, ri ]
+	  if cur_color[ 3 ] > 0:
+            #pen_color = tally_mapper.to_rgba( value, bytes = True )
+	    pen_color = cur_color.tolist()
+	    cur_pen = wx.ThePenList.FindOrCreatePen(
+		wx.Colour( *pen_color ), cur_wd + 1, wx.PENSTYLE_SOLID
+	        )
+            cur_pen.SetCap( wx.CAP_BUTT )
+	    gc.SetPen( gc.CreatePen( cur_pen ) )
+	    path = gc.CreatePath()
+	    path.AddArc(
+	        vessel_origin[ 0 ], vessel_origin[ 1 ], cur_r,
+		start, end
+	        )
+	    gc.StrokePath( path )
+	  #if valid value
+        #end for ti
+
+#        r1_wd = r2_wd
+        r2_wd = r1_wd
+      #end for ri
+
+      gc.SetAntialiasMode( amode )
+      gc.SetCompositionMode( cmode )
+    #end if dset
+  #end _DrawTallyCells
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._DrawTallyCells_1()		-
+  #----------------------------------------------------------------------
+  def _DrawTallyCells_1( self, gc, config ):
+    """Handles drawing tally data.
+@param  gc		wx.GraphicsContext instance
+@param  config		draw configuration dict
+"""
+
+    dset = None
+    core = self.dmgr.GetCore()
+    ds_range = config.get( 'tallyDataRange' )
+    z_ndx = self.axialValue.tallyIndex
+    if z_ndx >= 0 and ds_range is not None:
+      dset = self.dmgr.GetH5DataSet( self.tallyAddr.name, self.timeValue )
+      z_ndx = min( z_ndx, core.tally.nz - 1 )
+
+    if dset is not None and core is not None:
+      amode = gc.GetAntialiasMode()
+      cmode = gc.GetCompositionMode()
+      gc.SetAntialiasMode( wx.ANTIALIAS_NONE )  # _DEFAULT
+      gc.SetCompositionMode( wx.COMPOSITION_SOURCE )  # _OVER
+
+      break_angle = PI_OVER_2  if core.coreSym == 4 else  TWO_PI
+      dset_array = np.array( dset )
+      #value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+
+      pix_per_cm = config[ 'pixPerCm' ]
+      r_start_ndx = config[ 'radiusStartIndex' ]
+      tally_mapper = config[ 'tallyMapper' ]
       vessel_region = config[ 'vesselRegion' ]
 
       vessel_origin = vessel_region[ 0 : 2 ]
@@ -1089,55 +1144,63 @@ of 1, meaning a forced scale might be necessary.
 
 #		-- Outer loop is r
 #		--
-      for ri in xrange( r_start_ndx, tally_def.nr ):
+      for ri in xrange( r_start_ndx, core.tally.nr ):
 	if ri == r_start_ndx:
-	  r1_wd = int( math.ceil( tally_def.r[ ri ] * pix_per_cm ) )
-        r2_wd = int( math.ceil( tally_def.r[ ri + 1 ] * pix_per_cm ) )
+	  r1_wd = int( math.ceil( core.tally.r[ ri ] * pix_per_cm ) )
+        r2_wd = int( math.ceil( core.tally.r[ ri + 1 ] * pix_per_cm ) )
 
 	cur_r = (r1_wd + r2_wd) >> 1
 	cur_wd = max( 1, r2_wd - r1_wd + 1 )
-        ring_rect = [
-	    vessel_origin[ 0 ] - cur_r, vessel_origin[ 1 ] - cur_r,
-	    vessel_origin[ 0 ] + cur_r, vessel_origin[ 1 ] + cur_r,
-	    ]
 
 #			-- Inner loop is theta
 #			--
-        for ti in xrange( tally_def.ntheta ):
-	  start = tally_def.theta[ ti ]
+        for ti in xrange( core.tally.ntheta ):
+	  start = core.tally.theta[ ti ]
 	  if start >= break_angle:  break
 
-	  end = min( tally_def.theta[ ti + 1 ], break_angle )
+	  end = min( core.tally.theta[ ti + 1 ], break_angle )
 
-	  value = dset_array[ z_ndx, ti, ri, tally_addr[ 1 ], tally_addr[ 2 ] ]
-	  #draw zeros
-	  #if not self.dmgr.IsBadValue( value ) and value > 0.0:
+	  value = dset_array[
+	      z_ndx, ti, ri,
+	      self.tallyAddr.multIndex, self.tallyAddr.statIndex
+	      ]
 	  if not self.dmgr.IsBadValue( value ):
-	    pen_color = Widget.GetColorTuple(
-		value - ds_range[ 0 ], value_delta, 155
+#	    pen_color = Widget.GetColorTuple(
+#		value - ds_range[ 0 ], value_delta, 155
+#	        )
+            pen_color = tally_mapper.to_rgba( value, bytes = True )
+	    cur_pen = wx.ThePenList.FindOrCreatePen(
+		wx.Colour( *pen_color ), cur_wd + 1, wx.PENSTYLE_SOLID
 	        )
-            self.DrawArcPoly2(
-		( ( im_draw, pen_color ), ( mask_draw, pen_color[ 3 ] ) ),
-		ring_rect, start, end,
-		width = cur_wd, units = 'rad',
+            cur_pen.SetCap( wx.CAP_BUTT )
+	    gc.SetPen( gc.CreatePen( cur_pen ) )
+	    path = gc.CreatePath()
+	    path.AddArc(
+	        vessel_origin[ 0 ], vessel_origin[ 1 ], cur_r,
+		start, end
 	        )
+	    gc.StrokePath( path )
 	  #if valid value
         #end for ti
 
         r1_wd = r2_wd
       #end for ri
+
+      gc.SetAntialiasMode( amode )
+      gc.SetCompositionMode( cmode )
     #end if dset
-  #end _DrawTallyCells
+  #end _DrawTallyCells_1
 
 
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._DrawVesselComponents()	-
   #----------------------------------------------------------------------
-  def _DrawVesselComponents( self, im_draw, config ):
+  def _DrawVesselComponents( self, gc, config ):
     """Handles drawing vessel components from the vessel definition
-@param  im_draw		PIL.ImageDraw instance
+@param  gc		wx.GraphicsContext instance
 @param  config		draw configuration dict
 """
+    core = self.dmgr.GetCore()
     assy_wd = config[ 'assemblyWidth' ]
     core_region = config[ 'coreRegion' ]
     vessel_region = config[ 'vesselRegion' ]
@@ -1152,53 +1215,65 @@ of 1, meaning a forced scale might be necessary.
     vessel_wd = vessel_r - (liner_r + 1)
     vessel_r = liner_r + 1 + (vessel_wd >> 1)
 
-    vessel_origin = vessel_region[ 0 : 2 ]
-    if config[ 'coreOffsetCm' ] > 0:
-      vessel_origin[ 0 ] += assy_wd >> 1
-      vessel_origin[ 1 ] += assy_wd >> 1
+    if core.coreSym == 1:
+      vessel_origin = (
+          (vessel_region[ 0 ] + vessel_region[ 2 ]) >> 1,
+          (vessel_region[ 1 ] + vessel_region[ 3 ]) >> 1
+	  )
+    else:
+      vessel_origin = vessel_region[ 0 : 2 ]
+      if config[ 'coreOffsetCm' ] > 0:
+        vessel_origin[ 0 ] += assy_wd >> 1
+        vessel_origin[ 1 ] += assy_wd >> 1
 
-    core = self.dmgr.GetCore()
-    end_angle = 90  if core.coreSym == 4 else  360
+    #end_angle = 90  if core.coreSym == 4 else  360
+    end_angle = 360  if core.coreSym == 1  else 90
+    end_angle_rads = end_angle * RADS_PER_DEG
 
 #	-- Baffle
 #	--
     if core.coreSym == 4:
-      self._DrawBaffle( im_draw, config )
+      self._DrawBaffle( gc, config )
 
 #	-- Barrel
 #	--
-    ring_rect = [
-        vessel_origin[ 0 ] - barrel_r, vessel_origin[ 1 ] - barrel_r,
-	vessel_origin[ 0 ] + barrel_r, vessel_origin[ 1 ] + barrel_r,
-	]
-    self.DrawArcPoly(
-        im_draw, ring_rect, 0, end_angle,
-	( 200, 200, 200, 255 ), barrel_wd
-	)
+    cur_pen = wx.ThePenList.FindOrCreatePen(
+	wx.Colour( 200, 200, 200, 255 ), barrel_wd, wx.PENSTYLE_SOLID
+        )
+    cur_pen.SetCap( wx.CAP_BUTT )
+    gc.SetPen( gc.CreatePen( cur_pen ) )
+    path = gc.CreatePath()
+    path.AddArc(
+	vessel_origin[ 0 ], vessel_origin[ 1 ], barrel_r,
+	0, PI_OVER_2
+        )
+    gc.StrokePath( path )
 
 #	-- Pad
 #	--
+    pad_wd = config[ 'padWidth' ]
+    pad_r = config[ 'padRadius' ] + (pad_wd >> 1)
     if self.vesselShowPad:
       pad_angles = config[ 'padAngles' ]
       if len( pad_angles ) > 0:
-        par_arc_half = config[ 'padArc' ] / 2.0
-        #pad_st = pad_angles[ 0 ] - par_arc
-        #pad_en = pad_angles[ 0 ] + par_arc
+#        pad_wd = config[ 'padWidth' ]
+        pad_arc_half = config[ 'padArc' ] / 2.0
+        cur_pen = wx.ThePenList.FindOrCreatePen(
+	    wx.Colour( 175, 175, 175, 255 ), pad_wd, wx.PENSTYLE_SOLID
+            )
+	cur_pen.SetCap( wx.CAP_BUTT )
+        gc.SetPen( gc.CreatePen( cur_pen ) )
+
 	for an in pad_angles:
 	  if an < end_angle:
-            pad_st = an - par_arc_half
-            pad_en = an + par_arc_half
-            pad_r = config[ 'padRadius' ]
-            pad_wd = config[ 'padWidth' ]
-            pad_r += (pad_wd >> 1)
-            ring_rect = [
-                vessel_origin[ 0 ] - pad_r, vessel_origin[ 1 ] - pad_r,
-	        vessel_origin[ 0 ] + pad_r, vessel_origin[ 1 ] + pad_r,
-	        ]
-            self.DrawArcPoly(
-                im_draw, ring_rect, pad_st, pad_en,
-	        ( 175, 175, 175, 255 ), pad_wd
-	        )
+            pad_st = an - pad_arc_half
+            pad_en = an + pad_arc_half
+            path = gc.CreatePath()
+            path.AddArc(
+	        vessel_origin[ 0 ], vessel_origin[ 1 ], pad_r,
+		pad_st * RADS_PER_DEG, pad_en * RADS_PER_DEG
+                )
+	    gc.StrokePath( path )
 	  #end if an < end_angle
 	#end for an
       #end if pad_angles
@@ -1206,22 +1281,52 @@ of 1, meaning a forced scale might be necessary.
 
 #	-- Vessel ring
 #	--
-    ring_rect = [
-        vessel_origin[ 0 ] - vessel_r, vessel_origin[ 1 ] - vessel_r,
-	vessel_origin[ 0 ] + vessel_r, vessel_origin[ 1 ] + vessel_r
-	]
-    self.DrawArcPoly(
-        im_draw, ring_rect, 0, end_angle,
-	( 175, 175, 175, 255 ), vessel_wd
-	)
+    cur_pen = wx.ThePenList.FindOrCreatePen(
+        wx.Colour( 175, 175, 175, 255 ), vessel_wd, wx.PENSTYLE_SOLID
+        )
+    cur_pen.SetCap( wx.CAP_BUTT )
+    gc.SetPen( gc.CreatePen( cur_pen ) )
+    path = gc.CreatePath()
+    path.AddArc(
+	vessel_origin[ 0 ], vessel_origin[ 1 ], vessel_r,
+	0, end_angle_rads
+        )
+    gc.StrokePath( path )
 
 #	-- Liner
 #	--
-    ring_rect = [
-        vessel_origin[ 0 ] - liner_r, vessel_origin[ 1 ] - liner_r,
-	vessel_origin[ 0 ] + liner_r, vessel_origin[ 1 ] + liner_r,
-	]
-    im_draw.arc( ring_rect, 0, end_angle, ( 0, 0, 0, 255 ) )
+    cur_pen = wx.ThePenList.FindOrCreatePen(
+        wx.Colour( 0, 0, 0, 255 ), 1, wx.PENSTYLE_SOLID
+        )
+    cur_pen.SetCap( wx.CAP_BUTT )
+    gc.SetPen( gc.CreatePen( cur_pen ) )
+    path = gc.CreatePath()
+    path.AddArc(
+	vessel_origin[ 0 ], vessel_origin[ 1 ], liner_r,
+	0, end_angle_rads
+        )
+    gc.StrokePath( path )
+
+#	-- Draw theta indicator
+#	--
+#    th_cos = math.cos( self.tallyAddr.thetaIndex )
+#    th_sin = math.sin( self.tallyAddr.thetaIndex )
+#    if core.coreSym == 1:
+#      dx1 = th_sin * (pad_r + 2)
+#      dy1 = th_cos * (pad_r + 2)
+#      dx2 = th_sin * liner_r
+#      dy2 = th_cos * liner_r
+#    else:
+#      dx1 = th_cos * (pad_r + 2)
+#      dy1 = th_sin * (pad_r + 2)
+#      dx2 = th_cos * liner_r
+#      dy2 = th_sin * liner_r
+#
+#    pts = [
+#	vessel_origin[ 0 ] + dx1, vessel_origin[ 1 ] + dy1,
+#	vessel_origin[ 0 ] + dx2, vessel_origin[ 1 ] + dy2
+#        ]
+#    im_draw.line( pts, fill = ( 200, 0, 0, 255 ), width = 1 )
   #end _DrawVesselComponents
 
 
@@ -1308,7 +1413,8 @@ of 1, meaning a forced scale might be necessary.
 animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
-    return  ( 'axial:pin', 'statepoint' )
+    return  ( 'axial:tally', 'statepoint' )
+    #return  ( 'axial:pin', 'statepoint' )
   #end GetAnimationIndexes
 
 
@@ -1349,23 +1455,10 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   def GetPrintFontScale( self ):
     """
-@return		4
+@return		1.5
 """
-    #return  4
-    return  8
+    return  1.5
   #end GetPrintFontScale
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VesselCore2DView.GetPrintScale()		-
-  #----------------------------------------------------------------------
-  def GetPrintScale( self ):
-    """
-@return		4
-"""
-    #return  4
-    return  8
-  #end GetPrintScale
 
 
   #----------------------------------------------------------------------
@@ -1392,12 +1485,15 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._HiliteBitmap()		-
   #----------------------------------------------------------------------
-  def _HiliteBitmap( self, bmap ):
+  def _HiliteBitmap( self, bmap, config = None ):
     result = bmap
 
+    if config is None:
+      config = self.config
+
     core = self.dmgr.GetCore()
-    if self.config is not None and core is not None:
-      line_wd = self.config[ 'lineWidth' ]
+    if config is not None and core is not None and 'vesselRadius' in config:
+      line_wd = config[ 'lineWidth' ]
       half_line_wd = line_wd >> 1
       draw_list = []  # ( rect, pen )
 
@@ -1434,8 +1530,8 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
 
       if rel_col >= 0 and rel_col < self.cellRange[ -2 ] and \
           rel_row >= 0 and rel_row < self.cellRange[ -1 ]:
-	assy_wd = self.config[ 'assemblyWidth' ]
-	core_region = self.config[ 'coreRegion' ]
+	assy_wd = config[ 'assemblyWidth' ]
+	core_region = config[ 'coreRegion' ]
 
 	rect = [
 	    rel_col * assy_wd + core_region[ 0 ],
@@ -1446,7 +1542,7 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
 
 #				-- Core nodal
 	if self.nodalMode:
-	  node_wd = self.config[ 'pinWidth' ]
+	  node_wd = config[ 'pinWidth' ]
           for i in range( len( node_addr_list ) ):
 	    node_addr = node_addr_list[ i ]
 	    if node_addr >= 0:
@@ -1467,11 +1563,13 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
 
 #			-- Draw?
 #			--
+      new_bmap = self._CopyBitmap( bmap )
+      dc = wx.MemoryDC( new_bmap )
+      gc = wx.GraphicsContext.Create( dc )
       if draw_list:
-	new_bmap = self._CopyBitmap( bmap )
-
-        dc = wx.MemoryDC( new_bmap )
-	gc = wx.GraphicsContext.Create( dc )
+	#new_bmap = self._CopyBitmap( bmap )
+        #dc = wx.MemoryDC( new_bmap )
+	#gc = wx.GraphicsContext.Create( dc )
 
 	for draw_item in draw_list:
 	  gc.SetPen( draw_item[ 1 ] )
@@ -1480,10 +1578,54 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
 	  gc.StrokePath( path )
 	#end for draw_item
 
-	dc.SelectObject( wx.NullBitmap )
-	result = new_bmap
+	#dc.SelectObject( wx.NullBitmap )
+	#result = new_bmap
       #end if draw_list
-    #end if self.config is not None:
+
+#			-- Theta indicator
+#			--
+      vessel_region = config[ 'vesselRegion' ]
+      liner_r = config[ 'linerRadius' ]
+      pad_wd = config[ 'padWidth' ]
+      pad_r = config[ 'padRadius' ]
+      rad_px2 = liner_r - 2
+      rad_px1 = min( pad_r + pad_wd + 2, rad_px2 - 4 )
+
+      if core.coreSym == 1:
+        vessel_origin = (
+	    (vessel_region[ 0 ] + vessel_region[ 2 ]) >> 1,
+            (vessel_region[ 1 ] + vessel_region[ 3 ]) >> 1
+	    )
+      else:
+        vessel_origin = vessel_region[ 0 : 2 ]
+        if config[ 'coreOffsetCm' ] > 0:
+	  assy_wd = config[ 'assemblyWidth' ]
+          vessel_origin[ 0 ] += assy_wd >> 1
+          vessel_origin[ 1 ] += assy_wd >> 1
+
+      theta_rad = core.tally.GetThetaRads( self.tallyAddr.thetaIndex )
+      th_cos = math.cos( theta_rad )
+      th_sin = math.sin( theta_rad )
+      if core.coreSym == 1:
+        dx1 = th_sin * rad_px1
+        dy1 = th_cos * rad_px1
+        dx2 = th_sin * rad_px2
+        dy2 = th_cos * rad_px2
+      else:
+        dx1 = th_cos * rad_px1
+        dy1 = th_sin * rad_px1
+        dx2 = th_cos * rad_px2
+        dy2 = th_sin * rad_px2
+
+      gc.SetPen( select_pen )
+      path = gc.CreatePath()
+      path.MoveToPoint( vessel_origin[ 0 ] + dx1, vessel_origin[ 1 ] + dy1 )
+      path.AddLineToPoint( vessel_origin[ 0 ] + dx2, vessel_origin[ 1 ] + dy2 )
+      gc.StrokePath( path )
+
+      dc.SelectObject( wx.NullBitmap )
+      result = new_bmap
+    #end if config is not None:
 
     return  result
   #end _HiliteBitmap
@@ -1505,6 +1647,17 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._IsAssemblyAware()		-
+  #----------------------------------------------------------------------
+  def _IsAssemblyAware( self ):
+    """
+@return			False
+"""
+    return  False
+  #end _IsAssemblyAware
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView.IsTupleCurrent()		-
   #----------------------------------------------------------------------
   def IsTupleCurrent( self, tpl ):
@@ -1515,7 +1668,8 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
     result = \
         tpl is not None and len( tpl ) >= 2 and \
         tpl[ 0 ] == self.stateIndex and \
-	tpl[ 1 ] == self.axialValue[ 1 ]
+	tpl[ 1 ] == self.axialValue.pinIndex and \
+	tpl[ 2 ] == self.axialValue.tallyIndex
 
     return  result
   #end IsTupleCurrent
@@ -1530,37 +1684,17 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
     if (reason & STATE_CHANGE_coordinates) > 0:
       self.assemblyAddr = self.state.assemblyAddr
       self.subAddr = self.state.subAddr
-      #self.tallyAddr = self.state.tallyAddr
 
     if (reason & STATE_CHANGE_curDataSet) > 0:
       self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
+
+    if (reason & STATE_CHANGE_tallyAddr) > 0:
+      self.tallyAddr = self.state.tallyAddr.copy()
 
     ds_type = self.dmgr.GetDataSetType( self.curDataSet )
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
   #end _LoadDataModelValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VesselCore2DView._LoadDataModelValues_1()	-
-  #----------------------------------------------------------------------
-  def _LoadDataModelValues_1( self ):
-    """
-"""
-    #self.avgValues.clear()
-    self.assemblyAddr = self.state.assemblyAddr
-    self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
-    self.subAddr = self.state.subAddr
-    #self.tallyAddr = self.state.tallyAddr
-
-    ds_type = self.dmgr.GetDataSetType( self.curDataSet )
-    #no self.channelMode = ds_type == 'channel'
-    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
-    self.nodalMode = self.dmgr.IsNodalType( ds_type )
-
-    self.dmgr.core.apitch
-    self.dmgr.ExtractSymmetryExtent()
-  #end _LoadDataModelValues_1
 
 
   #----------------------------------------------------------------------
@@ -1571,12 +1705,13 @@ processed in this widget.  For now this is limited to 'bank' and 'tally'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    #for k in ( 'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'mode' ):
-    for k in (
-        'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'tallyAddr'
-	):
+    for k in ( 'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
+
+# Handled in Widget
+#    if self.tallyAddr[ 0 ] and isinstance( self.tallyAddr[ 0 ], dict ):
+#      self.tallyAddr[ 0 ] = DataSetName( self.tallyAddr[ 0 ] )
 
     super( VesselCore2DView, self ).LoadProps( props_dict )
   #end LoadProps
@@ -1588,8 +1723,64 @@ be overridden by subclasses.
   def _OnClick( self, ev ):
     """
 """
+    if self.config:
+      x = ev.GetX()
+      y = ev.GetY()
+      core_region = self.config[ 'coreRegion' ]
+
+      if x <= core_region[ 0 ] + core_region[ 2 ] and \
+          y <= core_region[ 1 ] + core_region[ 3 ]:
+        self._OnClickCore( ev )
+
+      elif x > core_region[ 0 ] and y > core_region[ 1 ]:
+	core = self.dmgr.GetCore()
+	liner_radius = self.config[ 'linerRadius' ]
+        vessel_region = self.config[ 'vesselRegion' ]
+	vessel_radius = self.config[ 'vesselRadius' ]
+
+        if core.coreSym == 1:
+          vessel_origin = (
+	      (vessel_region[ 0 ] + vessel_region[ 2 ]) >> 1,
+              (vessel_region[ 1 ] + vessel_region[ 3 ]) >> 1
+	      )
+        else:
+          assy_wd = self.config[ 'assemblyWidth' ]
+          vessel_origin = vessel_region[ 0 : 2 ]
+          if self.config[ 'coreOffsetCm' ] > 0:
+            vessel_origin[ 0 ] += assy_wd >> 1
+            vessel_origin[ 1 ] += assy_wd >> 1
+
+	dx = x - vessel_origin[ 0 ]
+	dy = y - vessel_origin[ 1 ]
+
+	r = math.sqrt( (dx * dx) + (dy * dy) )
+	if r >= liner_radius and r <= vessel_radius + 10:
+	  if core.coreSym == 1:
+	    th_rad = math.atan2( dx, dy )
+	    if th_rad < 0.0:
+	      th_rad += math.pi * 2.0
+	  else:
+	    # 1 degree under pi/2
+	    th_rad = min( PI_OVER_2 - 0.017, max( 0.0, math.atan2( dy, dx ) ) )
+
+	  ti = core.tally.GetThetaIndex( th_rad )
+          tally_addr = self.tallyAddr.copy()
+	  tally_addr.update( thetaIndex = ti )
+          self.FireStateChange( tally_addr = tally_addr )
+      #end elif
+    #end if self.config
+  #end _OnClick
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VesselCore2DView._OnClickCore()			-
+  #----------------------------------------------------------------------
+  def _OnClickCore( self, ev ):
+    """
+"""
     x = ev.GetX()
     y = ev.GetY()
+    #core_region = self.config[ 'coreRegion' ]
 
     cell_info = self.FindAssembly( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
@@ -1630,7 +1821,7 @@ be overridden by subclasses.
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
     #end if cell found
-  #end _OnClick
+  #end _OnClickCore
 
 
   #----------------------------------------------------------------------
@@ -1652,44 +1843,32 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._OnFindMinMax()		-
   #----------------------------------------------------------------------
-  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+  def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
-    #if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
-    if self.curDataSet:
-      if self.channelMode:
-        self._OnFindMinMaxChannel( mode, self.curDataSet, all_states_flag )
-      else:
-        self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
+    if self.config and self.tallyAddr and self.tallyAddr.name:
+      self._OnFindMinMaxTally(
+          mode, self.tallyAddr, all_states_flag,
+	  self.config.get( 'tallyDataSetExpr' ),
+	  self.config.get( 'radiusStartIndex', 0 )
+	  )
   #end _OnFindMinMax
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		VesselCore2DView._OnUnzoom()			-
-  #----------------------------------------------------------------------
-  def _OnUnzoom( self, ev ):
-    """
-"""
-    if len( self.cellRangeStack ) > 0:
-      self.cellRange = self.cellRangeStack.pop( -1 )
-      #self._SetMode( 'core' )
-      self.Redraw()  # self._OnSize( None )
-  #end _OnUnzoom
 
 
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView.SaveProps()			-
   #----------------------------------------------------------------------
-  def SaveProps( self, props_dict ):
+  def SaveProps( self, props_dict, for_drag = False ):
     """Called to save properties.  Subclasses should override calling this
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    super( VesselCore2DView, self ).SaveProps( props_dict )
+    super( VesselCore2DView, self ).SaveProps( props_dict, for_drag = for_drag )
 
     #for k in ( 'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'mode' ):
     for k in (
-        'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr', 'tallyAddr'
+        'assemblyAddr', 'auxNodeAddrs', 'nodeAddr', 'subAddr'
+#t	'tallyAddr'
 	):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
@@ -1710,10 +1889,11 @@ method via super.SaveProps().
   #----------------------------------------------------------------------
   #	METHOD:		VesselCore2DView._UpdateDataSetStateValues()	-
   #----------------------------------------------------------------------
-  def _UpdateDataSetStateValues( self, ds_type ):
-    """
-@param  ds_type		dataset category/type
-Updates the nodalMode property.
+  def _UpdateDataSetStateValues( self, ds_type, clear_zoom_stack = False ):
+    """Updates channelMode and nodalMode properties.
+    Args:
+        ds_type (str): dataset category/type
+	clear_zoom_stack (boolean): True to clear in zoom stack
 """
     #no self.channelMode = ds_type == 'channel'
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
@@ -1771,8 +1951,15 @@ Updates the nodalMode property.
     #end if 'sub_addr'
 
     if 'tally_addr' in kwargs and kwargs[ 'tally_addr' ] != self.tallyAddr:
-      resized = True
-      self.tallyAddr = self.state.tallyAddr
+      #resized = True
+#		-- If only thetaIndex changed, we don't need a new image,
+#		--   just a new indicator
+      if self.tallyAddr.Equals( kwargs[ 'tally_addr' ], 'thetaIndex' ):
+        changed = True
+      else:
+        resized = True
+      self.tallyAddr = self.state.tallyAddr.copy()
+    #end if 'tally_addr'
 
     if 'weights_mode' in kwargs:
       kwargs[ 'resized' ] = True

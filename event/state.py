@@ -3,6 +3,11 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2017-09-23	leerw@ornl.gov				-
+#	  Converted tallyAddr to a TallyAddress instance with new
+#	  theta property.
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using new AxialValue object.
 #		2017-07-20	leerw@ornl.gov				-
 #	  Added STATE_CHANGE_forceRedraw and reordered indexes to
 #	  alphabetize.
@@ -148,6 +153,7 @@ All indices are 0-based.
 | Event Name     | Attrs/Props    | Param Name       | Param Value             |
 +================+================+==================+=========================+
 | axialValue     | axialValue     | axial_value      |                         |
+|                |                | data.datamodel.AxialValue instance         |
 |                |                | ( float value(cm), core-ndx,               |
 |                |                |   detector-index, fixed-detector-index,    |
 |                |                |   tally-index, subpin-index )              |
@@ -174,9 +180,12 @@ All indices are 0-based.
 +----------------+----------------+------------------+-------------------------+
 | #stateIndex    | stateIndex     | state_index      | 0-based state-point ndx |
 +----------------+----------------+------------------+-------------------------+
-| tallyAddr      | tallyAddr      | tally_addr       | ( name, mult, stat )    |
-|                |                | name is DataSetName instance,              |
-|                |                | mult and state are 0-based indexes         |
+| tallyAddr      | tallyAddr      | tally_addr       | ( name, multIndex,      |
+|                |                |                  |   radiusIndex, statIndex|
+|                |                |                  |   thetaIndex )          |
+|                |                | TallyAddress instance                      |
+|                | *Note theta is not a reconfig event for VesselCore2DView,   |
+|                | *but it is for VesselCoreAxial2DView                        |
 +----------------+----------------+------------------+-------------------------+
 | timeValue      | timeValue      | time_value       | time dataset value      |
 |                |                |                  | (replaces stateIndex)   |
@@ -202,7 +211,7 @@ All indices are 0-based.
     self._assemblyAddr = ( -1, -1, -1 )
     self._auxNodeAddrs = []
     self._auxSubAddrs = []
-    self._axialValue = DataModel.CreateEmptyAxialValue()
+    self._axialValue = DataModel.CreateEmptyAxialValueObject()
     self._curDataSet = DataSetName( 'pin_powers' )
 
     #xxxxx listen to events, update timeDataSet, timeValue
@@ -216,7 +225,7 @@ All indices are 0-based.
     self._scaleMode = 'all'
     #self.stateIndex = -1
     self._subAddr = ( -1, -1 )
-    self._tallyAddr = ( None, 0, 0 )
+    self._tallyAddr = DataModel.CreateEmptyTallyAddress()
     self._timeDataSet = 'state'
     self._timeValue = 0.0
     self._weightsMode = 'on'
@@ -521,8 +530,7 @@ Keys passed and the corresponding state bit are:
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
     """Accessor for the axialValue property.
-@return			( float value(cm), core-index, detector-index,
-			  fixed-detector-index ), all indexes 0-based
+@return			AxialValue instance
 """
     return  self._axialValue
   #end GetAxialValue
@@ -600,7 +608,7 @@ Keys passed and the corresponding state bit are:
   #----------------------------------------------------------------------
   def GetTallyAddr( self ):
     """Accessor for the tallyAddr property.
-@return			( name, mult_ndx, stat_ndx ) 0-based indexes
+@return			TallyAddress instance
 """
     return  self._tallyAddr
   #end GetTallyAddr
@@ -647,7 +655,7 @@ Keys passed and the corresponding state bit are:
 dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 #@param  data_model	DataModel to use for initializing properties
 """
-    undefined_ax = DataModel.CreateEmptyAxialValue()
+    undefined_ax = DataModel.CreateEmptyAxialValueObject()
     #undefined_ax = ( 0.0, -1, -1 )
     undefined2 = ( -1, -1 )
     undefined3 = ( -1, -1, -1 )
@@ -658,7 +666,8 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     self._nodeAddr = 0
 
     self._scaleMode = 'all'
-    self._tallyAddr = ( None, 0, 0 )
+    #self._tallyAddr = ( None, 0, 0 )
+    self._tallyAddr = DataModel.CreateEmptyTallyAddress()
     self._weightsMode = 'on'
 
     data_model = self._dataModelMgr.GetFirstDataModel()
@@ -676,7 +685,8 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
         ndx = core.coreMap[ row, col ] - 1
       self._assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
 
-      self._axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
+      self._axialValue = \
+          data_model.CreateAxialValueObject( core_ndx = core.nax >> 1 )
 
       self._curDataSet = self._FindDefaultDataSet( data_model )
 #      ds_display_name = 'pin_powers' \
@@ -712,7 +722,8 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 	ds_name = ds_names[ 0 ]  if len( ds_names ) > 0  else None
 	qds_name = \
 	    DataSetName( data_model.name, ds_name )  if ds_name else  None
-        self._tallyAddr = ( qds_name, 0, 0 )
+        self._tallyAddr = DataModel.CreateEmptyTallyAddress()
+        self._tallyAddr.update( name = qds_name )
 
     else:
       self._assemblyAddr = undefined3
@@ -737,21 +748,30 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 @param  props_dict	dict containing property values
 """
     for k in (
-        'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
+	'axialValue', 'curDataSet', 'tallyAddr',
+        'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
         'nodeAddr', 'scaleMode', 'subAddr',
-	'tallyAddr', 'timeDataSet', 'timeValue', 'weightsMode'
+	'timeDataSet', 'timeValue', 'weightsMode'
         ):
       if k in props_dict:
         setattr( self, '_' + k, props_dict[ k ] )
 
-    for k in ( 'curDataSet' ):
-      if k in props_dict:
-        setattr( self, k, DataSetName( props_dict[ k ] ) )
-        #setattr( self, k, DataSetName.fromjson( props_dict[ k ] ) )
+#t    for k in ( 'axialValue', ):
+#t      if k in props_dict:
+#t        setattr( self, '_' + k, AxialValue( props_dict[ k ] ) )
+
+#t    for k in ( 'curDataSet', ):
+#t      if k in props_dict:
+#t        setattr( self, '_' + k, DataSetName( props_dict[ k ] ) )
+
+#t    for k in ( 'tallyAddr', ):
+#t      if k in props_dict:
+#t        setattr( self, '_' + k, TallyAddress( props_dict[ k ] ) )
 
     if 'dataModelMgr.thresholds' in props_dict:
       self.dataModelMgr.\
           LoadDataSetThresholds( props_dict[ 'dataModelMgr.thresholds' ] )
+    self.dataModelMgr.SetTimeDataSet( self._timeDataSet )
   #end LoadProps
 
 
@@ -864,7 +884,9 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     for k in ( 'curDataSet', ):
       qds_name = self.dataModelMgr.\
           RevertIfDerivedDataSet( getattr( self, '_' + k ) )
-      props_dict[ k ] = qds_name.name
+#t      props_dict[ k ] = qds_name.name
+      if qds_name:
+        props_dict[ k ] = qds_name.tojson()
 
     props_dict[ 'dataModelMgr.thresholds' ] = \
         self.dataModelMgr.SaveDataSetThresholds()

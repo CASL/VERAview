@@ -21,6 +21,10 @@ except ImportException:
 #from widget import *
 
 
+GRID_SIZER_MAX_COLS = 6
+GRID_SIZER_MAX_ROWS = 3
+
+
 #------------------------------------------------------------------------
 #	EVENT:		GridSizerEvent, EVT_GRID_SIZER			-
 #	PROPERTIES:							-
@@ -158,12 +162,15 @@ Properties:
 """
 #		-- Form
 #		--
-    self.fGridSizerForm = GridSizerForm( self, -1 )
+    self.fGridSizerForm = \
+        GridSizerForm( self, -1, GRID_SIZER_MAX_COLS, GRID_SIZER_MAX_ROWS )
     self.fGridSizerForm.Bind( EVT_GRID_SIZER, self._OnSizer )
 
 #		-- Graphic
 #		--
-    self.fGridSizerGraphic = GridSizerGraphic( self, -1 )
+    self.fGridSizerGraphic = \
+        GridSizerGraphic( self, -1, GRID_SIZER_MAX_COLS, GRID_SIZER_MAX_ROWS )
+    #ht = 320 * GRID_SIZER_MAX_ROWS // GRID_SIZER_MAX_COLS
     self.fGridSizerGraphic.SetMinSize( wx.Size( 320, 320 ) )
     self.fGridSizerGraphic.Bind( EVT_GRID_SIZER, self._OnSizer )
 
@@ -258,13 +265,17 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
-  def __init__( self, container, id = -1 ):
+  def __init__( self,
+      container, id = -1,
+      max_cols = GRID_SIZER_MAX_COLS,
+      max_rows = GRID_SIZER_MAX_ROWS
+      ):
     super( GridSizerForm, self ).__init__( container, id )
 
     self.fColSpinner = None
     self.fRowSpinner = None
     self.fValue = ( 1, 1 )
-    self._InitUI()
+    self._InitUI( max_cols, max_rows )
   #end __init__
 
 
@@ -313,17 +324,19 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		GridSizerForm._InitUI()				-
   #----------------------------------------------------------------------
-  def _InitUI( self ):
+  def _InitUI( self, max_cols, max_rows ):
     """Builds this UI component.  Obviously, must be called in the UI thread.
 """
 #		-- Components
 #		--
     rows_label = wx.StaticText( self, -1, 'Rows: ' )
-    self.fRowSpinner = wx.SpinCtrl( self, -1, min = 1, max = 16, initial = 1 )
+    self.fRowSpinner = \
+        wx.SpinCtrl( self, -1, min = 1, max = max_rows, initial = 1 )
     self.fRowSpinner.Bind( wx.EVT_SPINCTRL, self._OnSpinner )
 
     cols_label = wx.StaticText( self, -1, 'Cols: ' )
-    self.fColSpinner = wx.SpinCtrl( self, -1, min = 1, max = 16, initial = 1 )
+    self.fColSpinner = \
+        wx.SpinCtrl( self, -1, min = 1, max = max_cols, initial = 1 )
     self.fColSpinner.Bind( wx.EVT_SPINCTRL, self._OnSpinner )
 
     sizer = wx.BoxSizer( wx.HORIZONTAL )
@@ -423,10 +436,14 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
-  def __init__( self, container, id = -1 ):
+  def __init__( self,
+      container, id = -1,
+      max_cols = GRID_SIZER_MAX_COLS,
+      max_rows = GRID_SIZER_MAX_ROWS
+      ):
     super( GridSizerGraphic, self ).__init__( container, id )
 
-    self.fMaxValues = ( 16, 16 )
+    self.fMaxValues = ( max_rows, max_cols )
     self.fValue = ( 1, 1 )
     self.fRectSize = 0
     self._InitUI()
@@ -470,7 +487,7 @@ Assumes fRectSize gt 0.
     """Builds this UI component.  Obviously, must be called in the UI thread.
 """
     self.SetBackgroundStyle( wx.BG_STYLE_CUSTOM )
-    self.SetMinClientSize( wx.Size( 100, 100 ) )
+    self.SetMinClientSize( wx.Size( 100, 80 ) )
     self.Bind( wx.EVT_LEFT_DOWN, self._OnMouseDown )
     self.Bind( wx.EVT_MOTION, self._OnMouseMotion )
     self.Bind( wx.EVT_PAINT, self._OnPaint )

@@ -3,6 +3,11 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_plot.py					-
 #	HISTORY:							-
+#		2018-07-26	leerw@ornl.gov				-
+#	  Renaming non-derived dataset category/type from 'axial' to
+#	  'axials' to disambiguate from ':axial' displayed name.
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-03-25	leerw@ornl.gov				-
 #	  Removing implicit dataset axis management.
 #		2017-02-03	leerw@ornl.gov				-
@@ -123,7 +128,7 @@ except Exception:
 
 try:
   from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-  from matplotlib.backends.backend_wx import NavigationToolbar2Wx
+  #from matplotlib.backends.backend_wx import NavigationToolbar2Wx
   from matplotlib.figure import Figure
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
@@ -170,8 +175,7 @@ Properties:
     self.auxNodeAddrs = []
     self.auxSubAddrs = []
     self.ax2 = None
-    self.axialValue = DataModel.CreateEmptyAxialValue()
-    #self.channelDataSet = 'channel_liquid_temps [C]'
+    self.axialValue = DataModel.CreateEmptyAxialValueObject()
     self.curDataSet = None
     self.dataSetDialog = None
     self.dataSetSelections = {}  # keyed by DataSetName
@@ -183,6 +187,7 @@ Properties:
     self.nodeAddr = -1
 #    self.scaleMode = 'selected'
     self.subAddr = ( -1, -1 )
+    self.tallyAddr = DataModel.CreateEmptyTallyAddress()
 
     super( AxialPlot, self ).__init__( container, id, ref_axis = 'y' )
   #end __init__
@@ -202,7 +207,7 @@ Properties:
 #		--
     core = self.dmgr.GetCore()
     if core:
-      title = '%s=%.3g' % (
+      title = '%s=%.4g' % (
 	  self.state.timeDataSet,
 	  self.state.timeValue
 	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
@@ -212,6 +217,7 @@ Properties:
       axial_mesh_datasets = {}
       detector_mesh_datasets = {}
       fixed_detector_mesh_datasets = {}
+      tally_mesh_datasets = {}
 
 #		 	-- Collate by model and mesh type
 #		 	--
@@ -223,7 +229,7 @@ Properties:
 	  if qds_name.modelName in model_mesh_datasets:
 	    model_dict = model_mesh_datasets[ qds_name.modelName ]
 	  else:
-	    model_dict = { 'Axial': {}, 'Detector': {}, 'Fixed Detector': {} }
+	    model_dict = { 'Axial': {}, 'Detector': {}, 'Fixed Detector': {}, 'Tally': {} }
 	    model_mesh_datasets[ qds_name.modelName ] = model_dict
 
 	  ds_type = self.dmgr.GetDataSetType( qds_name )
@@ -254,6 +260,20 @@ Properties:
 	          core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 	    model_dict[ 'Fixed Detector' ][ qds_name ] = data_set_pair
 
+	  elif ds_type.startswith( 'tally' ):
+	    if 'tally' not in title_set:
+	      title_set.add( 'tally' )
+	      title += '; Tally (%s/%s),r=%.1f,th=%d' % (
+	          core.tally.multiplierNames[ self.tallyAddr.multIndex ],
+	          core.tally.stat[ self.tallyAddr.statIndex ],
+	          core.tally.r[ self.tallyAddr.radiusIndex ],
+	          int(
+	              core.tally.GetThetaRads( self.tallyAddr.thetaIndex ) *
+		      180.0 / math.pi
+		      )
+	          )
+	    model_dict[ 'Tally' ][ qds_name ] = data_set_pair
+
 	  else:
 	    if 'pin' not in title_set:
 	      title_set.add( 'pin' )
@@ -271,7 +291,7 @@ Properties:
       csv_text = '"%s"\n' % title
       for model_name in sorted( model_mesh_datasets.keys() ):
         model_dict = model_mesh_datasets[ model_name ]
-	for axial_type in ( 'Axial', 'Detector', 'Fixed Detector' ):
+	for axial_type in ( 'Axial', 'Detector', 'Fixed Detector', 'Tally' ):
 	  if len( model_dict[ axial_type ] ) > 0:
 	    csv_text += self._CreateCsvDataRows(
 		model_name, model_dict[ axial_type ],
@@ -296,7 +316,7 @@ dataset names and ( rc, values ) pairs.
 @param  model_name	name of DataModel instance
 @param  data_dict	dict by qds_name of
 			{ 'mesh': xxx, 'data': [ ( rc, values ) ] }
-@param  axial_mesh_type	'Axial', 'Detector', or 'Fixed Detector'
+@param  axial_mesh_type	'Axial', 'Detector', 'Fixed Detector', or 'Tally'
 @param  cur_selection_flag  True to only show data for the current selection
 @return			CSV text
 """
@@ -331,7 +351,7 @@ dataset names and ( rc, values ) pairs.
 #			-- Write data rows
 #			--
       cur_axial_index = \
-          DataUtils.FindListIndex( mesh_values, self.axialValue[ 0 ], 'a' )
+          DataUtils.FindListIndex( mesh_values, self.axialValue.cm, 'a' )
       if cur_selection_flag:
         j_range = ( cur_axial_index, )
       else:
@@ -444,6 +464,9 @@ configuring the grid, plotting, and creating self.axline.
 """
     super( AxialPlot, self )._DoUpdatePlot( wd, ht )
 
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'enter' )
+
 #    self.fig.suptitle(
 #        'Axial Plot',
 #	fontsize = 'medium', fontweight = 'bold'
@@ -478,9 +501,28 @@ configuring the grid, plotting, and creating self.axline.
 	    self.timeValue if self.state.scaleMode == 'state' else -1.0,
 	    *top_list
 	    )
+	#scale_type = self.dmgr.GetDataSetScaleTypeAll( 'all', *top_list )
+	scale_type = \
+	    self.dmgr.GetDataSetScaleTypeAll( 'all', *top_list ) \
+	    if self.scaleType == DEFAULT_scaleType else \
+	    self.scaleType
 	if ds_range and DataUtils.IsValidRange( *ds_range[ 0 : 2 ] ):
-          self.ax2.set_xlim( *ds_range[ 0 : 2 ] )
-	  self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -2, 3 ) )
+	  if scale_type == 'log':
+	    self.ax2.set_xscale( 'log', nonposx = 'clip' )
+            self.logger.debug(
+	        'calling set_xlim: log, %s', str( ds_range[ 0 : 2 ] )
+	        )
+	    self.ax2.set_xlim(
+		max( 1.0e-30, ds_range[ 0 ] ),
+		max( 1.0e-30, ds_range[ 1 ] )
+	        )
+	  else:
+	    self.ax2.set_xscale( 'linear' )
+            self.logger.debug(
+	        'calling set_xlim: linear, %s', str( ds_range[ 0 : 2 ] )
+	        )
+            self.ax2.set_xlim( *ds_range[ 0 : 2 ] )
+	    self.ax2.xaxis.get_major_formatter().set_powerlimits( ( -2, 3 ) )
 
 #				-- Bottom, primary
       self.ax.set_ylabel( 'Axial (cm)', fontsize = label_font_size )
@@ -520,14 +562,33 @@ configuring the grid, plotting, and creating self.axline.
       #end if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] )
 
       if ds_range and DataUtils.IsValidRange( *ds_range[ 0 : 2 ] ):
-        self.ax.set_xlim( *ds_range[ 0 : 2 ] )
-        self.ax.xaxis.get_major_formatter().set_powerlimits( ( -2, 3 ) )
+        #scale_type = self.dmgr.GetDataSetScaleTypeAll( 'all', *bottom_list )
+	scale_type = \
+	    self.dmgr.GetDataSetScaleTypeAll( 'all', *bottom_list ) \
+	    if self.scaleType == DEFAULT_scaleType else \
+	    self.scaleType
+	if scale_type == 'log':
+	  self.ax.set_xscale( 'log', nonposx = 'clip' )
+          self.logger.debug(
+	      'calling set_xlim: log, %s', str( ds_range[ 0 : 2 ] )
+	      )
+	  self.ax.set_xlim(
+	      max( 1.0e-30, ds_range[ 0 ] ),
+	      max( 1.0e-30, ds_range[ 1 ] )
+	      )
+	else:
+	  self.ax.set_xscale( 'linear' )
+          self.logger.debug(
+	      'calling set_xlim: linear, %s', str( ds_range[ 0 : 2 ] )
+	      )
+          self.ax.set_xlim( *ds_range[ 0 : 2 ] )
+          self.ax.xaxis.get_major_formatter().set_powerlimits( ( -2, 3 ) )
 
 #			-- Set title
 #			--
       show_assy_addr = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 
-      title_str = 'Assy %s, %s %.3g' % (
+      title_str = 'Assy %s, %s %.4g' % (
           show_assy_addr,
 	  self.state.timeDataSet,
 	  self.timeValue
@@ -560,6 +621,18 @@ configuring the grid, plotting, and creating self.axline.
 	    core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] )
 	    )
 
+      if 'tally' in self.dataSetTypes:
+        if len( title_line2 ) > 0: title_line2 += ', '
+	title_line2 += 'Tally(%s/%s),r=%.1f,th=%d' % (
+	    core.tally.multiplierNames[ self.tallyAddr.multIndex ],
+	    core.tally.stat[ self.tallyAddr.statIndex ],
+	    core.tally.r[ self.tallyAddr.radiusIndex ],
+	    int(
+	        core.tally.GetThetaRads( self.tallyAddr.thetaIndex ) *
+		180.0 / math.pi
+		)
+	    )
+
       if len( title_line2 ) > 0:
         title_str += '\n' + title_line2
 
@@ -582,7 +655,6 @@ configuring the grid, plotting, and creating self.axline.
 #x	plot_type = '--' if self.dmgr.IsDerivedDataSet( qds_name ) else '-'
 	plot_type = None
 	if ds_type.startswith( 'detector' ):
-	  #axial_values = self.data.core.detectorMesh
 	  marker_size = 12
 	  plot_type = '-'
 	elif ds_type.startswith( 'fixed_detector' ):
@@ -593,13 +665,13 @@ configuring the grid, plotting, and creating self.axline.
 
 	cur_axis = self.ax2 if rec[ 'axis' ] == 'top' else self.ax
 	if cur_axis and axial_values is not None:
-	  #axial_values_arr = np.array( axial_values )
-	  #data_set_item = self.dataSetValues[ k ]
 	  data_set_item = data_pair[ 'data' ]
 	  if not isinstance( data_set_item, dict ):
 	    data_set_item = { '': data_set_item }
 
 	  for rc, values in sorted( data_set_item.iteritems() ):
+	    if not isinstance( values, np.ndarray ):
+	      values = np.array( values )
 	    if values.size == axial_values.size:
 	      cur_values = values
 	    else:
@@ -655,8 +727,11 @@ configuring the grid, plotting, and creating self.axline.
 #			--
       self.axline = \
           self.ax.axhline( color = 'r', linestyle = '-', linewidth = 1 )
-      self.axline.set_ydata( self.axialValue[ 0 ] )
+      self.axline.set_ydata( self.axialValue.cm )
     #end if core and len( self.dataSetValues ) > 0, we have something to plot
+
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'exit' )
   #end _DoUpdatePlot
 
 
@@ -681,7 +756,8 @@ configuring the grid, plotting, and creating self.axline.
 
       ndx = DataUtils.FindListIndex( mesh_values, axial_cm, 'a' )
       sample = data_set_item.itervalues().next()
-      if ndx >= 0 and len( sample ) > ndx:
+      #if ndx >= 0 and len( sample ) > ndx:
+      if hasattr( sample, '__iter__' ) and ndx >= 0 and len( sample ) > ndx:
 	cur_dict = {}
         for rc, values in data_set_item.iteritems():
 	  cur_dict[ rc ] = values[ ndx ]
@@ -710,7 +786,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		GetAxialValue()					-
   #----------------------------------------------------------------------
   def GetAxialValue( self ):
-    """@return		( cm value, 0-based core index, 0-based detector index
+    """@return		AxialValue instance
+( cm value, 0-based core index, 0-based detector index
 			  0-based fixed_detector index )
 """
     return  self.axialValue
@@ -754,7 +831,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   def GetDataSetTypes( self ):
     return \
       (
-      'channel', 'detector', 'fixed_detector', 'pin',
+      'channel', 'detector', 'fixed_detector', 'pin', 'tally',
       ':assembly', ':axial', ':node'
       )
   #end GetDataSetTypes
@@ -781,6 +858,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	STATE_CHANGE_axialValue,
 	STATE_CHANGE_coordinates,
 	STATE_CHANGE_curDataSet,
+	STATE_CHANGE_tallyAddr,
 	STATE_CHANGE_timeValue
 	])
     return  locks
@@ -820,7 +898,8 @@ XXX size according to how many datasets selected?
 """
     visible = \
         qds_name in self.dataSetSelections and \
-        self.dataSetSelections[ qds_name ][ 'visible' ]
+        self.dataSetSelections[ qds_name ].get( 'visible', False )
+        #self.dataSetSelections[ qds_name ][ 'visible' ]
     return  visible
   #end IsDataSetVisible
 
@@ -842,8 +921,8 @@ to be passed to UpdateState().  Assumes self.dmgr is valid.
     #if self.data is not None and self.data.HasData():
     if self.dmgr.HasData():
       if (reason & STATE_CHANGE_axialValue) > 0:
-	update_args[ 'axial_value' ] = self.dmgr.\
-	    NormalizeAxialValue( None, self.state.axialValue )
+	update_args[ 'axial_value' ] = self.state.axialValue
+	    #self.dmgr.NormalizeAxialValue( None, self.state.axialValue )
 
       if (reason & STATE_CHANGE_coordinates) > 0:
 	update_args[ 'assembly_addr' ] = self.dmgr.\
@@ -859,6 +938,8 @@ to be passed to UpdateState().  Assumes self.dmgr is valid.
 
       if (reason & STATE_CHANGE_curDataSet) > 0:
 	update_args[ 'cur_dataset' ] = self.state.curDataSet
+        #xxxx what if it's not axial?
+	#update_args[ 'cur_dataset' ] = self._FindFirstDataSet( self.state.curDataSet )
 
       if (reason & STATE_CHANGE_timeDataSet) > 0:
 	update_args[ 'time_dataset' ] = self.state.timeDataSet
@@ -883,54 +964,55 @@ to be passed to UpdateState().  Assumes self.dmgr is valid.
   #----------------------------------------------------------------------
   #	METHOD:		_LoadDataModelValues_1()			-
   #----------------------------------------------------------------------
-  def _LoadDataModelValues_1( self, reason ):
-    """This noop version should be implemented in subclasses to create a dict
-to be passed to UpdateState().  Assumes self.dmgr is valid.
-@return			dict to be passed to UpdateState()
-"""
-    update_args = {}
-
-    self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
-        { 'axis': 'bottom', 'scale': 1.0, 'visible': True }
-    self.dataSetDialog = None
-
-    #if self.data is not None and self.data.HasData():
-    if self.dmgr.HasData():
-      assy_addr = self.dmgr.NormalizeAssemblyAddr( self.state.assemblyAddr )
-      aux_node_addrs = self.dmgr.NormalizeNodeAddrs( self.state.auxNodeAddrs )
-      aux_sub_addrs = self.dmgr.\
-          NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
-      axial_value = self.dmgr.NormalizeAxialValue( None, self.state.axialValue )
-      node_addr = self.dmgr.NormalizeNodeAddr( self.state.nodeAddr )
-      sub_addr = \
-          self.dmgr.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
-
-      update_args = \
-        {
-	'assembly_addr': assy_addr,
-	'aux_node_addrs': aux_node_addrs,
-	'aux_sub_addrs': aux_sub_addrs,
-	'axial_value': axial_value,
-	'cur_dataset': self.state.curDataSet,
-	'node_addr': node_addr,
-	#'state_index': state_ndx,
-	'sub_addr': sub_addr,
-	'time_dataset': self.state.timeDataSet,
-	'time_value': self.state.timeValue
-	}
-    #end if self.dmgr.HasData()
-
-    for k in self.dataSetValues:
-      qds_name = self._GetDataSetName( k )
-      if self.dmgr.GetDataModel( qds_name ) is None:
-        update_args[ 'replot' ] = True
-	if qds_name in self.dataSetSelections:
-	  del self.dataSetSelections[ qds_name ]
-      #end if qds_name no longer exists
-    #end for k
-
-    return  update_args
-  #end _LoadDataModelValues_1
+##  def _LoadDataModelValues_1( self, reason ):
+##    """This noop version should be implemented in subclasses to create a dict
+##to be passed to UpdateState().  Assumes self.dmgr is valid.
+##@return			dict to be passed to UpdateState()
+##"""
+##    update_args = {}
+##
+##    self.dataSetSelections[ self.GetSelectedDataSetName() ] = \
+##        { 'axis': 'bottom', 'scale': 1.0, 'visible': True }
+##    self.dataSetDialog = None
+##
+##    #if self.data is not None and self.data.HasData():
+##    if self.dmgr.HasData():
+##      assy_addr = self.dmgr.NormalizeAssemblyAddr( self.state.assemblyAddr )
+##      aux_node_addrs = self.dmgr.NormalizeNodeAddrs( self.state.auxNodeAddrs )
+##      aux_sub_addrs = self.dmgr.\
+##          NormalizeSubAddrs( self.state.auxSubAddrs, mode = 'channel' )
+##      axial_value = self.state.axialValue
+##          #self.dmgr.NormalizeAxialValue( None, self.state.axialValue )
+##      node_addr = self.dmgr.NormalizeNodeAddr( self.state.nodeAddr )
+##      sub_addr = \
+##          self.dmgr.NormalizeSubAddr( self.state.subAddr, mode = 'channel' )
+##
+##      update_args = \
+##        {
+##	'assembly_addr': assy_addr,
+##	'aux_node_addrs': aux_node_addrs,
+##	'aux_sub_addrs': aux_sub_addrs,
+##	'axial_value': axial_value,
+##	'cur_dataset': self.state.curDataSet,
+##	'node_addr': node_addr,
+##	#'state_index': state_ndx,
+##	'sub_addr': sub_addr,
+##	'time_dataset': self.state.timeDataSet,
+##	'time_value': self.state.timeValue
+##	}
+##    #end if self.dmgr.HasData()
+##
+##    for k in self.dataSetValues:
+##      qds_name = self._GetDataSetName( k )
+##      if self.dmgr.GetDataModel( qds_name ) is None:
+##        update_args[ 'replot' ] = True
+##	if qds_name in self.dataSetSelections:
+##	  del self.dataSetSelections[ qds_name ]
+##      #end if qds_name no longer exists
+##    #end for k
+##
+##    return  update_args
+##  #end _LoadDataModelValues_1
 
 
   #----------------------------------------------------------------------
@@ -943,27 +1025,21 @@ be overridden by subclasses.
 """
     # dataSetSelections now handled in PlotWidget
     for k in (
-	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
+	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
 	'nodeAddr', 'subAddr', 'timeValue'
 #	'scaleMode'
 	):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
+# Handled in Widget
+#    for k in ( 'axialValue', ):
+#      if k in props_dict and hasattr( self, k ):
+#        setattr( self, k, AxialValue( props_dict[ k ] ) )
+
     super( AxialPlot, self ).LoadProps( props_dict )
-
-#		-- Update scale mode radio menu item
-#		--
-#    labels = [
-#        'Select Bottom Axis Scale Mode',
-#	'All Datasets' if self.scaleMode == 'all' else LABEL_selectedDataSet
-#	]
-#    select_item = \
-#        self.container.FindMenuItem( self.container.GetWidgetMenu(), *labels )
-#    if select_item:
-#      select_item.Check()
-
-    wx.CallAfter( self.UpdateState, replot = True )
+# In PlotWidget
+#    wx.CallAfter( self.UpdateState, replot = True )
   #end LoadProps
 
 
@@ -1038,7 +1114,7 @@ be overridden by subclasses.
 
     button = ev.button or 1
     if button == 1 and self.cursor is not None:
-      axial_value = self.dmgr.GetAxialValue2( None, cm = self.cursor[ 1 ] )
+      axial_value = self.dmgr.GetAxialValue( None, cm = self.cursor[ 1 ] )
       self.UpdateState( axial_value = axial_value )
       self.FireStateChange( axial_value = axial_value )
   #end _OnMplMouseRelease
@@ -1061,16 +1137,17 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		AxialPlot.SaveProps()				-
   #----------------------------------------------------------------------
-  def SaveProps( self, props_dict ):
+  def SaveProps( self, props_dict, for_drag = False ):
     """Called to save properties.  Subclasses should override calling this
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
     # dataSetSelections now handled in PlotWidget
-    super( AxialPlot, self ).SaveProps( props_dict )
+    super( AxialPlot, self ).SaveProps( props_dict, for_drag = for_drag )
 
     for k in (
-	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue',
+#t	'axialValue',
+	'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
 	'nodeAddr', 'subAddr', 'timeValue'
 #	'scaleMode'
 	):
@@ -1110,11 +1187,14 @@ Must be called from the event thread.
     self.dataSetTypes.clear()
     self.dataSetValues.clear()
 
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'enter' )
+
 #		-- Must have data
 #		--
     #if DataModel.IsValidObj( self.data, state_index = self.stateIndex ):
     if self.dmgr.HasData():
-      axial_qds_names = self.dmgr.GetDataSetQNames( None, 'axial' )
+      axial_qds_names = self.dmgr.GetDataSetQNames( None, 'axials' )
 
       node_addr_list = None
       sub_addr_list = None
@@ -1122,6 +1202,9 @@ Must be called from the event thread.
       for k in self.dataSetSelections:
         ds_rec = self.dataSetSelections[ k ]
 	qds_name = self._GetDataSetName( k )
+
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug( 'qds_name=%s, ds_rec=%s', qds_name, str( ds_rec ) )
 
 #				-- Must be visible and an "axial" dataset
 #				--
@@ -1140,7 +1223,15 @@ Must be called from the event thread.
 		detector_index = self.assemblyAddr[ 0 ],
 		time_value = self.timeValue
 		)
+            self.dataSetTypes.add( ds_type )
 
+#					-- Tally
+	  elif ds_type == 'tally':
+	    data_pair = self.dmgr.ReadDataSetAxialValues(
+	        qds_name,
+		tally_addr = self.tallyAddr,
+		time_value = self.timeValue
+		)
             self.dataSetTypes.add( ds_type )
 
 #					-- Not scalar
@@ -1168,6 +1259,9 @@ Must be called from the event thread.
         #end if visible
       #end for each dataset
     #end if self.dmgr.HasData()
+
+    if self.logger.isEnabledFor( logging.DEBUG ):
+      self.logger.debug( 'exit' )
   #end _UpdateDataSetValues
 
 
@@ -1201,23 +1295,18 @@ Must be called from the UI thread.
       self.auxSubAddrs = \
           self.dmgr.NormalizeSubAddrs( kwargs[ 'aux_sub_addrs' ], 'channel' )
 
-#    if 'axial_value' in kwargs and kwargs[ 'axial_value' ] != self.axialValue:
-#      replot = True
-#      self.axialValue = self.data.NormalizeAxialValue( kwargs[ 'axial_value' ] )
-#    #end if
-
     if 'axial_value' in kwargs and \
-        kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ]:
+        kwargs[ 'axial_value' ].cm != self.axialValue.cm:
       replot = True
       self.axialValue = \
-          self.dmgr.GetAxialValue2( None, cm = kwargs[ 'axial_value' ][ 0 ] )
+          self.dmgr.GetAxialValue( None, cm = kwargs[ 'axial_value' ].cm )
     #end if
 
     if 'cur_dataset' in kwargs and \
         kwargs[ 'cur_dataset' ] != self.curDataSet and \
 	kwargs[ 'cur_dataset' ].displayName in \
 	  self.dmgr.\
-	  GetDataModelDataSetNames( kwargs[ 'cur_dataset' ], 'axial' ):
+	  GetDataModelDataSetNames( kwargs[ 'cur_dataset' ], 'axials' ):
       self.curDataSet = kwargs[ 'cur_dataset' ]
       #select_name = self.GetSelectedDataSetName( 'channel' )
       select_name = self.GetSelectedDataSetName()  # NAME_selectedDataSet
@@ -1234,6 +1323,11 @@ Must be called from the UI thread.
       replot = True
       self.subAddr = kwargs[ 'sub_addr' ]
     #end if
+
+    if 'tally_addr' in kwargs and kwargs[ 'tally_addr' ] != self.tallyAddr:
+      replot = True
+      self.tallyAddr = self.state.tallyAddr.copy()
+    #end if 'tally_addr'
 
     if 'time_dataset' in kwargs:
       replot = True

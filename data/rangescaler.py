@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		rangescaler.py					-
 #	HISTORY:							-
+#		2018-06-25	leerw@ornl.gov				-
+#	  Handling case of min and max value equal, resulting in no steps.
 #		2017-07-15	leerw@ornl.gov				-
 #	  Added ForceSigDigits(), called in Format() for 'g' formatting.
 #		2017-06-16	leerw@ornl.gov				-
@@ -17,6 +19,20 @@
 import math, os, sys
 from decimal import *
 import pdb
+
+try:
+  import matplotlib
+  matplotlib.use( 'WXAgg' )
+  #import matplotlib.pyplot as plt
+except Exception:
+  raise ImportError( 'The matplotlib module is required for this component' )
+
+try:
+  from matplotlib.figure import Figure
+except Exception:
+  raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
+
+
 
 
 #------------------------------------------------------------------------
@@ -38,10 +54,22 @@ class RangeScaler( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		__del__()					-
+  #----------------------------------------------------------------------
+  def __del__( self, *args, **kwargs ):
+    if self.fig is not None and \
+        hasattr( self.fig, 'close' ) and \
+	hasattr( getattr( self.fig, 'close' ), '__call__' ):
+      self.fig.close()
+  #end __del__
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self ):
-    pass
+    #self.fig = Figure( figsize = ( 1024, 768 ) )
+    self.fig = Figure()
   #end __init__
 
 
@@ -52,17 +80,49 @@ class RangeScaler( object ):
     """Aligns a series of number labels by adding trailing zeros if needed.
 @param  labels		labels to align
 """
-    max_dec_count = -1
+#		-- Determine if some but not all have exponents
+#		--
+    e_ndxs = []
     for label in labels:
-      dot_ndx = label.find( '.' )
-      if dot_ndx >= 0:
-        e_ndx = label.find( 'e' )
-	end_ndx = len( label )  if e_ndx < 0 else  e_ndx
-	max_dec_count = max( max_dec_count, end_ndx - dot_ndx - 1 )
-    #end for i
+      e_ndxs.append( label.find( 'e' ) )
+    e_count = len( [ x for x in e_ndxs if x > 0 ] )
+    have_e = e_count > 0
+    #all_e = e_count == len( labels )
 
+#		-- Determine max number of decimal places
+#		--
+    max_dec_count = 0
+    for label, e_ndx in zip( labels, e_ndxs ):
+      if not have_e or e_ndx > 0:
+        dot_ndx = label.find( '.' )
+	if dot_ndx >= 0:
+	  end_ndx = len( label )  if e_ndx < 0 else  e_ndx
+	  max_dec_count = max( max_dec_count, end_ndx - dot_ndx - 1 )
+    #end for label, e_ndx in zip( labels, e_ndxs )
+
+#    max_dec_count = -1
+#    have_e = False
+#    for label in labels:
+#      e_ndx = label.find( 'e' )
+#      have_e = e_ndx > 0
+#      dot_ndx = label.find( '.' )
+#      if dot_ndx >= 0:
+#        e_ndx = label.find( 'e' )
+#	end_ndx = len( label )  if e_ndx < 0 else  e_ndx
+#	max_dec_count = max( max_dec_count, end_ndx - dot_ndx - 1 )
+#    #end for i
+
+#		-- Align and/or add 'e'
+#		--
     for i in xrange( len( labels ) ):
-      e_ndx = labels[ i ].find( 'e' )
+      #e_ndx = labels[ i ].find( 'e' )
+      e_ndx = e_ndxs[ i ]
+
+      if have_e and e_ndx < 0:
+	fmt = '{0:.%de}' % max_dec_count
+        labels[ i ] = fmt.format( float( labels[ i ] ) )
+        e_ndxs[ i ] = e_ndx = labels[ i ].find( 'e' )
+
       end_ndx = len( labels[ i ] )  if e_ndx < 0 else  e_ndx
 
       dot_ndx = labels[ i ].find( '.' )
@@ -81,180 +141,101 @@ class RangeScaler( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		AlignNumbers_works()				-
-  #----------------------------------------------------------------------
-  def AlignNumbers_works( self, labels ):
-    """Aligns a series of number labels by adding trailing zeros if needed.
-@param  labels		labels to align
-"""
-    max_dec_count = -1
-    for label in labels:
-      dot_ndx = label.find( '.' )
-      if dot_ndx >= 0:
-        e_ndx = label.find( 'e' )
-	end_ndx = len( label )  if e_ndx < 0 else  e_ndx
-	max_dec_count = max( max_dec_count, end_ndx - dot_ndx - 1 )
-    #end for i
-
-    for i in xrange( len( labels ) ):
-      dot_ndx = labels[ i ].find( '.' )
-      e_ndx = labels[ i ].find( 'e' )
-      if dot_ndx >= 0:
-	end_ndx = len( labels[ i ] )  if e_ndx < 0 else  e_ndx
-	dec_count = end_ndx - dot_ndx - 1
-	if dec_count < max_dec_count:
-	  new_str = \
-	      labels[ i ][ 0 : end_ndx ] + '0' * (max_dec_count - dec_count)
-	  if e_ndx >= 0:
-	    new_str += labels[ i ][ e_ndx : ]
-          labels[ i ] = new_str
-      else:
-	end_ndx = len( labels[ i ] )  if e_ndx < 0 else  e_ndx
-	dec_count = 0
-	if dec_count < max_dec_count:
-	  new_str = \
-	      labels[ i ][ 0 : end_ndx ] + '.' + \
-	      '0' * (max_dec_count - dec_count)
-	  if e_ndx >= 0:
-	    new_str += labels[ i ][ e_ndx : ]
-          labels[ i ] = new_str
-      #end if-else dot_ndx
-    #end for i
-  #end AlignNumbers_works
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Calc()						-
   #----------------------------------------------------------------------
   def Calc(
       self, min_value, max_value,
-      max_steps = 8,
+      scale_type = 'linear',
+      nticks = None,
       cull_outside_range = False
       ):
-    """Chooses to call CalcLinear() or CalcLog() based on value range.
-@param  min_value	min value in range
-@param  max_value	max value in range
-@param  max_steps	maximum number of steps, result may be less
-@param  cull_outside_range  if True, all steps outside the range are culled
+    """Calculates linear or log tick values for a specified range.
+    Args:
+        min_value (float): min value for range
+        max_value (float): max value for range
+	scale_type (str): 'linear', 'log', or 'auto'
+	nticks (int,None): number of ticks, where None is default
+	cull_outside_range (bool): if True, all tick values outside the
+	    specified range are culled
+    Returns:
+	list(float): list of tick values
 """
-    log_flag = False
-    if min_value > 0.0 and max_value > 0.0:
-      min_scale = math.floor( math.log10( min_value ) )
-      max_scale = math.floor( math.log10( max_value ) )
-      log_flag = (max_scale - min_scale) > 3
+    #fig, ax = plt.subplots()  # plt.gca()
+    self.fig.clear()
+    ax = self.fig.add_subplot( 111 )
 
-    if log_flag:
-      steps = self.\
-          CalcLog( min_value, max_value, max_steps, cull_outside_range )
+#	-- Handle reverse
+#	--
+    reverse_flag = False
+    if min_value > max_value:
+      temp = min_value
+      min_value = max_value
+      max_value = temp
+      reverse_flag = True
+
+#	-- Set nticks
+    if nticks:
+      ax.locator_params( axis = 'x', nticks = nticks )
+
+#	-- Scale
+    if scale_type == 'auto':
+      scale_type = 'linear'
+      if min_value > 0.0 and max_value > 0.0:
+        min_scale = math.floor( math.log10( min_value ) )
+        max_scale = math.floor( math.log10( max_value ) )
+        if max_scale - min_scale > 3:
+	  scale_type = 'log'
+
+    if scale_type == 'log':
+      ax.set_xscale( 'log', nonposx = 'clip' )
     else:
-      steps = self.\
-          CalcLinear( min_value, max_value, max_steps, cull_outside_range )
+      ax.set_xscale( 'linear' )
 
+#	-- Set range
+    ax.set_xlim( min_value, max_value, auto = True )
+
+#	-- Let matplotlib gives us the tick "locations"
+    xaxis = ax.get_xaxis()
+    xaxis.reset_ticks()
+    steps = xaxis.get_ticklocs().tolist()
+
+#	-- Clean up
+    #plt.close( fig )
+
+#	-- Cull?
+    if cull_outside_range and scale_type != 'log':
+      tsteps = steps
+      steps = [ x for x in tsteps if x >= min_value and x <= max_value ]
+      if len( steps ) == 0:
+        steps = [ min_value ]
+
+#	-- Reverse?
+    if reverse_flag:
+      steps = steps[ :: -1 ]
     return  steps
   #end Calc
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CalcLinear()					-
+  #	METHOD:		CreateLabels()					-
   #----------------------------------------------------------------------
-  def CalcLinear(
-      self, min_value, max_value,
-      max_steps = 8,
-      cull_outside_range = False
-      ):
-    """Calculates a linear range.
-@param  min_value	min value in range
-@param  max_value	max value in range
-@param  max_steps	maximum number of steps, result may be less
-@param  cull_outside_range  if True, all steps outside the range are culled
-@return		list of steps
+  def CreateLabels( self, steps, mode = 'auto' ):
+    """
 """
-    if min_value > max_value:
-      min_value = max_value
-    steps = [ min_value ]
-    max_steps = max( 2, max_steps )
-    value_range = max_value - min_value
-    value_incr = value_range / (max_steps - 1)
-    value_incr_log = \
-	0  if value_incr <= 0.0 else \
-        math.floor( math.log10( value_incr ) )
-    value_incr_base = math.pow( 10.0, value_incr_log )
+    if mode == 'auto':
+      mode = 'linear'
+      if len( steps ) > 2:
+        d1 = steps[ 1 ] - steps[ 0 ]
+        d2 = steps[ 2 ] - steps[ 1 ]
+        err = abs( (d1 - d2) / ((d1 + d2) / 2.0) )
+        if err > 1.0e-3:
+          mode = 'log'
+    #end if mode == 'auto'
 
-    #factor = value_incr / value_incr_base
-    factor = int( value_incr / value_incr_base + 0.5 )
-    if factor > 5.0:
-      factor = 10.0
-    elif factor > 2.0:
-      factor = 5.0
-    elif factor > 1.0:
-      factor = 2.0
-    step_incr = factor * value_incr_base
-    while step_incr > abs( max_value ):
-      step_incr /= 2.0
-
-    if step_incr > 0.0:
-      step_count = max_steps + 1
-      while step_count > max_steps:
-        min_step = math.floor( min_value / step_incr ) * step_incr
-        max_step = math.floor( max_value / step_incr ) * step_incr
-        step_count = int( math.ceil( (max_step - min_step) / step_incr ) ) + 1
-        if step_count > max_steps:
-          step_incr *= 2.0
-
-      steps = [ min_step + (i * step_incr) for i in xrange( step_count ) ]
-      if cull_outside_range:
-        steps = self.CullOutside( steps, min_value, max_value )
-    #end if step_incr > 0.0
-
-    return  steps
-  #end CalcLinear
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		CalcLog()					-
-  #----------------------------------------------------------------------
-  def CalcLog(
-      self, min_value, max_value,
-      max_steps = 8,
-      cull_outside_range = False
-      ):
-    """Calculates a logarithmic range.   Works for positive numbers only.
-@param  min_value	min value in range, forced to 1 if le 0
-@param  max_value	max value in range
-@param  max_steps	maximum number of steps, result may be less
-@param  cull_outside_range  if True, all steps outside the range are culled
-@return		list of steps
-"""
-    max_steps = max( 2, max_steps )
-    if min_value <= 0:
-      min_value = 1.0
-    min_scale = \
-	0  if min_value <= 0.0 else \
-        math.floor( math.log10( min_value ) )
-    max_scale = \
-	0  if max_scale <= 0.0 else \
-        math.floor( math.log10( max_value ) )
-
-    log_range = max_scale - min_scale
-    if log_range == 0.0:
-      steps = [ math.pow( 10.0, min_scale ) ]
-
-    else:
-      log_incr = math.ceil( log_range / (max_steps - 1) )
-      step_count = int( math.floor( log_range / log_incr ) ) + 1
-      step_power = math.pow( 10.0, log_incr )
-      base_min = math.pow( 10.0, min_scale )
-      steps = [ base_min ]
-      for i in xrange( step_count - 1 ):
-        base_min *= step_power
-        steps.append( base_min )
-
-      if cull_outside_range:
-        steps = self.CullOutside( steps, min_value, max_value )
-    #end if-else log_range
-
-    return  steps
-  #end CalcLog
+    return  \
+        self.CreateLogLabels( steps )  if mode == 'log' else \
+	self.CreateLinearLabels( steps )
+  #end CreateLabels
 
 
   #----------------------------------------------------------------------
@@ -262,7 +243,7 @@ class RangeScaler( object ):
   #----------------------------------------------------------------------
   def CreateLinearLabels( self, steps ):
     """Creates labels for the step values.
-@param  steps		steps for which labels are desire
+@param  steps		steps for which labels are desired
 @return			list of formatted string labels
 """
     min_value_scale = \
@@ -313,20 +294,19 @@ class RangeScaler( object ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CullOutside()					-
+  #	METHOD:		CreateLogLabels()				-
   #----------------------------------------------------------------------
-  def CullOutside( self, steps_in, min_value, max_value ):
-    """
+  def CreateLogLabels( self, steps ):
+    """Creates labels for the step values.
+@param  steps		steps for which labels are desired
+@return			list of formatted string labels
 """
-    min_value *= 0.999999
-    max_value *= 1.000001
-    steps = []
-    for x in steps_in:
-      if x >= min_value and x <= max_value:
-        steps.append( x )
 
-    return  steps
-  #end CullOutside
+    labels = [ '{0:.3g}'.format( k ) for k in steps ]
+    self.AlignNumbers( labels )
+
+    return  labels
+  #end CreateLogLabels
 
 
   #----------------------------------------------------------------------
@@ -399,49 +379,6 @@ Accounts for 'g' format not right-filling with zeros.
   #end Format
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		Format_not_quite()				-
-  #----------------------------------------------------------------------
-  def Format_not_quite( self, value, prec_digits = 3, mode = 'general' ):
-    """Formats a floating point value.
-(Replacement for DataUtils.FormatFloat4()).
-@param  value		floating point value to format
-@param  prec_digits	precision (general) or number of decimal places (fixed)
-@param  mode		'general' or 'fixed', defaulting to the former
-"""
-    if mode == 'fixed':
-      dec = Decimal( '0.' + ('0' * (prec_digits - 1)) + '1' )
-      dec = Decimal( value ).quantize( dec, rounding = ROUND_HALF_UP )
-      result = str( dec )
-
-    else:
-      fmt = '{0:.%dg}' % prec_digits
-      result = fmt.format( value )
-
-#		-- Add trailing 0s if necessary
-#		--
-      dot_ndx = result.find( '.' )
-      e_ndx = result.find( 'e' )
-      if dot_ndx >= 0:
-        end_ndx = len( result )  if e_ndx < 0 else  e_ndx
-        dec_count = end_ndx - dot_ndx - 1
-
-	if dec_count < prec_digits - 1:
-	  new_str = result[ 0 : end_ndx ] + '0' * (prec_digits - 1 - dec_count)
-	  if e_ndx >= 0:
-	    new_str += result[ e_ndx : ]
-	  result = new_str
-
-      elif e_ndx > 0:
-	new_str = result[ 0 : e_ndx ] + '.' + '0' * (prec_digits - 1)
-	new_str += result[ e_ndx : ]
-	result = new_str
-    #end else not 'fixed'
-
-    return  result
-  #end Format_not_quite
-
-
 #		-- Class Methods
 #		--
 
@@ -451,27 +388,21 @@ Accounts for 'g' format not right-filling with zeros.
   #----------------------------------------------------------------------
   @staticmethod
   def main():
-    if len( sys.argv ) < 4:
-      print >> sys.stderr, 'Usage: rangescaler min max count [ cull ]'
+    if len( sys.argv ) < 5:
+      print >> sys.stderr, 'Usage: rangescaler min max mode nticks [ cull ]'
     else:
       m = float( sys.argv[ 1 ] )
       n = float( sys.argv[ 2 ] )
-      c = int( sys.argv[ 3 ] )
-      cull = len( sys.argv ) >= 4
+      mode = sys.argv[ 3 ]
+      nticks = int( sys.argv[ 4 ] )
+      cull = len( sys.argv ) >= 5
 
       obj = RangeScaler()
-      linear_steps = obj.CalcLinear( m, n, c, cull )
-      linear_str = [ '{0:.6g}'.format( i ) for i in linear_steps ]
-      print 'linear=', linear_str
-      print 'labels=', obj.CreateLinearLabels( linear_steps )
+      steps = obj.Calc( m, n, mode, nticks, cull )
+      labels = obj.CreateLabels( steps )
 
-      log_steps = obj.CalcLog( m, n, c, cull )
-      log_str = [ '{0:.6g}'.format( i ) for i in log_steps ]
-      print 'log=', log_str
-
-      steps = obj.Calc( m, n, c, cull )
-      msg = [ '{0:.6g}'.format( i ) for i in steps ]
-      print '\nanswer=', msg
+      print 'steps=', str( steps )
+      print 'labels=', ', '.join( labels )
     #end if-else
   #end main
 

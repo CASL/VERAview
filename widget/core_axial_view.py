@@ -3,6 +3,17 @@
 #------------------------------------------------------------------------
 #	NAME:		core_axial_view.py				-
 #	HISTORY:							-
+#		2018-07-13	leerw@ornl.gov				-
+#	  Fixed FindCell() bug found by Luke to keep axial_level within
+#	  current range.
+#		2018-03-02	leerw@ornl.gov				-
+#	  Migrating to _CreateEmptyBitmapAndDC().
+#		2018-02-05	leerw@ornl.gov				-
+#	  Moving Linux/GTK/X11 image manipulation to the UI thread.
+#		2017-11-11	leerw@ornl.gov				-
+#	  Migrating to wxBitmap instead of PIL.Image.
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-05-05	leerw@ornl.gov				-
 #	  Modified LoadDataModelXxx() methods to process the reason param.
 #		2017-03-10	leerw@ornl.gov				-
@@ -78,7 +89,7 @@
 #		2016-02-29	leerw@ornl.gov				-
 #	  Starting with core_view.py.
 #------------------------------------------------------------------------
-import logging, math, os, sys, threading, time, timeit, traceback
+import logging, math, os, six, sys, threading, time, timeit, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -89,11 +100,11 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
-try:
-  import PIL.Image, PIL.ImageDraw, PIL.ImageFont
-  #from PIL import Image, ImageDraw
-except Exception:
-  raise ImportError, 'The Python Imaging Library (PIL) is required for this component'
+#try:
+#  import PIL.Image, PIL.ImageDraw, PIL.ImageFont
+#  #from PIL import Image, ImageDraw
+#except Exception:
+#  raise ImportError, 'The Python Imaging Library (PIL) is required for this component'
 
 #from bean.axial_slider import *
 #from bean.exposure_slider import *
@@ -122,8 +133,6 @@ Properties:
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
-    #self.avgDataSet = None
-    #self.avgValues = {}
     self.channelMode = False
 
 #		-- 'xz' is x-plane view of selected y-plane
@@ -133,8 +142,8 @@ Properties:
     self.nodeAddr = -1
     self.subAddr = ( -1, -1 )
 
-    #self.toolButtonDefs = [ ( 'X_16x16', 'Toggle Slice Axis', self._OnMode ) ]
-    self.toolButtonDefs = [ ( 'Y_16x16', 'Toggle Slice to Y-Axis', self._OnMode ) ]
+    self.toolButtonDefs = \
+        [ ( 'Y_16x16', 'Toggle Slice to Y-Axis', self._OnMode ) ]
 
     super( CoreAxial2DView, self ).__init__( container, id )
   #end __init__
@@ -147,19 +156,24 @@ Properties:
     """Retrieves the data for the state and axial.
 @return			text or None
 """
-    return \
-        self._CreateClipboardDisplayedData()  if mode == 'displayed' else \
-        self._CreateClipboardSelectedData()
-#        self._CreateClipboardSelectionData() \
-#        if cur_selection_flag else \
-#        self._CreateClipboardAllData()
+#    return \
+#        self._CreateClipboardDisplayedData()  if mode == 'displayed' else \
+#        self._CreateClipboardSelectedData()
+    if mode == 'displayed':
+      if self.nodalMode:
+        results = self._CreateClipboardDisplayedDataNodal()
+      else:
+        results = self._CreateClipboardDisplayedDataNonNodal()
+    else:
+      results = self._CreateClipboardSelectedData()
+    return  results
   #end _CreateClipboardData
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._CreateClipboardDisplayedData()	-
+  #	METHOD:	CoreAxial2DView._CreateClipboardDisplayedDataNodal()	-
   #----------------------------------------------------------------------
-  def _CreateClipboardDisplayedData( self ):
+  def _CreateClipboardDisplayedDataNodal( self ):
     """Retrieves the data for the state and axial.
 @return			text or None
 """
@@ -168,7 +182,7 @@ Properties:
     core = dset = None
     is_valid = self.dmgr.IsValid(
         self.curDataSet,
-	axial_level = self.axialValue[ 1 ]
+	axial_level = self.axialValue.pinIndex
 	#state_index = self.stateIndex
 	)
     if is_valid:
@@ -178,83 +192,48 @@ Properties:
     if dset is not None and core is not None:
       dset_value = np.array( dset )
       dset_shape = dset_value.shape
-      #axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+      #axial_level = min( self.axialValue.pinIndex, dset_shape[ 2 ] - 1 )
 
       node_addr = self.dmgr.GetNodeAddr( self.subAddr )
 
       if self.mode == 'xz':
 	assy_row = self.assemblyAddr[ 2 ]
 	pin_row = self.subAddr[ 1 ]
-	#pin_count = 4  if self.nodalMode else  dset_shape[ 0 ]
-	if self.nodalMode:
-	  pin_shape_count = 2
-	  pin_count = 4
-          node_cells = ( 0, 1 ) if node_addr in ( 0, 1 ) else ( 2, 3 )
-	else:
-	  pin_count = pin_shape_count = dset_shape[ 0 ]
+        node_cells = ( 0, 1 ) if node_addr in ( 0, 1 ) else ( 2, 3 )
       else:
 	assy_col = self.assemblyAddr[ 1 ]
 	pin_col = self.subAddr[ 0 ]
-	#pin_count = 4  if self.nodalMode else  dset_shape[ 1 ]
-	if self.nodalMode:
-	  pin_shape_count = 2
-	  pin_count = 4
-          node_cells = ( 0, 2 ) if node_addr in ( 0, 2 ) else ( 1, 3 )
-	else:
-	  pin_count = pin_shape_count = dset_shape[ 1 ]
+        node_cells = ( 0, 2 ) if node_addr in ( 0, 2 ) else ( 1, 3 )
 
-      clip_shape = (
-          self.cellRange[ -1 ],
-	  (pin_shape_count * self.cellRange[ -2 ]) + 1
-	  )
+      clip_shape = ( self.cellRange[ -1 ], (self.cellRange[ -2 ] << 1) + 1 )
       clip_data = np.ndarray( clip_shape, dtype = np.float64 )
       clip_data.fill( 0.0 )
 
       #for ax in range( self.cellRange[ -1 ] ):
       for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
 	ax_offset = self.cellRange[ 3 ] - 1 - ax
-	#clip_data[ ax_offset, 0 ] = self.data.core.axialMeshCenters[ ax ]
 	cur_axial_value = \
-	    self.dmgr.GetAxialValue2( self.curDataSet, core_ndx = ax )
-	clip_data[ ax_offset, 0 ] = cur_axial_value[ 0 ]
+	    self.dmgr.GetAxialValue( self.curDataSet, core_ndx = ax )
+	clip_data[ ax_offset, 0 ] = cur_axial_value.cm
 
-	pin_cell = 1
+	node_offset = 1
         for assy_cell in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-	  pin_cell_to = pin_cell + pin_count
-	  if self.mode == 'xz':
-	    assy_ndx = core.coreMap[ assy_row, assy_cell ] - 1
-	    if assy_ndx >= 0:
-	      if self.nodalMode:
-		for k in xrange( len( node_cells ) ):
-	          clip_data[ ax_offset, pin_cell + k ] = \
-		    dset_value[ 0, node_cells[ k ], ax, assy_ndx ]
-	      else:
-	        clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
-	            dset_value[ pin_row, :, ax, assy_ndx ]
-	      #end if-else self.nodalMode
+	  assy_ndx = \
+	      core.coreMap[ assy_row, assy_cell ] - 1 \
+	      if self.mode == 'xz' else \
+	      core.coreMap[ assy_cell, assy_col ] - 1
+	  if assy_ndx >= 0:
+	    for k in xrange( len( node_cells ) ):
+	      clip_data[ ax_offset, node_offset + k ] = \
+	          dset_value[ 0, node_cells[ k ], ax, assy_ndx ]
 
-	  else:
-	    assy_ndx = core.coreMap[ assy_cell, assy_col ] - 1
-	    if assy_ndx >= 0:
-	      if self.nodalMode:
-		for k in xrange( len( node_cells ) ):
-	          clip_data[ ax_offset, pin_cell + k ] = \
-		    dset_value[ 0, node_cells[ k ], ax, assy_ndx ]
-	      else:
-	        clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
-	            dset_value[ :, pin_col, ax, assy_ndx ]
-	      #end if-else self.nodalMode
-	  #end if-else self.mode
-
-	  pin_cell = pin_cell_to
+	  node_offset += 2
         #end for assy_cel
       #end for axials
 
       item_label = 'Chan'  if self.channelMode else  'Pin'
-      nodes_str = ''
-      if self.nodalMode:
-	nodes_str = 'Nodes=%d,%d; ' % \
-	    ( node_cells[ 0 ] + 1, node_cells[ 1 ] + 1 )
+      nodes_str = 'Nodes=%d,%d; ' % \
+          ( node_cells[ 0 ] + 1, node_cells[ 1 ] + 1 )
 
       if self.mode == 'xz':
         title1 = '"%s: Assy Row=%s; %s Row=%d; %s%s=%.3g"' % (
@@ -287,7 +266,107 @@ Properties:
     #end if dset is not None and core is not None
 
     return  csv_text
-  #end _CreateClipboardDisplayedData
+  #end _CreateClipboardDisplayedDataNodal
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:	CoreAxial2DView._CreateClipboardDisplayedDataNonNodal()	-
+  #----------------------------------------------------------------------
+  def _CreateClipboardDisplayedDataNonNodal( self ):
+    """Retrieves the data for the state and axial.
+@return			text or None
+"""
+    csv_text = None
+
+    core = dset = None
+    is_valid = self.dmgr.IsValid(
+        self.curDataSet,
+	axial_level = self.axialValue.pinIndex
+	#state_index = self.stateIndex
+	)
+    if is_valid:
+      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
+      core = self.dmgr.GetCore()
+
+    if dset is not None and core is not None:
+      dset_value = np.array( dset )
+      dset_shape = dset_value.shape
+
+      if self.mode == 'xz':
+	assy_row = self.assemblyAddr[ 2 ]
+	pin_row = self.subAddr[ 1 ]
+	pin_count = pin_shape_count = dset_shape[ 0 ]
+      else:
+	assy_col = self.assemblyAddr[ 1 ]
+	pin_col = self.subAddr[ 0 ]
+	pin_count = pin_shape_count = dset_shape[ 1 ]
+
+      clip_shape = (
+          self.cellRange[ -1 ],
+	  (pin_shape_count * self.cellRange[ -2 ]) + 1
+	  )
+      clip_data = np.ndarray( clip_shape, dtype = np.float64 )
+      clip_data.fill( 0.0 )
+
+      #for ax in range( self.cellRange[ -1 ] ):
+      for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
+	ax_offset = self.cellRange[ 3 ] - 1 - ax
+	cur_axial_value = \
+	    self.dmgr.GetAxialValue( self.curDataSet, core_ndx = ax )
+	clip_data[ ax_offset, 0 ] = cur_axial_value.cm
+
+	pin_cell = 1
+        for assy_cell in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
+	  pin_cell_to = pin_cell + pin_count
+	  if self.mode == 'xz':
+	    assy_ndx = core.coreMap[ assy_row, assy_cell ] - 1
+	    if assy_ndx >= 0:
+	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
+	          dset_value[ pin_row, :, ax, assy_ndx ]
+
+	  else:
+	    assy_ndx = core.coreMap[ assy_cell, assy_col ] - 1
+	    if assy_ndx >= 0:
+	      clip_data[ ax_offset, pin_cell : pin_cell_to ] = \
+	          dset_value[ :, pin_col, ax, assy_ndx ]
+	  #end self.mode == 'yz'
+
+	  pin_cell = pin_cell_to
+        #end for assy_cel
+      #end for axials
+
+      item_label = 'Chan'  if self.channelMode else  'Pin'
+
+      if self.mode == 'xz':
+        title1 = '"%s: Assy Row=%s; %s Row=%d; %s=%.3g"' % (
+	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+            core.GetRowLabel( assy_row ),
+	    item_label, pin_row + 1,
+	    self.state.timeDataSet, self.timeValue
+	    )
+	col_labels = \
+	    core.GetColLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+        title2 = '"Axial; Cols=%s"' % ':'.join( col_labels )
+
+      else:
+        title1 = '"%s: Assy Col=%s; %s Col=%d; %s=%.3g"' % (
+	    self.dmgr.GetDataSetDisplayName( self.curDataSet ),
+            core.GetColLabel( assy_col ),
+	    item_label, pin_col + 1,
+	    self.state.timeDataSet, self.timeValue
+	    )
+	row_labels = \
+	    core.GetRowLabel( self.cellRange[ 0 ], self.cellRange[ 2 ] )
+        title2 = '"Axial; Rows=%s"' % ':'.join( row_labels )
+      #end if-else
+
+#		-- Write with axial mesh centers
+#		--
+      csv_text = DataModel.ToCSV( clip_data, ( title1, title2 ) )
+    #end if dset is not None and core is not None
+
+    return  csv_text
+  #end _CreateClipboardDisplayedDataNonNodal
 
 
   #----------------------------------------------------------------------
@@ -302,7 +381,7 @@ Properties:
     core = dset = None
     is_valid = self.dmgr.IsValid(
         self.curDataSet,
-	axial_level = self.axialValue[ 1 ]
+	axial_level = self.axialValue.pinIndex
 	#state_index = self.stateIndex
 	)
     if is_valid:
@@ -313,7 +392,7 @@ Properties:
       dset_value = np.array( dset )
       dset_shape = dset_value.shape
       assy_ndx = min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
-      axial_level = min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 )
+      axial_level = min( self.axialValue.pinIndex, dset_shape[ 2 ] - 1 )
 
       node_addr = self.dmgr.GetNodeAddr( self.subAddr )
       item_label = 'Chan'  if self.channelMode else  'Pin'
@@ -350,7 +429,7 @@ Properties:
       title = '"%s: Assembly=%s; %s; %sAxial=%.3f; %s=%.3g"' % (
 	  self.dmgr.GetDataSetDisplayName( self.curDataSet ),
 	  core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-	  pin_title, nodes_str, self.axialValue[ 0 ],
+	  pin_title, nodes_str, self.axialValue.cm,
 	  self.state.timeDataSet, self.timeValue
 	  #self.data.GetTimeValue( self.stateIndex, self.state.timeDataSet )
           )
@@ -368,48 +447,56 @@ Properties:
 'scale' (pixels per pin) from which a size is determined.
 If neither are specified, a default 'scale' value of 4 is used.
 @param  kwargs
-    scale	pixels per cm
+    font_scale	optional scaling to apply to fonts
+    printing  True if printing
+    scale	pixels per cm (deprecated)
+    scale_type  'linear' or 'log', defaulting to 'linear'
     size	( wd, ht ) against which to compute the scale
 @return			config dict with keys:
     clientSize
     dataRange
+    font
     fontSize
     labelFont
     labelSize
-    legendPilImage
+    legendBitmap
     legendSize
-    pilFont
+    mapper
     +
     assemblyWidth
     axialLevelsDy	list of pixel offsets in y dimension
-    axialLevelsDyMin
     axialPixPerCm	used?
     coreRegion
     imageSize
     lineWidth
     nodeWidth		if self.nodalMode
     pinWidth
-    valueFont
-    valueFontSize
 """
     ds_range = self._ResolveDataRange(
         self.curDataSet,
 	self.timeValue if self.state.scaleMode == 'state' else -1
 	##self.stateIndex if self.state.scaleMode == 'state' else -1
 	)
+    if 'scale_type' not in kwargs:
+      kwargs[ 'scale_type' ] = self._ResolveScaleType( self.curDataSet )
+      #kwargs[ 'scale_type' ] = self.dmgr.GetDataSetScaleType( self.curDataSet )
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     core = self.dmgr.GetCore()
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
-    legend_pil_im = config[ 'legendPilImage' ]
+    legend_bmap = config[ 'legendBitmap' ]
     legend_size = config[ 'legendSize' ]
 
-    #axial_mesh = core.axialMesh
     axial_mesh = self.dmgr.GetAxialMesh2( self.curDataSet )
     top_mesh_level = min( self.cellRange[ 3 ], len( axial_mesh ) - 1 )
+    #could never happen
+    #if top_mesh_level == self.cellRange[ 1 ]:
+    #  axial_range_cm = axial_mesh[ -1 ] - axial_mesh[ 0 ]
     axial_range_cm = \
         axial_mesh[ top_mesh_level ] - axial_mesh[ self.cellRange[ 1 ] ]
+    if axial_range_cm == 0.0:
+      axial_range_cm = 1.0
     npin = core.npinx  if self.mode == 'xz' else  core.npiny
 
     # pin equivalents in the axial range
@@ -421,14 +508,16 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #		-- Must calculate scale?
 #		--
+    #xxxxx _CreateBaseDrawConfig() sets
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
 #			-- Determine drawable region in image
 #			--
       # l2r, label : core : font-sp : legend
+      #xxxxx revisit font_size, bigger than pixel
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
-      # t2b, core : title
+      # t2b, label : core : title
       working_ht = max( ht, legend_size[ 1 ] )
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
 
@@ -478,8 +567,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
 
 #		-- Or, scale set explicitly
-#		--
-    else:
+    else: #deprecated
       pin_wd = kwargs.get( 'scale', 4 )
       axial_pix_per_cm = pin_wd / cm_per_pin
 
@@ -500,8 +588,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       core_wd = max( self.cellRange[ -2 ] * assy_wd, 512 )
       core_ht = int( math.ceil( axial_pix_per_cm * axial_range_cm ) )
 
-      font_size = self._CalcFontSize( 768 )
-
       # l2r, label : core : font-sp : legend
       wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
       ht = max( core_ht, legend_size[ 1 ] )
@@ -510,38 +596,33 @@ If neither are specified, a default 'scale' value of 4 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
-    image_wd = \
-        label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
-    image_ht = max(
-        label_size[ 1 ] + 2 + core_ht + (font_size *3 / 2),
-	legend_size[ 1 ]
-	)
+    region_x = label_size[ 0 ] + 2
+    region_y = label_size[ 1 ] + 2
+    #xxxxx revisit font_size, bigger than pixel
+    image_wd = region_x + core_wd + (font_size << 1) + legend_size[ 0 ]
+    #image_ht = max( region_y + core_ht, legend_size[ 1 ] ) + (font_size * 3 / 2)
+    image_ht = \
+        max( region_y + core_ht, legend_size[ 1 ] + 2 ) + \
+	font_size + (font_size >> 1)
+	#(font_size << 1)
 
-    axials_dy_min = sys.float_info.max
     axials_dy = []
     for ax in range( self.cellRange[ 3 ] - 1, self.cellRange[ 1 ] - 1, -1 ):
       ax_cm = axial_mesh[ ax + 1 ] - axial_mesh[ ax ]
       dy = max( 1, int( math.floor( axial_pix_per_cm * ax_cm ) ) )
       axials_dy.insert( 0, dy )
-      axials_dy_min = min( axials_dy_min, dy )
     #end for
 
-    value_font_size = assy_wd >> 1
-    value_font = \
-        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
-	if value_font_size >= 6 else None
 
     config[ 'assemblyWidth' ] = assy_wd
     config[ 'axialLevelsDy' ] = axials_dy
-    config[ 'axialLevelsDyMin' ] = axials_dy_min
+#    config[ 'axialLevelsDyMin' ] = axials_dy_min
     config[ 'axialPixPerCm' ] = axial_pix_per_cm
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
     config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, min( 10, int( assy_wd / 20.0 ) ) )
     config[ 'pinWidth' ] = pin_wd
-    config[ 'valueFont' ] = value_font
-    config[ 'valueFontSize' ] = value_font_size
 
     if self.nodalMode:
       config[ 'nodeWidth' ] = node_wd
@@ -554,6 +635,17 @@ If neither are specified, a default 'scale' value of 4 is used.
   #	METHOD:		CoreAxial2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in, config = None ):
+    try:
+      return  self._CreateRasterImageImpl( tuple_in, config )
+    except:
+      self.logger.exception( '' )
+  #end _CreateRasterImage( self, tuple_in, config = None )
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._CreateRasterImageImpl()	-
+  #----------------------------------------------------------------------
+  def _CreateRasterImageImpl( self, tuple_in, config = None ):
     """Called in background task to create the PIL image for the state.
 @param  tuple_in	0-based ( state_index, assy_col_or_row, pin_col_or_row )
 @param  config		optional config to use instead of self.config
@@ -564,7 +656,7 @@ If neither are specified, a default 'scale' value of 4 is used.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
 
-    im = None
+    bmap = None
 
     core = dset = None
     if config is None:
@@ -577,13 +669,14 @@ If neither are specified, a default 'scale' value of 4 is used.
       assy_wd = config[ 'assemblyWidth' ]
       axial_levels_dy = config[ 'axialLevelsDy' ]
       #axial_levels_dy_min = config[ 'axialLevelsDyMin' ]
-      #im_wd, im_ht = config[ 'clientSize' ]
       core_region = config[ 'coreRegion' ]
+      font = config[ 'font' ]
       font_size = config[ 'fontSize' ]
       im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
-      legend_pil_im = config[ 'legendPilImage' ]
-      pil_font = config[ 'pilFont' ]
+      legend_bmap = config[ 'legendBitmap' ]
+      legend_size = config[ 'legendSize' ]
+      mapper = config[ 'mapper' ]
       pin_wd = config[ 'pinWidth' ]
 
       if self.nodalMode:
@@ -595,15 +688,11 @@ If neither are specified, a default 'scale' value of 4 is used.
       if self.state.weightsMode == 'on':
         pin_factors = self.dmgr.GetFactors( self.curDataSet )
 
-      #if dset is None:
-      #  dset_array = None
-      #  dset_shape = ( 0, 0, 0, 0 )
-      #else:
       dset_array = np.array( dset )
       dset_shape = dset.shape
 
       ds_range = config[ 'dataRange' ]
-      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+      #value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       if self.mode == 'xz':
 	if self.nodalMode:
@@ -622,13 +711,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    cur_npin = min( core.npinx, dset_shape[ 1 ] )
 	    pin_range = xrange( core.npinx )
 	    item_label = 'Pin'
-	  addresses = 'Assy Row %s, %s Row %d' % \
+	  addresses = 'Assy Row %s, %s Col %d' % \
 	      ( core.GetRowLabel( tuple_in[ 1 ] ), item_label, pin_cell + 1 )
-
-        title_templ, title_size = self._CreateTitleTemplate2(
-	    pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
-	    additional = addresses
-	    )
 
       else: # 'yz'
 	if self.nodalMode:
@@ -647,25 +731,34 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    cur_npin = min( core.npiny, dset_shape[ 0 ] )
 	    pin_range = range( core.npiny )
 	    item_label = 'Pin'
-	  addresses = 'Assy Col %s, %s Col %d' % \
+	  addresses = 'Assy Col %s, %s Row %d' % \
 	      ( core.GetColLabel( tuple_in[ 1 ] ), item_label, pin_cell + 1 )
-
-        title_templ, title_size = self._CreateTitleTemplate2(
-	    pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
-	    additional = addresses
-	    )
       #end if-else self.mode
+
+      title_templ, title_size = self._CreateTitleTemplate2(
+	  font, self.curDataSet, dset_shape, self.state.timeDataSet,
+	  additional = addresses
+	  )
 
       node_value_draw_list = []
 
 #			-- Create image
 #			--
-      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
-      #im_pix = im.load()
-      im_draw = PIL.ImageDraw.Draw( im )
+      bmap, dc = self._CreateEmptyBitmapAndDC( im_wd, im_ht )
+      gc = self._CreateGraphicsContext( dc )
+      trans_brush = self._CreateTransparentBrush( gc )
+      trans_color_arr = np.array([ 0, 0, 0, 0 ], dtype = np.uint8 )
 
-      assy_pen = ( 155, 155, 155, 255 )
-      node_pen = ( 100, 100, 100, 255 )
+      if self.showLabels:
+        glabel_font = gc.CreateFont( label_font, wx.BLACK )
+	gc.SetFont( glabel_font )
+
+      assy_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+          wx.Colour( 155, 155, 155, 255 ), 1, wx.PENSTYLE_SOLID
+          ) )
+      node_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+          wx.Colour( 100, 100, 100, 255 ), 1, wx.PENSTYLE_SOLID
+          ) )
 
 #			-- Loop on axial levels
 #			--
@@ -679,13 +772,11 @@ If neither are specified, a default 'scale' value of 4 is used.
 #				--
 	if self.showLabels:
 	  label = '%02d' % (axial_level + 1)
-	  label_size = pil_font.getsize( label )
-	  label_y = axial_y + ((cur_dy - label_size[ 1 ]) >> 1)
+	  #label_size = label_font.getsize( label )
+	  label_size = gc.GetFullTextExtent( label )
+	  label_y = axial_y + ((cur_dy - label_size[ 1 ]) / 2.0)
 	  if (last_axial_label_y + label_size[ 1 ] + 1) < (axial_y + cur_dy):
-	    im_draw.text(
-	        ( 1, label_y ),
-	        label, fill = ( 0, 0, 0, 255 ), font = label_font
-	        )
+	    gc.DrawText( label, 1, label_y )
 	    last_axial_label_y = axial_y
 
 #				-- Loop on col
@@ -697,12 +788,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  if ax == len( axial_levels_dy ) - 1 and self.showLabels:
 	    label_ndx = 0 if self.mode == 'xz' else 1
 	    label = core.GetCoreLabel( label_ndx, assy_col )
-	    label_size = pil_font.getsize( label )
-	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) >> 1)
-	    im_draw.text(
-	        ( label_x, 1 ),
-	        label, fill = ( 0, 0, 0, 255 ), font = label_font
-	        )
+	    label_size = gc.GetFullTextExtent( label )
+	    label_x = assy_x + ((assy_wd - label_size[ 0 ]) / 2.0)
+	    gc.DrawText( label, label_x, 1 )
 	  #end if
 
 	  if self.mode == 'xz':
@@ -713,36 +801,63 @@ If neither are specified, a default 'scale' value of 4 is used.
 #					-- Assembly referenced?
 #					--
 	  if assy_ndx >= 0 and assy_ndx < dset_shape[ 3 ]:
-	    if dset_array is None:
-	      self.logger.critical( '** C dset_array is None, how did this happen **' )
+#						-- Map to colors
+	    cur_factors = None
+	    if self.nodalMode:
+              cur_array = dset_array[ 0, :, axial_level, assy_ndx ]
+	      if pin_factors is not None:
+	        cur_factors = pin_factors[ 0, :, axial_level, assy_ndx ]
+
+	    elif self.mode == 'xz':
+              cur_array = dset_array[ pin_cell, :, axial_level, assy_ndx ]
+	      if pin_factors is not None:
+	        cur_factors = pin_factors[ pin_cell, :, axial_level, assy_ndx ]
+
+	    else: # 'yz'
+              cur_array = dset_array[ :, pin_cell, axial_level, assy_ndx ]
+	      if pin_factors is not None:
+	        cur_factors = pin_factors[ :, pin_cell, axial_level, assy_ndx ]
+
+            colors = mapper.to_rgba( cur_array, bytes = True )
+	    if cur_factors is not None:
+	      colors[ cur_factors == 0 ] = trans_color_arr
+            colors[ np.isnan( cur_array ) ] = trans_color_arr
+            colors[ np.isinf( cur_array ) ] = trans_color_arr
+
 	    if self.nodalMode:
 	      node_x = assy_x + 1
 
 	      for node_ndx in node_cells:
-	        value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
-	        if pin_factors is None:
-	          pin_factor = 1
-	        else:
-	          pin_factor = pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
+#	        value = dset_array[ 0, node_ndx, axial_level, assy_ndx ]
+#	        if pin_factors is None:
+#	          pin_factor = 1
+#	        else:
+#	          pin_factor = pin_factors[ 0, node_ndx, axial_level, assy_ndx ]
+#
+#	        if not ( pin_factor == 0 or self.dmgr.IsBadValue( value ) ):
+#		  pen_color = mapper.to_rgba( value, bytes = True )
+	        cur_color = colors[ node_ndx ]
+		if cur_color[ 3 ] > 0:
+		  pen_color = cur_color.tolist()
+		  gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+		      wx.Colour( *pen_color ), 1, wx.PENSTYLE_SOLID
+		      ) ) )
+	          brush_color = pen_color
+		  gc.SetBrush( gc.CreateBrush(
+		      wx.TheBrushList.FindOrCreateBrush(
+		          wx.Colour( *brush_color ), wx.BRUSHSTYLE_SOLID
+		          )
+		      ) )
+		  gc.DrawRectangle( node_x, axial_y, node_wd + 1, cur_dy + 1 )
 
-	        if not ( pin_factor == 0 or self.dmgr.IsBadValue( value ) ):
-	          pen_color = Widget.GetColorTuple(
-	              value - ds_range[ 0 ], value_delta, 255
-	              )
-	          brush_color = \
-		      ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
-	          im_draw.rectangle(
-		      [ node_x, axial_y,
-		        node_x + node_wd + 1, axial_y + cur_dy + 1 ],
-		      fill = brush_color, outline = node_pen
-		      #fill = brush_color, outline = pen_color
-		      )
+		  value = cur_array[ node_ndx ]
 		  node_value_draw_list.append((
 		      self._CreateValueString( value ),
                       Widget.GetContrastColor( *brush_color ),
                       node_x, axial_y, node_wd, cur_dy
 		      ))
-	        #end if valid value
+		#end if cur_color[ 3 ] > 0
+
 	        node_x += node_wd
 	      #end for node cells
 
@@ -751,43 +866,54 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 	      for pin_col in pin_range:
 	        cur_pin_col = min( pin_col, cur_npin - 1 )
-	        if self.mode == 'xz':
-	          value = \
-		      dset_array[ pin_cell, cur_pin_col, axial_level, assy_ndx ]
-	          if pin_factors is None:
-	            pin_factor = 1
-		  else:
-	            pin_factor = \
-		     pin_factors[ pin_cell, cur_pin_col, axial_level, assy_ndx ]
-	        else:
-	          value = \
-		      dset_array[ cur_pin_col, pin_cell, axial_level, assy_ndx ]
-	          if pin_factors is None:
-	            pin_factor = 1
-		  else:
-	            pin_factor = \
-		     pin_factors[ cur_pin_col, pin_cell, axial_level, assy_ndx ]
+	        cur_color = colors[ cur_pin_col ]
 
-	        if not ( pin_factor == 0 or self.dmgr.IsBadValue( value ) ):
-	          pen_color = Widget.GetColorTuple(
-	              value - ds_range[ 0 ], value_delta, 255
-	              )
-	          brush_color = \
-		      ( pen_color[ 0 ], pen_color[ 1 ], pen_color[ 2 ], 255 )
-	          im_draw.rectangle(
-		      [ pin_x, axial_y,
-		        pin_x + pin_wd + 1, axial_y + cur_dy + 1 ],
-		      fill = brush_color, outline = pen_color
+#	        if self.mode == 'xz':
+#	          value = \
+#		      dset_array[ pin_cell, cur_pin_col, axial_level, assy_ndx ]
+#	          if pin_factors is None:
+#	            pin_factor = 1
+#		  else:
+#	            pin_factor = \
+#		     pin_factors[ pin_cell, cur_pin_col, axial_level, assy_ndx ]
+#	        else:
+#	          value = \
+#		      dset_array[ cur_pin_col, pin_cell, axial_level, assy_ndx ]
+#	          if pin_factors is None:
+#	            pin_factor = 1
+#		  else:
+#	            pin_factor = \
+#		     pin_factors[ cur_pin_col, pin_cell, axial_level, assy_ndx ]
+#
+#	        if not ( pin_factor == 0 or self.dmgr.IsBadValue( value ) ):
+#		  pen_color = mapper.to_rgba( value, bytes = True )
+
+		if isinstance( cur_color[ 3 ], np.ndarray ):
+		  self.logger.warning(
+		      'LOOK: cur_color[ 3 ] isa %s, cur_pin_col=%d, colors:%s%s',
+		      type( cur_color[ 3 ] ).__name__,
+		      cur_pin_col, os.linesep, str( colors )
 		      )
+		  pdb.set_trace()
+		elif cur_color[ 3 ] > 0:
+		  pen_color = cur_color.tolist()
+		  gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+		      wx.Colour( *pen_color ), 1, wx.PENSTYLE_SOLID
+		      ) ) )
+	          brush_color = pen_color
+		  gc.SetBrush( gc.CreateBrush(
+		      wx.TheBrushList.FindOrCreateBrush(
+		          wx.Colour( *brush_color ), wx.BRUSHSTYLE_SOLID
+		      ) ) )
+		  gc.DrawRectangle( pin_x, axial_y, pin_wd + 1, cur_dy + 1 )
 	        #end if valid value
 	        pin_x += pin_wd
 	      #end for pin cols
 	    #end if-else self.nodalMode
 
-	    im_draw.rectangle(
-		[ assy_x, axial_y, assy_x + assy_wd, axial_y + cur_dy ],
-		fill = None, outline = assy_pen
-	        )
+	    gc.SetBrush( trans_brush )
+	    gc.SetPen( assy_pen )
+	    gc.DrawRectangle( assy_x, axial_y, assy_wd + 1, cur_dy + 1 )
 	  #end if assembly referenced
 
 	  assy_x += assy_wd
@@ -799,50 +925,47 @@ If neither are specified, a default 'scale' value of 4 is used.
 #			-- Draw Values
 #			--
       if node_value_draw_list:
-        self._DrawValues( node_value_draw_list, im_draw )
+        self._DrawValuesWx( node_value_draw_list, gc )
 
 #			-- Draw Legend Image
 #			--
-      if legend_pil_im is not None:
-        im.paste(
-	    legend_pil_im,
-	    ( core_region[ 0 ] + core_region[ 2 ] + 2 + font_size,
-	      core_region[ 1 ] )
+      if legend_bmap is not None:
+        gc.DrawBitmap(
+	    legend_bmap,
+	    core_region[ 0 ] + core_region[ 2 ] + 2 + font_size, 2,
+	    legend_bmap.GetWidth(), legend_bmap.GetHeight()
 	    )
-	legend_size = legend_pil_im.size
       else:
 	legend_size = ( 0, 0 )
 
 #			-- Draw Title String
 #			--
       axial_y = max( axial_y, legend_size[ 1 ] )
-      axial_y += font_size >> 2
+      #axial_y += font_size >> 2
+      axial_y += font_size >> 1
 
       title_str = self._CreateTitleString(
 	  title_templ,
 	  time = self.timeValue
 	  #time = self.data.GetTimeValue( state_ndx, self.state.timeDataSet )
           )
-      title_size = pil_font.getsize( title_str )
-      title_x = max(
-	  font_size,
-	  (core_region[ 0 ] + core_region[ 2 ] - title_size[ 0 ]) >> 1
-#(core_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
+      self._DrawStringsWx(
+	  gc, font,
+	  ( title_str, ( 0, 0, 0, 255 ),
+	    #core_region[ 0 ], axial_y, core_region[ 2 ] - core_region[ 0 ],
+	    core_region[ 0 ], axial_y, core_region[ 2 ],
+	    'c', im_wd - core_region[ 0 ] )
 	  )
-      im_draw.text(
-          ( title_x, axial_y ),
-	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
-          )
 
-      del im_draw
+      dc.SelectObject( wx.NullBitmap )
     #end if dset is not None and core is not None
 
     #elapsed_time = timeit.default_timer() - start_time
     #if self.logger.isEnabledFor( logging.DEBUG ):
       #self.logger.debug( 'time=%.3fs, im-None=%s', elapsed_time, im is None )
 
-    return  im  if im is not None else  self.emptyPilImage
-  #end _CreateRasterImage
+    return  bmap  if bmap is not None else  self.emptyBitmap
+  #end _CreateRasterImageImpl
 
 
   #----------------------------------------------------------------------
@@ -895,8 +1018,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       if cell_info[ 2 ] >= 0:
 	axial_value = self.dmgr.\
-	    GetAxialValue2( self.curDataSet, core_ndx = cell_info[ 2 ] )
-	tip_str += ', Axial: %.2f' % axial_value[ 0 ]
+	    GetAxialValue( self.curDataSet, core_ndx = cell_info[ 2 ] )
+	tip_str += ', Axial: %.2f' % axial_value.cm
       #end if cell_info[ 2 ] >= 0
     #end if dset is not None and assy_ndx < dset.shape[ 3 ]
 
@@ -969,6 +1092,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  break
       #end for
 
+      axial_level = \
+          max( self.cellRange[ 1 ], min( axial_level, self.cellRange[ 3 ] ) )
       assy_ndx = core.coreMap[ assy_row, assy_col ] - 1
       result = \
           ( assy_ndx, assy_col_or_row, axial_level, pin_col_or_row, node_addr )
@@ -1027,7 +1152,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
-    return  ( 'statepoint' )
+    return  ( 'statepoint', )
   #end GetAnimationIndexes
 
 
@@ -1099,14 +1224,22 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetPrintScale()			-
+  #	METHOD:		VesselCore2DView.GetPrintFontScale()		-
   #----------------------------------------------------------------------
-  def GetPrintScale( self ):
+  def GetPrintFontScale( self ):
     """
-@return		8
+@return		3.0
 """
-    return  4
-  #end GetPrintScale
+    return  2.0  # 3.0 2.5
+  #end GetPrintFontScale
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView.GetTitle()			-
+  #----------------------------------------------------------------------
+  def GetTitle( self ):
+    return  'Core Axial 2D View'
+  #end GetTitle
 
 
   #----------------------------------------------------------------------
@@ -1120,26 +1253,21 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView.GetTitle()			-
-  #----------------------------------------------------------------------
-  def GetTitle( self ):
-    return  'Core Axial 2D View'
-  #end GetTitle
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._HiliteBitmap()			-
   #----------------------------------------------------------------------
-  def _HiliteBitmap( self, bmap ):
+  def _HiliteBitmap( self, bmap, config = None ):
     #return  bmap
     result = bmap
 
+    if config is None:
+      config = self.config
+
     core = self.dmgr.GetCore()
-    if self.config is not None and core is not None:
+    if config is not None and core is not None:
       line_wd = -1
       rect = None
 
-      rel_axial = self.axialValue[ 1 ] - self.cellRange[ 1 ]
+      rel_axial = self.axialValue.pinIndex - self.cellRange[ 1 ]
 
       if self.mode == 'xz':
         rel_cell = self.assemblyAddr[ 1 ] - self.cellRange[ 0 ]
@@ -1148,11 +1276,11 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
       if rel_cell >= 0 and rel_cell < self.cellRange[ -2 ] and \
           rel_axial >= 0 and rel_axial < self.cellRange[ -1 ]:
-        assy_wd = self.config[ 'assemblyWidth' ]
-        axial_levels_dy = self.config[ 'axialLevelsDy' ]
-	core_region = self.config[ 'coreRegion' ]
-	line_wd = self.config[ 'lineWidth' ]
-        #pin_wd = self.config[ 'pinWidth' ]
+        assy_wd = config[ 'assemblyWidth' ]
+        axial_levels_dy = config[ 'axialLevelsDy' ]
+	core_region = config[ 'coreRegion' ]
+	line_wd = config[ 'lineWidth' ]
+        #pin_wd = config[ 'pinWidth' ]
 
         axial_y = core_region[ 1 ]
         for ax in range( len( axial_levels_dy ) - 1, rel_axial, -1 ):
@@ -1171,11 +1299,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
         dc = wx.MemoryDC( new_bmap )
 	gc = wx.GraphicsContext.Create( dc )
-	gc.SetPen(
-	    wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
-		)
-	    )
+	gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	    wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+	    ) ) )
 	path = gc.CreatePath()
 	path.AddRectangle( *rect )
 	gc.StrokePath( path )
@@ -1183,7 +1309,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	dc.SelectObject( wx.NullBitmap )
 	result = new_bmap
       #end if rect
-    #end if self.config
+    #end if config
 
     return  result
   #end _HiliteBitmap
@@ -1224,23 +1350,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._LoadDataModelValues_1()	-
-  #----------------------------------------------------------------------
-  def _LoadDataModelValues_1( self, reason ):
-    """
-"""
-    #self.avgValues.clear()
-    self.assemblyAddr = self.state.assemblyAddr
-    self.curDataSet = self._FindFirstDataSet( self.state.curDataSet )
-    self.subAddr = self.state.subAddr
-
-    ds_type = self.dmgr.GetDataSetType( self.curDataSet )
-    self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
-    self.nodalMode = self.dmgr.IsNodalType( ds_type )
-  #end _LoadDataModelValues_1
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.LoadProps()			-
   #----------------------------------------------------------------------
   def LoadProps( self, props_dict ):
@@ -1248,7 +1357,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'assemblyAddr', 'subAddr' ):
+    for k in ( 'assemblyAddr', 'nodeAddr', 'subAddr' ):
       if k in props_dict:
         setattr( self, k, props_dict[ k ] )
 
@@ -1293,8 +1402,8 @@ be overridden by subclasses.
 
       axial_level = cell_info[ 2 ]
       axial_value = \
-          self.dmgr.GetAxialValue2( self.curDataSet, core_ndx = axial_level )
-      if axial_value[ 0 ] != self.axialValue[ 0 ]:
+          self.dmgr.GetAxialValue( self.curDataSet, core_ndx = axial_level )
+      if axial_value[ 0 ] != self.axialValue.cm:
         state_args[ 'axial_value' ] = axial_value
 
       if len( state_args ) > 0:
@@ -1306,14 +1415,18 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._OnFindMinMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+  def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
     if self.curDataSet:
       if self.channelMode:
-        self._OnFindMinMaxChannel( mode, self.curDataSet, all_states_flag )
+        self._OnFindMinMaxChannel(
+	    mode, self.curDataSet, all_states_flag, all_assy_flag
+	    )
       else:
-        self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
+        self._OnFindMinMaxPin(
+	    mode, self.curDataSet, all_states_flag, all_assy_flag
+	    )
   #end _OnFindMinMax
 
 
@@ -1330,28 +1443,16 @@ be overridden by subclasses.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		CoreAxial2DView._OnUnzoom()			-
-  #----------------------------------------------------------------------
-  def _OnUnzoom( self, ev ):
-    """
-"""
-    if len( self.cellRangeStack ) > 0:
-      self.cellRange = self.cellRangeStack.pop( -1 )
-      self.Redraw()
-  #end _OnUnzoom
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView.SaveProps()			-
   #----------------------------------------------------------------------
-  def SaveProps( self, props_dict ):
+  def SaveProps( self, props_dict, for_drag = False ):
     """Called to save properties.  Subclasses should override calling this
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    super( CoreAxial2DView, self ).SaveProps( props_dict )
+    super( CoreAxial2DView, self ).SaveProps( props_dict, for_drag = for_drag )
 
-    for k in ( 'assemblyAddr', 'mode', 'subAddr' ):
+    for k in ( 'assemblyAddr', 'mode', 'nodeAddr', 'subAddr' ):
       props_dict[ k ] = getattr( self, k )
   #end SaveProps
 
@@ -1421,50 +1522,18 @@ method via super.SaveProps().
   #end _SetModeImpl
 
 
-#   #----------------------------------------------------------------------
-#   #	METHOD:		CoreAxial2DView._UpdateAvgValues()		-
-#   #----------------------------------------------------------------------
-#   def _UpdateAvgValues( self, state_ndx, force = False ):
-#     dset = None
-#     if self.avgDataSet is not None and \
-#         (force or (state_ndx not in self.avgValues)):
-#       dset = self.data.GetStateDataSet( state_ndx, self.avgDataSet )
-# 
-#     if dset is not None:
-#       dset_array = dset.value
-#       dset_shape = dset_array.shape
-# 
-# #			-- Axial
-#       #if dset_shape[ 0 ] == 1 and dset_shape[ 3 ] == 1
-#       if dset_shape[ 3 ] == 1:
-#         t_nax = min( self.data.core.nax, dset_shape[ 2 ] )
-#         avg_values = np.zeros( shape = ( t_nax, ) )
-# 	for ax in range( t_nax ):
-# 	  avg_values[ ax ] = np.mean( dset_array[ :, :, ax, : ] )
-# 
-# #			-- Assembly
-#       else:
-#         t_nax = min( self.data.core.nax, dset_shape[ 2 ] )
-#         t_nass = min( self.data.core.nass, dset_shape[ 3 ] )
-# 	for ax in range( t_nax ):
-# 	  for assy in range( t_nass ):
-# 	    avg_values[ ax, assy ] = np.mean( dset_array[ :, :, ax, assy ] )
-# 
-#       self.avgValues[ state_ndx ] = avg_values
-#     #end if
-#   #end _UpdateAvgValues
-
-
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._UpdateDataSetStateValues()	-
   #----------------------------------------------------------------------
-  def _UpdateDataSetStateValues( self, ds_type ):
-    """
-@param  ds_type		dataset category/type
-Updates the nodalMode property.
+  def _UpdateDataSetStateValues( self, ds_type, clear_zoom_stack = True ):
+    """Updates the nodalMode property.
+    Args:
+        ds_type (str): dataset category/type
+	clear_zoom_stack (boolean): True to clear in zoom stack
 """
-    self.cellRange = list( self.GetInitialCellRange() )
-    del self.cellRangeStack[ : ]
+    if clear_zoom_stack:
+      self.cellRange = list( self.GetInitialCellRange() )
+      del self.cellRangeStack[ : ]
 
     self.channelMode = self.dmgr.IsChannelType( self.curDataSet )
     self.nodalMode = self.dmgr.IsNodalType( ds_type )
@@ -1503,13 +1572,6 @@ Updates the nodalMode property.
         changed = True
       self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
-#    if 'avg_dataset' in kwargs and kwargs[ 'avg_dataset' ] != self.avgDataSet:
-#      changed = True
-#      self.avgDataSet = kwargs[ 'avg_dataset' ]
-#      if self.avgDataSet == '':
-#        self.avgDataSet = None
-#      self.avgValues.clear()
-
 # Now handled in RasterWidget
 #    if 'cur_dataset' in kwargs and kwargs[ 'cur_dataset' ] != self.pinDataSet:
 #      ds_type = self.data.GetDataSetType( kwargs[ 'cur_dataset' ] )
@@ -1524,18 +1586,18 @@ Updates the nodalMode property.
       node_addr = self.dmgr.NormalizeNodeAddr( kwargs[ 'node_addr' ] )
       if node_addr != self.nodeAddr:
         self.nodeAddr = node_addr
+	#xxxx resized = True
 
     if 'sub_addr' in kwargs and kwargs[ 'sub_addr' ] != self.subAddr:
       if kwargs[ 'sub_addr' ][ pin_ndx ] != self.subAddr[ pin_ndx ]:
         resized = True
       else:
         changed = True
-      self.subAddr = self.dmgr.NormalizeSubAddr( kwargs[ 'sub_addr' ], 'pin' )
-
-#x    if new_pin_index_flag:
-#x      self.pinOffset = \
-#x          self.assemblyAddr[ assy_ndx ] * npin + self.subAddr[ pin_ndx ]
-#x    #end if new_pin_index_flag
+      self.subAddr = self.dmgr.NormalizeSubAddr(
+          kwargs[ 'sub_addr' ],
+	  'channel' if self.channelMode else 'pin'
+	  #'pin'
+	  )
 
     if 'weights_mode' in kwargs:
       kwargs[ 'resized' ] = True

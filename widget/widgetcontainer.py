@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2018-05-05	leerw@ornl.gov				-
+#	  Added other axial animation types.
 #		2017-05-13	leerw@ornl.gov				-
 #	  Checking widget.Is3D() before adding "Show in New Window" to
 #	  widget menu.
@@ -90,7 +92,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, logging, math, os, sys, time
+import functools, logging, math, os, six, sys, time
 import pdb  #pdb.set_trace()
 
 try:
@@ -633,6 +635,7 @@ definition array for a pullright.
       self.dataSetMenu = DataSetsMenu(
 	  self.state, binder = self, mode = ds_menu_mode,
 	  ds_listener = self.widget, ds_types = dataset_types,
+	  show_core_datasets = True,
 	  widget = self.widget
           )
 
@@ -657,7 +660,7 @@ definition array for a pullright.
         tally_qds_defs.append({
 	    'label': dmgr.GetDataSetDisplayName( qds_name ),
 	    'kind': wx.ITEM_RADIO,
-	    'handler': functools.partial( self._OnTally, 0, qds_name )
+	    'handler': functools.partial( self._OnTally, 'name', qds_name )
 	    })
 
       tally_mult_defs = []
@@ -665,7 +668,7 @@ definition array for a pullright.
         tally_mult_defs.append({
 	    'label': tally.multiplierNames[ i ],
 	    'kind': wx.ITEM_RADIO,
-	    'handler': functools.partial( self._OnTally, 1, i )
+	    'handler': functools.partial( self._OnTally, 'multIndex', i )
 	    })
 
       tally_stat_defs = []
@@ -673,7 +676,7 @@ definition array for a pullright.
         tally_stat_defs.append({
 	    'label': tally.stat[ i ],
 	    'kind': wx.ITEM_RADIO,
-	    'handler': functools.partial( self._OnTally, 2, i )
+	    'handler': functools.partial( self._OnTally, 'statIndex', i )
 	    })
 
       tally_menu_defs = [
@@ -729,10 +732,12 @@ definition array for a pullright.
     if anim_indexes is not None:
       self.animateMenu = wx.Menu()
 
+      all_ds_types = dmgr.GetDataSetTypes()
+
       #xxxxx 'axial:all'
       if 'axial:detector' in anim_indexes and \
-          dmgr.GetCore().ndetax > 1 and \
-	  dmgr.HasDataSetType( 'detector' ):
+          dmgr.GetCore().ndetax > 1 and 'detector' in all_ds_types:
+	  #dmgr.HasDataSetType( 'detector' ):
         anim_item = wx.MenuItem(
 	    self.animateMenu, wx.ID_ANY, 'Detector Axial Levels'
 	    )
@@ -741,14 +746,34 @@ definition array for a pullright.
       #end 'axial:detector'
 
       if 'axial:pin' in anim_indexes and \
-          dmgr.GetCore().nax > 1 and \
-	  dmgr.HasDataSetType( 'pin' ):
+          dmgr.GetCore().nax > 1 and 'pin' in all_ds_types:
+	  #dmgr.HasDataSetType( 'pin' ):
         anim_item = wx.MenuItem(
 	    self.animateMenu, wx.ID_ANY, 'Pin Axial Levels'
 	    )
         self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
         self.animateMenu.AppendItem( anim_item )
-      #end 'axial:detector'
+      #end 'axial:pin'
+
+      if 'axial:subpin' in anim_indexes and \
+          dmgr.GetCore().nax > 1 and \
+	  ('subpin' in all_ds_types or 'subpin_r' in all_ds_types or \
+	   'subpin_theta' in all_ds_types):
+        anim_item = wx.MenuItem(
+	    self.animateMenu, wx.ID_ANY, 'Subpin Axial Levels'
+	    )
+        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+        self.animateMenu.AppendItem( anim_item )
+      #end 'axial:subpin'
+
+      if 'axial:tally' in anim_indexes and \
+          dmgr.GetCore().nax > 1 and 'tally' in all_ds_types:
+        anim_item = wx.MenuItem(
+	    self.animateMenu, wx.ID_ANY, 'Tally Axial Levels'
+	    )
+        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+        self.animateMenu.AppendItem( anim_item )
+      #end 'axial:tally'
 
       #if 'statepoint' in anim_indexes and len( data_model.GetStates() ) > 1:
       if 'statepoint' in anim_indexes and len( dmgr.GetTimeValues() ) > 1:
@@ -850,8 +875,6 @@ definition array for a pullright.
 """
     self.widget.LoadProps( props_dict )
     self.dataSetMenu.Init()
-    # now called in Init()
-    #self.dataSetMenu.UpdateAllMenus()
   #end LoadProps
 
 
@@ -879,8 +902,8 @@ definition array for a pullright.
       if self.dataSetMenu is not None:
         self.dataSetMenu.Dispose()
 
-#    self.Close()
     # This causes a segv for Anaconda under MacOS after _OnShowInNewWindow().
+#    self.Close()
     if destroy_now:
       wx.CallAfter( self.Destroy )
     else:
@@ -953,12 +976,13 @@ definition array for a pullright.
   def _OnLeftDown( self, ev ):
     """
 """
-    widget_props = WidgetConfig.CreateWidgetProps( self.widget )
-    widget_json = WidgetConfig.Encode( widget_props )
+    widget_props = \
+        WidgetConfig.CreateWidgetProps( self.widget, for_drag = True )
+    widget_json_str = WidgetConfig.Encode( widget_props )
 
     #drag_source = wx.DropSource( ev.GetEventObject() )
     drag_source = wx.DropSource( self )
-    drag_data = wx.TextDataObject( widget_json )
+    drag_data = wx.TextDataObject( widget_json_str )
     drag_source.SetData( drag_data )
 
     result = drag_source.DoDragDrop()
@@ -1027,6 +1051,18 @@ definition array for a pullright.
               self.widget, callback = AnimationCallback()
 	      )
 
+	elif label.find( 'subpin axial' ) >= 0:
+	  animator = SubPinAxialAnimator(
+              self.widget, callback = AnimationCallback(),
+	      logger = self.logger
+	      )
+
+	elif label.find( 'tally axial' ) >= 0:
+	  animator = TallyAxialAnimator(
+              self.widget, callback = AnimationCallback(),
+	      logger = self.logger
+	      )
+
         if animator is not None:
           self.SaveWidgetAnimatedImage( animator )
       #end try
@@ -1046,8 +1082,10 @@ definition array for a pullright.
   def _OnShowInNewWindow( self, ev ):
     """Creates a new window containing just this container's widget.
 """
-    widget_props = WidgetConfig.CreateWidgetProps( self.widget )
-    self.GetTopLevelParent().CreateWindow( widget_props, no_init = True )
+    raw_widget_props = \
+        WidgetConfig.CreateWidgetProps( self.widget, for_drag = True )
+    props = WidgetConfig.Decode( WidgetConfig.Encode( raw_widget_props ) )
+    self.GetTopLevelParent().CreateWindow( props, no_init = True )
 
     # Note the call to Destroy() in OnClose() results in segv under
     # Anaconda on MacOS.  Hence, we have this really-do-it-later tango.
@@ -1060,18 +1098,22 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   #	METHOD:		_OnTally()					-
   #----------------------------------------------------------------------
-  def _OnTally( self, addr_ndx, value, ev ):
+  def _OnTally( self, attr_name, value, ev ):
     """
 """
     if ev is not None:
       ev.Skip()
 
-    tally_addr = []
-    for i in xrange( len( self.state.tallyAddr ) ):
-      tally_addr.append(
-	  value  if addr_ndx == i else  self.state.tallyAddr[ i ]
-          )
+    tally_addr = self.state.tallyAddr.copy()
+    tally_addr.update( { attr_name: value } )
     self.FireStateChange( tally_addr = tally_addr )
+
+#    tally_addr = []
+#    for i in xrange( len( self.state.tallyAddr ) ):
+#      tally_addr.append(
+#	  value  if addr_ndx == i else  self.state.tallyAddr[ i ]
+#          )
+#    self.FireStateChange( tally_addr = tally_addr )
   #end _OnTally
 
 
@@ -1110,7 +1152,12 @@ Must be called from the UI event thread
     file_path = self._CheckAndPromptForAnimatedImage( file_path )
 
     if file_path is not None:
-      animator.Run( file_path )
+      answer = wx.MessageBox(
+	  'Show selections in images?',
+          'Save Widget Animated Image',
+	  wx.YES_NO, self
+	  )
+      animator.Run( file_path, answer == wx.YES )
     #end if we have a destination file path
   #end SaveWidgetAnimatedImage
 

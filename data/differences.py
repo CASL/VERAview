@@ -55,8 +55,8 @@ the comp_qds_name model.  Thus, the axial mesh and time
 values are from comp_qds_name model.  The current timeDataSet is used
 to resolve times between the datasets.  The ref and comp DataModels can
 be the same.
-@param  ref_qds_name	reference dataset x in x - y
-@param  comp_qds_name	comparison dataset y in x - y
+@param  ref_qds_name	reference dataset y in x - y
+@param  comp_qds_name	comparison dataset x in x - y
 @param  diff_ds_name	name of difference dataset
 @param  diff_mode	difference mode, must start with one of 'delta', 'pct'
 @param  interp_mode	interpolation mode, one of 'linear', 'quad', 'cubic'
@@ -114,11 +114,14 @@ be the same.
 #      assert len( ref_mesh_values ) == len( comp_mesh_values ), \
 #          '%s length mismatch' % mesh_type
 #      must_interpolate = not np.array_equal( ref_mesh_values, comp_mesh_values )
-      must_interpolate = \
-          comp_mesh_centers is None or \
-          not self.equal_meshes( ref_mesh_centers, comp_mesh_centers )
-      if must_interpolate:
-        interp = Interpolator( ref_mesh_centers, comp_mesh, comp_mesh_centers )
+      if mesh_type:
+        must_interpolate = \
+            comp_mesh_centers is None or \
+            not self.equal_meshes( ref_mesh_centers, comp_mesh_centers )
+        if must_interpolate:
+          interp = Interpolator( ref_mesh_centers, comp_mesh, comp_mesh_centers )
+      else:
+        must_interpolate = False
 
 #			-- Retrieve times
 #			--

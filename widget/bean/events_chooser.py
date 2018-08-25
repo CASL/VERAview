@@ -290,7 +290,7 @@ Must pass the 'event_set' parameter.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataRangeDialog._OnCharHook()			-
+  #	METHOD:		EventsChooserDialog._OnCharHook()		-
   #----------------------------------------------------------------------
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()

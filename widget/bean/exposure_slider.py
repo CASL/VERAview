@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		exposure_slider.py				-
 #	HISTORY:							-
+#		2018-03-20	leerw@ornl.gov				-
+#	  Using wx.Timer to eat transient events.
 #		2016-03-14	leerw@ornl.gov				-
 #	  Setting page size.
 #		2016-02-20	leerw@ornl.gov				-
@@ -31,6 +33,8 @@ except Exception:
 #------------------------------------------------------------------------
 StateIndexEvent, EVT_STATE_INDEX = wx.lib.newevent.NewEvent()
 
+TIMERID_EXPOSURE_SCROLL = 300
+
 
 #------------------------------------------------------------------------
 #	CLASS:		ExposureSliderBean				-
@@ -56,6 +60,8 @@ Attributes/properties:
     super( ExposureSliderBean, self ).__init__( container, id )
 
     self.fSlider = None
+    self.fTimer = None
+    self.fTransientValue = None
     self._InitUI()
   #end __init__
 
@@ -94,7 +100,7 @@ Attributes/properties:
   def stateIndex( self, value ):
     if self.fSlider is not None:
       cur_value = self.fSlider.GetValue()
-      if cur_value != value:
+      if cur_value != value + 1:
         self.fSlider.SetValue( value + 1 )
         self.fSlider.Refresh()
   #end stateIndex.setter
@@ -111,7 +117,8 @@ Attributes/properties:
     if self.fSlider.GetValue() > self.fSlider.GetMin():
       val = self.fSlider.GetValue() - 1
       self.fSlider.SetValue( val )
-      wx.PostEvent( self, StateIndexEvent( value = val - 1 ) )
+      #wx.PostEvent( self, StateIndexEvent( value = val - 1 ) )
+      self._UpdateValue( val )
   #end Decrement
 
 
@@ -132,7 +139,8 @@ Attributes/properties:
     if self.fSlider.GetValue() < self.fSlider.GetMax():
       val = self.fSlider.GetValue() + 1
       self.fSlider.SetValue( val )
-      wx.PostEvent( self, StateIndexEvent( value = val - 1 ) )
+      #wx.PostEvent( self, StateIndexEvent( value = val - 1 ) )
+      self._UpdateValue( val )
   #end Increment
 
 
@@ -156,6 +164,9 @@ Attributes/properties:
     self.fSlider.Bind( wx.EVT_SCROLL, self._OnSlider )
     self.fSlider.Disable()
 
+    self.fTimer = wx.Timer( self, TIMERID_EXPOSURE_SCROLL )
+    self.Bind( wx.EVT_TIMER, self._OnTimer )
+
     sizer = wx.BoxSizer( wx.HORIZONTAL )
     sizer.Add( slider_label, 0, wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER )
     sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
@@ -173,8 +184,35 @@ Attributes/properties:
     obj = ev.GetEventObject()
     val = obj.GetValue()
 
-    wx.PostEvent( self, StateIndexEvent( value = val - 1 ) )
+    #wx.PostEvent( self, StateIndexEvent( value = val - 1 ) )
+    self._UpdateValue( val )
   #end _OnSlider
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ExposureSliderBean._OnTimer()			-
+  #----------------------------------------------------------------------
+  def _OnTimer( self, ev ):
+    """
+"""
+    if ev.Timer.Id == TIMERID_EXPOSURE_SCROLL:
+      if self.fTransientValue is not None:
+        wx.PostEvent( self, StateIndexEvent( value = self.fTransientValue - 1 ) )
+	self.fTransientValue = None
+    #end if ev.Timer.Id == TIMERID_EXPOSURE_SCROLL
+  #end _OnTimer
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		ExposureSliderBean._UpdateValue()		-
+  #----------------------------------------------------------------------
+  def _UpdateValue( self, val ):
+    """
+"""
+    if val != self.fTransientValue:
+      self.fTransientValue = val
+      self.fTimer.Start( 500, wx.TIMER_ONE_SHOT )
+  #end _UpdateValue
 
 
   #----------------------------------------------------------------------

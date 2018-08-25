@@ -210,12 +210,14 @@ class WidgetImageMontager( object ):
   'widgets'		list of widgets from which to extract images
   'no_dialog'		defaults to False, if True no progress dialog
   			is displayed
+  'hilite'		defaults to False, if True hilites are rendered
 """
     self.cols = kwargs.get( 'cols', -1 )
     self.widgets = kwargs.get( 'widgets', [] )
     self.resultPath = kwargs.get( 'result_path', 'montage.png' )
     self.rows = kwargs.get( 'rows', -1 )
     self.noDialog = kwargs.get( 'no_dialog', False )
+    self.hilite = kwargs.get( 'hilite', False )
 
     self.totalSteps = len( self.widgets ) << 1 + 2
   #end __init__
@@ -282,10 +284,11 @@ Creates a separate thread with the _Run() method as target.
 	      dialog.Update, step,
 	      'Creating widget image %d/%d' % ( step + 1, len( self.widgets ) )
               )
-	rname = w.CreatePrintImage( os.path.join( temp_dir, name ) )
+	rname = w.CreatePrintImage(
+	    os.path.join( temp_dir, name ), hilite = self.hilite
+	    )
 	step += 1
       #end for
-
 
 #			-- Open images to get sizes
 #			--

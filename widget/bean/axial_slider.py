@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		axial_slider.py					-
 #	HISTORY:							-
+#		2018-03-20	leerw@ornl.gov				-
+#	  Using wx.Timer to eat transient events.
 #		2016-03-14	leerw@ornl.gov				-
 #	  Setting page size.
 #		2016-02-20	leerw@ornl.gov				-
@@ -36,6 +38,8 @@ except Exception:
 #------------------------------------------------------------------------
 AxialLevelEvent, EVT_AXIAL_LEVEL = wx.lib.newevent.NewEvent()
 
+TIMERID_AXIAL_SCROLL = 200
+
 
 #------------------------------------------------------------------------
 #	CLASS:		AxialSliderBean					-
@@ -61,6 +65,8 @@ Attributes/properties:
     super( AxialSliderBean, self ).__init__( container, id )
 
     self.fSlider = None
+    self.fTimer = None
+    self.fTransientValue = None
     self._InitUI( title )
   #end __init__
 
@@ -89,7 +95,7 @@ Attributes/properties:
   def axialLevel( self, value ):
     if self.fSlider is not None:
       cur_value = self.fSlider.GetValue()
-      if cur_value != value:
+      if cur_value != value + 1:
         self.fSlider.SetValue( value + 1 )
         self.fSlider.Refresh()
   #end axialLevel.setter
@@ -116,7 +122,8 @@ Attributes/properties:
     if self.fSlider.GetValue() > self.fSlider.GetMin():
       val = self.fSlider.GetValue() - 1
       self.fSlider.SetValue( val )
-      wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+      #wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+      self._UpdateValue( val )
   #end Decrement
 
 
@@ -137,7 +144,8 @@ Attributes/properties:
     if self.fSlider.GetValue() < self.fSlider.GetMax():
       val = self.fSlider.GetValue() + 1
       self.fSlider.SetValue( val )
-      wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+      #wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+      self._UpdateValue( val )
   #end Increment
 
 
@@ -163,6 +171,9 @@ Attributes/properties:
     self.fSlider.Bind( wx.EVT_SCROLL, self._OnSlider )
     self.fSlider.Disable()
 
+    self.fTimer = wx.Timer( self, TIMERID_AXIAL_SCROLL )
+    self.Bind( wx.EVT_TIMER, self._OnTimer )
+
     sizer = wx.BoxSizer( wx.VERTICAL )
     sizer.Add( slider_label, 0, wx.ALL | wx.ALIGN_CENTER | wx.ALIGN_TOP )
     #sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
@@ -181,8 +192,35 @@ Attributes/properties:
     obj = ev.GetEventObject()
     val = obj.GetValue()
 
-    wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+    #wx.PostEvent( self, AxialLevelEvent( value = val - 1 ) )
+    self._UpdateValue( val )
   #end _OnSlider
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		AxialSliderBean._OnTimer()			-
+  #----------------------------------------------------------------------
+  def _OnTimer( self, ev ):
+    """
+"""
+    if ev.Timer.Id == TIMERID_AXIAL_SCROLL:
+      if self.fTransientValue is not None:
+        wx.PostEvent( self, AxialLevelEvent( value = self.fTransientValue - 1 ) )
+	self.fTransientValue = None
+    #end if ev.Timer.Id == TIMERID_AXIAL_SCROLL
+  #end _OnTimer
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		AxialSliderBean._UpdateValue()			-
+  #----------------------------------------------------------------------
+  def _UpdateValue( self, val ):
+    """
+"""
+    if val != self.fTransientValue:
+      self.fTransientValue = val
+      self.fTimer.Start( 500, wx.TIMER_ONE_SHOT )
+  #end _UpdateValue
 
 
   #----------------------------------------------------------------------

@@ -1,10 +1,15 @@
 """Reusable beans
 """
 
-#__all__ = [ 'assembly_bitmap', 'axial_slider', 'core_bitmap', 'exposure_slider' ]
 __all__ = \
   [
-    'axial_slider', 'data_range_bean', 'dataset_chooser',
-    'events_chooser', 'exposure_slider'
+    'axial_slider',
+    'data_range_bean',
+    'dataset_chooser',
+    'dataset_list_bean',
+    'dataset_menu',
+    'events_chooser',
+    'exposure_slider',
+    'plot_dataset_props.py',
   ]
-__version__ = '0.0.1'
+__version__ = '2.3.0'

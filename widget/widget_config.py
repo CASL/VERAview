@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2017-09-23	leerw@ornl.gov				-
+#	  Implemented decoding object_hook with __jsonclass__ and
+#	  fromjson() convention.
 #		2016-12-08	leerw@ornl.gov				-
 #	  Multiple file paths.
 #		2016-12-02	leerw@ornl.gov				-
@@ -127,6 +130,17 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.GetGridSize()			-
+  #----------------------------------------------------------------------
+  def GetGridSize( self ):
+    """
+@return			size tuple ( ncols, nrows ), default to ( 1, 1 )
+"""
+    return  self.fDict.get( 'gridSize', ( 1, 1 ) )
+  #end GetGridSize
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.GetStateProps()			-
   #----------------------------------------------------------------------
   def GetStateProps( self ):
@@ -167,7 +181,9 @@ class WidgetConfig( object ):
       fp = file( file_path )
       try:
 	content = fp.read( -1 )
-	self.fDict = json.loads( content )
+	#self.fDict = json.loads( content )
+	self.fDict = \
+	    json.loads( content, object_hook = WidgetConfig.DecodeObject )
       finally:
         fp.close()
     #end if
@@ -209,6 +225,16 @@ class WidgetConfig( object ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.SetGridSize()			-
+  #----------------------------------------------------------------------
+  def SetGridSize( self, ncols, nrows ):
+    """
+"""
+    self.fDict[ 'gridSize' ] = ( ncols, nrows )
+  #end SetGridSize
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		WidgetConfig.SetState()				-
   #----------------------------------------------------------------------
   def SetState( self, state ):
@@ -233,10 +259,13 @@ class WidgetConfig( object ):
       file_path = WidgetConfig.GetUserSessionPath( True )
 
     fp = file( file_path, 'w' )
+    #fp2 = file( file_path + '.pickle', 'w' )
     try:
       fp.write( json.dumps( self.fDict, cls = WidgetEncoder, indent = 2 ) )
+      #pickle.dump( self.fDict, fp2 )
     finally:
       fp.close()
+      #fp2.close()
   #end Write
 
 
@@ -248,14 +277,17 @@ class WidgetConfig( object ):
   #	METHOD:		WidgetConfig.CreateWidgetProps()		-
   #----------------------------------------------------------------------
   @staticmethod
-  def CreateWidgetProps( widget ):
+  def CreateWidgetProps( widget, for_drag = False ):
     """Creates widget properties with classpath.
-@param  widget		widget to be encoded
-@return			widget properties as a JSON string
+    Args:
+        widget (widget.Widget): widget to serialize
+	for_drag (bool): True if serializing for drag-n-drop
+    Returns:
+        dict: properties dict
 """
     module_path = widget.__module__ + '.' + widget.__class__.__name__
     widget_props = { 'classpath': module_path }
-    widget.SaveProps( widget_props )
+    widget.SaveProps( widget_props, for_drag = for_drag )
     return  widget_props
   #end CreateWidgetProps
 
@@ -272,10 +304,35 @@ class WidgetConfig( object ):
     #return  json.loads( json_str.rstrip( '\t\r\n ' ) )
     content = json_str.rstrip( '\t\r\n ' )
     try:
-      return  json.loads( content )
+      return  json.loads( content, object_hook = WidgetConfig.DecodeObject )
     except Exception, ex:
       WidgetConfig.fLogger_.exception( 'content:' + os.linesep + content )
   #end Decode
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetConfig.DecodeObject()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def DecodeObject( json_obj ):
+    """Decoder hook that looks for a '__jsonclass__' key identifying the
+full classpath, for which there should be a static fromjson() method.
+"""
+    result = json_obj
+    classpath = json_obj.get( '__jsonclass__' )
+    if classpath:
+      try:
+        module_path, class_name = classpath.rsplit( '.', 1 )
+	module = __import__( module_path, fromlist = [ class_name ] )
+	cls = getattr( module, class_name )
+	if hasattr( cls, 'fromjson' ):
+	  result = getattr( cls, 'fromjson' )( json_obj )
+      except Exception, ex:
+        msg = 'instantiating ' + classpath + ':' + os.linesep
+        WidgetConfig.fLogger_.exception( msg )
+
+    return  result
+  #end DecodeObject
 
 
   #----------------------------------------------------------------------

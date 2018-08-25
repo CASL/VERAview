@@ -3,6 +3,9 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2018-02-17	leerw@ornl.gov				-
+#	  Using a wx.Timer to manage resize events to avoid updating for
+#	  transient sizes.
 #		2017-05-05	leerw@ornl.gov				-
 #	  Modified LoadDataModel() to process the reason param.
 #		2017-02-03	leerw@ornl.gov				-
@@ -213,9 +216,11 @@ Support Methods
     self.ax = None
     self.axline = None  # axis line representing state
     self.canvas = None
+    self.curSize = None
     self.cursor = None
     self.cursorLine = None  # axis line following the cursor
     self.fig = None
+    self.timer = None
     self.toolbar = None
 
     self.callbackIds = {}
@@ -253,14 +258,14 @@ Support Methods
   #----------------------------------------------------------------------
   #	METHOD:		CreatePrintImage()				-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path, bgcolor = None ):
+  def CreatePrintImage( self, file_path, bgcolor = None, hilite = False ):
     """
 """
     result = None
 
     if self.fig is not None:
       #if wx.IsMainThread():
-      if Widget.IsMainThread():
+      if not hilite:
         if self.cursorLine is not None:
           self.cursorLine.set_visible( False )
         if self.axline is not None:
@@ -283,7 +288,7 @@ Support Methods
       result = file_path
 
       #if wx.IsMainThread():
-      if Widget.IsMainThread():
+      if not hilite:
         if self.axline is not None:
           self.axline.set_visible( True )
         if self.cursorLine is not None:
@@ -342,6 +347,18 @@ calls self.ax.grid() and can be called by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		PlotWidget.GetUsesScaleAndCmap()		-
+  #----------------------------------------------------------------------
+  def GetUsesScaleAndCmap( self ):
+    """
+    Returns:
+        boolean: False
+"""
+    return  False
+  #end GetUsesScaleAndCmap
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_InitAxes()					-
   #----------------------------------------------------------------------
   def _InitAxes( self ):
@@ -386,6 +403,9 @@ calls self.ax.grid() and can be called by subclasses.
     self.Bind( wx.EVT_CLOSE, self._OnClose )
     self.Bind( wx.EVT_CONTEXT_MENU, self._OnContextMenu )
     self.Bind( wx.EVT_SIZE, self._OnSize )
+
+    self.timer = wx.Timer( self, TIMERID_RESIZE )
+    self.Bind( wx.EVT_TIMER, self._OnTimer )
   #end _InitUI
 
 
@@ -437,9 +457,9 @@ be overridden by subclasses.
 	  del cur_attr[ name ]
 	  cur_attr[ DataSetName( name ) ] = cur_value
 	#end for name
-      #end if k in props_dict
 
-      setattr( self, k, cur_attr )
+        setattr( self, k, cur_attr )
+      #end if k in props_dict
     #end for k
 
     super( PlotWidget, self ).LoadProps( props_dict )
@@ -455,6 +475,8 @@ be overridden by subclasses.
     """
 """
     if self.fig is not None:
+      if self.logger.isEnabledFor( logging.INFO ):
+        self.logger.debug( '%s: closing figure', self.GetTitle() )
       self.fig.close()
   #end _OnClose
 
@@ -533,14 +555,81 @@ with super.
   def _OnSize( self, ev ):
     """
 """
-    if ev is not None:
+    if ev is None:
+      self.curSize = None
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( '%s: forced replot', self.GetTitle() )
+      wx.CallAfter( self.UpdateState, replot = True )
+
+    else:
       ev.Skip()
 
-    wd, ht = self.GetClientSize()
-
-    if wd > 0 and ht > 0:
-      self.UpdateState( replot = True )
+#      wd, ht = self.GetClientSize()
+#      if wd > 0 and ht > 0:
+#        if self.curSize is None or \
+#            wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]:
+#          self.curSize = ( wd, ht )
+#          if self.logger.isEnabledFor( logging.DEBUG ):
+#            self.logger.debug( '%s: starting timer', self.GetTitle() )
+#	  self.timer.Start( 500, wx.TIMER_ONE_SHOT )
+    #end else ev is not None
   #end _OnSize
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnSize_0()					-
+  #----------------------------------------------------------------------
+##  def _OnSize_0( self, ev ):
+##    """
+##"""
+##    if ev is not None:
+##      ev.Skip()
+##
+##    wd, ht = self.GetClientSize()
+##
+##    if wd > 0 and ht > 0:
+##      self.UpdateState( replot = True )
+##  #end _OnSize_0
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnSize_1()					-
+  #----------------------------------------------------------------------
+##  def _OnSize_1( self, ev ):
+##    """
+##"""
+##    if ev is None:
+##      # call wx.CallAfter( self.UpdateState, replot = True ) here?
+##      self.curSize = None
+##    else:
+##      ev.Skip()
+##
+##    wd, ht = self.GetClientSize()
+##
+##    if wd > 0 and ht > 0:
+##      if self.curSize is None or \
+##          wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]:
+##        self.curSize = ( wd, ht )
+##        if self.logger.isEnabledFor( logging.DEBUG ):
+##          self.logger.debug( '%s: calling timer', self.GetTitle() )
+##	self.timer.Start( 500, wx.TIMER_ONE_SHOT )
+##  #end _OnSize_1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		PlotWidget._OnTimer()				-
+  #----------------------------------------------------------------------
+  def _OnTimer( self, ev ):
+    """
+"""
+    if ev.Timer.Id == TIMERID_RESIZE:
+      wd, ht = self.GetClientSize()
+      if self.curSize is not None:
+        if self.logger.isEnabledFor( logging.DEBUG ):
+          self.logger.debug( '%s: calling UpdateState replot', self.GetTitle() )
+        wx.CallAfter( self.UpdateState, redraw = True ) # replot = true
+    #end if ev.Timer.Id == TIMERID_RESIZE
+  #end _OnTimer
 
 
   #----------------------------------------------------------------------
@@ -571,12 +660,12 @@ with super.
   #----------------------------------------------------------------------
   #	METHOD:		PlotWidget.SaveProps()				-
   #----------------------------------------------------------------------
-  def SaveProps( self, props_dict ):
+  def SaveProps( self, props_dict, for_drag = False ):
     """Called to save properties.  Subclasses should override calling this
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    super( PlotWidget, self ).SaveProps( props_dict )
+    super( PlotWidget, self ).SaveProps( props_dict, for_drag = for_drag )
 
     for k in ( 'timeValue', ):
       props_dict[ k ] = getattr( self, k )
@@ -672,19 +761,26 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-    if 'scale_mode' in kwargs:
-      kwargs[ 'replot' ] = True
+    if self:
+      if 'scale_mode' in kwargs:
+        kwargs[ 'replot' ] = True
 
-    kwargs = self._UpdateStateValues( **kwargs )
-    redraw = kwargs.get( 'redraw', False )
-    replot = kwargs.get( 'replot', False )
+      kwargs = self._UpdateStateValues( **kwargs )
+      redraw = kwargs.get( 'redraw', False )
+      replot = kwargs.get( 'replot', False )
 
-    if replot:
-      self._UpdateDataSetValues()
-      self._UpdatePlot()
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug(
+            '%s: redraw=%s, replot=%s',
+	    self.GetTitle(), str( redraw ), str( replot )
+	    )
 
-    elif redraw:
-      self.canvas.draw()
+      if replot:
+        self._UpdateDataSetValues()
+        self._UpdatePlot()
+
+      elif redraw:
+        self.canvas.draw()
   #end UpdateState
 
 

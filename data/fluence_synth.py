@@ -2,6 +2,10 @@
 #------------------------------------------------------------------------
 #	NAME:		fluence_synth.py				-
 #	HISTORY:							-
+#		2018-03-02	leerw@ornl.gov				-
+#	  Fixed naming bug when dealing with multiple 'binned' groups.
+#		2018-02-23	leerw@ornl.gov				-
+#	  Handling STATE_0001 by setting dt = 1.
 #		2017-05-13	leerw@ornl.gov				-
 #	  No longer creating 'binned_total' and 'total' datasets.
 #		2017-04-25	leerw@ornl.gov				-
@@ -34,7 +38,8 @@ DEF_vessel_outer_ring_cm = 241.70
 TALLY_CORE_DS_NAMES = (
     'description',
     'mesh_r', 'mesh_stat', 'mesh_theta', 'mesh_z',
-    'multiplier_descs', 'multiplier_names', 'volumes'
+    'multiplier_descs', 'multiplier_names',
+    'volumes'
     )
 
 VESSEL_GEOM_DS_NAMES = (
@@ -85,6 +90,9 @@ class FluenceSynthesizer( object ):
 """
     mpact_fp = h5py.File( mpact_path, 'r' )
     shift_fp = h5py.File( shift_path, 'r' )
+
+    if not output_path.endswith( '.h5' ):
+      output_path += '.h5'
     out_fp = h5py.File( output_path, 'w' )
 
     try:
@@ -114,15 +122,14 @@ class FluenceSynthesizer( object ):
           'STATE_0001/vessel_tally not found in "%s"' % shift_fp.filename
 
 #		-- Shift STATE_0001/vessel_tally/{binned,total}
-      binned_data = total_data = None
-      if shift_tally_grp is not None:
-        dset = shift_tally_grp.get( 'binned' )
-	if dset is not None:
-          binned_data = np.sum( np.array( dset ), axis = 0 )
-        dset = shift_tally_grp.get( 'total' )
-	if dset is not None:
-          total_data = np.array( dset )
-      #end if shift_tally_grp
+#      binned_data = total_data = None
+#      dset = shift_tally_grp.get( 'binned' )
+#      if dset is not None:
+#        binned_data = np.sum( np.array( dset ), axis = 0 )
+      total_data = None
+      dset = shift_tally_grp.get( 'total' )
+      if dset is not None:
+        total_data = np.array( dset )
 
       assert total_data is not None, \
           'STATE_0001/vessel_tally/total not found in "%s"' % shift_fp.filename
@@ -134,6 +141,8 @@ class FluenceSynthesizer( object ):
       assert dset is not None, \
           'STATE_0001/vessel_tally/mesh_r not found in "%s"' % shift_fp.filename
 
+      #xxxx use correct barrel and liner values
+      #pad_inner_radius, pad_out_radius
       r_data = np.array( dset )
       water_st_ndx = min(
           DataUtils.FindListIndex( r_data, DEF_barrel_outer_cm ) + 1,
@@ -169,15 +178,20 @@ class FluenceSynthesizer( object ):
         if name in shift_core_grp:
 	  dset = out_talley_grp.\
 	      create_dataset( name, data = shift_core_grp.get( name ) )
+	#else if in STATE_0001
       #end for name
 
 #		-- Initialize
 #		--
       prev_exposure_secs = exposure_secs
-      accum_binned_fluence_data = \
-          np.zeros( total_data.shape, dtype = np.float64 )
-      accum_binned_fluence_var_data = \
-          np.zeros( total_data.shape, dtype = np.float64 )
+
+      accum_binned_fluence_datas = []
+      accum_binned_fluence_var_datas = []
+
+#      accum_binned_fluence_data = \
+#          np.zeros( total_data.shape, dtype = np.float64 )
+#      accum_binned_fluence_var_data = \
+#          np.zeros( total_data.shape, dtype = np.float64 )
       accum_fluence_data = np.zeros( total_data.shape, dtype = np.float64 )
       accum_fluence_var_data = np.zeros( total_data.shape, dtype = np.float64 )
 
@@ -191,6 +205,7 @@ class FluenceSynthesizer( object ):
           state_ndx = -1
 
         else:
+	  print >> sys.stderr, '[FluenceSynthesizer]', state_name
           out_st_grp = out_fp.create_group( state_name )
 
 	  exposure_secs = None
@@ -210,9 +225,12 @@ class FluenceSynthesizer( object ):
 
 	  out_tally_grp = out_st_grp.create_group( 'vessel_tally' )
 
-	  binned_fluence_incr = fluence_incr = \
-	  binned_fluence_var_incr = fluence_var_incr = \
-	  None
+#	  binned_fluence_incr = fluence_incr = \
+#	  binned_fluence_var_incr = fluence_var_incr = \
+#	  None
+	  fluence_incr = fluence_var_incr = None
+	  binned_fluence_incrs = []
+	  binned_fluence_var_incrs = []
 
           tally_name = state_name + '/vessel_tally'
 	  shift_tally_grp = shift_fp.get( tally_name )
@@ -222,26 +240,46 @@ class FluenceSynthesizer( object ):
           #out_st.copy( shift_st, 'vessel_tally', 'vessel_tally' )
           for name in shift_tally_grp:
 	    dt = exposure_secs - prev_exposure_secs
+	    if dt == 0.0 and state_ndx == 1:
+	      dt = 1.0
 	    if name == 'binned':
 	      dset = shift_tally_grp.get( name )
-	      binned_data = np.sum( np.array( dset ), axis = 0 )
-	      exec_str = 'binned_data' + water_range_expr + ' = 0.0'
-	      exec( exec_str, {}, { 'binned_data': binned_data } )
-	      #out_tally_grp.create_dataset( 'binned_total', data = binned_data )
+	      dset_array = np.array( dset )
 
-	      binned_fluence_incr = binned_data * dt
-	      binned_fluence_var_incr = \
-	          (binned_fluence_incr * dt * binned_data)
+#	      binned_data = np.sum( dset_array, axis = 0 )
+#	      exec_str = 'binned_data' + water_range_expr + ' = 0.0'
+#	      exec( exec_str, {}, { 'binned_data': binned_data } )
+#
+#	      binned_fluence_incr = binned_data * dt
+#	      binned_fluence_var_incr = \
+#	          (binned_fluence_incr * dt * binned_data)
+#
+#	      out_tally_grp.create_dataset( name, data = dset_array )
+
+#					-- Process each group
+	      for gndx in xrange( dset_array.shape[ 0 ] ):
+	        binned_arr = dset_array[ gndx ]
+	        exec_str = 'binned_arr' + water_range_expr + ' = 0.0'
+	        exec( exec_str, {}, { 'binned_arr': binned_arr } )
+		cur_incr = binned_arr * dt
+		binned_fluence_incrs.append( cur_incr )
+	        binned_fluence_var_incrs.append( cur_incr * dt * binned_arr )
+
+		cur_name = \
+		    name  if dset_array.shape[ 0 ] == 1 else \
+		    '{0:s}_{1:02d}'.format( name, gndx )
+	        out_tally_grp.create_dataset( cur_name, data = binned_arr )
+	      #end for gndx
 
 	    elif name == 'total':
 	      dset = shift_tally_grp.get( name )
-	      total_data = np.array( dset )
-	      exec_str = 'total_data' + water_range_expr + ' = 0.0'
-	      exec( exec_str, {}, { 'total_data': total_data } )
-              #out_tally_grp.create_dataset( 'total', data = total_data )
+	      total_arr = np.array( dset )
+	      exec_str = 'total_arr' + water_range_expr + ' = 0.0'
+	      exec( exec_str, {}, { 'total_arr': total_arr } )
 
-	      fluence_incr = total_data * dt
-	      fluence_var_incr = (fluence_incr * dt * total_data)
+	      fluence_incr = total_arr * dt
+	      fluence_var_incr = (fluence_incr * dt * total_arr)
+	      out_tally_grp.create_dataset( name, data = total_arr )
 
 	    elif name not in TALLY_CORE_DS_NAMES:
 	      dset = out_tally_grp.\
@@ -258,7 +296,8 @@ class FluenceSynthesizer( object ):
             out_tally_grp.create_dataset( 'fluence', data = accum_fluence_data )
 
 	    accum_fluence_var_data += fluence_var_incr
-	    z_places = np.argwhere( fluence_incr == 0.0 ).transpose().tolist()
+##	    z_places = np.argwhere( fluence_incr == 0.0 ).transpose().tolist()
+	    z_places = np.where( fluence_incr == 0.0 )
 	    fluence_re = np.sqrt( accum_fluence_var_data ) / fluence_incr;
 	    fluence_re[ z_places ] = 0.0
             out_tally_grp.\
@@ -267,25 +306,57 @@ class FluenceSynthesizer( object ):
 	    prev_exposure_secs = exposure_secs
 	    prev_shift_tally_grp = shift_tally_grp
 
-	    if binned_fluence_incr is not None:
-	      accum_binned_fluence_data += binned_fluence_incr
-              out_tally_grp.create_dataset(
-	          'binned_fluence',
-		  data = accum_binned_fluence_data
-		  )
+#	    if binned_fluence_incr is not None:
+#	      accum_binned_fluence_data += binned_fluence_incr
+#              out_tally_grp.create_dataset(
+#	          'binned_fluence',
+#		  data = accum_binned_fluence_data
+#		  )
+#
+#	      accum_binned_fluence_var_data += binned_fluence_var_incr
+#	      z_places = np.where( binned_fluence_incr == 0.0 )
+#	      fluence_re = \
+#	          np.sqrt( accum_binned_fluence_var_data ) / \
+#		  binned_fluence_incr;
+#	      fluence_re[ z_places ] = 0.0
+#              out_tally_grp.create_dataset(
+#	          'binned_fluence_rel_error',
+#		  data = fluence_re
+#		  )
+#	    #end if binned_fluence_incr is not None
 
-	      accum_binned_fluence_var_data += binned_fluence_var_incr
-	      z_places = np.argwhere( binned_fluence_incr == 0.0 ).\
-	          transpose().tolist()
-	      fluence_re = \
-	          np.sqrt( accum_binned_fluence_var_data ) / \
-		  binned_fluence_incr;
-	      fluence_re[ z_places ] = 0.0
-              out_tally_grp.create_dataset(
-	          'binned_fluence_rel_error',
-		  data = fluence_re
-		  )
-	  #end if binned_fluence_incr is not None
+	    if binned_fluence_incrs:
+	      for gndx in xrange( len( binned_fluence_incrs ) ):
+		cur_incrs = binned_fluence_incrs[ gndx ]
+		cur_var_incrs = binned_fluence_var_incrs[ gndx ]
+	        if gndx >= len( accum_binned_fluence_datas ):
+		  accum_binned_fluence_datas.append( np.copy( cur_incrs ) )
+		  accum_binned_fluence_var_datas.\
+		      append( np.copy( cur_var_incrs ) )
+		else:
+	          accum_binned_fluence_datas[ gndx ] += cur_incrs
+	          accum_binned_fluence_var_datas[ gndx ] += cur_var_incrs
+	        #end else if gndx < len( accum_binned_fluence_datas )
+
+	        z_places = np.where( cur_incrs == 0.0 )
+		fluence_re = \
+		    np.sqrt( accum_binned_fluence_var_datas[ gndx ] ) / \
+		    cur_incrs
+	        fluence_re[ z_places ] = 0.0
+		name_suffix = \
+		    ''  if len( binned_fluence_incrs ) == 1 else \
+		    '_{0:02d}'.format( gndx )
+                out_tally_grp.create_dataset(
+	            'binned_fluence_rel_error' + name_suffix,
+		    data = fluence_re
+		    )
+
+                out_tally_grp.create_dataset(
+	            'binned_fluence' + name_suffix,
+		    data = accum_binned_fluence_datas[ gndx ]
+		    )
+	      #end for gndx
+	    #end if binned_fluence_incrs
 
 	  finally:
 	    np.seterr( **err_save )
@@ -341,8 +412,8 @@ class FluenceSynthesizer( object ):
           )
       args = parser.parse_args()
 
-      obj = FluenceSynthesizer()
-      obj( args.mpact_file, args.shift_file, args.output_file )
+      #obj = FluenceSynthesizer()
+      FluenceSynthesizer()( args.mpact_file, args.shift_file, args.output_file )
 
     except Exception, ex:
       msg = str( ex )

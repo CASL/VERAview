@@ -88,7 +88,7 @@ parameters ( cur_step, total_steps ).
 """
     if listeners:
       for l in listeners:
-        if l and hasattr( l, '__callable__' ) and l not in self.listeners:
+        if l and hasattr( l, '__call__' ) and l not in self.listeners:
 	  self.listeners.append( l )
       #end for
     #end if
@@ -122,6 +122,14 @@ parameters ( cur_step, total_steps ).
 	  assume_sorted = True, axis = 2,
 	  bounds_error = False,
 	  kind = 'quadratic'
+	  )
+
+    elif mode.startswith( 'nearest' ):
+      f = interpolate.interp1d(
+          src_mesh_centers, src_data,
+	  assume_sorted = True, axis = 2,
+	  bounds_error = False,
+	  kind = 'nearest'
 	  )
 
     else:

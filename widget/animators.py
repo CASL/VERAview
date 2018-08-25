@@ -3,6 +3,20 @@
 #------------------------------------------------------------------------
 #	NAME:		animators.py				        -
 #	HISTORY:							-
+#		2018-08-16	leerw@ornl.gov				-
+#	  Working around wxPython ProgressDialog and GenericProgressDialog
+#	  bugginess under Windows.
+#		2018-06-19	leerw@ornl.gov				-
+#	  Fixed logic for canceling/aborting animation.
+#		2018-05-05	leerw@ornl.gov				-
+#	  Created BaseAxialAnimator, with {Detector,Pin,SubPin,Tally}Xxx
+#	  extensions.
+#		2018-02-01	leerw@ornl.gov				-
+#	  Sorting all glob.glob() results. !!
+#		2017-10-10	leerw@ornl.gov				-
+#	  Axial animations from the bottom up.
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-06-09	leerw@ornl.gov				-
 #	  New widget-synchronous scheme.
 #		2017-02-17	leerw@ornl.gov				-
@@ -14,7 +28,7 @@
 #		2015-08-31	leerw@ornl.gov				-
 #		2015-08-29	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import glob, logging, os, platform, shutil, subprocess, sys, \
+import glob, inspect, logging, os, platform, shutil, six, subprocess, sys, \
     time, tempfile, threading, zipfile
 #import traceback
 #import pdb
@@ -99,7 +113,7 @@ class Animator( object ):
     """
 """
     zfp = zipfile.ZipFile( file_path + '.images.zip', 'w', zipfile.ZIP_DEFLATED )
-    fnames = glob.glob( os.path.join( temp_dir, '*.png' ) )
+    fnames = sorted( glob.glob( os.path.join( temp_dir, '*.png' ) ) )
     try:
       for f in sorted( fnames ):
 #      # subprocess.call() fails on Windows
@@ -117,9 +131,10 @@ class Animator( object ):
     finally:
       zfp.close()
 
+#        [ 'gifsicle', '--disposal=background', '--delay=50', '--loop' ]
     args = \
-        [ 'gifsicle', '--disposal=background', '--delay=50', '--loop' ] + \
-        glob.glob( os.path.join( temp_dir, '*.gif' ) ) + \
+        [ 'gifsicle', '--disposal=background', '--delay=10' ] + \
+        sorted( glob.glob( os.path.join( temp_dir, '*.gif' ) ) ) + \
 	[ '-o', file_path ]
     proc = subprocess.Popen( args )
     proc.wait()
@@ -143,27 +158,32 @@ class Animator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		Animator._CreateStepImage()			-
   #----------------------------------------------------------------------
-  def _CreateStepImage( self, dialog, fpath ):
+  def _CreateStepImage( self, dialog, fpath, show_selections = False ):
     """Must be called on the UI thread.
 """
     pct = int( self.nextStep * 100.0 / (self.totalSteps + 1) )
     msg = 'Creating frame %d/%d' % ( (self.nextStep + 1), self.totalSteps )
     self.logger.info( msg )
 
-    dialog.Update( pct, msg )
+    #cancelled, skipped = dialog.Update( pct, msg )
+    cancelled = dialog.WasCancelled()
+    pair = dialog.Update( pct, msg )
+    six.print_(
+        '[Animator._CreateStepImage] cancelled={0}'.format( cancelled ),
+	file = sys.stderr
+	)
     dialog.Fit()
-    if not dialog.WasCancelled():
+
+    if not cancelled:
       if self.callback:
         self.callback( self.nextStep + 1, self.totalSteps, msg )
 
       self._DoStepUpdate()
       while self.widget.IsBusy():
 	self.logger.debug( 'widget.IsBusy wait' )
-# wx.Yield() seems necessary for raster widgets
-        #time.sleep( 0.5 )
         wx.Yield()
 
-      self.widget.CreatePrintImage( fpath )
+      self.widget.CreatePrintImage( fpath, hilite = show_selections )
 
       self.stepLock.acquire()
       try:
@@ -218,24 +238,31 @@ class Animator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		Animator.Run()                           	-
   #----------------------------------------------------------------------
-  def Run( self, file_path ):
+  def Run( self, file_path, show_selections = False ):
     """
 Must be called from the UI event thread.
 Creates a worker thread with the _RunBegin() and _Runend() methods.
 @param  file_path	path to gif file to create
 """
     
-    dialog = wx.ProgressDialog(
-	'Save Animated Image',
-	'Initializing...',
-	style = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT
-        )
+    if Config.IsWindows():
+      dialog = wx.GenericProgressDialog(
+	  'Save Animated Image',
+	  'Initializing...',
+	  style = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT
+          )
+    else:
+      dialog = wx.ProgressDialog(
+	  'Save Animated Image',
+	  'Initializing...',
+	  style = wx.PD_APP_MODAL | wx.PD_AUTO_HIDE | wx.PD_CAN_ABORT
+          )
     dialog.Show()
 
     wxlibdr.startWorker(
 	self._RunEnd,
 	self._RunBackground,
-	wargs = [ dialog, file_path ]
+	wargs = [ dialog, file_path, show_selections ]
         )
   #end Run
 
@@ -243,7 +270,7 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
   #----------------------------------------------------------------------
   #	METHOD:		Animator._RunBackground()			-
   #----------------------------------------------------------------------
-  def _RunBackground( self, dialog, file_path ):
+  def _RunBackground( self, dialog, file_path, show_selections ):
     """
 """
     temp_dir = tempfile.mkdtemp( '.animation' )
@@ -251,23 +278,29 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
 
     try:
       self.nextStep = 0
-      while self.nextStep < self.totalSteps:
+      while not dialog.WasCancelled() and self.nextStep < self.totalSteps:
         wait_for_step = self.nextStep + 1
 	fpath = os.path.join( temp_dir, '{0:04d}.png'.format( self.nextStep ) )
-	wx.CallAfter( self._CreateStepImage, dialog, fpath )
+	wx.CallAfter( self._CreateStepImage, dialog, fpath, show_selections )
 
 	blocking = True
 	while blocking:
-	  time.sleep( 0.1 )
+	  time.sleep( 0.25 )  # 0.1
 	  self.stepLock.acquire()
 	  try:
 	    blocking = self.nextStep < wait_for_step
 	  finally:
 	    self.stepLock.release()
 	#end while blocking
+
+        six.print_(
+	    '[Animator._RunBackground] wasCancelled=%s',
+	    str( dialog.WasCancelled() ),
+	    file = sys.stderr
+	    )
       #end while stepping
 
-      if self.nextStep > self.totalSteps:
+      if dialog.WasCancelled() or self.nextStep > self.totalSteps:
         status[ 'messages' ] = [ 'Aborted' ]
       else:
         wx.CallAfter( dialog.Pulse, 'Creating animated GIF' )
@@ -339,11 +372,12 @@ Called on the worker thread.
 @param  w               widget on which to act
 @return			True if there are further steps, False if finished
 """
-    axial_level = self.totalSteps - 1 - self.nextStep
-    axial_value = self.dmgr.GetAxialValue2( None, all_ndx = axial_level )
+    #axial_level = self.totalSteps - 1 - self.nextStep
+    axial_level = self.nextStep
+    axial_value = self.dmgr.GetAxialValue( None, all_ndx = axial_level )
     self.widget.UpdateState( axial_value = axial_value )
 
-    while self.widget.axialValue[ 0 ] != axial_value[ 0 ]:
+    while self.widget.axialValue.cm != axial_value.cm:
       time.sleep( 0.1 )
   #end _DoStepUpdate
 
@@ -374,9 +408,91 @@ Called on the worker thread.
 
 
 #------------------------------------------------------------------------
+#	CLASS:		BaseAxialAnimator				-
+#------------------------------------------------------------------------
+class BaseAxialAnimator( Animator ):
+  """Animator interface
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseAxialAnimator.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, widget_in, axial_name, axial_ndx_name, **kwargs ):
+    """Subclasses must set self.restoreValue and self.totalSteps.
+@param  widget_in	Widget from which to get images, cannot be None
+@param  axial_name	name of axial mesh ('all, 'detector',
+			'fixed_detector', 'pin'/'core', 'subpin', 'tally')
+@param  axial_ndx_name	index name ('cm'/'value', 'core_ndx'/'pin_ndx', etc.)
+@param  centers		True to use mesh centers, False for mesh values
+@param  kwargs
+  'callback'		optional reference to callback callable on progress
+  			that will be called on the UI thread
+"""
+    self.axialName = axial_name
+    self.indexName = axial_ndx_name
+
+    # Why does super() fail here, confused about __init__() signature ???
+    #super( Animator, self ).__init__( widget_in, **kwargs )
+    Animator.__init__( self, widget_in, **kwargs )
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseAxialAnimator._DoStepUpdate()		-
+  #----------------------------------------------------------------------
+  def _DoStepUpdate( self ):
+    """Called on the UI thread.
+"""
+    #axial_level = self.totalSteps - 1 - self.nextStep
+    axial_level = self.nextStep
+    ax_args = { self.indexName: axial_level }
+    axial_value = self.dmgr.GetAxialValue( None, **ax_args )
+    self.widget.UpdateState( axial_value = axial_value )
+
+    self.logger.debug(
+        'nextStep=%d/%d, axial_value=%s',
+	self.nextStep, self.totalSteps, str( axial_value )
+	)
+    while self.widget.axialValue.cm != axial_value.cm:
+      self.logger.debug( 'value wait' )
+      time.sleep( 0.1 )
+  #end _DoStepUpdate
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseAxialAnimator._GetInitValues()		-
+  #----------------------------------------------------------------------
+  def _GetInitValues( self ):
+    """Subclasses must override.
+@return			( total_steps, restore_value )
+"""
+    mesh_values = \
+        self.dmgr.GetAxialMeshCenters2( self.curDataSet, self.axialName )
+    return  len( mesh_values ), self.state.axialValue
+  #end _GetInitValues
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		BaseAxialAnimator._RestoreState()		-
+  #----------------------------------------------------------------------
+  def _RestoreState( self, value ):
+    """Subclasses must override, called in the UI thread.
+@param  value		will always be self.restoreValue
+"""
+    self.widget.UpdateState( axial_value = value )
+  #end _RestoreState
+
+#end BaseAxialAnimator
+
+
+#------------------------------------------------------------------------
 #	CLASS:		DetectorAxialAnimator				-
 #------------------------------------------------------------------------
-class DetectorAxialAnimator( Animator ):
+class DetectorAxialAnimator( BaseAxialAnimator ):
   """Animator interface
 """
 
@@ -388,13 +504,9 @@ class DetectorAxialAnimator( Animator ):
   #	METHOD:		DetectorAxialAnimator.__init__()		-
   #----------------------------------------------------------------------
   def __init__( self, widget_in, **kwargs ):
-    super( DetectorAxialAnimator, self ).__init__( widget_in, **kwargs )
-
-    self.restoreValue = self.state.axialValue
-
-#    mesh_values = self.dmgr.GetDetectorMesh( self.curDataSet )
-    mesh_values = self.dmgr.GetAxialMesh2( self.curDataSet, 'detector' )
-    self.totalSteps = len( mesh_values )
+    super( DetectorAxialAnimator, self ).__init__(
+        widget_in, 'detector', 'detector_ndx', **kwargs
+	)
   #end __init__
 
 
@@ -406,11 +518,12 @@ class DetectorAxialAnimator( Animator ):
 Called on the worker thread.
 @return			True if there are further steps, False if finished
 """
-    axial_level = self.totalSteps - 1 - self.nextStep
-    axial_value = self.dmgr.GetAxialValue2( None, detector_ndx = axial_level )
+    #axial_level = self.totalSteps - 1 - self.nextStep
+    axial_level = self.nextStep
+    axial_value = self.dmgr.GetAxialValue( None, detector_ndx = axial_level )
     self.widget.UpdateState( axial_value = axial_value )
 
-    while self.widget.axialValue[ 0 ] != axial_value[ 0 ]:
+    while self.widget.axialValue.cm != axial_value.cm:
       time.sleep( 0.1 )
   #end _DoNextStep
 
@@ -426,24 +539,13 @@ Called on the worker thread.
     return  len( mesh_values ), self.state.axialValue
   #end _GetInitValues
 
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DetectorAxialAnimator._RestoreState()		-
-  #----------------------------------------------------------------------
-  def _RestoreState( self, value ):
-    """Subclasses must override, called in the UI thread.
-@param  value		will always be self.restoreValue
-"""
-    self.widget.UpdateState( axial_value = value )
-  #end _RestoreState
-
 #end DetectorAxialAnimator
 
 
 #------------------------------------------------------------------------
 #	CLASS:		PinAxialAnimator				-
 #------------------------------------------------------------------------
-class PinAxialAnimator( Animator ):
+class PinAxialAnimator( BaseAxialAnimator ):
   """Animator interface
 """
 
@@ -452,46 +554,13 @@ class PinAxialAnimator( Animator ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		PinAxialAnimator._DoStepUpdate()		-
+  #	METHOD:		PinAxialAnimator.__init__()			-
   #----------------------------------------------------------------------
-  def _DoStepUpdate( self ):
-    """Called on the UI thread.
-"""
-    axial_level = self.totalSteps - 1 - self.nextStep
-    axial_value = self.dmgr.GetAxialValue2( None, pin_ndx = axial_level )
-    self.widget.UpdateState( axial_value = axial_value )
-
-    self.logger.debug(
-        'nextStep=%d/%d, axial_value=%s',
-	self.nextStep, self.totalSteps, str( axial_value )
+  def __init__( self, widget_in, **kwargs ):
+    super( PinAxialAnimator, self ).__init__(
+        widget_in, 'pin', 'pin_ndx', **kwargs
 	)
-    while self.widget.axialValue[ 0 ] != axial_value[ 0 ]:
-      self.logger.debug( 'value wait' )
-      time.sleep( 0.1 )
-  #end _DoStepUpdate
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		PinAxialAnimator._GetInitValues()		-
-  #----------------------------------------------------------------------
-  def _GetInitValues( self ):
-    """Subclasses must override.
-@return			( total_steps, restore_value )
-"""
-    mesh_values = self.dmgr.GetAxialMeshCenters2( self.curDataSet, 'pin' )
-    return  len( mesh_values ), self.state.axialValue
-  #end _GetInitValues
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		PinAxialAnimator._RestoreState()		-
-  #----------------------------------------------------------------------
-  def _RestoreState( self, value ):
-    """Subclasses must override, called in the UI thread.
-@param  value		will always be self.restoreValue
-"""
-    self.widget.UpdateState( axial_value = value )
-  #end _RestoreState
+  #end __init__
 
 #end PinAxialAnimator
 
@@ -550,3 +619,49 @@ Called on the worker thread.
   #end _RestoreState
 
 #end StatePointAnimator
+
+
+#------------------------------------------------------------------------
+#	CLASS:		SubPinAxialAnimator				-
+#------------------------------------------------------------------------
+class SubPinAxialAnimator( BaseAxialAnimator ):
+  """Animator interface
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SubPinAxialAnimator.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, widget_in, **kwargs ):
+    super( SubPinAxialAnimator, self ).__init__(
+        widget_in, 'subpin', 'subpin_ndx', **kwargs
+	)
+  #end __init__
+
+#end SubPinAxialAnimator
+
+
+#------------------------------------------------------------------------
+#	CLASS:		TallyAxialAnimator				-
+#------------------------------------------------------------------------
+class TallyAxialAnimator( BaseAxialAnimator ):
+  """Animator interface
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		TallyAxialAnimator.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, widget_in, **kwargs ):
+    super( TallyAxialAnimator, self ).__init__(
+        widget_in, 'tally', 'tally_ndx', **kwargs
+	)
+  #end __init__
+
+#end TallyAxialAnimator

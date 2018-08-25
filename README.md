@@ -10,16 +10,26 @@ are expected.  However, the snapshots in the repository represent comparatively
 stable versions intended for use.  Bugs and feature requests should be reported
 to
 
-    veraview-bugs@casl-dev.ornl.gov
+    casl-vri-infrastructure@casl.gov
 
 
 ## Download Links
 
-Installers are available for download as follows:
+There are two primary ways to access and install VERAView: running an
+application installer, and updating from the repository.  Installers for the
+latest stable (relatively speaking) version are available for download as
+follows:
 
-* [Windows application installer](https://newton.ornl.gov/casl/VERAView-2.1b1-Windows-x86_64.exe)
-* [Mac OS X application disk image](https://newton.ornl.gov/casl/VERAView-2.1b1-MacOSX.dmg)
-* [Linux application installer script](https://newton.ornl.gov/casl/VERAView-2.1b1-Linux-x86_64.sh)
+* [Windows application installer](https://newton.ornl.gov/casl/VERAView-2.3.0-Windows-x86_64.exe)
+* [Mac OS X application disk image](https://newton.ornl.gov/casl/VERAView-2.3.0-MacOSX.dmg)
+* [Linux application installer script](https://newton.ornl.gov/casl/VERAView-2.3.0-Linux-x86_64.sh)
+
+Note installers will not be updated as frequently as the repository.  So, if
+you want to track development versions, you'll need to install from the
+repository.
+
+How to get VERAView from the repository and set it up for execution are
+described below.
 
 
 ## Design Philosophy
@@ -74,374 +84,281 @@ the form of simplified pressurized water reactor (PWR) geometry.
   integrated by users.
 
 * VERAView is intended to be executed locally on the user’s personal computer,
-  and is supported on Windows, Mac OSX, and Linux.
+  and is supported on Windows, Mac OS X, and Linux.
 
 
 ## System Requirements
 
 VERAView expects a Python-2.7 runtime environment with packages h5py,
-matplotlib, mayavi, numpy, pillow, scipy, and wxPython.
-The
-[Anaconda2](https://www.continuum.io/downloads) and
+matplotlib, mayavi, numpy, pillow, scipy, and wxPython.  Although it is
+possible to install each of these packages in a custom Python environment,
+VERAView is developed and tested with the Anaconda Python-2 environment.  Our
+experience is that Anaconda provides a consistent environment on the three
+platforms, thus Anaconda is our recommended runtime environment, and we only
+provide instructions for it.  The
+[Anaconda2](https://www.continuum.io/downloads) or
 [Miniconda2](https://conda.io/miniconda.html)
-environments provide all the necessary requirements as pre-built packages.  Our
-experience is that Anaconda2 and Miniconda2 run on all three platforms
-(Windows, Mac OSX, Linux).  Consequently, VERAView is developed and tested with
-Anaconda2.  It is very possible to run VERAView with another Python environment
-such as Canopy or an environment built with Linux distribution packages.
-However, we only provide instructions for Anaconda2 or Miniconda2.
+environment provides all the necessary requirements as pre-built packages,
+but packages required by VERAView must be installed.
+
+
+## Installation to an Existing Anaconda2 or Miniconda2 Environment
+
+You must have the following packages required by VERAView (minimum version
+numbers in parens):
+
+* numpy (1.9.3)
+* hp5y (2.5.0)
+* scipy (0.16.0)
+* matplotlib (1.4.3)
+* pillow
+* wxPython (3.0)
+* mayavi (4.4.0)
+
+Use the Conda command-line package manager or the Anaconda Navigator to install
+any missing packages.  For Windows, `conda.exe` is in the `scripts\` subfolder
+under your Anaconda2 or Miniconda2 installation.  For Mac and Linux it is the
+`conda` script in the `bin/` subdir.  The following command illustrates
+installation of all required packages via the command line (Command Prompt for Windows)
+
+    conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
+
+If you have installed Anaconda2 or Miniconda2 to a custom location, it might be
+necessary to edit the VERAView launcher script.  This is described in
+platform-specific sections below.
 
 
 ## Windows Installation
 
-If you have already installed Anaconda2 or Miniconda2, skip to the section
-below titled "Install Anaconda2/Miniconda2 Packages".
+If you have already installed Anaconda2 or Miniconda2 and want to use that
+Python environment, refer to the *Installation to an Existing Anaconda2 or
+Miniconda2 Environment* section above.  Otherwise, you can choose to use the
+single-click application installer or download a pre-built Miniconda2
+environment containing all packages needed by VERAView.
 
-If you have not already installed a Python environment, you have a choice of an
-application installer installer or manual installation of the required Python
-components followed by clicking the green *Clone or download* button above.
 
-
-### Application Installer
+### Windows Application Installer
 
 A Windows application installer that will install VERAView and the required
 Python environment (Continuum's Miniconda2) is available
-[here](https://newton.ornl.gov/casl/VERAView-2.1b1-Windows-x86_64.exe).
-Note this file includes everything you need.  The installer does not
-require elevated privileges and will install by default in a `VERAView`
-subfolder in your home folder.
+[here](https://newton.ornl.gov/casl/VERAView-2.3.0-Windows-x86_64.exe).
+The installer does not require elevated privileges and will install by default
+in a `VERAView` subfolder in your home folder.
 
-Note that with this option no other steps are required to install VERAView.
-After completing the installation, you launch VERAView by executing (i.e.,
+With this option no other steps are required to install VERAView.  After
+completing the installation, you launch VERAView by executing (i.e.,
 double-clicking in File Explorer or Windows Explorer) the file
-`vvconda.run.exe` in the `VERAView` folder.
+`vvconda.run.exe` in the `VERAView` folder.  Also, Windows 10 users should see
+a *CASL VERAView* Start menu folder containing a *VERAView* launcher shortcut.
 
 
-### Manual Installation
+### Windows Installation from the Repository
 
-#### Install Miniconda2
-
-To manually install the required Python environment, go to the Continuum
-Miniconda [download page](https://conda.io/miniconda.html) and click the
-*64-bit (exe installer)* link in the *Windows* column and *Python 2.7* row.
-The link should be something like the following:
-
-    https://repo.continuum.io/miniconda/Miniconda2-latest-Windows-x86_64.exe
-
-After downloading the file, execute it to install the Miniconda2 environment.
-If possible, accept the defaults when prompted, including:
-
-* Install for current user, not all users
-* Install location
-
-The install location should be `Miniconda2` or
-`AppData\Local\Continuum\Miniconda2` under your home folder.  *Note, if you
-choose a different install location, you will have to update the*
-`vvconda.run.bat` *file as noted below.*
+If you prefer not to use the application installer or plan on frequently
+updating VERAView from the repository, you will save time by using an existing
+Anaconda2 or Miniconda2 environment or installing one.
 
 
-#### Install Anaconda2/Miniconda2 Packages
+#### Windows Pre-Built Miniconda2 Environment
 
-You must install the following packages needed by VERAView:
-
-* numpy (1.9.3)
-* hp5y (2.5.0)
-* scipy (0.16.0)
-* matplotlib (1.4.3)
-* pillow
-* wxPython (3.0)
-* mayavi (4.4.0)
-
-If during the install you chose to allow Anaconda2 or Miniconda2 to be your
-default Python, the `conda.exe` package manager should be in your path.
-Otherwise, you must add the `scripts` folder (.e.g,
-`%userprofile%\Miniconda2\scripts`) to your path.  Execute the following from a
-Command Prompt:
-
-    > conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
-
-Alternatively, the VERAView repo includes the batch file
-`files/conda-install-packages.bat` which will run this command, assuming
-Anaconda2 or Miniconda2 is installed in the default location.  Download the
-file by clicking the *files* folder in the file list above.  Execute the
-command from a Command Prompt.
-
-    > conda-install-packages.bat
+A zip file containing the Miniconda2 environment with packages required by
+VERAView can be downloaded from
+[here](https://newton.ornl.gov/casl/Miniconda2-win64.zip).  Extract it in your
+home folder (usually `c:\Users\username` but determined by the `%userprofile%`
+environment variable).  This should result in a `Miniconda2\` subfolder in your
+home folder.  If you extract it to a location other than your home folder, it
+will be necessary to edit the launch script as described in *Launch VERAView*
+below.
 
 
-#### Install VERAView
+#### Clone the Repository
 
-You must follow a manual Python environment install with a download of the
-VERAView Python source files.  Click the green *Clone or download* button above
-and choose *Download ZIP*.  Extract the downloaded file in your home folder to
-create a `VERAView` subdir.  (Note the zip file can be extracted anywhere
-permissions allow, but it will be convenient to keep it in your home folder.)
+Click the green *Clone or download* button above to see the `git` command
+that will clone the VERAView repostory.  This should be run in a Command Prompt
+window and will create a `VERAView\` subfolder in the current folder.
+
+Alternatively, download the zip file and extract it in a folder of choice,
+renaming the `VERAView-master` subfolder to `VERAView`.
 
 
 #### Launch VERAView
 
-A script is provided in the `VERAView` folder for launching VERAView,
-`vvconda.run.bat`.  If you installed Anaconda or Miniconda in a non-default
-location you will need to modify `vvconda.run.bat` to edit the first line
+A `vvconda.run.bat` script is provided in the `VERAView\` folder for launching
+VERAView.  If you installed Anaconda or Miniconda in a non-default location you
+will need to edit `vvconda.run.bat` to change the line
 
-    set CondaDir=%userprofile%\AppData\Local\Continuum\Miniconda2
+    set CondaDir=%VERAViewDir%Miniconda2
 
-to point to your Anaconda2 or Miniconda2 installation.  If you are using Canopy
-or an alternate environment, modify the script as needed to launch in your
-environment.
+to point to your Anaconda2 or Miniconda2 installation.
 
 
-## Mac Users
+## Mac OS X Installation
 
-If you have already installed Anaconda2 or Miniconda2, skip to the section
-below titled "Install Anaconda2/Miniconda2 Packages".
-
-If you have not already installed a Python environment, you have a choice of a
-VERAView Mac OS X application disk image or manual installation of the required
-Python components followed by clicking the green *Clone or download* button
-above.
+If you have already installed Anaconda2 or Miniconda2 and want to use that
+Python environment, refer to the *Installation to an Existing Anaconda2 or
+Miniconda2 Environment* section above.  Otherwise, you can choose to use an
+application disk image or download a pre-built Miniconda2 environment
+containing all packages required by VERAView.
 
 
-### Application Disk Image
+### Mac OS X Application Disk Image
 
-An application diskimage containing VERAView with the required Python
-environment (Continuum's Miniconda2) is available
-[here](https://newton.ornl.gov/casl/VERAView-2.1b1-MacOSX.dmg).
-Note this file includes everything you need.  Once the image is mounted,
-you may copy the `VERAView.app` file to `$HOME/Applications`, or if you are an
-administrator you may copy it to `/Applications.`
+An application disk image containing VERAView with the required Python
+environment is available
+[here](https://newton.ornl.gov/casl/VERAView-2.3.0-MacOSX.dmg).
+Once the image is mounted, you may copy the `VERAView.app` file to
+`$HOME/Applications`, or if you are an administrator you may copy it to
+`/Applications.`
 
-Note that with this option no other steps are required to install VERAView.
-After completing the installation, you launch VERAView by double-clicking
-`VERAView` under Applications in Finder or by executing the `VERAView` script
-under `Contents/MacOS` in the app installation directory.
-
-
-### Manual Installation
-
-#### Install Miniconda2
-
-To manually install the required Python environment, go to the Continuum
-Miniconda [download page](https://conda.io/miniconda.html) and click the
-*64-bit (bash installer)* link in the *Mac OS X* column and *Python 2.7* row.
-The link should be something like the following:
-
-    https://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh
-
-After downloading the file, execute it to install the Miniconda2 environment
-with
-
-    $ bash Miniconda2-latest-Linux-x86_64.sh
-
-If possible, accept the defaults when prompted, including:
-
-* Install for current user, not all users
-* Install location
+With this option no other steps are required to install VERAView.  After
+completing the installation, you launch VERAView by double-clicking `VERAView`
+under Applications in Finder or by executing the `VERAView` script under
+`VERAView.app/Contents/MacOS` in the applications directory.
 
 
-### Install Anaconda2/Miniconda2 Packages
+### Mac OS X Installation from the Repository
 
-You must install the following packages needed by VERAView:
-
-* numpy (1.9.3)
-* hp5y (2.5.0)
-* scipy (0.16.0)
-* matplotlib (1.4.3)
-* pillow
-* wxPython (3.0)
-* mayavi (4.4.0)
-
-If during the install you chose to allow Anaconda2 or Miniconda2 to be your
-default Python, the `conda` package manager should be in your path.  Otherwise,
-you must add the Anaconda2/Miniconda2 `bin` folder (.e.g, `~/miniconda2/bin`)
-to your path.  Execute the following from a bash shell:
-
-    $ conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0
-
-Alternatively, the VERAView repo includes the script file
-`files/conda-install-packages.sh` which will run this command, assuming
-Anaconda2 or Miniconda2 is installed in the default location.  Download the
-file by clicking the *files* folder in the file list above.  Execute the
-command from a bash shell.
-
-    $ bash files/conda-install-packages.sh
+If you prefer not to use the application disk image or plan on frequently
+updating VERAView from the repository, you will save time by using an existing
+Anaconda2 or Miniconda2 environment or installing one.
 
 
-#### Install VERAView
+#### Mac OS X Pre-Built Miniconda2 Environment
 
-You must follow a manual Python environment install with a download of the
-VERAView Python source files.  Click the green *Clone or download* button above
-and choose *Download ZIP*.  Extract the downloaded file in your home folder to
-create a `VERAView` subdir.  (Note the zip file can be extracted anywhere
-permissions allow, but it will be convenient to keep it in your home folder.)
+A gzipped tar file containing the Miniconda2 environment with packages required
+by VERAView can be downloaded from
+[here](https://newton.ornl.gov/casl/miniconda2-mac.tgz).  Extract it in your
+home directory (usually `/Users/username` but determined by the `$HOME`
+environment variable).  This should result in a `miniconda2/` subdir in your
+home directory.  If you extract it to a location other than your home
+directory, it will be necessary to edit the launch script as described in
+*Launch VERAView* below.
+
+
+#### Clone the Repository
+
+Click the green *Clone or download* button above to see the `git` command
+needed to clone from the repostory.  This should be run in a Bash shell
+and will create the `VERAView/` subdir in the current directory.
+
+Alternatively, download the zip file and extract it in a directory of choice,
+renaming the `VERAView-master` subdir to `VERAView`.
 
 
 #### Launch VERAView
 
-A script is provided in the `VERAView` folder for launching VERAView,
+A script is provided in the `VERAView/` subdir for launching VERAView,
 `vvconda.run.sh`.  If you installed Anaconda or Miniconda in a non-default
-location you will need to modify `vvconda.run.sh` to edit the first line
+location you will need to edit `vvconda.run.sh` to change the line
 
     CondaBinDir="${VERAViewDir}/miniconda2/bin"
 
-to point to your Anaconda2 or Miniconda2 installation.  If you are using Canopy
-or an alternate environment, modify the script as needed to launch in your
-environment.
+to point to your Anaconda2 or Miniconda2 installation.
 
 
-## Linux Users
+## Linux Installation
 
-If you have already installed Anaconda2 or Miniconda2, skip to the section
-below titled "Install Anaconda2/Miniconda2 Packages".
-
-If you have not already installed a Python environment, you have a choice of an
-application installer script or manual installation of the required Python
-components followed by clicking the green *Clone or download* button above.
-
-
-### Application Installer Script
-
-An application installer that will install VERAView and the required Python
-environment (Continuum's Miniconda2) is available
-[here](https://newton.ornl.gov/casl/VERAView-2.1b1-Linux-x86_64.sh).
-Note this large file includes everything you need.  The installer does not
-require root but can be installed as root.  When run as root, the default
-installation path is `/usr/local/veraview-2.1b1`.  Otherwise the default
-install path is `$HOME/veraview-2.1b1`.  Execute the installer with
-
-    $ bash VERAView-2.1b1-Linux-x86_64.sh
-
-Note that with this option no other steps are required to install VERAView.
-After completing the installation, you launch VERAView by double-clicking
-`VERAView` under Applications in Finder or by executing the `VERAView` script
-under `Contents/MacOS` in the app installation directory.
+If you have already installed Anaconda2 or Miniconda2 and want to use that
+Python environment, refer to the *Installation to an Existing Anaconda2 or
+Miniconda2 Environment* section above.  Otherwise, you can choose to use an
+application installer script or download a pre-built Miniconda2 environment
+containing all packages required by VERAView.
 
 
-### Manual Installation
+### Linux Application Installer
 
-#### Install Miniconda2
+An installer script containing VERAView with the required Python
+environment is available
+[here](https://newton.ornl.gov/casl/VERAView-2.3.0-Linux-x86_64.dmg).
+The installer does not require root privileges but can be installed as root.
+When run as root, the default installation path is `/usr/local/veraview-2.3.0`.
+Otherwise the default install path is `$HOME/veraview-2.3.0`.  Execute the
+installer with
 
-To manually install the required Python environment, go to the Continuum
-Miniconda [download page](https://conda.io/miniconda.html) and click the
-*64-bit (bash installer)* link in the *Linux* column and *Python 2.7* row.
-The link should be something like the following:
+    $ bash VERAView-2.3.0-Linux-x86_64.sh
 
-    https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
-
-After downloading the file, execute it to install the Miniconda2 environment
-with
-
-    $ bash Miniconda2-latest-Linux-x86_64.sh
-
-If possible, accept the defaults when prompted, including:
-
-* Install for current user, not all users
-* Install location
+With this option no other steps are required to install VERAView.  After
+completing the installation and depending on you desktop environment, VERAView
+might appear in your desktop `Applications` menu (usually in the `Other`
+folder), in which case you can launch by choosing it from the menu.
+Alternatively, execute the `vvconda.run.sh` script in the `veraview-2.3.0`
+installation folder.
 
 
-### Install Anaconda2/Miniconda2 Packages
+### Linux Installation from the Repository
 
-You must install the following packages needed by VERAView:
-
-* numpy (1.9.3)
-* hp5y (2.5.0)
-* scipy (0.16.0)
-* matplotlib (1.4.3)
-* pillow
-* wxPython (3.0)
-* mayavi (4.4.0)
-* libgfortran (1.0)
-
-Note due to some package version incompatibilities (blas, scipy), it is
-necessary to **downgrade** libgfortran to version 1.
-
-If during the install you chose to allow Anaconda2 or Miniconda2 to be your
-default Python, the `conda` package manager should be in your path.  Otherwise,
-you must add the Anaconda2/Miniconda2 `bin` folder (.e.g, `~/miniconda2/bin`)
-to your path.  Execute the following from a bash shell:
-
-    $ conda install -y numpy=1.9.3 h5py=2.5.0 scipy=0.16.0 matplotlib pillow wxpython=3.0 mayavi=4.4.0 libgfortran=1
-
-Alternatively, the VERAView repo includes the script file
-`files/conda-install-packages.linux.sh` which will run this command, assuming
-Anaconda2 or Miniconda2 is installed in the default location.  Download the
-file by clicking the *files* folder in the file list above.  Execute the
-command from a bash shell.
-
-    $ bash files/conda-install-packages.linux.sh
+If you prefer not to use the application installer script or plan on frequently
+updating VERAView from the repository, you will save time by using an existing
+Anaconda2 or Miniconda2 environment or installing one.
 
 
-#### Install VERAView
+#### Linux Pre-Built Miniconda2 Environment
 
-You must follow a manual Python environment install with a download of the
-VERAView Python source files.  Click the green *Clone or download* button above
-and choose *Download ZIP*.  Extract the downloaded file in your home folder to
-create a `VERAView` subdir.  (Note the zip file can be extracted anywhere
-permissions allow, but it will be convenient to keep it in your home folder.)
+A gzipped tar file containing the Miniconda2 environment with packages required
+by VERAView can be downloaded from
+[here](https://newton.ornl.gov/casl/miniconda2-linux.tgz).  Extract it in your
+home directory (usually `/home/username` but determined by the `$HOME`
+environment variable).  This should result in a `miniconda2/` subdir in your
+home directory.  If you extract it to a location other than your home
+directory, it will be necessary to edit the launch script as described in
+*Launch VERAView* below.
+
+
+#### Clone the Repository
+
+Click the green *Clone or download* button above to see the `git` command
+needed to clone from the repostory.  This should be run in a Bash shell
+and will create the `VERAView/` subdir in the current directory.
+
+Alternatively, download the zip file and extract it in a directory of choice,
+renaming the `VERAView-master` subdir to `VERAView`.
 
 
 #### Launch VERAView
 
-A script is provided in the `VERAView` folder for launching VERAView,
+A script is provided in the `VERAView/` subdir for launching VERAView,
 `vvconda.run.sh`.  If you installed Anaconda or Miniconda in a non-default
-location you will need to modify `vvconda.run.sh` to edit the first line
+location you will need to edit `vvconda.run.sh` to change the line
 
     CondaBinDir="${VERAViewDir}/miniconda2/bin"
 
-to point to your Anaconda2 or Miniconda2 installation.  If you are using Canopy
-or an alternate environment, modify the script as needed to launch in your
-environment.
+to point to your Anaconda2 or Miniconda2 installation.
 
 
-## Updating From the Repository
+## Updating from the Repository
 
-After you have installed VERAView you can update it from the repository.  You
-will reuse the Miniconda2 environment that was installed with VERAView or which
-you set up manually.  The following steps assume you ran one of the platform
-installers linked above.  Otherwise, you must manually edit the
-`vvconda.run.bat` or `vvconda.run.sh` file as described in the Manual
-Installation section above.
+### After an Initial Clone
 
-(1) Open a shell and make your VERAView installation directory current.
+After an initial clone from the repository, execute
 
-*Windows*
+    git pull
 
-Open a Command Prompt window and `cd` to your VERAView installation directory.
-For example, if VERAView is installed in your home folder:
-
-    > cd /d %userprofile%\VERAView
-
-*Mac*
-
-Open a Terminal window and `cd` to the `Contents/MacOS` subdir under
-the `VERAview.app` directory where VERAView was installed.  This should be
-either the root Applications directory (`/Applications/VERAview.app`) or
-the one in your home directory (`~/Applications/VERAview.app`).
-
-    $ cd /Applications/VERAview.app/Contents/MacOS
-
-or
-
-    $ cd ~/Applications/VERAview.app/Contents/MacOS
-
-*Linux*
-
-Open a Bash shell and `cd` to the VERAView installation directory.  For
-example, if VERAView were installed in your home directory:
-
-    $ cd ~/veraview
+in your VERAView repository directory to update with the latest changes.
 
 
-(2) If you have yet to clone the repository, execute `git` to clone it to the
-VERAView installation directory (which should be current):
+### After a Zip Download
 
-    $ git clone https://github.com/CASL/VERAview .
+If you chose to download a zip file, you will need re-download the latest zip
+file and extract it.  Before renaming the extracted `VERAView-master`
+subdir/subfolder to `VERAView`, either delete your existing `VERAView` folder
+or rename it in order to preserve it.
 
-If you have previously cloned the repository, you need only pull:
 
-    $ git pull
+## After Using an Application Installer
 
-You can launch VERAView by executing the launch script or executable.  For
-Windows this is `vvconda.run.exe` or `vvconda.run.bat`.  For Mac OS X and Linux
-this is `vvconda.run.sh`.  Also, on the Mac double-clicking the VERAview
-application icon in the Finder Applications folder should launch VERAView.
+The easiest way to migrate to using the repository after an installer is
+to follow these steps.
+
+1. Move the `Miniconda2` subfolder or `miniconda2` subdir in your installation to your home folder or directory.
+
+  Windows: The `Miniconda2` subfolder is in the root of the VERAView
+  installation directory.
+
+  Mac: The 'miniconda2' subdir is the `VERAView.app/Contents/MacOS` directory
+  in the applications directory where VERAView is installed, which usually will
+  be either `/Applications' or '$HOME/Applications'.
+
+  Linux: The 'miniconda2' subdir is the in the root of the VERAView
+  installation.
+
+2. Follow the *Clone the Repository* instructions in the section for your platform above.

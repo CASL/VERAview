@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		slicer_view.py					-
 #	HISTORY:							-
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-05-13	leerw@ornl.gov				-
 #	  Added Is3D().
 #		2017-05-05	leerw@ornl.gov				-
@@ -42,7 +44,7 @@ from mayavi import mlab
 from mayavi.core.api import PipelineBase, Source
 from mayavi.core.ui.api import SceneEditor, MayaviScene, MlabSceneModel
 
-#from data.datamodel import *
+from data.datamodel import *
 from event.state import *
 from widget.widget import *
 from widget.widgetcontainer import *
@@ -65,7 +67,8 @@ class Slicer3DView( Widget ):
   #----------------------------------------------------------------------
   def __init__( self, container, id = -1, **kwargs ):
     self.assemblyAddr = ( -1, -1, -1 )
-    self.axialValue = ( 0.0, -1, -1 )
+    #self.axialValue = ( 0.0, -1, -1 )
+    self.axialValue = AxialValue()
     self.coreExtent = None  # left, top, right + 1, bottom + 1, dx, dy
     self.curDataSet = None
 
@@ -118,7 +121,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 #            )
 #        axial_value = self.data.CreateAxialValue( core_ndx = ax_level )
       else:
-        axial_value = ( -1, -1, -1 )
+        #axial_value = ( -1, -1, -1 )
+        axial_value = AxialValue( cm = -1 )
 
       if slice_x >= 0 and slice_y >= 0:
         assy_col = int( slice_x / core.npinx ) + self.coreExtent[ 0 ]
@@ -157,7 +161,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     if core and self.meshLevels:
 #		-- Data matrix is z, x, y(reversed)
 #		--
-      z = self.meshLevels[ self.axialValue[ 1 ] ]
+      #z = self.meshLevels[ self.axialValue[ 1 ] ]
+      z = self.meshLevels[ self.axialValue.pinIndex ]
 
       assy_col = self.assemblyAddr[ 1 ] - self.coreExtent[ 0 ]
       #xxxxx channel? track with mode flag?
@@ -229,10 +234,6 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 	    for z in xrange( z_size ):
 	      #xxx is this off by one?
 	      ax_level = DataUtils.FindListIndex( self.meshLevels, z )
-#	      ax_level = min(
-#	          bisect.bisect_left( self.meshLevels, z ),
-#		  len( self.meshLevels ) - 1
-#		  )
 	      ax_level = min( ax_level, dset_shape[ 2 ] - 1 )
 	      pin_y2 = 0
 	      for y in xrange( cur_npiny - 1, -1, -1 ):
@@ -332,7 +333,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
       valid = self.dmgr.IsValid(
           self.curDataSet,
           assembly_addr = self.assemblyAddr[ 0 ],
-	  axial_level = self.axialValue[ 1 ]
+	  #axial_level = self.axialValue[ 1 ]
+	  axial_level = self.axialValue.pinIndex
 	  )
 
     if valid:
@@ -355,6 +357,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
     """
 """
     menu_def = super( Slicer3DView, self )._CreateMenuDef()
+    new_menu_def = \
+        [ x for x in menu_def if x.get( 'label' ) != 'Edit Data Scale...' ]
 
     find_max_def = \
       [
@@ -386,14 +390,14 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 	{ 'label': 'Find Maximum', 'submenu': find_max_def },
 	{ 'label': 'Find Minimum', 'submenu': find_min_def }
       ]
-    return  menu_def + slicer_def
+    return  new_menu_def + slicer_def
   #end _CreateMenuDef
 
 
   #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView.CreatePrintImage()			-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path ):
+  def CreatePrintImage( self, file_path, bgcolor = None, hilite = False ):
     result = None
 
     if self.viz is not None:
@@ -455,6 +459,18 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Slicer3DView.GetUsesScaleAndCmap()		-
+  #----------------------------------------------------------------------
+  def GetUsesScaleAndCmap( self ):
+    """
+    Returns:
+        boolean: False
+"""
+    return  False
+  #end GetUsesScaleAndCmap
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Slicer3DView._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
@@ -466,16 +482,9 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 #    _data = np.ndarray( ( 26, 17, 17 ), dtype = np.float64 )
 #    _data.fill( 1.0 )
 
-#		-- Create components
-#		--
-#    self.viz = VolumeSlicer( matrix = _data, dataRange = [ 0.0, 5.0 ] )
-#    self.vizcontrol = \
-#        self.viz.edit_traits( parent = self, kind = 'subpanel' ).control
-
 #		-- Lay out
 #		--
     sizer = wx.BoxSizer( wx.VERTICAL )
-#    sizer.Add( self.vizcontrol, 0, wx.ALL | wx.EXPAND )
 
     self.SetAutoLayout( True )
     self.SetSizer( sizer )
@@ -510,7 +519,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
       if (reason & STATE_CHANGE_axialValue) > 0:
         self.axialValue = self.dmgr.\
-            GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+            GetAxialValue( self.curDataSet, cm = self.state.axialValue.cm )
+            #GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
 
       if (reason & STATE_CHANGE_timeValue) > 0:
         self.timeValue = self.state.timeValue
@@ -534,7 +544,8 @@ assembly_addr ( assy_ndx, assy_col, assy_row ), and sub_addr.
 
       self.assemblyAddr = self.state.assemblyAddr
       self.axialValue = self.dmgr.\
-          GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
+          GetAxialValue( self.curDataSet, cm = self.state.axialValue.cm )
+          #GetAxialValue( self.curDataSet, cm = self.state.axialValue[ 0 ] )
       self.coreExtent = self.dmgr.ExtractSymmetryExtent()
       self.stateIndex = self.dmgr.\
           GetTimeValueIndex( self.state.timeValue, self.curDataSet )
@@ -588,7 +599,7 @@ be overridden by subclasses.
     """Calls _OnFindMinMaxPin().
 """
     if self.curDataSet:
-      self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag )
+      self._OnFindMinMaxPin( mode, self.curDataSet, all_states_flag, True )
   #end _OnFindMinMax
 
 
@@ -696,7 +707,7 @@ method via super.SaveProps().
 	self.assemblyAddr = kwargs[ 'assembly_addr' ]
 
       if 'axial_value' in kwargs and \
-          kwargs[ 'axial_value' ][ 0 ] != self.axialValue[ 0 ] and \
+          kwargs[ 'axial_value' ][ 0 ] != self.axialValue.cm and \
 	  self.curDataSet:
         position_changed = True
         self.axialValue = self.dmgr.\
@@ -732,12 +743,13 @@ method via super.SaveProps().
         if ds_type and ds_type in self.GetDataSetTypes():
           data_changed = True
           self.curDataSet = kwargs[ 'cur_dataset' ]
-	  self.container.GetDataSetMenu().Reset()
 	  self.axialValue = self.dmgr.\
-	      GetAxialValue( self.curDataSet, cm = self.axialValue[ 0 ] )
+	      GetAxialValue( self.curDataSet, cm = self.axialValue.cm )
 	  self.stateIndex = max(
 	      0, self.dmgr.GetTimeValueIndex( self.timeValue, self.curDataSet )
 	      )
+	  self.container.GetDataSetMenu().Reset()
+	  wx.CallAfter( self.container.GetDataSetMenu().UpdateAllMenus )
 
       if data_changed:
         self._UpdateData()

@@ -192,42 +192,44 @@ values.
     if props:
       ndx = 0
       for qds_name, rec in sorted( props.iteritems() ):
-	name = qds_name.name
-        self.InsertStringItem( ndx, name )
+	if rec.get( 'visible', False ):
+	  name = qds_name.name
+          self.InsertStringItem( ndx, name )
 
 #			-- First Axis
-	check = wx.CheckBox( self, wx.ID_ANY )
-	check.SetValue( rec[ 'axis' ] == self.fAxis1.lower() )
-	check.Bind(
-	    wx.EVT_CHECKBOX,
-	    functools.partial( self._OnCheck, ndx, 1 )
-	    )
-	self.SetItemWindow( ndx, 1, check, expand = True )
+	  check = wx.CheckBox( self, wx.ID_ANY )
+	  check.SetValue( rec[ 'axis' ] == self.fAxis1.lower() )
+	  check.Bind(
+	      wx.EVT_CHECKBOX,
+	      functools.partial( self._OnCheck, ndx, 1 )
+	      )
+	  self.SetItemWindow( ndx, 1, check, expand = True )
 
 #			-- Second Axis
-	check = wx.CheckBox( self, wx.ID_ANY )
-	check.SetValue( rec[ 'axis' ] == self.fAxis2.lower() )
-	check.Bind(
-	    wx.EVT_CHECKBOX,
-	    functools.partial( self._OnCheck, ndx, 2 )
-	    )
-	self.SetItemWindow( ndx, 2, check, expand = True )
+	  check = wx.CheckBox( self, wx.ID_ANY )
+	  check.SetValue( rec[ 'axis' ] == self.fAxis2.lower() )
+	  check.Bind(
+	      wx.EVT_CHECKBOX,
+	      functools.partial( self._OnCheck, ndx, 2 )
+	      )
+	  self.SetItemWindow( ndx, 2, check, expand = True )
 
 #			-- Scale
-	value_str = '%.6g' % rec.get( 'scale', 1.0 )
-	edit = wx.TextCtrl( self, wx.ID_ANY, value = value_str )
-	edit.Bind( wx.EVT_KILL_FOCUS, self._OnFocusKill )
-	edit.Bind( wx.EVT_SET_FOCUS, self._OnFocusSet )
-	self.SetItemWindow( ndx, 3, edit, expand = True )
+	  value_str = '%.6g' % rec.get( 'scale', 1.0 )
+	  edit = wx.TextCtrl( self, wx.ID_ANY, value = value_str )
+	  edit.Bind( wx.EVT_KILL_FOCUS, self._OnFocusKill )
+	  edit.Bind( wx.EVT_SET_FOCUS, self._OnFocusSet )
+	  self.SetItemWindow( ndx, 3, edit, expand = True )
 
-	self.SetItemBackgroundColour(
-	    ndx,
-	    self.fEvenColor if ndx % 2 == 0 else self.fOddColor
-	    )
+	  self.SetItemBackgroundColour(
+	      ndx,
+	      self.fEvenColor if ndx % 2 == 0 else self.fOddColor
+	      )
 
-        ndx += 1
-      #end for
-    #end if
+          ndx += 1
+	#end if rec.get( 'visible', False )
+      #end for qds_name, rec in sorted( props.iteritems() )
+    #end if props
   #end _UpdateControls
 
 
@@ -340,7 +342,7 @@ class PlotDataSetPropsDialog( wx.Dialog ):
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataRangeDialog._OnCharHook()			-
+  #	METHOD:		PlotDataSetPropsDialog._OnCharHook()		-
   #----------------------------------------------------------------------
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()

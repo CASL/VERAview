@@ -3,6 +3,15 @@
 #------------------------------------------------------------------------
 #	NAME:		subpin_view.py					-
 #	HISTORY:							-
+#		2018-03-02	leerw@ornl.gov				-
+#	  Migrating to _CreateEmptyBitmapAndDC().
+#		2018-02-05	leerw@ornl.gov				-
+#	  Moving Linux/GTK/X11 image manipulation to the UI thread.
+#		2017-11-25	leerw@ornl.gov				-
+#		2017-11-20	leerw@ornl.gov				-
+#	  Migrating to wx.Bitmap.
+#		2017-08-18	leerw@ornl.gov				-
+#	  Using AxialValue class.
 #		2017-06-12	leerw@ornl.gov				-
 #	  Dual-moded.
 #		2017-05-31	leerw@ornl.gov				-
@@ -18,14 +27,12 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
-try:
-  import PIL.Image, PIL.ImageDraw, PIL.ImageFont
-  #from PIL import Image, ImageDraw
-except Exception:
-  raise ImportError, 'The Python Imaging Library (PIL) required for this component'
+#try:
+#  import PIL.Image, PIL.ImageDraw, PIL.ImageFont
+#  #from PIL import Image, ImageDraw
+#except Exception:
+#  raise ImportError, 'The Python Imaging Library (PIL) required for this component'
 
-#from bean.axial_slider import *
-#from bean.exposure_slider import *
 from data.utils import DataUtils
 from event.state import *
 from raster_widget import *
@@ -135,12 +142,14 @@ If neither are specified, a default 'scale' value of 24 is used.
 @return			config dict with keys:
     clientSize
     dataRange
+    font
     fontSize
     labelFont
     labelSize
-    legendPilImage
+    legendBitmap
     legendSize
-    pilFont
+    mapper
+    valueFont
     +
     assemblyRegion
     imageSize
@@ -155,12 +164,15 @@ If neither are specified, a default 'scale' value of 24 is used.
         self.curDataSet,
 	self.timeValue if self.state.scaleMode == 'state' else -1
 	)
+    if 'scale_type' not in kwargs:
+      kwargs[ 'scale_type' ] = self._ResolveScaleType( self.curDataSet )
+      #kwargs[ 'scale_type' ] = self.dmgr.GetDataSetScaleType( self.curDataSet )
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     core = self.dmgr.GetCore()
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
-    legend_pil_im = config[ 'legendPilImage' ]
+    legend_bmap = config[ 'legendBitmap' ]
     legend_size = config[ 'legendSize' ]
 
 #		-- Get these from the DataModel
@@ -176,15 +188,17 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #		-- Must calculate scale?
 #		--
+    #xxxxx _CreateBaseDrawConfig() sets
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
       # label : core : font-sp : legend
+      #xxxxx revisit font_size, pt bigger than pixel
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
       pin_adv_wd = region_wd / self.cellRange[ -2 ]
 
-      working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      working_ht = max( ht, legend_size[ 1 ] + 2 )
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
       pin_adv_ht = region_ht / self.cellRange[ -1 ]
 
       if pin_adv_ht < pin_adv_wd:
@@ -212,21 +226,27 @@ If neither are specified, a default 'scale' value of 24 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
-    image_wd = \
-        label_size[ 0 ] + 2 + assy_wd + (font_size << 1) + legend_size[ 0 ]
-    image_ht = max(
-        label_size[ 1 ] + 2 + assy_ht + (font_size *3 / 2),
-	legend_size[ 1 ]
-	)
+    assy_region_x = label_size[ 0 ] + 2
+    assy_region_y = label_size[ 1 ] + 2
+    image_wd = assy_region_x + assy_wd + (font_size << 1) + legend_size[ 0 ]
+#    image_ht = max(
+#	assy_region_y + assy_ht + (font_size *3 / 2),
+#	legend_size[ 1 ]
+#	)
+    if legend_size[ 1 ] + 2 > assy_region_y + assy_ht:
+      image_ht = legend_size[ 1 ] + 2 + (font_size * 3 / 2) + 2
+      #image_ht = legend_size[ 1 ] + 2 + (font_size << 1)
+    else:
+      image_ht = assy_region_y + assy_ht + (font_size * 3 / 2) + 2
+      #image_ht = assy_region_y + assy_ht + (font_size << 1)
 
-    xaxis_factor = (pin_wd -1) / (xaxis[ -1 ] - xaxis[ 0 ])
+    xaxis_factor = (pin_wd - 1) / (xaxis[ -1 ] - xaxis[ 0 ])
     yaxis_factor = (pin_wd - 1) / \
         (core.subPinAxialMeshCenters[ -1 ] - core.subPinAxialMeshCenters[ 0 ])
 
     config[ 'assemblyRegion' ] = \
-        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
+	[ assy_region_x, assy_region_y, assy_wd, assy_ht ]
     config[ 'imageSize' ] = ( image_wd, image_ht )
-    #config[ 'lineWidth' ] = max( 1, pin_gap )
     config[ 'lineWidth' ] = max( 1, pin_gap >> 2 )
     config[ 'pinGap' ] = pin_gap
     config[ 'pinWidth' ] = pin_wd
@@ -251,7 +271,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
 
-    im = None
+    bmap = None
 
     tuple_valid = self.dmgr.IsValid(
 	self.curDataSet,
@@ -263,11 +283,12 @@ If neither are specified, a default 'scale' value of 24 is used.
       config = self.config
     if config is not None and tuple_valid:
       assy_region = config[ 'assemblyRegion' ]
+      font = config[ 'font' ]
       font_size = config[ 'fontSize' ]
       im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
-      legend_pil_im = config[ 'legendPilImage' ]
-      pil_font = config[ 'pilFont' ]
+      legend_bmap = config[ 'legendBitmap' ]
+      legend_size = config[ 'legendSize' ]
       pin_gap = config[ 'pinGap' ]
       pin_wd = config[ 'pinWidth' ]
 
@@ -289,7 +310,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
-	  pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
+	  font, self.curDataSet, dset_shape, self.state.timeDataSet,
 	  assembly_ndx = 4
 	  #axial_ndx = 3
 	  )
@@ -300,11 +321,26 @@ If neither are specified, a default 'scale' value of 24 is used.
     if dset_array is not None and assy_ndx < dset_shape[ 4 ]:
 #			-- Create image
 #			--
-      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
-      im_draw = PIL.ImageDraw.Draw( im )
+      bmap, dc = self._CreateEmptyBitmapAndDC( im_wd, im_ht )
+      gc = self._CreateGraphicsContext( dc )
+      trans_brush = self._CreateTransparentBrush( gc )
 
-      nodata_pen_color = ( 155, 155, 155, 255 )
-      data_brush_color = ( 255, 255, 255, 255 )
+      black_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	  wx.Colour( 0, 0, 0, 0 ), 1, wx.PENSTYLE_SOLID
+          ) )
+#      nodata_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+#	  wx.Colour( 155, 155, 155, 255 ), 1, wx.PENSTYLE_SOLID
+#          ) )
+      data_brush = gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
+	  wx.Colour( 255, 255, 255, 255 ), wx.BRUSHSTYLE_SOLID
+          ) )
+
+      if self.showLabels:
+        glabel_font = gc.CreateFont( label_font, wx.BLACK )
+	gc.SetFont( glabel_font )
+
+      gc.SetPen( black_pen )
+      gc.SetBrush( data_brush )
 
 #			-- Loop on rows
 #			--
@@ -314,12 +350,9 @@ If neither are specified, a default 'scale' value of 24 is used.
 #				--
 	if self.showLabels and item_row < core.npiny:
 	  label = '%d' % (item_row + 1)
-	  label_size = label_font.getsize( label )
-	  label_y = item_y + ((pin_wd - label_size[ 1 ]) >> 1)
-	  im_draw.text(
-	      ( 1, label_y ),
-	      label, fill = ( 0, 0, 0, 255 ), font = label_font
-	      )
+	  label_size = gc.GetFullTextExtent( label )
+	  label_y = item_y + ((pin_wd - label_size[ 1 ]) / 2.0)
+	  gc.DrawText( label, 1, label_y )
 	#end if self.showLabels and item_row < core.npiny
 
 #				-- Loop on col
@@ -331,12 +364,9 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  if self.showLabels and \
 	      item_row == self.cellRange[ 1 ] and item_col < core.npinx:
 	    label = '%d' % (item_col + 1)
-	    label_size = label_font.getsize( label )
-	    label_x = item_x + ((pin_wd - label_size[ 0 ]) >> 1)
-	    im_draw.text(
-	        ( label_x, 1 ),
-	        label, fill = ( 0, 0, 0, 255 ), font = label_font
-	        )
+	    label_size = gc.GetFullTextExtent( label )
+	    label_x = item_x + ((pin_wd - label_size[ 0 ]) / 2.0)
+	    gc.DrawText( label, label_x, 1 )
 	  #end if self.showLabels and ...
 
 #					-- Check row and col in range
@@ -346,17 +376,8 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  if item_row < dset_shape[ 1 ] and item_col < dset_shape[ 2 ]:
 	    values = dset_array[ :, item_row, item_col, :, assy_ndx ]
 
-#	    brush_color = Widget.GetColorTuple(
-#	        value - ds_range[ 0 ], value_delta, 255
-#	        )
-#	    pen_color = Widget.GetDarkerColor( brush_color, 255 )
-
-	    im_draw.rectangle(
-	        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
-	        fill = ( 255, 255, 255, 255 ), outline = ( 0, 0, 0, 255 )
-#	        fill = brush_color, outline = pen_color
-	        )
-	    self._DrawRectPlot( im_draw, config, core, item_x, item_y, values )
+	    gc.DrawRectangle( item_x, item_y, pin_wd, pin_wd )
+	    self._DrawRectPlot( gc, config, core, item_x, item_y, values )
 	  #end if 
 
 	  item_x += pin_wd + pin_gap
@@ -367,43 +388,50 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Draw Legend Image
 #			--
-      if legend_pil_im is not None:
-        im.paste(
-	    legend_pil_im,
-	    ( assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
-	      assy_region[ 1 ] )
+      if legend_bmap is not None:
+	gc.DrawBitmap(
+	    legend_bmap,
+	    assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
+	    2, #assy_region[ 1 ]
+	    legend_bmap.GetWidth(), legend_bmap.GetHeight()
 	    )
-	legend_size = legend_pil_im.size
       else:
 	legend_size = ( 0, 0 )
 
 #			-- Draw Title String
 #			--
-      item_y = max( item_y, legend_size[ 1 ] )
+      item_y = max( item_y, legend_size[ 1 ] + 2 )
       item_y += font_size >> 2
 
       title_str = self._CreateTitleString(
 	  title_templ,
-	  assembly = assy_ndx,
-	  #axial = axial_value[ 0 ],
+	  #assembly = assy_ndx,
+	  assembly = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  #axial = axial_value.cm,
 	  time = self.timeValue
           )
-      title_size = pil_font.getsize( title_str )
-      title_x = max(
-	  font_size,
-	  (assy_region[ 0 ] + assy_region[ 2 ] - title_size[ 0 ]) >> 1
-#(assy_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
-	  )
-
-      im_draw.text(
-          ( title_x, item_y ),
-	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
+      self._DrawStringsWx(
+	  gc, font,
+	  ( title_str, ( 0, 0, 0, 255 ),
+	    assy_region[ 0 ], item_y,
+	    assy_region[ 2 ] - assy_region[ 0 ],
+	    'c', im_wd - assy_region[ 0 ] )
           )
 
-      del im_draw
+#      title_size = pil_font.getsize( title_str )
+#      title_x = max(
+#	  font_size,
+#	  (assy_region[ 0 ] + assy_region[ 2 ] - title_size[ 0 ]) >> 1
+#	  )
+#      im_draw.text(
+#          ( title_x, item_y ),
+#	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
+#          )
+
+      dc.SelectObject( wx.NullBitmap )
     #end if valid assy_ndx
 
-    return  im  if im is not None else  self.emptyPilImage
+    return  bmap  if bmap is not None else  self.emptyBitmap
   #end _CreateRImage
 
 
@@ -430,7 +458,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     """
 @return			( state_index, assy_ndx, axial_level )
 """
-    return  ( self.stateIndex, self.assemblyAddr[ 0 ], self.axialValue[ 1 ] )
+    return  ( self.stateIndex, self.assemblyAddr[ 0 ], self.axialValue.subPinIndex )
   #end _CreateStateTuple
 
 
@@ -447,20 +475,19 @@ If neither are specified, a default 'scale' value of 24 is used.
 @return			config dict with keys:
     clientSize
     dataRange
+    font
     fontSize
     labelFont
     labelSize
-    legendPilImage
+    legendBitmap
     legendSize
-    pilFont
+    mapper
     +
     assemblyRegion
     imageSize
     lineWidth
     pinGap
     pinWidth/gridWidth
-#    valueFont
-#    valueFontSize
     +
     circleR  (pixels)
     radiusCount
@@ -476,7 +503,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     core = self.dmgr.GetCore()
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
-    legend_pil_im = config[ 'legendPilImage' ]
+    legend_bmap = config[ 'legendBitmap' ]
     legend_size = config[ 'legendSize' ]
 
 #		-- Get these from the DataModel
@@ -489,15 +516,17 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #		-- Must calculate scale?
 #		--
+    #xxxxx _CreateBaseDrawConfig() sets
     if 'clientSize' in config:
       wd, ht = config[ 'clientSize' ]
 
       # label : core : font-sp : legend
+      #xxxxx revisit font_size, pt bigger than pixel
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
       pin_adv_wd = region_wd / self.cellRange[ -2 ]
 
-      working_ht = max( ht, legend_size[ 1 ] )
-      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size * 3 / 2)
+      working_ht = max( ht, legend_size[ 1 ] + 2 )
+      region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
       pin_adv_ht = region_ht / self.cellRange[ -1 ]
 
       if pin_adv_ht < pin_adv_wd:
@@ -525,27 +554,26 @@ If neither are specified, a default 'scale' value of 24 is used.
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
-    image_wd = \
-        label_size[ 0 ] + 2 + assy_wd + (font_size << 1) + legend_size[ 0 ]
-    image_ht = max(
-        label_size[ 1 ] + 2 + assy_ht + (font_size *3 / 2),
-	legend_size[ 1 ]
-	)
-
-#    value_font_size = pin_wd >> 1
-#    value_font = \
-#        PIL.ImageFont.truetype( self.valueFontPath, value_font_size ) \
-#	if value_font_size >= 6 else None
+    assy_region_x = label_size[ 0 ] + 2
+    assy_region_y = label_size[ 1 ] + 2
+    image_wd = assy_region_x + assy_wd + (font_size << 1) + legend_size[ 0 ]
+#    image_ht = max(
+#	assy_region_y + 2 + assy_ht + (font_size *3 / 2),
+#	legend_size[ 1 ]
+#	)
+    if legend_size[ 1 ] + 2 > assy_region_y + assy_ht:
+      image_ht = legend_size[ 1 ] + 2 + (font_size << 1)
+      #image_ht = legend_size[ 1 ] + 2 + (font_size * 3 / 2)
+    else:
+      image_ht = assy_region_y + assy_ht + (font_size << 1)
+      #image_ht = assy_region_y + assy_ht + (font_size * 3 / 2)
 
     config[ 'assemblyRegion' ] = \
-        [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, assy_wd, assy_ht ]
+        [ assy_region_x, assy_region_y, assy_wd, assy_ht ]
     config[ 'imageSize' ] = ( image_wd, image_ht )
     config[ 'lineWidth' ] = max( 1, pin_gap >> 2 )
     config[ 'pinGap' ] = pin_gap
     config[ 'pinWidth' ] = pin_wd
-#    config[ 'valueFont' ] = value_font
-#    config[ 'valueFontSize' ] = value_font_size
-##    config[ 'valueFontSmaller' ] = value_font_smaller
 
     pin_circle_r = max( MIN_PIN_CIRCLE_R, pin_wd >> 3 )
     radius_r = (pin_wd - (pin_circle_r << 1)) / ((radius_count + 1) << 1)
@@ -588,16 +616,14 @@ If neither are specified, a default 'scale' value of 24 is used.
       config = self.config
     if config is not None and tuple_valid:
       assy_region = config[ 'assemblyRegion' ]
-      #im_wd, im_ht = config[ 'clientSize' ]
+      font = config[ 'font' ]
       font_size = config[ 'fontSize' ]
       im_wd, im_ht = config[ 'imageSize' ]
       label_font = config[ 'labelFont' ]
-      legend_pil_im = config[ 'legendPilImage' ]
-      pil_font = config[ 'pilFont' ]
+      legend_bmap = config[ 'legendBitmap' ]
+      legend_size = config[ 'legendSize' ]
       pin_gap = config[ 'pinGap' ]
       pin_wd = config[ 'pinWidth' ]
-#      value_font = config[ 'valueFont' ]
-#      value_font_size = config[ 'valueFontSize' ]
 
       dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
       core = self.dmgr.GetCore()
@@ -618,7 +644,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
-	  pil_font, self.curDataSet, dset_shape, self.state.timeDataSet,
+	  font, self.curDataSet, dset_shape, self.state.timeDataSet,
 	  assembly_ndx = 4, axial_ndx = 3
 	  )
     #end if valid config
@@ -629,16 +655,27 @@ If neither are specified, a default 'scale' value of 24 is used.
 #			-- Limit axial level
       axial_level = min( axial_level, dset_shape[ 3 ] - 1 )
       axial_value = self.dmgr.\
-          GetAxialValue2( self.curDataSet, core_ndx = axial_level )
+          GetAxialValue( self.curDataSet, core_ndx = axial_level )
 
 #			-- Create image
 #			--
-      im = PIL.Image.new( "RGBA", ( im_wd, im_ht ) )
-      #im_pix = im.load()
-      im_draw = PIL.ImageDraw.Draw( im )
+      bmap, dc = self._CreateEmptyBitmapAndDC( im_wd, im_ht )
+      gc = self._CreateGraphicsContext( dc )
+      trans_brush = self._CreateTransparentBrush( gc )
 
-      nodata_pen_color = ( 155, 155, 155, 255 )
-      data_brush_color = ( 255, 255, 255, 255 )
+      black_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	  wx.Colour( 0, 0, 0, 0 ), 1, wx.PENSTYLE_SOLID
+          ) )
+      nodata_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	  wx.Colour( 155, 155, 155, 255 ), 1, wx.PENSTYLE_SOLID
+          ) )
+      data_brush = gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
+	  wx.Colour( 255, 255, 255, 255 ), wx.BRUSHSTYLE_SOLID
+          ) )
+
+      if self.showLabels:
+        glabel_font = gc.CreateFont( label_font, wx.BLACK )
+	gc.SetFont( glabel_font )
 
 #			-- Loop on rows
 #			--
@@ -648,12 +685,9 @@ If neither are specified, a default 'scale' value of 24 is used.
 #				--
 	if self.showLabels and item_row < core.npiny:
 	  label = '%d' % (item_row + 1)
-	  label_size = label_font.getsize( label )
-	  label_y = item_y + ((pin_wd - label_size[ 1 ]) >> 1)
-	  im_draw.text(
-	      ( 1, label_y ),
-	      label, fill = ( 0, 0, 0, 255 ), font = label_font
-	      )
+	  label_size = gc.GetFullTextExtent( label )
+	  label_y = item_y + ((pin_wd - label_size[ 1 ]) / 2.0)
+	  gc.DrawText( label, 1, label_y )
 	#end if self.showLabels and item_row < core.npiny
 
 #				-- Loop on col
@@ -665,35 +699,27 @@ If neither are specified, a default 'scale' value of 24 is used.
 	  if self.showLabels and \
 	      item_row == self.cellRange[ 1 ] and item_col < core.npinx:
 	    label = '%d' % (item_col + 1)
-	    label_size = label_font.getsize( label )
-	    label_x = item_x + ((pin_wd - label_size[ 0 ]) >> 1)
-	    im_draw.text(
-	        ( label_x, 1 ),
-	        label, fill = ( 0, 0, 0, 255 ), font = label_font
-	        )
+	    label_size = gc.GetFullTextExtent( label )
+	    label_x = item_x + ((pin_wd - label_size[ 0 ]) / 2.0)
+	    gc.DrawText( label, label_x, 1 )
 	  #end if self.showLabels and ...
 
 #					-- Check row and col in range
-	  if dset_array is None:
-	    self.logger.critical( '** A dset_array is None, how did this happen **' )
 	  if item_row < dset_shape[ 1 ] and item_col < dset_shape[ 2 ]:
 	    values = dset_array[ :, item_row, item_col, axial_level, assy_ndx ]
 	    #rtheta = np.ndarray( ( 1, dset_shape[ 0 ] ), dtype = np.float64 )
 	    #rtheta[ 0 ] = values
 	    rtheta = values.reshape( ( 1, dset_shape[ 0 ] ) )
+            gc.SetPen( black_pen )
+            gc.SetBrush( data_brush )
 
-	    im_draw.rectangle(
-	        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
-	        fill = ( 255, 255, 255, 255 ), outline = ( 0, 0, 0, 255 )
-#	        fill = brush_color, outline = pen_color
-	        )
-	    self._DrawRadialPlot( im_draw, config, item_x, item_y, rtheta )
+	    gc.DrawRectangle( item_x, item_y, pin_wd, pin_wd )
+	    self._DrawRadialPlot( gc, config, item_x, item_y, rtheta )
 
 	  else:
-	    im_draw.rectangle(
-	        [ item_x, item_y, item_x + pin_wd, item_y + pin_wd ],
-	        fill = None, outline = nodata_pen_color
-	        )
+            gc.SetPen( nodata_pen )
+            gc.SetBrush( trans_brush )
+	    gc.DrawRectangle( item_x, item_y, pin_wd, pin_wd )
 	  #if-else good value, not hidden by item_factor
 
 	  item_x += pin_wd + pin_gap
@@ -704,43 +730,51 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #			-- Draw Legend Image
 #			--
-      if legend_pil_im is not None:
-        im.paste(
-	    legend_pil_im,
-	    ( assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
-	      assy_region[ 1 ] )
+      if legend_bmap is not None:
+	gc.DrawBitmap(
+	    legend_bmap,
+	    assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size,
+	    2, #assy_region[ 1 ]
+	    legend_bmap.GetWidth(), legend_bmap.GetHeight()
 	    )
-	legend_size = legend_pil_im.size
       else:
 	legend_size = ( 0, 0 )
 
 #			-- Draw Title String
 #			--
-      item_y = max( item_y, legend_size[ 1 ] )
+      item_y = max( item_y, legend_size[ 1 ] + 2 )
       item_y += font_size >> 2
 
       title_str = self._CreateTitleString(
 	  title_templ,
-	  assembly = assy_ndx,
-	  axial = axial_value[ 0 ],
+	  #assembly = assy_ndx,
+	  assembly = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
+	  axial = axial_value.cm,
 	  time = self.timeValue
           )
-      title_size = pil_font.getsize( title_str )
-      title_x = max(
-	  font_size,
-	  (assy_region[ 0 ] + assy_region[ 2 ] - title_size[ 0 ]) >> 1
-#(assy_region[ 2 ] + font_size + legend_size[ 0 ] - title_size[ 0 ]) >> 1
-	  )
-
-      im_draw.text(
-          ( title_x, item_y ),
-	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
+      self._DrawStringsWx(
+	  gc, font,
+	  ( title_str, ( 0, 0, 0, 255 ),
+	    assy_region[ 0 ], item_y,
+	    assy_region[ 2 ] - assy_region[ 0 ],
+	    'c', im_wd - assy_region[ 0 ] )
           )
 
-      del im_draw
+#      title_size = pil_font.getsize( title_str )
+#      title_x = max(
+#	  font_size,
+#	  (assy_region[ 0 ] + assy_region[ 2 ] - title_size[ 0 ]) >> 1
+#	  )
+#
+#      im_draw.text(
+#          ( title_x, item_y ),
+#	  title_str, fill = ( 0, 0, 0, 255 ), font = pil_font
+#          )
+
+      dc.SelectObject( wx.NullBitmap )
     #end if valid assy_ndx
 
-    return  im  if im is not None else  self.emptyPilImage
+    return  bmap  if bmap is not None else  self.emptyBitmap
   #end _CreateThetaImage
 
 
@@ -757,7 +791,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       valid = self.dmgr.IsValid(
           self.curDataSet,
           assembly_addr = self.assemblyAddr,
-	  axial_level = self.axialValue[ 1 ],
+	  axial_level = self.axialValue.pinIndex,
 	  sub_addr = cell_info[ 1 : 3 ],
 	  sub_addr_mode = 'pin'
           )
@@ -772,7 +806,7 @@ If neither are specified, a default 'scale' value of 24 is used.
       if cell_info[ 2 ] < dset_shape[ 0 ] and cell_info[ 1 ] < dset_shape[ 1 ]:
         value = dset[
             cell_info[ 2 ], cell_info[ 1 ],
-	    min( self.axialValue[ 1 ], dset_shape[ 2 ] - 1 ),
+	    min( self.axialValue.pinIndex, dset_shape[ 2 ] - 1 ),
 	    min( self.assemblyAddr[ 0 ], dset_shape[ 3 ] - 1 )
 	    ]
 
@@ -792,78 +826,95 @@ If neither are specified, a default 'scale' value of 24 is used.
   #----------------------------------------------------------------------
   #	METHOD:		RasterWidget._DrawRadialPlot()			-
   #----------------------------------------------------------------------
-  def _DrawRadialPlot( self, im_draw, config, x, y, rt_values ):
+  def _DrawRadialPlot( self, gc, config, x, y, rt_values ):
     """Handles drawing the grid
-@param  im_draw		PIL.ImageDraw instance
+@param  gc		wx.GraphicsContext instance
 @param  config		draw configuration dict with keys 'circleR', 'ds_range',
 			'gridWidth', 'radiusCount', 'radiusR', 'thetaCount'
 @param  x		left pixel
 @param  y		top pixel
 @param  rt_values	ndarray with shape ( radius_count, theta_count )
 """
+    amode = gc.GetAntialiasMode()
+    cmode = gc.GetCompositionMode()
+    gc.SetAntialiasMode( wx.ANTIALIAS_NONE )
+    gc.SetCompositionMode( wx.COMPOSITION_SOURCE )
+
     circle_r = config[ 'circleR' ]
     ds_range = config[ 'dataRange' ]
     value_delta = ds_range[ 1 ] - ds_range[ 0 ]
     grid_wd = config[ 'gridWidth' ]
+    mapper = config[ 'mapper' ]
     radius_count = config[ 'radiusCount' ]
     radius_r = config[ 'radiusR' ]
     theta_count = config[ 'thetaCount' ]
 
     origin = ( x + (grid_wd >> 1), y + (grid_wd >> 1) )
-    dtheta = (2.0 * math.pi) / theta_count
-    dtheta_deg = 360.0 / theta_count
+    #dtheta = (2.0 * math.pi) / theta_count
+    dtheta = TWO_PI
+    if theta_count > 1:
+      dtheta /= theta_count
+    radius_wd = max( 1, int( radius_r ) )
 
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
-'ds_range=%s, circle_r=%d, x=%d, y=%d' +
-'%sgrid_wd=%d, radius_count=%d, theta_count=%d' +
-'%sradius_r=%s' +
-'%sorigin=%s, dtheta=%f/%f',
-	  str( ds_range ), circle_r, x, y,
-	  os.linesep, grid_wd, radius_count, theta_count,
-	  os.linesep, str( radius_r ),
-	  os.linesep, str( origin ), dtheta, dtheta_deg
+'  ds_range=%s' +
+'%s  circle_r=%d, x=%d, y=%d' +
+'%s  grid_wd=%d, radius_count=%d, radius_r=%d, theta_count=%d' +
+'%s  origin=%s, dtheta=%f/%f',
+	  str( ds_range ),
+	  os.linesep, circle_r, x, y,
+	  os.linesep, grid_wd, radius_count, radius_r, theta_count,
+	  os.linesep, str( origin ), dtheta, dtheta * 180.0 / math.pi
           )
 
 #	-- Outer loop is radius
 #	--
-    cur_r = circle_r + ((radius_count - 1) * radius_r)
+    #cur_r = circle_r + ((radius_count - 1) * radius_r)
+    cur_r = circle_r + ((radius_count - 1) * radius_r) - (radius_wd >> 1)
     for ri in xrange( radius_count - 1, -1, -1 ):
-#      ring_rect_inner = [
-#	  origin[ 0 ] - cur_r, origin[ 1 ] - cur_r,
-#	  origin[ 0 ] + cur_r, origin[ 1 ] + cur_r
-#          ]
-      ring_rect_outer = [
-	  origin[ 0 ] - (cur_r + radius_r), origin[ 1 ] - (cur_r + radius_r),
-	  origin[ 0 ] + (cur_r + radius_r), origin[ 1 ] + (cur_r + radius_r)
-          ]
-
 #		-- Inner loop is theta
 #		--
-      cur_theta = cur_theta_deg = 0.0
+      #cur_theta = 0.0
+      cur_theta = -PI_OVER_2
       for ti in xrange( theta_count ):
+        #angle_st = Widget.NormalizeAngle( cur_theta - PI_OVER_2 )
+	end_theta = Widget.NormalizeAngle( cur_theta + (dtheta * 2) )
+
         value = rt_values[ ri, ti ]
 	if not self.dmgr.IsBadValue( value ):
-	  pen_color = Widget.\
-	      GetColorTuple( value - ds_range[ 0 ], value_delta, 155 )
-	  fill_color = pen_color
+#	  pen_color = Widget.\
+#	      GetColorTuple( value - ds_range[ 0 ], value_delta, 155 )
+	  pen_color = mapper.to_rgba( value, bytes = True )
+
+	  cur_pen = wx.ThePenList.FindOrCreatePen(
+	      wx.Colour( *pen_color ), radius_wd, wx.PENSTYLE_SOLID
+	      )
+	  cur_pen.SetCap( wx.CAP_BUTT )
+	  gc.SetPen( gc.CreatePen( cur_pen ) )
+#	  gc.SetBrush( gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
+#	      wx.Colour( *fill_color ), wx.BRUSHSTYLE_SOLID
+#	      ) ) )
 
           if self.logger.isEnabledFor( logging.DEBUG ):
             self.logger.debug(
-		'ri=%d, ti=%d, rect=%s',
-		ri, ti, str( ring_rect_outer )
-	        )
-          im_draw.pieslice(
-	      ring_rect_outer,
-	      cur_theta_deg, cur_theta_deg + dtheta_deg,
-	      fill = fill_color,
-	      outline = None
-	      #outline = ( 0, 0, 100, 255 )
+'  ri=%d, ti=%d, cur_r=%f, radius_wd=%d, color=%s' +
+'%s  cur_theta=%f, end_theta=%f',
+		ri, ti, cur_r, radius_wd, str( pen_color ),
+		os.linesep, cur_theta, end_theta
+		)
+
+	  path = gc.CreatePath()
+	  path.AddArc(
+	      origin[ 0 ], origin[ 1 ], circle_r + cur_r,
+	      #cur_theta, cur_theta + dtheta
+	      cur_theta, end_theta
 	      )
+	  gc.StrokePath( path )
 	#end if good value
 
-        cur_theta += dtheta
-        cur_theta_deg += dtheta_deg
+        #cur_theta += dtheta
+	cur_theta = Widget.NormalizeAngle( cur_theta + dtheta )
       #end for ti
 
       cur_r -= radius_r
@@ -871,24 +922,28 @@ If neither are specified, a default 'scale' value of 24 is used.
 
 #	-- Draw pin
 #	--
-    ring_rect = [
+    gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	wx.Colour( 155, 155, 155, 255 ), 1, wx.PENSTYLE_SOLID
+        ) ) )
+    gc.SetBrush( gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
+	wx.Colour( 100, 100, 100, 255 ), wx.BRUSHSTYLE_SOLID
+        ) ) )
+    gc.DrawEllipse(
 	origin[ 0 ] - circle_r, origin[ 1 ] - circle_r,
-	origin[ 0 ] + circle_r, origin[ 1 ] + circle_r
-        ]
-    im_draw.ellipse(
-	ring_rect,
-	fill = ( 155, 155, 155, 255 ),
-	outline = ( 100, 100, 100, 255 )
-	)
+	circle_r << 1, circle_r << 1
+        )
+
+    gc.SetAntialiasMode( amode )
+    gc.SetCompositionMode( cmode )
   #end _DrawRadialPlot
 
 
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView._DrawRectPlot()			-
   #----------------------------------------------------------------------
-  def _DrawRectPlot( self, im_draw, config, core, x, y, values ):
+  def _DrawRectPlot( self, gc, config, core, x, y, values ):
     """Handles drawing the plot for a single pin
-@param  im_draw		PIL.ImageDraw instance
+@param  gc		wx.GraphicsContext instance
 @param  config		draw configuration dict
 @param  x		left pixel
 @param  y		top pixel
@@ -896,15 +951,23 @@ If neither are specified, a default 'scale' value of 24 is used.
 """
     ds_range = config[ 'dataRange' ]
     value_delta = ds_range[ 1 ] - ds_range[ 0 ]
+    mapper = config[ 'mapper' ]
+    pin_gap = config[ 'pinGap' ]
     pin_wd = config[ 'pinWidth' ]
     xaxis = config[ 'xaxis' ]
     xaxis_factor = config[ 'xaxisFactor' ]
     yaxis_factor = config[ 'yaxisFactor' ]
 
-    im_draw.rectangle(
-	[ x, y, x + pin_wd, y + pin_wd ],
-	fill = ( 0, 0, 0, 0 )
-        )
+    trans_brush = gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
+	wx.WHITE, wx.TRANSPARENT
+        ) )
+    trans_pen = gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+	wx.WHITE, 0, wx.TRANSPARENT
+        ) )
+
+    gc.SetPen( trans_pen )
+    gc.SetBrush( trans_brush )
+    gc.DrawRectangle( x, y, pin_wd, pin_wd )
 
     if self.logger.isEnabledFor( logging.DEBUG ):
       self.logger.debug(
@@ -918,36 +981,48 @@ If neither are specified, a default 'scale' value of 24 is used.
           )
 
     if values is not None:
+      half_gap = pin_gap >> 1
       #last_y = y
-      y1 = y + core.subPinAxialMesh[ -1 ] * yaxis_factor
+      #y1 = y + core.subPinAxialMesh[ -1 ] * yaxis_factor
+      ydelta = \
+          core.subPinAxialMeshCenters[ -1 ] - core.subPinAxialMeshCenters[ 0 ]
+      y1 = y + (ydelta * yaxis_factor)
       for j in xrange( core.nsubax - 1, -1, -1 ):
 	y2 = y + core.subPinAxialMesh[ j ] * yaxis_factor
         if self.logger.isEnabledFor( logging.DEBUG ):
 	  self.logger.debug( 'j=%d, y1=%f, y2=%f', j, y1, y2 )
 
-	last_x = x
+	cur_x = x
         for i in xrange( xaxis.shape[ 0 ] ):
 	  if i == xaxis.shape[ 0 ] - 1:
-	    dx = pin_wd
+	    #dx = pin_wd - cur_x
+	    dx = pin_wd + half_gap - cur_x
 	  else:
 	    dx = (xaxis[ i + 1 ] - xaxis[ 0 ]) / 2.0 * xaxis_factor
-	  cur_x = x + dx
-	  rect = [ last_x, y1, cur_x, y2 ]
 	  cur_value = values[ i, j ]
+
 	  if self.dmgr.IsBadValue( cur_value ):
-	    fill_color = ( 0, 0, 0, 0 )
+	    gc.SetPen( trans_pen )
+	    gc.SetBrush( trans_brush )
 	  else:
-	    fill_color = Widget.\
-	        GetColorTuple( cur_value - ds_range[ 0 ], value_delta, 255 )
+#	    fill_color = Widget.\
+#	        GetColorTuple( cur_value - ds_range[ 0 ], value_delta, 255 )
+	    fill_color = mapper.to_rgba( cur_value, bytes = True )
+	    fill_colour = wx.Colour( *fill_color )
+	    gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
+		fill_colour, 1, wx.PENSTYLE_SOLID
+	        ) ) )
+	    gc.SetBrush( gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
+		fill_colour, wx.BRUSHSTYLE_SOLID
+	        ) ) )
 
           if self.logger.isEnabledFor( logging.DEBUG ):
 	    self.logger.debug( 
-	       'i=%d, cur_x=%f, cur_value=%f, color=%s%srect=%s',
-	       i, cur_x, cur_value, str( fill_color ),
-	       os.linesep, str( rect )
+	       'i=%d, cur_x=%f, cur_value=%f',
+	       i, cur_x, cur_value
 	       )
-	  im_draw.rectangle( rect, fill = fill_color, outline = fill_color )
-	  last_x = cur_x
+	  gc.DrawRectangle( cur_x, y1, dx, y1 - y2 )
+	  cur_x += dx
 	#end for i
 
 	y1 = y2
@@ -1018,7 +1093,7 @@ If neither are specified, a default 'scale' value of 24 is used.
 animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 @return			list of indexes or None
 """
-    return  ( 'axial:pin', 'statepoint' )
+    return  ( 'axial:subpin', 'statepoint' )
   #end GetAnimationIndexes
 
 
@@ -1070,38 +1145,33 @@ Subclasses should override as needed.
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView.GetPrintScale()			-
   #----------------------------------------------------------------------
-  def GetPrintScale( self ):
-    """
-"""
-    pin_count = max( self.cellRange[ -2 ], self.cellRange[ -1 ] )
-    return  max( 32, 1024 / pin_count )
-#    return \
-#	512  if pin_count <= 1 else \
-#	256  if pin_count <= 2 else \
-#	128  if pin_count <= 3 else \
-#	96  if pin_count <= 5 else \
-#        64  if pin_count <= 10 else \
-#	40  if pin_count <= 15 else \
-#	32
-  #end GetPrintScale
+#  def GetPrintScale( self ):
+#    """
+#"""
+#    pin_count = max( self.cellRange[ -2 ], self.cellRange[ -1 ] )
+#    return  max( 32, 1024 / pin_count )
+#  #end GetPrintScale
 
 
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView.GetTitle()				-
   #----------------------------------------------------------------------
   def GetTitle( self ):
-    return  'Sub Pin 2D View'
+    return  'Subpin 2D View'
   #end GetTitle
 
 
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView._HiliteBitmap()			-
   #----------------------------------------------------------------------
-  def _HiliteBitmap( self, bmap ):
+  def _HiliteBitmap( self, bmap, config = None ):
     result = bmap
 
+    if config is None:
+      config = self.config
+
     core = self.dmgr.GetCore()
-    if self.config is not None and core is not None:
+    if config is not None and core is not None:
       addr_list = list( self.auxSubAddrs )
       addr_list.insert( 0, self.subAddr )
 
@@ -1109,11 +1179,11 @@ Subclasses should override as needed.
       dc = None
       secondary_pen = None
 
-      assy_region = self.config[ 'assemblyRegion' ]
-      pin_gap = self.config[ 'pinGap' ]
-      pin_wd = self.config[ 'pinWidth' ]
+      assy_region = config[ 'assemblyRegion' ]
+      pin_gap = config[ 'pinGap' ]
+      pin_wd = config[ 'pinWidth' ]
       pin_adv = pin_gap + pin_wd
-      line_wd = self.config[ 'lineWidth' ]
+      line_wd = config[ 'lineWidth' ]
 
       for i in range( len( addr_list ) ):
 	addr = addr_list[ i ]
@@ -1139,10 +1209,15 @@ Subclasses should override as needed.
 	        )
 	    gc.SetPen( secondary_pen )
 
+#	  rect = [
+#	      rel_col * pin_adv + assy_region[ 0 ],
+#	      rel_row * pin_adv + assy_region[ 1 ],
+#	      pin_wd + 1, pin_wd + 1
+#	      ]
 	  rect = [
 	      rel_col * pin_adv + assy_region[ 0 ],
 	      rel_row * pin_adv + assy_region[ 1 ],
-	      pin_wd + 1, pin_wd + 1
+	      pin_wd + line_wd, pin_wd + line_wd
 	      ]
 	  path = gc.CreatePath()
 	  path.AddRectangle( *rect )
@@ -1154,7 +1229,7 @@ Subclasses should override as needed.
         dc.SelectObject( wx.NullBitmap )
       if new_bmap is not None:
         result = new_bmap
-    #end if self.config is not None:
+    #end if config is not None:
 
     return  result
   #end _HiliteBitmap
@@ -1227,7 +1302,7 @@ be overridden by subclasses.
       valid = self.dmgr.IsValid(
           self.curDataSet,
           assembly_addr = self.assemblyAddr[ 0 ],
-	  axial_level = self.axialValue[ 1 ],
+	  axial_level = self.axialValue.pinIndex,
 	  sub_addr = pin_addr,
 	  sub_addr_mode = 'pin'
 	  )
@@ -1268,7 +1343,7 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView._OnFindMinMax()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+  def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
     pass
@@ -1280,12 +1355,12 @@ be overridden by subclasses.
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView.SaveProps()			-
   #----------------------------------------------------------------------
-  def SaveProps( self, props_dict ):
+  def SaveProps( self, props_dict, for_drag = False ):
     """Called to save properties.  Subclasses should override calling this
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    super( SubPin2DView, self ).SaveProps( props_dict )
+    super( SubPin2DView, self ).SaveProps( props_dict, for_drag = for_drag )
 
     for k in ( 'assemblyAddr', 'auxSubAddrs', 'mode', 'subAddr' ):
       props_dict[ k ] = getattr( self, k )
@@ -1307,10 +1382,11 @@ method via super.SaveProps().
   #----------------------------------------------------------------------
   #	METHOD:		SubPin2DView._UpdateDataSetStateValues()	-
   #----------------------------------------------------------------------
-  def _UpdateDataSetStateValues( self, ds_type ):
-    """
-@param  ds_type		dataset category/type
-Updates the nodalMode property.
+  def _UpdateDataSetStateValues( self, ds_type, clear_zoom_stack = False ):
+    """Updates the mode.
+    Args:
+        ds_type (str): dataset category/type
+	clear_zoom_stack (boolean): True to clear in zoom stack
 """
     self.mode = 'theta'  if ds_type == 'subpin_theta' else  'r'
   #end _UpdateDataSetStateValues

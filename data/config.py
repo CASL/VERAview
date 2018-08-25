@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		config.py					-
 #	HISTORY:							-
+#		2018-03-01	leerw@ornl.gov				-
+#	  Added Is{Linux,Mac,Windows}().
+#		2017-11-13	leerw@ornl.gov				-
+#	  Added GetOSName().
 #		2017-03-29	leerw@ornl.gov				-
 #	  Removed MacOSX Anaconda check for dragndrop support.
 #		2016-11-26	leerw@ornl.gov				-
@@ -41,11 +45,17 @@ Static properties (use accessors):
 #		--
 
   canDragNDrop_ = None
+  defaultCmapName_ = 'jet' # 'rainbow', 'viridis', 'nipy_spectral'
   defaultDataSetName_ = 'pin_powers'
   haveGifsicle_ = None
   #haveImageMagick_ = None
+  osName_ = platform.system().lower()
   resDir_ = ''
   rootDir_ = ''
+
+  isLinux_ = osName_ == 'linux'
+  isMac_ = osName_ == 'darwin'
+  isWindows_ = osName_ == 'windows'
 
 
 #		-- Static Methods
@@ -80,6 +90,18 @@ return false in that case.
   def GetDefaultDataSetName():
     return  Config.defaultDataSetName_
   #end GetDefaultDataSetName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		GetOSName()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def GetOSName():
+    """
+@return			'darwin', 'linux', or 'windows'
+"""
+    return  Config.osName_
+  #end GetOSName
 
 
   #----------------------------------------------------------------------
@@ -147,6 +169,39 @@ return false in that case.
 #
 #    return  Config.haveImageMagick_
 #  #end HaveImageMagick
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		IsLinux()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsLinux():
+    """
+"""
+    return  Config.isLinux_
+  #end IsLinux
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		IsMac()						-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsMac():
+    """
+"""
+    return  Config.isMac_
+  #end IsMac
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		IsWindows()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def IsWindows():
+    """
+"""
+    return  Config.isWindows_
+  #end IsWindows
 
 
   #----------------------------------------------------------------------

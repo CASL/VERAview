@@ -3,6 +3,18 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2018-06-25	leerw@ornl.gov				-
+#	  Fixed _ResolveDataRange() to account for min ge max.
+#		2018-03-14	leerw@ornl.gov				-
+#	  Added for_drag param to SaveProps().
+#		2017-12-16	leerw@ornl.gov				-
+#	  Adding in-current-assembly find min/max option.
+#		2017-11-13	leerw@ornl.gov				-
+#	  Added static CalcPointSize() method.
+#		2017-11-03	leerw@ornl.gov				-
+# 	  Added static CopyFont() method.
+#		2017-10-24	leerw@ornl.gov				-
+#	  Switching to wx.Bitmap instead of PIL.Image.
 #		2017-05-13	leerw@ornl.gov				-
 #	  Removed GetDataSetPropertyNames(), added Is3D().
 #	  Added title param to _CreateLegendPilImage().
@@ -120,11 +132,18 @@ try:
 except Exception:
   raise ImportError( "The wxPython module is required" )
 
+try:
+  from matplotlib import cm, colors
+except Exception:
+  raise ImportError( 'The matplotlib module is required for this component' )
+
+from data.config import *
 from event.state import *
 #from legend import *
 #from legend2 import *
 from legend3 import *
 from bean.data_range_bean import *
+import colormaps
 
 
 BMAP_NAME_green = 'led_green_16x16'
@@ -133,6 +152,143 @@ BMAP_NAME_red = 'led_red_16x16'
 DEFAULT_BG_COLOR_TUPLE = ( 155, 155, 155, 255 )
 
 #DEFAULT_BG_COLOR = wx.Colour( *DEFAULT_BG_COLOR_TUPLE )
+
+PI_OVER_2 = math.pi / 2.0
+TWO_PI = 2.0 * math.pi
+
+SPECTRUM_COLORS = \
+  [
+    ( 0.000000,0.803922,0.560784 ),
+    ( 0.000000,0.803922,0.529412 ),
+    ( 0.000000,0.803922,0.498039 ),
+    ( 0.000000,0.803922,0.466667 ),
+    ( 0.000000,0.803922,0.435294 ),
+    ( 0.000000,0.803922,0.403922 ),
+    ( 0.000000,0.803922,0.372549 ),
+    ( 0.000000,0.803922,0.341176 ),
+    ( 0.000000,0.803922,0.309804 ),
+    ( 0.000000,0.803922,0.278431 ),
+    ( 0.000000,0.803922,0.247059 ),
+    ( 0.000000,0.803922,0.215686 ),
+    ( 0.000000,0.803922,0.184314 ),
+    ( 0.000000,0.803922,0.152941 ),
+    ( 0.000000,0.803922,0.121569 ),
+    ( 0.000000,0.803922,0.090196 ),
+    ( 0.000000,0.803922,0.000000 ),
+    ( 0.031373,0.803922,0.000000 ),
+    ( 0.062745,0.803922,0.000000 ),
+    ( 0.094118,0.803922,0.000000 ),
+    ( 0.125490,0.803922,0.000000 ),
+    ( 0.156863,0.803922,0.000000 ),
+    ( 0.188235,0.803922,0.000000 ),
+    ( 0.219608,0.803922,0.000000 ),
+    ( 0.250980,0.803922,0.000000 ),
+    ( 0.282353,0.803922,0.000000 ),
+    ( 0.313725,0.803922,0.000000 ),
+    ( 0.345098,0.803922,0.000000 ),
+    ( 0.376471,0.803922,0.000000 ),
+    ( 0.407843,0.803922,0.000000 ),
+    ( 0.439216,0.803922,0.000000 ),
+    ( 0.470588,0.803922,0.000000 ),
+    ( 0.560784,0.803922,0.000000 ),
+    ( 0.572549,0.803922,0.000000 ),
+    ( 0.584314,0.803922,0.000000 ),
+    ( 0.596078,0.803922,0.000000 ),
+    ( 0.607843,0.803922,0.000000 ),
+    ( 0.619608,0.803922,0.000000 ),
+    ( 0.631373,0.803922,0.000000 ),
+    ( 0.643137,0.803922,0.000000 ),
+    ( 0.654902,0.803922,0.000000 ),
+    ( 0.666667,0.803922,0.000000 ),
+    ( 0.678431,0.803922,0.000000 ),
+    ( 0.690196,0.803922,0.000000 ),
+    ( 0.701961,0.803922,0.000000 ),
+    ( 0.713725,0.803922,0.000000 ),
+    ( 0.725490,0.803922,0.000000 ),
+    ( 0.737255,0.803922,0.000000 ),
+    ( 0.803922,0.803922,0.000000 ),
+    ( 0.803922,0.800000,0.000000 ),
+    ( 0.803922,0.796078,0.000000 ),
+    ( 0.803922,0.792157,0.000000 ),
+    ( 0.803922,0.788235,0.000000 ),
+    ( 0.803922,0.784314,0.000000 ),
+    ( 0.803922,0.780392,0.000000 ),
+    ( 0.803922,0.776471,0.000000 ),
+    ( 0.803922,0.772549,0.000000 ),
+    ( 0.803922,0.768627,0.000000 ),
+    ( 0.803922,0.764706,0.000000 ),
+    ( 0.803922,0.760784,0.000000 ),
+    ( 0.803922,0.756863,0.000000 ),
+    ( 0.803922,0.752941,0.000000 ),
+    ( 0.803922,0.749020,0.000000 ),
+    ( 0.803922,0.745098,0.000000 ),
+    ( 0.803922,0.686275,0.000000 ),
+    ( 0.803922,0.682353,0.000000 ),
+    ( 0.803922,0.678431,0.000000 ),
+    ( 0.803922,0.674510,0.000000 ),
+    ( 0.803922,0.670588,0.000000 ),
+    ( 0.803922,0.666667,0.000000 ),
+    ( 0.803922,0.662745,0.000000 ),
+    ( 0.803922,0.658824,0.000000 ),
+    ( 0.803922,0.654902,0.000000 ),
+    ( 0.803922,0.650980,0.000000 ),
+    ( 0.803922,0.647059,0.000000 ),
+    ( 0.803922,0.643137,0.000000 ),
+    ( 0.803922,0.639216,0.000000 ),
+    ( 0.803922,0.635294,0.000000 ),
+    ( 0.803922,0.631373,0.000000 ),
+    ( 0.803922,0.627451,0.000000 ),
+    ( 0.803922,0.560784,0.000000 ),
+    ( 0.803922,0.556863,0.000000 ),
+    ( 0.803922,0.552941,0.000000 ),
+    ( 0.803922,0.549020,0.000000 ),
+    ( 0.803922,0.545098,0.000000 ),
+    ( 0.803922,0.541176,0.000000 ),
+    ( 0.803922,0.537255,0.000000 ),
+    ( 0.803922,0.533333,0.000000 ),
+    ( 0.803922,0.529412,0.000000 ),
+    ( 0.803922,0.525490,0.000000 ),
+    ( 0.803922,0.521569,0.000000 ),
+    ( 0.803922,0.517647,0.000000 ),
+    ( 0.803922,0.513725,0.000000 ),
+    ( 0.803922,0.509804,0.000000 ),
+    ( 0.803922,0.505882,0.000000 ),
+    ( 0.803922,0.501961,0.000000 ),
+    ( 0.803922,0.478431,0.000000 ),
+    ( 0.803922,0.470588,0.000000 ),
+    ( 0.803922,0.462745,0.000000 ),
+    ( 0.803922,0.454902,0.000000 ),
+    ( 0.803922,0.447059,0.000000 ),
+    ( 0.803922,0.439216,0.000000 ),
+    ( 0.803922,0.431373,0.000000 ),
+    ( 0.803922,0.423529,0.000000 ),
+    ( 0.803922,0.415686,0.000000 ),
+    ( 0.803922,0.407843,0.000000 ),
+    ( 0.803922,0.400000,0.000000 ),
+    ( 0.803922,0.392157,0.000000 ),
+    ( 0.803922,0.384314,0.000000 ),
+    ( 0.803922,0.376471,0.000000 ),
+    ( 0.803922,0.368627,0.000000 ),
+    ( 0.803922,0.360784,0.000000 ),
+    ( 0.803922,0.301961,0.000000 ),
+    ( 0.803922,0.286275,0.000000 ),
+    ( 0.803922,0.270588,0.000000 ),
+    ( 0.803922,0.254902,0.000000 ),
+    ( 0.803922,0.239216,0.000000 ),
+    ( 0.803922,0.223529,0.000000 ),
+    ( 0.803922,0.207843,0.000000 ),
+    ( 0.803922,0.192157,0.000000 ),
+    ( 0.803922,0.176471,0.000000 ),
+    ( 0.803922,0.160784,0.000000 ),
+    ( 0.803922,0.145098,0.000000 ),
+    ( 0.803922,0.129412,0.000000 ),
+    ( 0.803922,0.113725,0.000000 ),
+    ( 0.803922,0.098039,0.000000 ),
+    ( 0.803922,0.074510,0.000000 ),
+    ( 0.803922,0.000000,0.000000 )
+  ]
+
+TIMERID_RESIZE = 100
 
 
 #------------------------------------------------------------------------
@@ -239,6 +395,10 @@ GetToolButtonDefs()
   ( icon_name, tip_text, handler ) triples.  Refer to the section on
   Icons below for an explanation of icon names.
 
+GetUsesScaleAndCmap()
+  Must be overridden by extensions to specify whether not the widget
+  uses user-assigned scale and cmap on the DataRangeDialog.
+
 _InitUI()
   Must be implemented by extensions to create any necessary UI components.
   Failure to implement this method results in an exception.
@@ -250,10 +410,13 @@ _LoadDataModel()
   means of obtaining the DataModel object is State.FindDataModel( self.state ).
 
 _OnFindMinMax()
-  This is a placeholder event handling method for widgets that define a
-  "Find Maximum" pullright menu for the widget menu.  The implementation
-  here is a noop, but extensions can override to call one of the support
-  methods _OnFindMinMax{Channel,MultiDataSet,Pin}().
+  This is a placeholder event handling method for widgets that define
+  "Find Maximum" and "Find Minimum" pullright menus for the widget menu.  The
+  implementation here is a noop, but extensions can override to call one of the
+  support methods _OnFindMinMax{Channel,MultiDataSet,Pin}().
+
+_OnSize()
+  Event handler for a window resize.
 
 SetDataSet()
   Called when a dataset is selected on the dataset menu.  Must be implemented
@@ -284,8 +447,8 @@ _BusyBegin(), _BusyEnd()
 _CalcFontSize()
   Determines an optimal font size for a specified display width in pixels.
 
-_CreateLegendPilImage()
-  Provides a legend PIL image using a Legend2 instance.
+_CreateLegendBitmap()
+  Provides a legend wx.Bitmap using a Legend3 instance.
 
 FireStateChange()
   Calls *container*.FireStateChange() on a widget-initiated change to the
@@ -301,16 +464,20 @@ _OnContextMenu()
   overridden for that processing.
 
 _OnFindMinMaxChannel()
-  Handles 'channel' dataset maximum processing.  Calls
+  Handles 'channel' dataset mininum/maximum processing.  Calls
   self.data.FindChannelMinMaxValue() and FireStateChange().
 
-_OnFindMinMaxDetector()
-  Handles 'detector' dataset maximum processing.  Calls
-  self.data.FindDetectorMaxValue() and FireStateChange().
+_OnFindMinMaxMultiDataSets()
+  Handles 'detector' multiple datasets minimum/maximum processing.  Calls
+  self.data.FindMultiDataSetMinMaxValue() and FireStateChange().
 
 _OnFindMinMaxPin()
   Handles 'pin' dataset minimum/maximum processing.  Calls
   self.data.FindPinMinMaxValue() and FireStateChange().
+
+_OnFindMinMaxTally()
+  Handles 'tally' dataset minimum/maximum processing.  Calls
+  self.data.FindTallyMinMaxValue() and FireStateChange().
 
 _UpdateVisibilityMenuItems()
   Widgets may define menu items for toggling state, in which case the label
@@ -363,6 +530,18 @@ Widget Class Hierarchy
   logger_ = logging.getLogger( 'widget' )
 
 
+#		-- Class Initialization
+#		--
+
+#  cm.register_cmap(
+#      'spectrum',
+#       colors.LinearSegmentedColormap.
+#           from_list( 'spectrum', SPECTRUM_COLORS )
+#           #from_list( SPECTRUM_COLORS, N = len( SPECTRUM_COLORS ) )
+#       )
+  colormaps.register_colormaps()
+
+
 #		-- Object Methods
 #		--
 
@@ -398,6 +577,7 @@ Widget Class Hierarchy
     self.busy = False
     self.busyLock = threading.RLock()
     #self.busyCursor = None
+    self.colormapName = DEFAULT_colormap
     self.container = container
     self.customDataRange = None
     self.dmgr = container.state.GetDataModelMgr()
@@ -405,9 +585,9 @@ Widget Class Hierarchy
     self.logger = Widget.logger_
     self.precisionDigits = DEFAULT_precisionDigits
     self.precisionMode = DEFAULT_precisionMode
+    self.scaleType = DEFAULT_scaleType
     self.state = container.state
 
-    #self.derivedLabels = None
     self.dataRangeDialog = None
     self.menuDef = None
     self.popupMenu = None
@@ -557,7 +737,6 @@ Must be called from the UI thread.
 	  float( limits[ 2 ] - limits[ 0 ] ) *
 	  float( limits[ 3 ] - limits[ 1 ] )
           ) )
-    #size = max( size, 6 )
     return  size
   #end _CalcFontSize
 
@@ -611,18 +790,86 @@ ready for a clipboard copy.  This implementation returns None.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._CreateLegendBitmap()			-
+  #----------------------------------------------------------------------
+  def _CreateLegendBitmap(
+      self, value_range,
+      font_size = 10,
+      mapper = None,
+      ntick_values = 10,
+      scale_type = 'linear',
+      title = None
+      ):
+    """Instantiates ``widget.Legend3`` to create a wx.Bitmap.
+    Args:
+	value_range (tuple): range_min, range_max, data_min, data_max
+        scalar_map (matplotlib.cm.ScalarMappable): instance used to map
+	    values to colors and determine the range and scale type
+	mapper (matplotlib.cm.ScalarMappable): optional pre-built mapper,
+	    if None one is created basd on value_range and scale_type; Note
+	    the ``norm`` property determines scale_type, overriding the
+	    ``scale_type`` parameter if provided
+        ntick_values (int): number of values to show as ticks
+	font_size (int): font point size
+	title (str): optional title under legend
+	scale_type (str): 'linear' or 'log'
+"""
+    bg_color = self.GetBackgroundColour() \
+        if Config.GetOSName() == 'linux' else None
+
+    return  \
+    Legend3()(
+        value_range,
+	bg_color = bg_color,
+	font_size = font_size,
+	mapper = mapper,
+	ntick_values = ntick_values,
+	scale_type = scale_type,
+	title = title
+	)
+  #end _CreateLegendBitmap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._CreateLegendBitmap_1()			-
+  #----------------------------------------------------------------------
+  def _CreateLegendBitmap_1(
+      self, value_range,
+      font_size = 16, gray = False, scale_type = 'linear', title = None
+      ):
+    """Instantiates ``widget.Legend3`` to create a wx.Bitmap.
+    Args:
+        value_range (tuple): min, max
+    Keyword Args:
+	font_size (int): font point size
+	gray (boolean): True to convert to gray scale
+	scale_type (str): 'linear', 'log'
+	title (str): title string
+"""
+    bg_color = self.GetBackgroundColour() \
+        if Config.GetOSName() == 'linux' else None
+
+    return \
+    Legend3()(
+        Widget.GetColorTuple, value_range, 10, font_size,
+	gray, title, bg_color
+	)
+  #end _CreateLegendBitmap_1
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._CreateLegendPilImage()			-
   #----------------------------------------------------------------------
-  def _CreateLegendPilImage(
-      self, value_range,
-      font_size = 16, gray = False, title = None
-      ):
-    """For now this is linear only.
-@param  value_range	( min, max )
-"""
-    return \
-    Legend3()( Widget.GetColorTuple, value_range, 10, font_size, gray, title )
-  #end _CreateLegendPilImage
+#  def _CreateLegendPilImage(
+#      self, value_range,
+#      font_size = 16, gray = False, title = None
+#      ):
+#    """For now this is linear only.
+#@param  value_range	( min, max )
+#"""
+#    return \
+#    Legend3()( Widget.GetColorTuple, value_range, 10, font_size, gray, title )
+#  #end _CreateLegendPilImage
 
 
   #----------------------------------------------------------------------
@@ -668,7 +915,7 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.CreatePrintImage()			-
   #----------------------------------------------------------------------
-  def CreatePrintImage( self, file_path, bgcolor = None  ):
+  def CreatePrintImage( self, file_path, bgcolor = None, hilite = False ):
     """
 Placeholder for widget implementations to create a PNG image.
 The default implementation returns None.
@@ -765,6 +1012,22 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._GetCurAssemblyIndex()			-
+  #----------------------------------------------------------------------
+  def _GetCurAssemblyIndex( self ):
+    """Retrieves the property value 'assemblyAddr' or 'detectorAddr',
+returning -1 if neither found.
+@return			'assemblyAddr' or 'detectorAddr' value or -1
+"""
+    ndx = \
+        self.assemblyAddr[ 0 ]  if hasattr( self, 'assemblyAddr' ) else \
+	self.detectorAddr[ 0 ]  if hasattr( self, 'detectorAddr' ) else \
+	-1
+    return  ndx
+  #end _GetCurAssemblyIndex
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.GetCurDataSet()				-
   #----------------------------------------------------------------------
   def GetCurDataSet( self ):
@@ -835,42 +1098,6 @@ be overridden by subclasses.
 """
     return  []
   #end GetDataSetTypes
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget.GetDerivedLabels()			-
-  #----------------------------------------------------------------------
-#  def GetDerivedLabels( self ):
-#    """Lazily creates the list of derived labels supported by this
-#widget from the types returned by GetDataSetTypes().
-#
-#@return			set of derived labels, possibly empty, not None
-#"""
-#    if self.derivedLabels is None:
-#      self.derivedLabels = set()
-#      for t in self.GetDataSetTypes():
-#        ndx = t.find( ':' )
-#	if ndx >= 0:
-#	  self.derivedLabels.add( t[ ndx + 1 : ] )
-#      #end for
-#    #end if
-#
-#    return  self.derivedLabels
-#  #end GetDerivedLabels
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		Widget.GetDisplaysMultiDataSets()		-
-  #----------------------------------------------------------------------
-#  def GetDisplaysMultiDataSets( self ):
-#    """Accessor specifying if the widget displays multiple datasets.
-#This implementation returns False, but
-#subclasses should override as necessary.  If True is returned, a subclass
-#should also override IsDataSetVisible() and ToggleDataSetVisible().
-#@return			False
-#"""
-#    return  False
-#  #end GetDisplaysMultiDataSets
 
 
   #----------------------------------------------------------------------
@@ -983,6 +1210,20 @@ Returning None means no tool buttons, which is the default implemented here.
 """
     return  None
   #end GetToolButtonDefs
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetUsesScaleAndCmap()			-
+  #----------------------------------------------------------------------
+  def GetUsesScaleAndCmap( self ):
+    """Specifies whether or not this widget uses scale and colormap
+settings in the DataRangeDialog.  Extensions should override to return False
+if appropriate.
+    Returns:
+        boolean: True
+"""
+    return  True
+  #end GetUsesScaleAndCmap
 
 
 #  #----------------------------------------------------------------------
@@ -1113,13 +1354,17 @@ method via super.SaveProps() at the end.
 """
     self.isLoading = True
     try:
-      for k in ( 'customDataRange', 'precisionDigits', 'precisionMode' ):
+      for k in (
+	  'colormapName',
+          'customDataRange', 'precisionDigits', 'precisionMode',
+	  'scaleType'
+	  ):
         if k in props_dict:
           setattr( self, k, props_dict[ k ] )
 
-      for k in ( 'curDataSet', ):
+      for k in ( 'axialValue', 'curDataSet', 'tallyAddr' ):
         if k in props_dict and hasattr( self, k ):
-          setattr( self, k, DataSetName( props_dict[ k ] ) )
+          setattr( self, k, props_dict[ k ] )
 
       if 'eventLocks' in props_dict:
 #		-- Must convert keys to ints
@@ -1243,15 +1488,27 @@ Must be called from the UI thread.
     ev.Skip()
 
     if self.dataRangeDialog is None:
-      self.dataRangeDialog = DataRangeDialog( self, wx.ID_ANY )
+      self.dataRangeDialog = DataRangeDialog(
+          self, wx.ID_ANY,
+	  bitmap_func = Widget.GetBitmap,
+	  enable_scale_and_cmap = self.GetUsesScaleAndCmap()
+	  )
 
     changed = False
     self.dataRangeDialog.ShowModal(
-        self.customDataRange, self.precisionDigits, self.precisionMode
+        range_in = self.customDataRange,
+	digits_in = self.precisionDigits,
+	mode_in = self.precisionMode,
+	scale_type_in = self.scaleType,
+	colormap_in = self.colormapName
 	)
 
-    new_range = self.dataRangeDialog.GetRange()
+    new_colormap = self.dataRangeDialog.GetColormap()
+    if new_colormap != self.colormapName:
+      self.colormapName = new_colormap
+      changed = True
 
+    new_range = self.dataRangeDialog.GetRange()
     if new_range[ 0 ] > new_range[ 1 ]:
       wx.MessageBox(
           'Minimum cannot be greater than maximum', 'Set Data Scale',
@@ -1264,12 +1521,17 @@ Must be called from the UI thread.
     new_digits = self.dataRangeDialog.GetPrecisionDigits()
     if new_digits != self.precisionDigits:
       self.precisionDigits = new_digits
-      change = True
+      changed = True
 
     new_mode = self.dataRangeDialog.GetPrecisionMode()
     if new_mode != self.precisionMode:
       self.precisionMode = new_mode
-      change = True
+      changed = True
+
+    new_scale_type = self.dataRangeDialog.GetScaleType()
+    if new_scale_type != self.scaleType:
+      self.scaleType = new_scale_type
+      changed = True
 
     if changed:
       self.Redraw()
@@ -1279,14 +1541,15 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMax()				-
   #----------------------------------------------------------------------
-  def _OnFindMinMax( self, mode, all_states_flag, ev ):
+  def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Placeholder event handling method for widgets that define a "Find
 "Maximum" or "Find Minimum" pullright for the widget menu.
 This implementation is a noop.
 Subclasses should override to call _OnFindMinMaxChannel(),
-_OnFindMinMaxMultiDataSets(), or _OnFindMinMaxPin().
+_OnFindMinMaxMultiDataSets(), _OnFindMinMaxPin(), or _OnFindMinMaxTally().
 @param  mode		'min' or 'max', defaulting to the latter
 @param  all_states_flag	True for all states, False for current state
+@param  all_assy_flag	True to search all assemblies, False for current
 @param  ev		menu event
 """
     pass
@@ -1296,13 +1559,18 @@ _OnFindMinMaxMultiDataSets(), or _OnFindMinMaxPin().
   #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMaxChannel()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMaxChannel( self, mode, qds_name, all_states_flag ):
+  def _OnFindMinMaxChannel(
+      self, mode, qds_name,
+      all_states_flag = True, all_assy_flag = True
+      ):
     """Handles 'channel' dataset min/max processing, resulting in a call to
 FireStateChange() with assembly_addr, axial_value, state_index, and/or
 sub_addr changes.
+Note: if all_states_flag is false, self must have a 'timeValue' attribute.
 @param  mode		'min' or 'max', defaulting to the latter
 @param  qds_name	name of dataset, DataSetName instance
 @param  all_states_flag	True for all states, False for current state
+@param  all_assy_flag	True to search all assemblies, False for current
 """
     update_args = {}
 
@@ -1310,8 +1578,8 @@ sub_addr changes.
       update_args = self.dmgr.FindChannelMinMaxValue(
 	  mode, qds_name,
 	  -1 if all_states_flag else self.timeValue,
-	  self,
-          self.state.weightsMode == 'on'
+	  -1 if all_assy_flag else self._GetCurAssemblyIndex(),
+	  self, self.state.weightsMode == 'on'
           )
 
     if update_args:
@@ -1322,12 +1590,17 @@ sub_addr changes.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMaxMultiDataSets()		-
   #----------------------------------------------------------------------
-  def _OnFindMinMaxMultiDataSets( self, mode, all_states_flag, *qds_names ):
+  def _OnFindMinMaxMultiDataSets(
+      self, mode, all_states_flag, all_assy_flag,
+      *qds_names
+      ):
     """Handles multi-dataset dataset maximum processing, resulting in a call to
 FireStateChange() with assembly_addr, axial_value, state_index,
 and/or sub_addr changes.
+Note: if all_states_flag is false, self must have a 'timeValue' attribute.
 @param  mode		'min' or 'max', defaulting to the latter
 @param  all_states_flag	True for all states, False for current state
+@param  all_assy_flag	True to search all assemblies, False for current
 @param  qds_names	dataset names to search, DataSetName instances
 """
     update_args = {}
@@ -1336,6 +1609,7 @@ and/or sub_addr changes.
       update_args = self.dmgr.FindMultiDataSetMinMaxValue(
 	  mode,
 	  -1 if all_states_flag else self.timeValue,
+	  -1 if all_assy_flag else self._GetCurAssemblyIndex(),
 	  self, *qds_names
 	  )
 
@@ -1347,13 +1621,17 @@ and/or sub_addr changes.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._OnFindMinMaxPin()			-
   #----------------------------------------------------------------------
-  def _OnFindMinMaxPin( self, mode, qds_name, all_states_flag ):
+  def _OnFindMinMaxPin(
+      self, mode, qds_name, all_states_flag = True, all_assy_flag = True
+      ):
     """Handles 'pin' dataset min/max processing, resulting in a call to
 FireStateChange() with assembly_addr, axial_value, state_index, and/or
 sub_addr changes.
+Note: if all_states_flag is false, self must have a 'timeValue' attribute.
 @param  mode		'min' or 'max', defaulting to the latter
 @param  qds_name	name of dataset, DataSetName instance
 @param  all_states_flag	True for all states, False for current state
+@param  all_assy_flag	True to search all assemblies, False for current
 """
     update_args = {}
 
@@ -1361,13 +1639,55 @@ sub_addr changes.
       update_args = self.dmgr.FindPinMinMaxValue(
 	  mode, qds_name,
 	  -1 if all_states_flag else self.timeValue,
-	  self,
-          self.state.weightsMode == 'on'
+	  -1 if all_assy_flag else self._GetCurAssemblyIndex(),
+	  self, self.state.weightsMode == 'on'
           )
 
     if update_args:
       self.FireStateChange( **update_args )
   #end _OnFindMinMaxPin
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMaxTally()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxTally(
+      self, mode, tally_addr = True, all_states_flag = True,
+      ds_expr = None, radius_start_ndx = 0
+      ):
+    """Handles 'tally' dataset min/max processing, resulting in a call to
+FireStateChange() with axial_value, state_index, and/or tally_addr changes.
+Note: if all_states_flag is false, self must have a 'timeValue' attribute.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  tally_addr	TallyAddress instance
+@param  all_states_flag	True for all states, False for current state
+@param  ds_expr		expression to apply to dataset min/max search,
+			if None, tally_addr.multIndex and .statIndex will
+			be applied in DataModel.FindTallyMinMaxValueAddr()
+@param  radius_start_ndx  starting index of range range of validity
+"""
+    update_args = {}
+
+    if tally_addr:
+      update_args = self.dmgr.FindTallyMinMaxValue(
+	  mode, tally_addr,
+	  -1 if all_states_flag else self.timeValue,
+	  self, ds_expr, radius_start_ndx
+          )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMinMaxTally
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnSize()				-
+  #----------------------------------------------------------------------
+  def _OnSize( self, ev ):
+    """Noop.
+"""
+    pass
+  #end _OnSize
 
 
   #----------------------------------------------------------------------
@@ -1424,26 +1744,56 @@ customDataRange.
       ds_range.append( -10.0 )
       ds_range.append( 10.0 )
 
+    if ds_range[ 0 ] >= ds_range[ 1 ]:
+      span = abs( ds_range[ 0 ] ) * 0.1
+      ds_range[ 1 ] = ds_range[ 0 ] + span
+      ds_range[ 0 ] -= span
+
     return  tuple( ds_range )
   #end _ResolveDataRange
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._ResolveScaleType()			-
+  #----------------------------------------------------------------------
+  def _ResolveScaleType( self, qds_name ):
+    """
+"""
+    return \
+        self.scaleType  if self.scaleType != DEFAULT_scaleType else \
+	'linear'  if qds_name is None else \
+        self.dmgr.GetDataSetScaleType( qds_name )
+  #end _ResolveScaleType
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.SaveProps()				-
   #----------------------------------------------------------------------
-  def SaveProps( self, props_dict ):
+  def SaveProps( self, props_dict, for_drag = False ):
     """Called to save properties.  Subclasses should override calling this
 method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
-    for k in ( 'customDataRange', 'precisionDigits', 'precisionMode' ):
+    for k in (
+	'colormapName',
+        'customDataRange', 'precisionDigits', 'precisionMode',
+	'scaleType'
+	):
       props_dict[ k ] = getattr( self, k )
 
-    if self.dmgr is not None:
-      for k in ( 'curDataSet', ):
-	if hasattr( self, k ):
+    for k in ( 'axialValue', 'tallyAddr' ):
+      if hasattr( self, k ):
+        props_dict[ k ] = getattr( self, k )
+
+    for k in ( 'curDataSet', ):
+      if hasattr( self, k ):
+	if for_drag:
+          qds_name = getattr( self, k )
+	else:
           qds_name = self.dmgr.RevertIfDerivedDataSet( getattr( self, k ) )
-          props_dict[ k ] = qds_name.name  if qds_name is not None else  ''
+#t        props_dict[ k ] = qds_name.name  if qds_name is not None else  ''
+	if qds_name:
+	  props_dict[ k ] = qds_name.tojson()
 
     props_dict[ 'eventLocks' ] = self.container.GetEventLocks()
   #end SaveProps
@@ -1533,6 +1883,24 @@ GetDisplaysMultiDataSets() returns True.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.CalcPointSize()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CalcPointSize( gc, pixel_size ):
+    """
+@param  gc		wx.GraphicsContext instance
+@param  pixel_size	pixel size
+@return			point size for the given number of pixels
+"""
+    if isinstance( gc, wx.GraphicsContext ):
+      pts_per_pixel = 72.0 / gc.GetDPI()[ 0 ]
+    else:
+      pts_per_pixel = 72.0 / gc.GetPPI()[ 0 ]
+    return  int( pts_per_pixel * pixel_size )
+  #end CalcPointSize
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.CheckSingleMenuItem()			-
   #----------------------------------------------------------------------
   @staticmethod
@@ -1576,6 +1944,32 @@ submenus.
       else:
         ndx += 1
   #end ClearMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.CopyFont()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CopyFont(
+      font,
+      family = None, pt_size = None, style = None, weight = None
+      ):
+    """Makes a copy of the font.
+@param  font		wx.Font instance
+@param  family		optional wx.FontFamily, None uses font.GetFamily()
+@param  pt_size		optional point size, None uses font.GetPointSize()
+@param  style		optional wx.FontStyle, None uses font.GetStyle()
+@param  weight		optional wx.FontWeight, None uses font.GetStyle()
+@return			new wx.Font instance
+"""
+    new_font = wx.Font(
+	pt_size  if pt_size is not None else  font.GetPointSize(),
+	family  if family is not None else  font.GetFamily(),
+	style  if style is not None else  font.GetStyle(),
+	weight  if weight is not None else  font.GetWeight()
+        )
+    return  new_font
+  #end CopyFont
 
 
   #----------------------------------------------------------------------
@@ -1819,6 +2213,17 @@ http://www.particleincell.com/blog/2014/colormap/
   def IsMainThread():
     return  threading.current_thread().name == 'MainThread'
   #end IsMainThread
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.NormalizeAngle()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def NormalizeAngle( angle_rad ):
+    """Normalizes angle to range (-180,180].
+"""
+    return  angle_rad - TWO_PI  if angle_rad > math.pi else  angle_rad
+  #end NormalizeAngle
 
 
   #----------------------------------------------------------------------

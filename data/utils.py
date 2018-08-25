@@ -3,10 +3,18 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2018-05-21	leerw@ornl.gov				-
+#	  Added CreatedDerivedMethodName().
+#		2018-02-26	leerw@ornl.gov				-
+#	  Added GetNodeAddr() for documentation purposes.
+#		2017-12-15	leerw@ornl.gov				-
+# 	  Added CreateDataSetExpr().
+#		2017-10-25	leerw@ornl.gov				-
+#	  Fixed bug in MergeLists() not handling duplicate values.
 #		2017-07-17	leerw@ornl.gov				-
 #	  Added DataUtils.ApplyIgnoreExpression().
 #		2017-06-07	leerw@ornl.gov				-
-#	  Added MergeLists(0.
+#	  Added MergeLists().
 #		2017-01-12	leerw@ornl.gov				-
 #	  Marginal improvement in NormalizeValueLabels() to account for
 #	  exponential and non-exponential labels.
@@ -34,6 +42,8 @@ import pdb
 
 
 NAN = float( 'nan' )
+
+NODE_INDEXES = ( ( 0, 1 ), ( 2, 3 ) )
 
 REGEX_WS = re.compile( '[\s,t]+' )
 
@@ -148,6 +158,25 @@ min and max.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CreateDataSetExpr()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CreateDataSetExpr( ds_shape, *ndx_value_pairs ):
+    """
+"""
+    expr_items = [ ':' for i in xrange( len( ds_shape ) ) ]
+    if ndx_value_pairs:
+      for pair in ndx_value_pairs:
+        if pair[ 0 ] >= 0 and pair[ 0 ] < len( ds_shape ):
+	  expr_items[ pair[ 0 ] ] = str( pair[ 1 ] )
+    #end if ndx_value_pairs
+
+    expr = '[' + ','.join( expr_items ) + ']'
+    return  expr
+  #end CreateDataSetExpr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DeepCopy()					-
   #----------------------------------------------------------------------
   @staticmethod
@@ -194,7 +223,8 @@ descending.  Note bisect only does ascending.
       #if values[ 0 ] > values[ -1 ]:
       if mode == 'd':
         match_ndx = \
-	    len( values ) - 1 - bisect.bisect_left( sorted( values ), value )
+	    len( values ) - bisect.bisect_left( sorted( values ), value )
+	    #len( values ) - 1 - bisect.bisect_left( sorted( values ), value )
         match_ndx = max( 0, min( match_ndx, len( values ) - 1 ) )
 #        lo = 0
 #	hi = len( values )
@@ -328,6 +358,27 @@ descending.  Note bisect only does ascending.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.CreateDerivedMethodName()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CreateDerivedMethodName( ds_category, derived_label, agg_name = 'avg' ):
+    """Creates the method name from the parameters with format
+"calc_[ds_category]_[derived_label]_[agg_name]"
+    Args:
+        ds_category (str): dataset category, e.g., 'channel', 'pin'
+	derived_label (str): derived label, e.g., 'assembly', 'axial', 'core',
+	    'radial'
+        agg_name (str): name of aggration function, e.g., 'avg', 'max', 'min'
+    Returns:
+        str:  method name
+"""
+    name = '{0:s}_{1:s}_{2:s}_{3:s}'.\
+        format( ds_category, derived_label, agg_name )
+    return  name
+  #end CreateDerivedMethodName
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataUtils.CreateDerivedTypeName()		-
   #----------------------------------------------------------------------
   @staticmethod
@@ -359,6 +410,23 @@ must match how _CreateDerivedNames() builds the derived type name.
         ds_type = ds_type[ ndx + 1 : ]
     return  ds_type
   #end GetDataSetTypeDisplayName
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.GetNodeAddr()				-
+  #----------------------------------------------------------------------
+  def GetNodeAddr( self, col, row ):
+    """Returns the index in range [0,3] for the node col and row.
+    Args:
+      col (int): 0-based node column
+      row (int): 0-based node row
+    Returns:
+      int: index in range [0,3]
+"""
+    col = max( 0, min( col, 1 ) )
+    row = max( 0, min( row, 1 ) )
+    return  NODE_INDEXES[ row ][ col ]
+  #end GetNodeAddr
 
 
   #----------------------------------------------------------------------
@@ -396,7 +464,8 @@ Both are assumed to be in ascending order.
       else:
         for v in values:
 	  ndx = bisect.bisect_right( master, v )
-	  master.insert( ndx, v )
+	  if ndx < 1 or master[ ndx - 1 ] != v:
+	    master.insert( ndx, v )
 	#end for v
     #end if values
 
