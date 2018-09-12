@@ -354,11 +354,27 @@ to follow these steps.
   Windows: The `Miniconda2` subfolder is in the root of the VERAView
   installation directory.
 
-  Mac: The 'miniconda2' subdir is the `VERAView.app/Contents/MacOS` directory
-  in the applications directory where VERAView is installed, which usually will
-  be either `/Applications' or '$HOME/Applications'.
+  Mac: The `miniconda2` subdir is in the `VERAView.app/Contents/MacOS`
+  directory in the applications directory where VERAView is installed, which
+  usually will be either `/Applications` or `$HOME/Applications`.
 
-  Linux: The 'miniconda2' subdir is the in the root of the VERAView
+  Linux: The `miniconda2` subdir is the in the root of the VERAView
   installation.
+
+2. Extract the zip file.
+
+  Windows: Extract in the folder above (containing) your VERAView installation
+  directory.
+
+  Mac: Extract in the `VERAView.app/Contents` directory in the applications
+  directory where VERAView is installed.   Either rename or remove your
+  existing `MacOS` directory.  Rename the extracted `veraview` subdirectory to
+  `MacOS`.
+
+  Linux: Extract in the directory above (containing) your VERAView installation
+  directory.
+
+
+
 
 2. Follow the *Clone the Repository* instructions in the section for your platform above.
