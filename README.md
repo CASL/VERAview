@@ -347,7 +347,7 @@ or rename it in order to preserve it.
 ## After Using an Application Installer
 
 The easiest way to migrate to using the repository after an installer is
-to follow these steps.
+to follow these steps after downloading a zip.
 
 1. Move the `Miniconda2` subfolder or `miniconda2` subdir in your installation to your home folder or directory.
 
@@ -374,7 +374,23 @@ to follow these steps.
   Linux: Extract in the directory above (containing) your VERAView installation
   directory.
 
+3. Copy files.
 
+  Windows: Copy all the files in the extracted `VERAView-master` folder into
+  your installed `VERAView` folder.  You can do this with File Explorer or
+  with the `robocopy` in a Command Prompt window:
 
+    > robocopy VERAView-master VERAView * /e
 
-2. Follow the *Clone the Repository* instructions in the section for your platform above.
+  Mac:  Since application files are in the `MacOS` subdir under
+  `VERAView.app/Contents` the files in the newly extracted `VERAView-master`
+  subdirectory must copied into `MacOS`.  For example:
+
+    $ cd .../VERAView.app/Contents/VERAView-master
+    $ cp -r * ../MacOS
+
+  Linux: Copy all the files in the extracted `VERAView-master` directory into
+  your installed `veraview` folder.  For example:
+
+    $ cd .../VERAView-master
+    $ cp -r * ../veraview
