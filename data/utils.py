@@ -3,6 +3,14 @@
 #------------------------------------------------------------------------
 #	NAME:		utils.py					-
 #	HISTORY:							-
+#		2018-10-19	leerw@ornl.gov				-
+#	  Fixed CalcEqualAreaRadii().
+#		2018-10-18	leerw@ornl.gov				-
+#	  Moved FixDuplicates() from DataModel.
+#		2018-08-24	leerw@ornl.gov				-
+#	  Added CalcEqualAreaRadii().
+#		2018-08-21	leerw@ornl.gov				-
+#	  Added ToString().
 #		2018-05-21	leerw@ornl.gov				-
 #	  Added CreatedDerivedMethodName().
 #		2018-02-26	leerw@ornl.gov				-
@@ -45,7 +53,13 @@ NAN = float( 'nan' )
 
 NODE_INDEXES = ( ( 0, 1 ), ( 2, 3 ) )
 
-REGEX_WS = re.compile( '[\s,t]+' )
+PI_OVER_2 = math.pi / 2.0
+
+RADS_PER_DEG = math.pi / 180.0
+
+REGEX_WS = re.compile( '[\s,]+' )
+
+TWO_PI = math.pi * 2.0
 
 
 #------------------------------------------------------------------------
@@ -177,6 +191,30 @@ min and max.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		CalcEqualAreaRadii()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CalcEqualAreaRadii( diameter, nrings ):
+    """Assumes the radii start at zero.
+    Args:
+        diameter (float): total diameter of area for radii
+	nrings (int): number of rings
+    Returns:
+        list(float): nrings + 1 values from inside to outside (low to high)
+"""
+    total_area = math.pi * math.pow( diameter / 2.0, 2.0 )
+    bin_area = total_area / nrings  if nrings > 0 else  total_area
+    term = bin_area / math.pi
+    r = math.sqrt( term )
+    radii = [ 0.0, r ]
+    for i in range( nrings - 1 ):
+      r = math.sqrt( term + (r * r) )
+      radii.append( r )
+    return  radii
+  #end CalcEqualAreaRadii
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DeepCopy()					-
   #----------------------------------------------------------------------
   @staticmethod
@@ -246,6 +284,54 @@ descending.  Note bisect only does ascending.
 
     return  match_ndx
   #end FindListIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		FixDuplicates()					-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def FixDuplicates( values, order = 'a' ):
+    """Creates a new list with no duplicate values.  Duplicate values in
+sequence are changed, either to a higher value if order is 'a' or a lower
+value if order is 'd'.  The values are such that order is preserved, and
+the changes are as insignificant as feasible.
+    Args:
+        values (iterable): list or iterable of values to dedup
+	order (char): 'a' for ascending, 'd' for descending
+    Returns:
+        list: values dedup'd
+"""
+#		-- Assert on iterable
+#		--
+    assert hasattr( values, '__iter__' ), 'Values must be iterable'
+
+    values_list = values  if isinstance( values, list ) else  list( values )
+    result = []
+
+    pivot_ndx = -1
+    pivot_value = dedup_value = None
+    for i in xrange( len( values_list ) ):
+      cur_value = values_list[ i ]
+
+      if pivot_ndx < 0 or cur_value != pivot_value:
+        pivot_ndx = i
+	pivot_value = dedup_value = cur_value
+      else:
+        #base_value = dedup_value * 1.000000001
+	base_value = \
+            0.000000001  if dedup_value == 0.0 else \
+	    dedup_value * 1.000000001
+	if i < len( values_list ) - 1 and \
+	    values_list[ i + 1 ] != pivot_value and \
+	    base_value >= values_list[ i + 1 ]:
+	  base_value = (dedup_value + values_list[ i + 1 ]) / 2.0
+        cur_value = dedup_value = base_value
+
+      result.append( cur_value )
+    #end for i
+
+    return  result
+  #end FixDuplicates
 
 
   #----------------------------------------------------------------------
@@ -401,13 +487,12 @@ must match how _CreateDerivedNames() builds the derived type name.
 @param  ds_type		category/type
 @return			type name sans any derived marking
 """
-#    if ds_type and ds_type.find( ':' ) == 0:
-#      ds_type = ds_type[ 1 : ]
+#    if ds_type:
+#      ds_type = ds_type[ ds_type.find( ':' ) + 1 : ]
+
 #		-- Safer version
-    if ds_type:
-      ndx = ds_type.find( ':' )
-      if ndx >= 0:
-        ds_type = ds_type[ ndx + 1 : ]
+    if ds_type and ds_type[ 0 ] == ':':
+      ds_type = ds_type[ 1 : ]
     return  ds_type
   #end GetDataSetTypeDisplayName
 
@@ -577,17 +662,62 @@ Both are assumed to be in ascending order.
   #	METHOD:		DataUtils.ToAddrString()			-
   #----------------------------------------------------------------------
   @staticmethod
-  def ToAddrString( col, row ):
+  def ToAddrString( *args ):
+    """Convenience method to convert from 0-based indices to Fortran
+1-based indices.
+    Args:
+        args (int list): list of indexes
+    Returns:
+        str: tuple representation
+"""
+    cur_list = [ i + 1 for i in args if i >= 0 ]
+    result = str( tuple( cur_list ) )
+    return  result.replace( ' ', '' )
+  #end ToAddrString
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.ToAddrString1()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ToAddrString1( col, row ):
     """Convenience method to convert from 0-based indices to Fortran
 1-based indices.
 @param  col		0-based column index
 @param  row		0-based row index
 @return			"( col + 1, row + 1 )"
 """
-    #return  '(%d,%d)' % ( col + 1, row + 1 )
     return  \
         '(%d,%d)' % ( col + 1, row + 1 )  if row >= 0 else \
         '(%d)' % (col + 1)
-  #end ToAddrString
+  #end ToAddrString1
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataUtils.ToString()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def ToString( value ):
+    """Convenience method to extract a string value.
+    Args:
+        value (?): scalar, array, or object
+    Returns:
+        str: string value, the first value if ``value`` is an array
+"""
+#    return \
+#        str( value[ 0 ] )  if isinstance( value, np.ndarray ) else \
+#	str( value[ 0 ] )  if hasattr( value, '__iter__' ) else \
+#	str( value )
+    result = ''
+
+    if isinstance( value, np.ndarray ):
+      result = value[ () ]  if len( value.shape ) == 0 else  value[ 0 ]
+    elif hasattr( value, '__iter__' ):
+      result = str( value[ 0 ] )
+    else:
+      result = str( value )
+
+    return  result
+  #end ToString
 
 #end DataUtils

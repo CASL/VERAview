@@ -3,6 +3,12 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_widget.py					-
 #	HISTORY:							-
+#		2018-08-21	leerw@ornl.gov				-
+#	  Added _IsTimeReplot().
+#		2018-08-20	leerw@ornl.gov				-
+#	  Added _DoUpdateRedraw() hook.
+#		2018-08-18	leerw@ornl.gov				-
+#	  Added ref_axis2 param and self.cursorLine2.
 #		2018-02-17	leerw@ornl.gov				-
 #	  Using a wx.Timer to manage resize events to avoid updating for
 #	  transient sizes.
@@ -72,8 +78,9 @@ except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
 
 from event.state import *
-from widget import *
-from widgetcontainer import *
+
+from .widget import *
+from .widgetcontainer import *
 
 
 PLOT_COLORS = [ 'b', 'r', 'g', 'm', 'c' ]
@@ -125,6 +132,10 @@ cursor
 cursorLine
   horizontal or vertical matplotlib.lines.Line2D instance following the mouse
 
+cursorLine2
+  horizontal or vertical matplotlib.lines.Line2D instance following the mouse
+  for the non-primary axis
+
 data
   DataModel reference, getter is GetData()
 
@@ -163,6 +174,9 @@ _InitUI()
   Widget framework method implementation that creates the Figure (*fig*),
   calls _InitAxes(), creates the Canvas (*canvas*), and binds matplotlib
   and wxPython event handlers.
+
+_IsTimeReplot()
+  True to replot on time change, False to redraw
 
 _LoadDataModel()
   Widget framework method implementation that calls _LoadDataModelValues() and
@@ -211,6 +225,8 @@ Support Methods
     """
 @param  kwargs
     ref_axis		reference axis 'x' or 'y', defaults to 'y'
+    ref_axis2		2nd reference axis 'x' or 'y', defaults to None
+    show_cursor		toggle for showing cursor lines, defaults to True
 """
 
     self.ax = None
@@ -219,6 +235,7 @@ Support Methods
     self.curSize = None
     self.cursor = None
     self.cursorLine = None  # axis line following the cursor
+    self.cursorLine2 = None  # axis line following the cursor
     self.fig = None
     self.timer = None
     self.toolbar = None
@@ -226,6 +243,8 @@ Support Methods
     self.callbackIds = {}
     #self.isLoaded = False
     self.refAxis = kwargs.get( 'ref_axis', 'y' )
+    self.refAxis2 = kwargs.get( 'ref_axis2' )
+    self.showCursor = kwargs.get( 'show_cursor', True )
     #self.stateIndex = -1
     self.timeValue = -1.0
     self.titleFontSize = 16
@@ -268,8 +287,12 @@ Support Methods
       if not hilite:
         if self.cursorLine is not None:
           self.cursorLine.set_visible( False )
+        if self.cursorLine2 is not None:
+          self.cursorLine2.set_visible( False )
         if self.axline is not None:
           self.axline.set_visible( False )
+        self._DoUpdateRedraw( False )
+	self.canvas.draw()
 
       if bgcolor and hasattr( bgcolor, '__iter__' ) and len( bgcolor ) >= 3:
 	fc = tuple( [ bgcolor[ i ] / 255.0 for i in xrange( 3 ) ] )
@@ -293,6 +316,9 @@ Support Methods
           self.axline.set_visible( True )
         if self.cursorLine is not None:
           self.cursorLine.set_visible( True )
+        if self.cursorLine2 is not None:
+          self.cursorLine2.set_visible( True )
+        self._DoUpdateRedraw()
         self.canvas.draw()
     #end if
 
@@ -324,6 +350,16 @@ calls self.ax.grid() and can be called by subclasses.
 	color = '#c8c8c8', linestyle = ':', linewidth = 1
 	)
   #end _DoUpdatePlot
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_DoUpdateRedraw()				-
+  #----------------------------------------------------------------------
+  def _DoUpdateRedraw( self, hilite = True ):
+    """Update for a redraw only.
+"""
+    pass
+  #end _DoUpdateRedraw
 
 
   #----------------------------------------------------------------------
@@ -385,6 +421,7 @@ calls self.ax.grid() and can be called by subclasses.
 #    else:
 #      self.ax = self.fig.add_subplot( 111 )
     self.canvas = FigureCanvas( self, -1, self.fig )
+    self.canvas.SetMinClientSize( wx.Size( 200, 200 ) )
     self.toolbar = NavigationToolbar( self.canvas )
     #self.toolbar.Realize()
     self.toolbar.SetBackgroundColour( wx.Colour( 236, 236, 236, 255 ) )
@@ -410,11 +447,33 @@ calls self.ax.grid() and can be called by subclasses.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		IsDataSetScaleCapable()			        -
+  #----------------------------------------------------------------------
+  def IsDataSetScaleCapable( self ):
+    """Returns false.
+    Returns:
+        bool: False
+"""
+    return  False
+  #end IsDataSetScaleCapable
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_IsTimeReplot()					-
+  #----------------------------------------------------------------------
+  def _IsTimeReplot( self ):
+    """Returns True if the widget replots on a time change, False it it
+merely redraws.  Defaults to True.  Should be overridden as necessary.
+"""
+    return  True
+  #end _IsTimeReplot
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		_LoadDataModel()				-
   #----------------------------------------------------------------------
   def _LoadDataModel( self, reason ):
-    """Builds the images/bitmaps and updates the components for the current
-model.
+    """Updates the components for the current model.
 xxx need loaded flag set when LoadProps() is called so you don't call
 _LoadDataModelValues()
 """
@@ -441,8 +500,9 @@ to be passed to UpdateState().  Assume self.dmgr is valid.
   #	METHOD:		PlotWidget.LoadProps()				-
   #----------------------------------------------------------------------
   def LoadProps( self, props_dict ):
-    """Called to load properties.  This implementation is a noop and should
-be overridden by subclasses.
+    """Called to load properties.  This implementation takes care of
+'dataSetSelections' and 'timeValue', but subclasses must override for
+all other properties.
 @param  props_dict	dict object from which to deserialize properties
 """
     for k in ( 'timeValue', ):
@@ -509,22 +569,39 @@ be overridden by subclasses.
       self.cursor = None
       if self.cursorLine is not None:
         self.cursorLine.set_visible( False )
+	if self.cursorLine2 is not None:
+	  self.cursorLine2.set_visible( False )
         self.canvas.draw()
       #self.canvas.SetToolTipString( '' )
 
     elif self.ax is not None:
-      if self.cursorLine is None:
+      if self.cursorLine is None and self.showCursor:
         self.cursorLine = \
 	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
 	    if self.refAxis == 'y' else \
 	    self.ax.axvline( color = 'k', linestyle = '--', linewidth = 1 ) \
 
+      if self.refAxis2 and self.cursorLine2 is None and self.showCursor:
+        self.cursorLine2 = \
+	    self.ax.axhline( color = 'k', linestyle = '--', linewidth = 1 ) \
+	    if self.refAxis2 == 'y' else \
+	    self.ax.axvline( color = 'k', linestyle = '--', linewidth = 1 ) \
+
       self.cursor = ( ev.xdata, ev.ydata )
-      if self.refAxis == 'y':
-        self.cursorLine.set_ydata( ev.ydata )
-      else:
-        self.cursorLine.set_xdata( ev.xdata )
-      self.cursorLine.set_visible( True )
+      if self.showCursor:
+        if self.refAxis == 'y':
+          self.cursorLine.set_ydata( ev.ydata )
+        else:
+          self.cursorLine.set_xdata( ev.xdata )
+        if self.refAxis2 == 'y':
+          self.cursorLine2.set_ydata( ev.ydata )
+        elif self.refAxis2 == 'x':
+          self.cursorLine2.set_xdata( ev.xdata )
+
+        self.cursorLine.set_visible( True )
+        if self.cursorLine2:
+          self.cursorLine2.set_visible( True )
+      #end if self.showCursor
       self.canvas.draw()
 
       tip_str = self._CreateToolTipText( ev )
@@ -563,6 +640,18 @@ with super.
 
     else:
       ev.Skip()
+
+      wd, ht = self.GetClientSize()
+      if self.logger.isEnabledFor( logging.DEBUG ):
+        self.logger.debug( '%s: clientSize=%d,%d', self.GetTitle(), wd, ht )
+
+      if wd > 0 and ht > 0:
+        if self.curSize is None or \
+            wd != self.curSize[ 0 ] or ht != self.curSize[ 1 ]:
+          self.curSize = ( wd, ht )
+          if self.logger.isEnabledFor( logging.DEBUG ):
+            self.logger.debug( '%s: starting timer', self.GetTitle() )
+	  self.timer.Start( 500, wx.TIMER_ONE_SHOT )
 
 #      wd, ht = self.GetClientSize()
 #      if wd > 0 and ht > 0:
@@ -623,10 +712,10 @@ with super.
     """
 """
     if ev.Timer.Id == TIMERID_RESIZE:
-      wd, ht = self.GetClientSize()
+      #wd, ht = self.GetClientSize()
       if self.curSize is not None:
         if self.logger.isEnabledFor( logging.DEBUG ):
-          self.logger.debug( '%s: calling UpdateState replot', self.GetTitle() )
+          self.logger.debug( '%s: calling UpdateState redraw', self.GetTitle() )
         wx.CallAfter( self.UpdateState, redraw = True ) # replot = true
     #end if ev.Timer.Id == TIMERID_RESIZE
   #end _OnTimer
@@ -649,8 +738,8 @@ with super.
           canvas.mpl_connect( 'motion_notify_event', self._OnMplMouseMotion )
 
     else:
-      for k, id in self.callbackIds.iteritems():
-        self.canvas.mpl_disconnect( id )
+#      for k, id in self.callbackIds.iteritems():
+#        self.canvas.mpl_disconnect( id )
       self.toolbar.Show( True )
 
     self.GetSizer().Layout()
@@ -661,8 +750,9 @@ with super.
   #	METHOD:		PlotWidget.SaveProps()				-
   #----------------------------------------------------------------------
   def SaveProps( self, props_dict, for_drag = False ):
-    """Called to save properties.  Subclasses should override calling this
-method via super.SaveProps().
+    """Called to load properties.  This implementation takes care of
+'dataSetSelections' and 'timeValue', but subclasses must override for
+all other properties.
 @param  props_dict	dict object to which to serialize properties
 """
     super( PlotWidget, self ).SaveProps( props_dict, for_drag = for_drag )
@@ -706,11 +796,6 @@ method via super.SaveProps().
 Must be called from the UI thread.
 """
     self._BusyDoOp( self._UpdatePlotImpl )
-#    try:
-#      wait = wx.BusyCursor()
-#      self._UpdatePlotImpl()
-#    finally:
-#      del wait
   #end _UpdatePlot
 
 
@@ -723,7 +808,8 @@ Must be called from the UI thread.
 """
     if self.ax is not None:
       self.axline = None
-      self.cursorLine = None
+      self.cursorLine = \
+      self.cursorLine2 = None
 
 #      self.ax.clear()
 #      if hasattr( self, 'ax2' ) and self.ax2 is not None:
@@ -748,6 +834,7 @@ Must be called from the UI thread.
 #	  color = '#c8c8c8', linestyle = ':', linewidth = 1
 #	  )
       self._DoUpdatePlot( wd, ht )
+      self._DoUpdateRedraw()
       self.canvas.draw()
     #end if
   #end _UpdatePlotImpl
@@ -761,7 +848,7 @@ Must be called from the UI thread.
     """
 Must be called from the UI thread.
 """
-    if self:
+    if bool( self ):
       if 'scale_mode' in kwargs:
         kwargs[ 'replot' ] = True
 
@@ -780,6 +867,7 @@ Must be called from the UI thread.
         self._UpdatePlot()
 
       elif redraw:
+        self._DoUpdateRedraw()
         self.canvas.draw()
   #end UpdateState
 
@@ -793,19 +881,22 @@ Must be called from the UI thread.
 Must be called from the UI thread.
 @return			kwargs with 'redraw' and/or 'replot'
 """
-    replot = kwargs.get( 'replot', False )
-    redraw = kwargs.get( 'redraw', kwargs.get( 'force_redraw', False ) )
+    #replot = kwargs.get( 'replot', False )
+    #redraw = kwargs.get( 'redraw', kwargs.get( 'force_redraw', False ) )
+    replot = kwargs.get( 'replot', kwargs.get( 'force_redraw', False ) )
+    redraw = kwargs.get( 'redraw', False )
 
     if 'data_model_mgr' in kwargs:
       replot = True
 
-#    if 'state_index' in kwargs and kwargs[ 'state_index' ] != self.stateIndex:
-#      replot = True
-#      self.stateIndex = kwargs[ 'state_index' ]
-#    #end if
+    if 'dataset_added' in kwargs:
+      wx.CallAfter( self.container.GetDataSetMenu().UpdateAllMenus )
 
     if 'time_value' in kwargs and kwargs[ 'time_value' ] != self.timeValue:
-      replot = True
+      if self._IsTimeReplot():
+        replot = True
+      else:
+        redraw = True
       self.timeValue = kwargs[ 'time_value' ]
 
     if redraw:

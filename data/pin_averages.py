@@ -203,10 +203,51 @@ Not quite:
     """
 """
     axial_mesh = self.core.axialMesh
+    if len( axial_mesh ) <= 2:
+      result = 0.0
+
+    else:
+      weights = self.fDict.get( 'pinWeights' )
+      pin_data = np.array( pin_powers_dset )
+      inside_shape = list( pin_data.shape )
+      inside_shape[ 2 ] = len( axial_mesh ) - 1
+
+      power_top = power_bot = 0.0
+      axial_middle = (axial_mesh[ 0 ] + axial_mesh[ -1 ]) / 2.0
+      kmid = bisect.bisect_left( axial_mesh, axial_middle )
+      for k in range( len( axial_mesh ) - 1 ):
+        cur_weights = weights[ :, :, k, : ]
+        cur_sum = np.sum( pin_data[ :, :, k, : ] * cur_weights )
+        if axial_mesh[ k + 1 ] <= axial_middle:
+          power_bot += cur_sum
+        elif axial_mesh[ k ] < axial_middle:
+          bottom_fraction = \
+              (axial_middle - axial_mesh[ k ]) / \
+              (axial_mesh[ k + 1 ] - axial_mesh[ k ] )
+          power_bot += cur_sum * bottom_fraction
+          power_top += cur_sum * (1.0 - bottom_fraction)
+        else:
+          power_top += cur_sum
+
+      total_sum = np.sum( pin_data[:] * weights )
+      result = (power_top - power_bot) / (power_top + power_bot) * 100.0
+    #end else
+
+    return  result
+  #end calc_axial_offset
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_axial_offset_orig()                        -
+  #----------------------------------------------------------------------
+  def calc_axial_offset_orig( self, pin_powers_dset ):
+    """
+"""
+    axial_mesh = self.core.axialMesh
     weights = self.fDict.get( 'pinWeights' )
     pin_data = np.array( pin_powers_dset )
     inside_shape = list( pin_data.shape )
-    inside_shape[ 2 ] = len( axial_mesh - 1 )
+    inside_shape[ 2 ] = len( axial_mesh ) - 1
 
     axial_powers = []
     for k in range( len( axial_mesh ) - 1 ):  # pin_data.shape[ 2 ]
@@ -220,29 +261,58 @@ Not quite:
 	    np.sum( pin_data[ :, :, k, : ] * cur_weights ) / cur_weights_sum
       axial_powers.append( cur_powers )
 
-    axial_middle = (axial_mesh[ 0 ] + axial_mesh[ -1 ]) / 2.0
-    kmid = bisect.bisect_left( axial_mesh, axial_middle )
-    if axial_middle == axial_mesh[ kmid ]:
-      bot_en = top_st = kmid
+    #xxxx account for 0s at top and bottom, ignore them
+    if len( axial_mesh ) <= 2:
+      result = axial_powers[ 0 ] * (axial_mesh[ 1 ] - axial_mesh[ 0 ])
+
     else:
-      bot_en = kmid - 1
-      top_st = kmid + 1
+      axial_middle = (axial_mesh[ 0 ] + axial_mesh[ -1 ]) / 2.0
+      kmid = bisect.bisect_left( axial_mesh, axial_middle )
 
-    power_top = power_bot = 0.0
-    for k in range( bot_en ):
-      #print k, axial_powers[ k ], axial_mesh[ k ], axial_mesh[ k + 1 ]
-      power_bot += axial_powers[ k ] * (axial_mesh[ k + 1 ] - axial_mesh[ k ])
+      if axial_middle == axial_mesh[ kmid ]:
+        bot_en = top_st = kmid
+      else:
+        bot_en = kmid - 1
+        top_st = kmid + 1
 
-    for k in range( top_st, len( axial_mesh ) - 1 ):
-      #print k, axial_powers[ k ], axial_mesh[ k ], axial_mesh[ k + 1 ]
-      power_top += axial_powers[ k ] * (axial_mesh[ k + 1 ] - axial_mesh[ k ] )
+      power_top = power_bot = 0.0
+      for k in range( bot_en ):
+        #print k, axial_powers[ k ], axial_mesh[ k ], axial_mesh[ k + 1 ]
+        power_bot += axial_powers[ k ] * (axial_mesh[ k + 1 ] - axial_mesh[ k ])
 
-    if top_st != bot_en:
-      power_bot += axial_powers[ kmid ] * (axial_middle - axial_mesh[ kmid ])
-      power_top += axial_powers[ kmid ] * (axial_mesh[ top_st ] - axial_middle)
+      for k in range( top_st, len( axial_mesh ) - 1 ):
+        power_top += \
+	    axial_powers[ k ] * (axial_mesh[ k + 1 ] - axial_mesh[ k ] )
 
-    return  (power_top - power_bot) / (power_top + power_bot) * 100.0
-  #end calc_axial_offset
+      if top_st != bot_en:
+        power_bot += axial_powers[ kmid ] * (axial_middle - axial_mesh[ kmid ])
+        power_top += \
+	    axial_powers[ kmid ] * (axial_mesh[ top_st ] - axial_middle)
+
+      result =  (power_top - power_bot) / (power_top + power_bot) * 100.0
+    #end else not len( axial_mesh ) <= 2
+
+    return  result
+  #end calc_axial_offset_orig
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		calc_core_exposure()				-
+  #----------------------------------------------------------------------
+  def calc_core_exposure( self, pin_exposures_dset ):
+    """
+"""
+    result = 0.0
+    if 'initialMass' in self.fDict:
+      errors_save = np.seterr( divide = 'ignore', invalid = 'ignore' )
+      try:
+        weights = self.fDict[ 'pinWeights' ] * self.fDict[ 'initialMass' ]
+        result = np.sum( pin_exposures_dset * weights ) / np.sum( weights )
+      finally:
+        np.seterr( **errors_save )
+
+    return  result
+  #end calc_core_exposure
 
 
   #----------------------------------------------------------------------
@@ -499,6 +569,7 @@ averaging function in max values across ``max_axis``.
   #	METHOD:		calc_pin_core_avg()				-
   #----------------------------------------------------------------------
   def calc_pin_core_avg( self, dset ):
+    #return  np.average( dset, axis = None, weights = self.pinWeights )
     return  self.calc_avg( dset, 'coreWeights', ( 0, 1, 2, 3 ) )
     #return  self.calc_avg( dset, self.coreWeights, ( 0, 1, 2, 3 ) )
   #end calc_pin_core_avg
@@ -781,7 +852,7 @@ averaging function in max values across ``max_axis``.
 #			-- Special exposure weights?
 #			--
     initial_mass = None
-    for n in ( 'pin_initial_mass', 'initial_mass' ):
+    for n in ( 'initial_mass', 'pin_initial_mass' ):
       if n in core.group:
 	self.fDict[ 'initialMass' ] = initial_mass = \
 	    np.array( core.group[ n ] )

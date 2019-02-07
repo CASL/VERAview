@@ -3,6 +3,15 @@
 #------------------------------------------------------------------------
 #	NAME:		detector_multi_view.py				-
 #	HISTORY:							-
+#		2018-12-26	leerw@ornl.gov				-
+#         Invoking VeraViewApp.DoBusyEventOp() in event handlers.
+#		2018-11-13	leerw@ornl.gov				-
+#         Automagically setting 'numbers' mode if a radial_detector
+#         dataset is visible.
+#		2018-11-09	leerw@ornl.gov				-
+#         Added support for radial_detector datasets in numbers mode.
+#		2018-09-14	leerw@ornl.gov				-
+#	  Fixed bad value_min reference in _DrawPlots().
 #		2018-07-27	leerw@ornl.gov				-
 #	  Fixed plot scaling bug.
 #		2018-03-02	leerw@ornl.gov				-
@@ -105,8 +114,9 @@ except Exception:
 
 from data.utils import DataUtils
 from event.state import *
-from raster_widget import *
-from widget import *
+
+from .raster_widget import *
+from .widget import *
 
 
 DET_LINE_COLORS = [
@@ -175,6 +185,7 @@ Attrs/properties:
     self.detectorAddr = ( -1, -1, -1 )
     self.detectorDataSets = set()
     self.fixedDetectorDataSets = set()
+    self.radialDetectorDataSets = set()
     self.mode = 'plot'  # 'numbers', 'plot'
 
 #		-- Drawing properties
@@ -454,17 +465,22 @@ If neither are specified, a default 'scale' value of 4 is used.
     if 'scale_type' not in kwargs:
       #kwargs[ 'scale_type' ] = self.dmgr.GetDataSetScaleType( self.curDataSet )
       qds_names = self.detectorDataSets.union( self.fixedDetectorDataSets )
+      qds_names = qds_names.union( self.radialDetectorDataSets )
       kwargs[ 'scale_type' ] = \
           self.dmgr.GetDataSetScaleTypeAll( 'all', *qds_names )
     config = self._CreateBaseDrawConfig( ds_range, **kwargs )
 
     #core = self.dmgr.GetCore()
+    font_extent = config[ 'fontExtent' ]
     font_size = config[ 'fontSize' ]
     label_size = config[ 'labelSize' ]
     #legend_bmap = config[ 'legendBitmap' ]
     legend_size = config[ 'legendSize' ]
 
-    ds_name_count = len( self.detectorDataSets ) + len( self.fixedDetectorDataSets )
+    ds_name_count = \
+        len( self.detectorDataSets ) + \
+        len( self.fixedDetectorDataSets ) + \
+        len( self.radialDetectorDataSets )
     #title_line_count = (ds_name_count >> 1) + 1
     title_line_count = max( 1, (ds_name_count + 1) >> 1 )
 
@@ -476,18 +492,26 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       # label : core : font-sp : legend
       #xxxxx revisit font_size, bigger than pixel
-      region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
+      #region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
+      region_wd = wd - label_size[ 0 ] - 2 - \
+          (font_extent[ 0 ] << 1) - legend_size[ 0 ]
       det_adv_wd = region_wd / self.cellRange[ -2 ]
 
       working_ht = max( ht, legend_size[ 1 ] )
       # allow for multiple title lines
       #xxxxx revisit font_size, bigger than pixel
       region_ht = working_ht - label_size[ 1 ] - 2 - \
-          (font_size * (title_line_count + 1))
+          (font_extent[ 1 ] * (title_line_count + 1))
       det_adv_ht = region_ht / self.cellRange[ -1 ]
 
-      if det_adv_ht < det_adv_wd:
-        det_adv_wd = det_adv_ht
+#x      if det_adv_ht < det_adv_wd:
+#x        det_adv_wd = det_adv_ht
+      if self.fitMode == 'ht':
+        if det_adv_ht < det_adv_wd:
+          det_adv_wd = det_adv_ht
+      else:
+        if det_adv_wd < det_adv_ht:
+          det_adv_wd = det_adv_ht
 
       det_gap = det_adv_wd >> 4
       det_wd = max( 1, det_adv_wd - det_gap )
@@ -495,6 +519,7 @@ If neither are specified, a default 'scale' value of 4 is used.
       core_wd = self.cellRange[ -2 ] * (det_wd + det_gap)
       core_ht = self.cellRange[ -1 ] * (det_wd + det_gap)
 
+    #this shouldn't happen any more
     else:
       det_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 20
       if self.logger.isEnabledFor( logging.DEBUG ):
@@ -504,27 +529,20 @@ If neither are specified, a default 'scale' value of 4 is used.
       core_ht = self.cellRange[ -1 ] * (det_wd + det_gap)
 
       # label : core : font-sp : legend
-      wd = label_size[ 0 ] + core_wd + (font_size << 1) + legend_size[ 0 ]
+      wd = label_size[ 0 ] + core_wd + (font_extent[ 0 ] << 1) + legend_size[ 0 ]
       ht = max( core_ht, legend_size[ 1 ] )
       #ht += (font_size << 2)
-      ht += (font_size * (title_line_count + 1))
+      ht += (font_extent[ 1 ] * (title_line_count + 1))
 
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
 
-#    image_wd = \
-#        label_size[ 0 ] + 2 + core_wd + (font_size << 1) + legend_size[ 0 ]
-#    image_ht = max(
-#        #label_size[ 1 ] + 2 + core_ht + (font_size << 2),
-#        label_size[ 1 ] + 2 + core_ht + (font_size * (title_line_count + 1)),
-#	legend_size[ 1 ]
-#	)
     region_x = label_size[ 0 ] + 2
     region_y = label_size[ 1 ] + 2
-    image_wd = region_x + core_wd + (font_size << 1) + legend_size[ 0 ]
+    image_wd = region_x + core_wd + (font_extent[ 0 ] << 1) + legend_size[ 0 ]
     image_ht = \
         max( region_y + core_ht, legend_size[ 1 ] ) + \
-	(font_size * (title_line_count + 1))
+	((font_extent[ 1 ] + 1) * (title_line_count + 1))
 
     config[ 'coreRegion' ] = \
         [ label_size[ 0 ] + 2, label_size[ 1 ] + 2, core_wd, core_ht ]
@@ -574,11 +592,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       ds_range = self._GetDataRange()
       value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
-#      st = self.data.GetState( state_ndx )
-#      ds_operable = \
-#          st.GetDataSet( 'detector_operable' ) \
-#	  if st is not None else None
-
       axial_mesh_min, axial_mesh_max = self._GetAxialRange()
       axial_mesh_factor = (det_wd - 1) / (axial_mesh_max - axial_mesh_min)
       if axial_mesh_factor < 0.0:
@@ -597,7 +610,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       if self.mode == 'numbers':
         ds_count = \
-	    len( self.detectorDataSets ) + len( self.fixedDetectorDataSets )
+	    len( self.detectorDataSets ) + \
+            len( self.fixedDetectorDataSets ) + \
+	    len( self.radialDetectorDataSets )
         value_font_size = det_wd / (ds_count + 1)
 	value_font_pts = Widget.CalcPointSize( gc, value_font_size )
 	value_font = Widget.CopyFont( value_font )
@@ -628,6 +643,15 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  first_axial_value = self.dmgr.\
 	      GetAxialValue( qds_name, cm = self.axialValue.cm )
           first_axial_ndx = 3
+      #end if
+
+      if first_det_values is None and len( self.radialDetectorDataSets ) > 0:
+        qds_name = sorted( self.radialDetectorDataSets )[ 0 ]
+	dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+	if dset is not None:
+	  first_det_values = np.array( dset )
+	  first_axial_value = -1
+          first_axial_ndx = -1
       #end if
 
 #			-- Loop on rows
@@ -667,6 +691,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 #						-- Draw rectangle
 	    if first_det_values is None:
 	      color_ds_value = ds_range[ 0 ]
+            elif first_axial_value < 0 or first_axial_ndx < 0:
+              cur_det_ndx = min( det_ndx, first_det_values.shape[ 0 ] - 1 )
+              color_ds_value = first_det_values[ cur_det_ndx ]
 	    elif first_axial_value[ first_axial_ndx ] >= 0:
 	      color_ds_value = \
 	      first_det_values[ first_axial_value[ first_axial_ndx ], det_ndx ]
@@ -716,7 +743,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 		  det_ndx = det_ndx, det_wd = det_wd,
 		  det_x = det_x, det_y = det_y,
 		  axial_max = axial_mesh_max, axial_factor = axial_mesh_factor,
-		  #value_min = ds_range[ 0 ],
 		  value_range = ds_range,
 		  value_factor = value_factor,
 		  line_wd = line_wd
@@ -767,7 +793,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    break
 
         wd = title_items[ end - 1 ][ 4 ]
-	line_x = (core_region[ 0 ] + core_region[ 2 ] - wd) / 2.0
+	line_x = max( 0, (core_region[ 0 ] + core_region[ 2 ] - wd) / 2.0 )
 	for i in xrange( start, end ):
 	  item = title_items[ i ]
           gc.SetFont( gc.CreateFont( font, wx.Colour( *item[ 3 ] ) ) )
@@ -822,7 +848,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #    for qds_name in sorted( self.detectorDataSets ):
     names = \
         list( sorted( self.detectorDataSets ) ) + \
-        list( sorted( self.fixedDetectorDataSets ) )
+        list( sorted( self.fixedDetectorDataSets ) ) + \
+        list( sorted( self.radialDetectorDataSets ) )
     for qds_name in names:
       phrase = '%s, ' % self.dmgr.GetDataSetDisplayName( qds_name )
       cur_size = gc.GetFullTextExtent( phrase )
@@ -868,7 +895,8 @@ If neither are specified, a default 'scale' value of 4 is used.
 #    for qds_name in sorted( self.detectorDataSets ):
     names = \
         list( sorted( self.detectorDataSets ) ) + \
-        list( sorted( self.fixedDetectorDataSets ) )
+        list( sorted( self.fixedDetectorDataSets ) ) + \
+        list( sorted( self.radialDetectorDataSets ) )
     for qds_name in names:
       phrase = '%s, ' % self.dmgr.GetDataSetDisplayName( qds_name )
       cur_size = pil_font.getsize( phrase )
@@ -936,6 +964,13 @@ If neither are specified, a default 'scale' value of 4 is used.
     draw_items = []  # [ ( text, x, rely, color, font ) ]
     tfont = value_font
 
+    dataset_count = sum([
+        len( self.detectorDataSets ),
+        len( self.fixedDetectorDataSets ),
+        len( self.radialDetectorDataSets )
+        ])
+    text_y_incr = 1  if dataset_count <= 3 else  0
+
 #		-- Build detector values
 #		--
     center_x = det_x + (det_wd >> 1)
@@ -960,7 +995,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	    value_str, center_x - (value_size[ 0 ] / 2.0), text_y,
 	    text_color, tfont
 	    ))
-	text_y += value_size[ 1 ] + 1
+	text_y += value_size[ 1 ] + text_y_incr
       #end if valid value
 
       #color_ndx = (color_ndx + 1) % len( DET_LINE_COLORS )
@@ -969,7 +1004,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #		-- Build fixed detector values
 #		--
-    #color_ndx = 0
     for qds_name in sorted( self.fixedDetectorDataSets ):
       #text_color = FIXED_LINE_COLORS[ color_ndx ]
       text_color = LINE_COLORS[ color_ndx ]
@@ -990,12 +1024,34 @@ If neither are specified, a default 'scale' value of 4 is used.
 	      value_str, center_x - (value_size[ 0 ] / 2.0), text_y,
 	      text_color, tfont
 	      ))
-	text_y += value_size[ 1 ] + 1
+	text_y += value_size[ 1 ] + text_y_incr
       #end if valid value
 
       #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for qds_name in self.fixedDetectorDataSets
+
+#		-- Build radial detector values
+#		--
+    for qds_name in sorted( self.radialDetectorDataSets ):
+      #text_color = FIXED_LINE_COLORS[ color_ndx ]
+      text_color = LINE_COLORS[ color_ndx ]
+
+      dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+      if dset is not None and dset.shape[ 0 ] > det_ndx:
+	value_str, value_size, tfont = \
+            self._CreateValueDisplay( dset[ det_ndx ], value_font, det_wd )
+	if value_str:
+	  draw_items.append((
+	      value_str, center_x - (value_size[ 0 ] / 2.0), text_y,
+	      text_color, tfont
+	      ))
+	text_y += value_size[ 1 ] + text_y_incr
+      #end if valid value
+
+      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
+    #end for qds_name in self.radialDetectorDataSets
 
 #		-- Render fixed detector values
 #		--
@@ -1056,7 +1112,6 @@ If neither are specified, a default 'scale' value of 4 is used.
 
 #		-- Build fixed detector values
 #		--
-    #color_ndx = 0
     for qds_name in sorted( self.fixedDetectorDataSets ):
       #text_color = FIXED_LINE_COLORS[ color_ndx ]
       text_color = LINE_COLORS[ color_ndx ]
@@ -1084,6 +1139,28 @@ If neither are specified, a default 'scale' value of 4 is used.
       color_ndx = (color_ndx + 1) % len( LINE_COLORS )
     #end for qds_name in self.fixedDetectorDataSets
 
+#		-- Build radial detector values
+#		--
+    for qds_name in sorted( self.radialDetectorDataSets ):
+      #text_color = FIXED_LINE_COLORS[ color_ndx ]
+      text_color = LINE_COLORS[ color_ndx ]
+
+      dset = self.dmgr.GetH5DataSet( qds_name, self.timeValue )
+      if dset is not None and dset.shape[ 0 ] > det_ndx:
+	value_str, value_size, tfont = \
+            self._CreateValueDisplay( dset[ det_ndx ], value_font, det_wd )
+	if value_str:
+	  draw_items.append((
+	      value_str, center_x - (value_size[ 0 ] / 2.0), text_y,
+	      text_color, tfont
+	      ))
+	text_y += value_size[ 1 ] + 1
+      #end if valid value
+
+      #color_ndx = (color_ndx + 1) % len( FIXED_LINE_COLORS )
+      color_ndx = (color_ndx + 1) % len( LINE_COLORS )
+    #end for qds_name in self.radialDetectorDataSets
+
 #		-- Render fixed detector values
 #		--
     top = det_y + ((det_wd - text_y) / 2.0)
@@ -1105,7 +1182,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       det_ndx, det_wd, det_x, det_y,
       axial_max, axial_factor,
       value_range, value_factor
-      #value_min, value_factor
       ):
 #		-- Draw grid lines
 #		--
@@ -1208,7 +1284,7 @@ If neither are specified, a default 'scale' value of 4 is used.
 	  dy_center = (axial_max - det_mesh_c[ i ]) * axial_factor
 	  dy_lo = (axial_max - det_mesh[ i ]) * axial_factor
 	  dy_hi = (axial_max - det_mesh[ i + 1 ]) * axial_factor
-	  dx = (values[ i ] - value_min) * value_factor
+	  dx = (values[ i ] - value_range[ 0 ]) * value_factor
 	  cur_x = det_x + 1 + dx
 	  cur_ylo = det_y + 1 + dy_lo
 	  cur_yhi = det_y + 2 + dy_hi
@@ -1457,7 +1533,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.GetCurDataSet()		-
   #----------------------------------------------------------------------
-  def GetCurDataSet( self ):
+  def GetCurDataSet( self, ds_type = None ):
     """Returns the first detector dataset.
 @return		dataset name (DataSetName instance) or None
 """
@@ -1520,7 +1596,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
   #	METHOD:		Detector2DMultiView.GetDataSetTypes()		-
   #----------------------------------------------------------------------
   def GetDataSetTypes( self ):
-    return  [ 'detector', 'fixed_detector' ]
+    return  [ 'detector', 'fixed_detector', 'radial_detector' ]
   #end GetDataSetTypes
 
 
@@ -1584,6 +1660,21 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView.GetVisibleDataSets()        -
+  #----------------------------------------------------------------------
+  def GetVisibleDataSets( self ):
+    """Returns a set of DataSetName instances for visible datasets.
+    Returns:
+        set(DataSetName): visible DataSetNames
+"""
+    visibles = \
+        self.detectorDataSets | self.fixedDetectorDataSets | \
+        self.radialDetectorDataSets
+    return  visibles
+  #end GetVisibleDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView._HiliteBitmap()		-
   #----------------------------------------------------------------------
   def _HiliteBitmap( self, bmap, config = None ):
@@ -1618,7 +1709,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	gc = wx.GraphicsContext.Create( dc )
 	gc.SetPen(
 	    wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+                HILITE_COLOR_primary,
+                line_wd, wx.PENSTYLE_SOLID
 		)
 	    )
 	path = gc.CreatePath()
@@ -1644,7 +1736,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 """
     visible = \
         qds_name in self.detectorDataSets or \
-        qds_name in self.fixedDetectorDataSets
+        qds_name in self.fixedDetectorDataSets or \
+        qds_name in self.radialDetectorDataSets
     return  visible
   #end IsDataSetVisible
 
@@ -1675,6 +1768,7 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
     if (reason & STATE_CHANGE_curDataSet) > 0:
       self.detectorDataSets.clear()
       self.fixedDetectorDataSets.clear()
+      self.radialDetectorDataSets.clear()
 
       qds_name = self.dmgr.GetFirstDataSet( 'detector' )
       if qds_name:
@@ -1688,26 +1782,6 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView._LoadDataModelValues_1()	-
-  #----------------------------------------------------------------------
-  def _LoadDataModelValues_1( self ):
-    """
-"""
-    self.detectorAddr = self.state.assemblyAddr
-    self.detectorDataSets.clear()
-    self.fixedDetectorDataSets.clear()
-
-    qds_name = self.dmgr.GetFirstDataSet( 'detector' )
-    if qds_name:
-      self.detectorDataSets.add( qds_name )
-
-    qds_name = self.dmgr.GetFirstDataSet( 'fixed_detector' )
-    if qds_name:
-      self.fixedDetectorDataSets.add( qds_name )
-  #end _LoadDataModelValues_1
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.LoadProps()			-
   #----------------------------------------------------------------------
   def LoadProps( self, props_dict ):
@@ -1715,7 +1789,9 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 be overridden by subclasses.
 @param  props_dict	dict object from which to deserialize properties
 """
-    for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
+    for k in (
+        'detectorDataSets', 'fixedDetectorDataSets', 'radialDetectorDataSets'
+        ):
       if k in props_dict:
 	new_set = set()
 	props_set = props_dict[ k ]
@@ -1742,17 +1818,24 @@ be overridden by subclasses.
   def _OnClick( self, ev ):
     """
 """
-    #ev.Skip()
+    pos = ev.GetPosition()
+    self.GetTopLevelParent().GetApp().DoBusyEventOp( self._OnClickImpl, pos )
+  #end _OnClick
 
-#		-- Validate
-#		--
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._OnClickImpl()              -
+  #----------------------------------------------------------------------
+  def _OnClickImpl( self, pos ):
+    """
+"""
     valid = False
-    det_addr = self.FindDetector( *ev.GetPosition() )
+    det_addr = self.FindDetector( *pos )
     if det_addr is not None and det_addr[ 0 ] >= 0 and \
         det_addr != self.detectorAddr:
       self.FireStateChange( assembly_addr = det_addr )
     #end if valid
-  #end _OnClick
+  #end _OnClickImpl
 
 
   #----------------------------------------------------------------------
@@ -1761,13 +1844,26 @@ be overridden by subclasses.
   def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Calls _OnFindMinMaxMultiDataSets().
 """
+    self.GetTopLevelParent().GetApp().DoBusyEventOp(
+        self._OnFindMinMaxImpl, mode, all_states_flag, all_assy_flag
+        )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView._OnFindMinMaxImpl()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxImpl( self, mode, all_states_flag, all_assy_flag, *ds_list ):
+    """Calls _OnFindMinMaxMultiDataSets().
+"""
     if self.dmgr.HasData():
-      ds_list = \
-          list( self.detectorDataSets.union( self.fixedDetectorDataSets ) )
+      all_sets = self.detectorDataSets.union( self.fixedDetectorDataSets )
+      all_sets = all_sets.union( self.radialDetectorDataSets )
+      ds_list = list( all_sets )
       self._OnFindMinMaxMultiDataSets(
           mode, all_states_flag, all_assy_flag, *ds_list
 	  )
-  #end _OnFindMinMax
+  #end _OnFindMinMaxImpl
 
 
   #----------------------------------------------------------------------
@@ -1778,7 +1874,9 @@ be overridden by subclasses.
 """
     new_mode = 'plot' if self.mode == 'numbers' else 'numbers'
     button = ev.GetEventObject()
-    self.SetMode( new_mode, button )
+    #self.SetMode( new_mode, button )
+    self.GetTopLevelParent().GetApp().\
+        DoBusyEventOp( self.SetMode, new_mode, button )
   #end _OnMode
 
 
@@ -1799,7 +1897,9 @@ method via super.SaveProps().
       #props_dict[ k ] = list( getattr( self, k ) )
 
     if self.dmgr.HasData() is not None:
-      for k in ( 'detectorDataSets', 'fixedDetectorDataSets' ):
+      for k in (
+          'detectorDataSets', 'fixedDetectorDataSets', 'radialDetectorDataSets'
+          ):
         cur_set = set( getattr( self, k ) )
 	new_set = set()
 	for cur_name in cur_set:
@@ -1815,15 +1915,15 @@ method via super.SaveProps().
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Detector2DMultiView.SetDataSet()		-
+  #	METHOD:		Detector2DMultiView.SetDataSet()                -
   #----------------------------------------------------------------------
-#  def SetDataSet( self, ds_name ):
-#    """May be called from any thread.
-#"""
-#    if ds_name != self.detectorDataSet:
-#      wx.CallAfter( self.UpdateState, detector_dataset = ds_name )
-#      self.FireStateChange( detector_dataset = ds_name )
-#  #end SetDataSet
+  def SetDataSet( self, qds_name ):
+    """May be called from any thread.
+"""
+    if qds_name != self.curDataSet:
+      wx.CallAfter( self.UpdateState, cur_dataset = qds_name )
+      self.FireStateChange( cur_dataset = qds_name )
+  #end SetDataSet
 
 
   #----------------------------------------------------------------------
@@ -1878,6 +1978,39 @@ method via super.SaveProps().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Detector2DMultiView.SetVisibleDataSets()        -
+  #----------------------------------------------------------------------
+  def SetVisibleDataSets( self, qds_names ):
+    """Applys the set of visible DataSetName instances.
+    Args:
+        qds_names (set(DataSetName)): set of all visible DataSetNames
+"""
+#               -- Now invisible
+#               --
+    for cur_set in (
+        self.detectorDataSets, self.fixedDetectorDataSets,
+        self.radialDetectorDataSets
+        ):
+      for qds_name in set( cur_set ):
+        if qds_name not in qds_names:
+          cur_set.remove( qds_name )
+
+#               -- Now visible
+#               --
+    for qds_name in qds_names:
+      ds_type = self.dmgr.GetDataSetType( qds_name )
+      if ds_type == 'detector':
+        self.detectorDataSets.add( qds_name )
+      elif ds_type == 'fixed_detector':
+        self.fixedDetectorDataSets.add( qds_name )
+      elif ds_type == 'radial_detector':
+        self.radialDetectorDataSets.add( qds_name )
+        self.SetMode( 'numbers' )
+    #end for qds_name in qds_names
+  #end SetVisibleDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Detector2DMultiView.ToggleDataSetVisible()	-
   #----------------------------------------------------------------------
   def ToggleDataSetVisible( self, qds_name ):
@@ -1895,6 +2028,10 @@ Must be called from the event thread.
       self.fixedDetectorDataSets.remove( qds_name )
       changed = True
 
+    elif qds_name in self.radialDetectorDataSets:
+      self.radialDetectorDataSets.remove( qds_name )
+      changed = True
+
     else:
       ds_type = self.dmgr.GetDataSetType( qds_name )
       if ds_type == 'detector':
@@ -1903,6 +2040,10 @@ Must be called from the event thread.
       elif ds_type == 'fixed_detector':
         self.fixedDetectorDataSets.add( qds_name )
 	changed = True
+      elif ds_type == 'radial_detector':
+        self.radialDetectorDataSets.add( qds_name )
+	changed = True
+        self.SetMode( 'numbers' )
 
     if changed:
       self.Redraw()

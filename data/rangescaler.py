@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------
 #	NAME:		rangescaler.py					-
 #	HISTORY:							-
+#		2018-11-15	leerw@ornl.gov				-
+#         Added "exponential" mode param value for Format().
 #		2018-06-25	leerw@ornl.gov				-
 #	  Handling case of min and max value equal, resulting in no steps.
 #		2017-07-15	leerw@ornl.gov				-
@@ -31,8 +33,6 @@ try:
   from matplotlib.figure import Figure
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
-
-
 
 
 #------------------------------------------------------------------------
@@ -315,21 +315,23 @@ class RangeScaler( object ):
   def ForceSigDigits( self, value_str, prec_digits ):
     """Right fills with zeros and a decimal point if necessary.
 Accounts for 'g' format not right-filling with zeros.
-@param  value_str	value string, assumed to have been formatted with
+    Args:
+        value_str (str): value string, assumed to have been formatted with
 			'.ng' with any trailing exponent removed
-@param  prec_digits	number of digits to display
+        prec_digits (int): of digits to display
 """
     if prec_digits > 1:
       value_str = value_str.lower()
 
       has_decimal = False
+      has_exp = False
       has_sig_number = False
       sig_count = st_ndx = 0
-      while st_ndx < len( value_str ):
+      while st_ndx < len( value_str ) and not has_exp:
 	ch = value_str[ st_ndx ]
         if ch == 'e':
 	  value_str = value_str[ : st_ndx ]
-	  break
+          has_exp = True
 	elif ch == '.':
 	  has_decimal = True
 	elif ch >= '1' and ch <= '9':
@@ -358,16 +360,24 @@ Accounts for 'g' format not right-filling with zeros.
   def Format( self, value, prec_digits = 3, mode = 'general' ):
     """Formats a floating point value.
 (Replacement for DataUtils.FormatFloat4()).
-@param  value		floating point value to format
-@param  prec_digits	precision (general) or number of decimal places (fixed)
-@param  mode		'general', 'fixed', or 'auto', defaulting to 'general'
+    Args:
+        value (float): floating point value to format
+        prec_digits (int): number of signficant figures ("general", "exp" modes)
+            or decimal places ("fixed" mode)
+        mode (str): 'general', 'exp', 'fixed', or 'auto',
+            defaulting to 'general'
 """
-    #fmt_char = 'f'  if mode and mode.startswith( 'fixed' ) else  'g'
+    if not mode:
+      mode = 'general'
+
     if mode == 'auto':
       scale = int( math.floor( math.log10( value ) ) )
       fmt_char = 'g'  if scale < -2 or scale > 3 else  'f'
     else:
-      fmt_char = 'f'  if mode and mode.startswith( 'fixed' ) else  'g'
+      fmt_char = \
+          'f'  if mode.startswith( 'fixed' ) else \
+          'e'  if mode.startswith( 'exp' ) else \
+          'g'
 
     fmt = '{0:.%d%s}' % ( prec_digits, fmt_char )
     #return  fmt.format( value )

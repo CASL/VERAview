@@ -429,6 +429,17 @@ Must pass the 'data_model' parameter.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetManagerDialog.GetApp()                   -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+"""
+    return  wx.App.Get()
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetManagerDialog.GetResult()		-
   #----------------------------------------------------------------------
 #  def GetResult( self ):
@@ -498,7 +509,7 @@ Must pass the 'data_model' parameter.
   #----------------------------------------------------------------------
   def ShowModal( self ):
     #self.fResult = None
-    super( DataSetManagerDialog, self ).ShowModal()
+    return  super( DataSetManagerDialog, self ).ShowModal()
   #end ShowModal
 
 #end DataSetManagerDialog

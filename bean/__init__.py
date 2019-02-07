@@ -15,4 +15,4 @@ __all__ = \
     'ignore_range_bean',
     'range_bean',
   ]
-__version__ = '2.3.0'
+__version__ = '2.4.0'

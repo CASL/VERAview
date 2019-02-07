@@ -9,7 +9,7 @@ import numpy as np
 from scipy import interpolate
 import pdb
 
-sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
+sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), os.pardir ) )
 #sys.path.insert( 0, VVDIR )
 
 #from data.utils import *

@@ -518,6 +518,17 @@ Must pass the 'state' parameter.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		IgnoreRangeDialog.GetApp()                      -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+"""
+    return  wx.App.Get()
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		IgnoreRangeDialog.GetResult()			-
   #----------------------------------------------------------------------
 #  def GetResult( self ):
@@ -567,7 +578,7 @@ Must pass the 'state' parameter.
 
 #	-- ** EndModel() not passing result to caller via ShowModal() **
     obj = ev.GetEventObject()
-    retcode = 0 if obj.GetLabel() == 'Cancel' else  1
+    retcode = wx.ID_CANCEL if obj.GetLabel() == 'Cancel' else  wx.ID_OK
 
     self.EndModal( retcode )
   #end _OnButton
@@ -579,9 +590,9 @@ Must pass the 'state' parameter.
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()
     if code == wx.WXK_RETURN:
-      self.EndModal( 1 )
+      self.EndModal( wx.ID_OK )
     elif code == wx.WXK_ESCAPE:
-      self.EndModal( 0 )
+      self.EndModal( wx.ID_CANCEL )
     else:
       ev.DoAllowNextEvent()
 
@@ -594,7 +605,7 @@ Must pass the 'state' parameter.
   #----------------------------------------------------------------------
   def ShowModal( self ):
     #self.fResult = None
-    super( IgnoreRangeDialog, self ).ShowModal()
+    return  super( IgnoreRangeDialog, self ).ShowModal()
   #end ShowModal
 
 #end IgnoreRangeDialog

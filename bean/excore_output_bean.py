@@ -422,6 +422,17 @@ Not being used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		ExcoreOutputDialog.GetApp()                     -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+"""
+    return  wx.App.Get()
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		ExcoreOutputDialog.GetResult()			-
   #----------------------------------------------------------------------
 #  def GetResult( self ):
@@ -471,7 +482,7 @@ Not being used.
 
 #	-- ** EndModel() not passing result to caller via ShowModal() **
     obj = ev.GetEventObject()
-    retcode = 0 if obj.GetLabel() == 'Cancel' else  1
+    retcode = wx.ID_CANCEL if obj.GetLabel() == 'Cancel' else  wx.ID_OK
 
     self.EndModal( retcode )
   #end _OnButton
@@ -483,9 +494,9 @@ Not being used.
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()
     if code == wx.WXK_RETURN:
-      self.EndModal( 1 )
+      self.EndModal( wx.ID_OK )
     elif code == wx.WXK_ESCAPE:
-      self.EndModal( 0 )
+      self.EndModal( wx.ID_CANCEL )
     else:
       ev.DoAllowNextEvent()
 
@@ -498,7 +509,7 @@ Not being used.
   #----------------------------------------------------------------------
   def ShowModal( self ):
     #self.fResult = None
-    super( ExcoreOutputDialog, self ).ShowModal()
+    return  super( ExcoreOutputDialog, self ).ShowModal()
   #end ShowModal
 
 #end ExcoreOutputDialog

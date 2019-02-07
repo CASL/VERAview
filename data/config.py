@@ -24,7 +24,7 @@
 #		2014-12-18	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import logging, logging.config, os, platform, subprocess, sys
-from distutils.spawn import find_executable
+#from distutils.spawn import find_executable
 import pdb
 
 

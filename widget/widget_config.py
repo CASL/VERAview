@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		widget_config.py				-
 #	HISTORY:							-
+#		2018-08-27	leerw@ornl.gov				-
+#	  Added filter for ASCII chars in Decode().
 #		2017-09-23	leerw@ornl.gov				-
 #	  Implemented decoding object_hook with __jsonclass__ and
 #	  fromjson() convention.
@@ -20,7 +22,7 @@
 #	  Replaced axialLevel and stateIndex with state.
 #		2016-06-21	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import json, logging, os, platform, sys
+import json, logging, os, platform, six, sys
 import numpy as np
 import pdb  # set_trace()
 
@@ -303,9 +305,10 @@ class WidgetConfig( object ):
 """
     #return  json.loads( json_str.rstrip( '\t\r\n ' ) )
     content = json_str.rstrip( '\t\r\n ' )
+    content = filter( lambda c : ord(c) < 128, content )
     try:
       return  json.loads( content, object_hook = WidgetConfig.DecodeObject )
-    except Exception, ex:
+    except Exception as ex:
       WidgetConfig.fLogger_.exception( 'content:' + os.linesep + content )
   #end Decode
 

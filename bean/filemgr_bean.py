@@ -18,9 +18,10 @@ try:
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
 
-from bean.html_message_dialog import *
 from data.datamodel import *
 from data.datamodel_mgr import *
+
+from .html_message_dialog import *
 
 
 #------------------------------------------------------------------------
@@ -338,6 +339,17 @@ Must pass the 'dmgr' parameter.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		FileManagerDialog.GetApp()                      -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+"""
+    return  wx.App.Get()
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		FileManagerDialog.GetBean()			-
   #----------------------------------------------------------------------
   def GetBean( self ):
@@ -406,7 +418,7 @@ Must pass the 'dmgr' parameter.
   #----------------------------------------------------------------------
   def ShowModal( self ):
     #self.fResult = None
-    super( FileManagerDialog, self ).ShowModal()
+    return  super( FileManagerDialog, self ).ShowModal()
   #end ShowModal
 
 

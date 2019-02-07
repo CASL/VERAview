@@ -855,6 +855,17 @@ class VolumeSlicer( HasTraits ):
 	vmin = self.dataRange[ 0 ],
 	vmax = self.dataRange[ 1 ]
         )
+
+#    #Colortest
+#    from matplotlib import cm, colors, transforms
+#    mapper = cm.ScalarMappable(
+#	norm = colors.Normalize( 0.0, 255.0, clip = True ),
+#	cmap = cm.get_cmap( 'jet' )
+#        )
+#    ipw.module_manager.scalar_lut_manager.lut.table = \
+#        mapper.to_rgba( np.linspace( 0, 255, 256 ), bytes = True )
+#    #Colortest
+
     return  ipw
   #end create_3d_ipw
 

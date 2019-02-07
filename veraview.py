@@ -3,6 +3,26 @@
 #------------------------------------------------------------------------
 #	NAME:		veraview.py					-
 #	HISTORY:							-
+#		2019-01-19	leerw@ornl.gov				-
+#         Transitioned to Murray's new Volume3DView.
+#		2018-12-21	leerw@ornl.gov				-
+#         Implemented VeraViewApp.DoBusyEventOp().
+#         Added DataAnalysisView widget for testing.
+#		2018-10-27	leerw@ornl.gov				-
+#         Added DataAnalysisView widget for testing.
+#		2018-10-22	leerw@ornl.gov				-
+#         Added IntraPinEditsAssembly2DView.
+#		2018-10-16	leerw@ornl.gov				-
+#	  Adding TableView if there is an available grid slot in
+#	  VeraViewFrame.UpdateFrame().
+#		2018-10-16	purvesmh@ornl.gov			-
+#	  Fix to frame positioning in VeraViewFrame._LoadWidgetConfig().
+#		2018-10-01	leerw@ornl.gov				-
+#	  Adding AnimateOptionsDialog.
+#		2018-09-13	leerw@ornl.gov				-
+#	  Adding TableView.
+#		2018-08-18	leerw@ornl.gov				-
+#	  Experimenting with Core2DPlot.
 #		2018-07-26	leerw@ornl.gov				-
 #	  Renaming non-derived dataset category/type from 'axial' to
 #	  'axials' to disambiguate from ':axial' displayed name.
@@ -194,6 +214,7 @@ except Exception:
 
 #from bean.dataset_menu_item import *
 #from bean.dataset_mgr import *
+from bean.dataset_creator import *
 from bean.dataset_diff_creator import *
 from bean.excore_output_bean import *
 from bean.filemgr_bean import *
@@ -214,6 +235,7 @@ from widget.image_ops import *
 from widget.widget_config import *
 from widget.widgetcontainer import *
 
+from widget.bean.animate_options_bean import *
 from widget.bean.axial_slider import *
 from widget.bean.dataset_menu import *
 from widget.bean.exposure_slider import *
@@ -228,10 +250,22 @@ SCALE_MODES = \
   }
 
 #TITLE = 'VERAView Version 1.1 Build 85'
-TITLE = 'VERAView Version 2.3.0'
+TITLE = 'VERAView Version 2.4.0'
 
 TOOLBAR_ITEMS = \
   [
+#    {
+#    'widget': 'Core 2D Plot',
+#    'icon': 'Core2DView.1.32.png',
+#    'iconDisabled': 'Core2DView.disabled.1.32.png',
+#    #'type': 'pin',
+#    'type': '',
+#    #'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
+#    'func': lambda d: d.core is not None and \
+#	d.core.coreMap is not None and \
+#	d.core.coreMap.shape[ 0 ] > 1 and \
+#	d.core.coreMap.shape[ 1 ] > 1
+#    },
     {
     'widget': 'Core 2D View',
     'icon': 'Core2DView.1.32.png',
@@ -239,10 +273,17 @@ TOOLBAR_ITEMS = \
     #'type': 'pin',
     'type': '',
     #'func': lambda d: d.GetCore() is not None and d.GetCore().nass > 1
-    'func': lambda d: d.core is not None and \
-	d.core.coreMap is not None and \
-	d.core.coreMap.shape[ 0 ] > 1 and \
-	d.core.coreMap.shape[ 1 ] > 1
+    'func': lambda d: d.core is not None and
+	d.core.coreMap is not None and
+	d.core.coreMap.shape[ 0 ] > 1 and
+	d.core.coreMap.shape[ 1 ] > 1 and
+        (d.HasDataSetType( 'channel' ) or d.HasDataSetType( 'pin' ) or
+         d.HasDataSetType( ':assembly' ) or
+         d.HasDataSetType( ':chan_radial' ) or
+         d.HasDataSetType( ':node' ) or
+         d.HasDataSetType( ':radial' ) or
+         d.HasDataSetType( ':radial_assembly' ) or
+         d.HasDataSetType( ':radial_node' ))
     },
     {
     'widget': 'Core Axial 2D View',
@@ -251,26 +292,30 @@ TOOLBAR_ITEMS = \
     #'type': 'pin',
     'type': '',
     #'func': lambda d: d.GetCore() is not None and d.GetCore().nax > 1
-    'func': lambda d: d.core is not None and \
-	d.core.nax > 1 and \
-	d.core.coreMap is not None and \
-	d.core.coreMap.shape[ 0 ] > 0 and \
-	d.core.coreMap.shape[ 1 ] > 0
+    'func': lambda d: d.core is not None and
+	d.core.nax > 1 and
+	d.core.coreMap is not None and
+	d.core.coreMap.shape[ 0 ] > 0 and
+	d.core.coreMap.shape[ 1 ] > 0 and
+        (d.HasDataSetType( 'channel' ) or
+         d.HasDataSetType( 'pin' ) or
+         d.HasDataSetType( ':assembly' ) or
+         d.HasDataSetType( ':node' ))
     },
     {
     'widget': 'Vessel Core 2D View',
     'icon': 'VesselCore2DView.1.32.png',
     'iconDisabled': 'VesselCore2DView.disabled.1.32.png',
-    'type': 'tally',
-    'func': lambda d: d.GetCore() is not None and d.GetCore().tally.IsValid()
+    'type': 'fluence',
+    'func': lambda d: d.core and d.core.fluenceMesh.IsValid()
     },
     {
     'widget': 'Vessel Core Axial 2D View',
     'icon': 'VesselCoreAxial2DView.1.32.png',
     'iconDisabled': 'VesselCoreAxial2DView.disabled.1.32.png',
-    'type': 'tally',
-    'func': lambda d: \
-        d.core is not None and d.core.tally.IsValid() and d.core.tally.nz > 1
+    'type': 'fluence',
+    'func': lambda d:
+        d.core and d.core.fluenceMesh.IsValid() and d.core.fluenceMesh.nz > 1
     },
     {
     'widget': 'Assembly 2D View',
@@ -278,8 +323,26 @@ TOOLBAR_ITEMS = \
     'iconDisabled': 'Assembly2DView.disabled.1.32.png',
     #'type': 'pin'
     'type': '',
-    'func': lambda d: d.core is not None and \
-	d.core.npinx > 0 and d.core.npiny > 0
+    'func': lambda d: d.core is not None and
+	d.core.npinx > 1 and d.core.npiny > 1 and
+        (d.HasDataSetType( 'channel' ) or
+         d.HasDataSetType( 'pin' ) or
+         d.HasDataSetType( ':chan_radial' ) or
+         d.HasDataSetType( ':radial' ))
+    },
+    {
+    'widget': 'Intrapin Edits Assembly 2D View',
+    'icon': 'IntraPinEditsAssembly2DView.1.32.png',
+    'iconDisabled': 'IntraPinEditsAssembly2DView.disabled.1.32.png',
+    'type': 'intrapin_edits',
+    'func': lambda d: d.HasDataSetType( 'intrapin_edits' )
+    },
+    {
+    'widget': 'Intrapin Edits Plot',
+    'icon': 'SubPin2DView.1.32.png',
+    'iconDisabled': 'SubPin2DView.disabled.1.32.png',
+    'type': 'intrapin_edits',
+    'func': lambda d: d.HasDataSetType( 'intrapin_edits' )
     },
 #    {
 #    'widget': 'Subpin 2D View',
@@ -309,7 +372,10 @@ TOOLBAR_ITEMS = \
     'iconDisabled': 'Detector2DView.disabled.1.32.png',
 #    'type': 'detector'
     'type': '',
-    'func': lambda d: d.HasDataSetType( 'detector' ) or d.HasDataSetType( 'fixed_detector' )
+    'func': lambda d:
+        d.HasDataSetType( 'detector' ) or
+        d.HasDataSetType( 'fixed_detector' ) or
+        d.HasDataSetType( 'radial_detector' )
     },
     { 'widget': 'separator' },
     {
@@ -319,6 +385,14 @@ TOOLBAR_ITEMS = \
     'type': 'pin',
     'func': lambda d: Environment3D.IsAvailable() and d.Is3DReady()
     },
+#    {
+#    'widget': 'Deprecated Volume 3D View',
+#    'icon': 'Volume3DView-deprecated.1.32.png',
+#    'iconDisabled': 'Volume3DView.disabled.1.32.png',
+#    'type': 'pin',
+#    'func': lambda d: Environment3D.IsAvailable() and d.Is3DReady()
+#    },
+#    { 'widget': 'separator' },
     {
     'widget': 'Volume 3D View',
     'icon': 'Volume3DView.1.32.png',
@@ -341,6 +415,20 @@ TOOLBAR_ITEMS = \
     'iconDisabled': 'TimePlot.disabled.32.png',
     'type': '',
     'func': lambda d: len( d.GetTimeValues() ) > 1
+    },
+    {
+    'widget': 'Table View',
+    'icon': 'TableView.32.png',
+    'iconDisabled': 'TableView.disabled.32.png',
+    'type': '',
+    'func': lambda d: d.core is not None and d.core.coreMap is not None
+    },
+    {
+    'widget': 'Data Analysis View',
+    'icon': 'DataAnalysisView.1.32.png',
+    'iconDisabled': 'DataAnalysisView.1.disabled.32.png',
+    'type': '',
+    'func': lambda d: d.core is not None and d.core.coreMap is not None
     }
   ]
 
@@ -354,15 +442,21 @@ WIDGET_MAP = \
   {
   'Assembly 2D View': 'widget.assembly_view.Assembly2DView',
   'Axial Plots': 'widget.axial_plot.AxialPlot',
+  'Core 2D Plot': 'widget.core_view_plot.Core2DPlot',
   'Core 2D View': 'widget.core_view.Core2DView',
   'Core Axial 2D View': 'widget.core_axial_view.CoreAxial2DView',
+  'Data Analysis View': 'widget.data_analysis_view.DataAnalysisView',
   'Detector 2D Multi View': 'widget.detector_multi_view.Detector2DMultiView',
+  'Intrapin Edits Assembly 2D View': 'widget.intrapin_edits_assembly_view.IntraPinEditsAssembly2DView',
+  'Intrapin Edits Plot': 'widget.intrapin_edits_plot.IntraPinEditsPlot',
 #  'Subpin 2D View': 'widget.subpin_view.SubPin2DView',
 #x  'Subpin Plot': 'widget.subpin_plot.SubPinPlot',
   'Subpin Length Plot': 'widget.subpin_len_plot.SubPinLengthPlot',
+  'Table View': 'widget.table_view.TableView',
   'Time Plots': 'widget.time_plots.TimePlots',
   'Vessel Core 2D View': 'widget.vessel_core_view.VesselCore2DView',
   'Vessel Core Axial 2D View': 'widget.vessel_core_axial_view.VesselCoreAxial2DView',
+#  'Deprecated Volume 3D View': 'view3d.volume_view_deprecated.Volume3DView',
   'Volume 3D View': 'view3d.volume_view.Volume3DView',
   'Volume Slicer 3D View': 'view3d.slicer_view.Slicer3DView'
   }
@@ -389,6 +483,9 @@ class VeraViewApp( wx.App ):
     #super( VeraViewApp, self ).__init__( redirect = True, filename = 'run.log' )
 
     self.SetAppName( 'VERAView' )
+
+    self.busyCount = 0
+    self.busyLock = threading.RLock()
 
     #self.data = None
     #self.dataSetDefault = 'pin_powers'
@@ -444,6 +541,46 @@ class VeraViewApp( wx.App ):
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.DoBusyEventOp()			-
+  #----------------------------------------------------------------------
+  def DoBusyEventOp( self, func, *args, **kwargs ):
+    """Must be called on the UI thread.  Note the arguments cannot contain
+references to transient wxwidgets C++ objects, such as events, b/c they
+cannot be copied and are invalid in a ``wx.CallLater()`` invocation.
+    Args:
+        func (callable): function to call
+        *args (list): positional arguments
+        **kwargs (dict): keyword arguments
+"""
+    def do_later( func, *args, **kwargs ):
+      func( *args, **kwargs )
+      #for rec in six.itervalues( self.frameRecs ):
+      #  rec.get( 'frame' ).ShowBusyIcon( False )
+
+      self.busyLock.acquire()
+      if self.busyCount == 1:
+        for rec in six.itervalues( self.frameRecs ):
+          rec.get( 'frame' ).ShowBusyIcon( False )
+      self.busyCount -= 1
+      self.busyLock.release()
+    #end do_later
+
+    #for rec in six.itervalues( self.frameRecs ):
+    #  rec.get( 'frame' ).ShowBusyIcon( True )
+
+    self.busyLock.acquire()
+    if self.busyCount == 0:
+      for rec in six.itervalues( self.frameRecs ):
+        rec.get( 'frame' ).ShowBusyIcon( True )
+
+    self.busyCount += 1
+    self.busyLock.release()
+
+    wx.CallLater( 100, do_later, func, *args, **kwargs )
+  #end DoBusyEventOp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewApp._DoFirstLoop()			-
   #----------------------------------------------------------------------
   def _DoFirstLoop( self, frame ):
@@ -491,19 +628,7 @@ class VeraViewApp( wx.App ):
 # For some reason modal dialog don't work at this stage with Anaconda
 	opened = True
         wx.CallAfter( frame.OpenFile, data_paths, session )
-#        ans = wx.MessageBox(
-#            'Load previous session?', 'Load Session',
-#            wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL, None
-#            )
-#        if ans == wx.YES:
-#          opened = True
-#          frame.OpenFile( data_paths, session )
-#          #wx.CallAfter( frame.OpenFile, data_paths, session )
     #end if-else
-
-#    if not opened:
-#      wx.CallAfter( frame._OnOpenSingleFile, None )
-#      #frame._OnOpenFile( None )
   #end _DoFirstLoop
 
 
@@ -568,13 +693,8 @@ class VeraViewApp( wx.App ):
     #self.BringWindowToFront()
 
     if len( self.frameRecs ) > 0:
-      rec = self.frameRecs.itervalues().next()
+      rec = six.next( six.itervalues( self.frameRecs ) )
       rec[ 'frame' ].Raise()
-#    for rec in self.frameRecs.itervalues():
-#      print >> sys.stderr, 'XX', rec[ 'n' ], rec[ 'frame' ].IsActive()
-#      frame = rec.get( 'frame' )
-#      if frame and frame.IsActive():
-#        frame.Raise()
   #end MacReopenApp
 
 
@@ -663,9 +783,8 @@ unnecessary.
 """
     model_names = self.state.dataModelMgr.GetDataModelNames()
     file_path = sorted( model_names )[ 0 ]  if model_names else  ''
-    for rec in self.frameRecs.itervalues():
+    for rec in six.itervalues( self.frameRecs ):
       frame = rec.get( 'frame' )
-      #if frame:
       if frame and (skip_frames is None or frame not in skip_frames):
         frame.UpdateFrame( file_path = file_path )
     #end for rec
@@ -716,10 +835,6 @@ been created.
       #end for title
     #end for frame
   #end UpdateWindowMenus
-
-
-#		-- Static Methods
-#		--
 
 
   #----------------------------------------------------------------------
@@ -773,6 +888,12 @@ been created.
 	  help = 'path to session file to load'
           )
 
+      parser.add_argument(
+	  '--trace',
+	  action = 'store_true',
+	  help = 'trace call calls to stderr'
+          )
+
 #      parser.add_argument(
 #	  '--skip-startup-session-check',
 #	  action = 'store_true',
@@ -781,7 +902,14 @@ been created.
 
       args = parser.parse_args()
 
-      Config.SetRootDir( os.path.dirname( os.path.abspath( __file__ ) ) )
+      if args.trace:
+        sys.settrace( VeraViewApp.trace )
+
+      #Config.SetRootDir( os.path.dirname( os.path.abspath( __file__ ) ) )
+      root_dir = os.path.dirname( os.path.abspath( __file__ ) )
+      if not os.path.isdir( os.path.join( root_dir, 'res' ) ):
+        root_dir = os.path.dirname( root_dir )
+      Config.SetRootDir( root_dir )
 
 #			-- Check existence of files
 #			--
@@ -829,6 +957,19 @@ been created.
       logging.error( msg )
   #end main
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewApp.trace()				-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def trace( frame, event, arg ):
+    six.print_(
+        '{0}, {1}:{2:d}'.
+            format( event, frame.f_code.co_filename, frame.f_lineno ),
+        file = sys.stderr
+        )
+  #end trace
+
 #end VeraViewApp
 
 
@@ -864,7 +1005,12 @@ class VeraViewFrame( wx.Frame ):
     self.state = state
     self.windowMenu = None
 
+    self.animateOptionsDialog = None
     self.axialBean = None
+#    self.busyCount = 0
+#    self.busyLock = threading.RLock()
+    self.caslIcon = None
+    self.caslIconBg = None
 #x    self.closeFileItem = None
     self.dataSetMenu = None
     self.exposureBean = None
@@ -1101,6 +1247,20 @@ is False, the default processing of creating default widgets occurs.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.GetApp()			        -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+However, calling ``self.binder.GetTopLevelParent().GetApp()`` returns a
+``VeraViewApp`` instance.  Must be some sort of SWIG weirdness.
+"""
+    #return  wx.App.Get()  this works, too
+    return  self.app
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame.GetConfig()			-
   #----------------------------------------------------------------------
   def GetConfig( self ):
@@ -1210,19 +1370,19 @@ the grid.
 
 #			-- Session items
     file_menu.AppendSeparator()
-    load_session_item = wx.MenuItem(
-        file_menu, wx.ID_ANY,
-	'Load Session...'
-	)
+
+    load_session_item = wx.MenuItem( file_menu, wx.ID_ANY, 'Load Session...' )
     self.Bind( wx.EVT_MENU, self._OnLoadSession, load_session_item )
     file_menu.AppendItem( load_session_item )
 
-    save_session_item = wx.MenuItem(
-        file_menu, wx.ID_ANY,
-	'Save Session...'
-	)
+    save_session_item = wx.MenuItem( file_menu, wx.ID_ANY, 'Save Session...' )
     self.Bind( wx.EVT_MENU, self._OnSaveSession, save_session_item )
     file_menu.AppendItem( save_session_item )
+
+    restore_session_item = \
+        wx.MenuItem( file_menu, wx.ID_ANY, 'Restore Previous Session' )
+    self.Bind( wx.EVT_MENU, self._OnRestoreSession, restore_session_item )
+    file_menu.AppendItem( restore_session_item )
 
     file_menu.AppendSeparator()
 #			-- Save animated image
@@ -1333,6 +1493,12 @@ the grid.
 #		--
     data_menu = wx.Menu()
 
+    derived_dataset_item = wx.MenuItem(
+	data_menu, wx.ID_ANY, 'Create Derived Dataset...'
+        )
+    self.Bind( wx.EVT_MENU, self._OnCreateDerivedDataSet, derived_dataset_item )
+    data_menu.AppendItem( derived_dataset_item )
+
     diff_dataset_item = wx.MenuItem(
 	data_menu, wx.ID_ANY, 'Create Difference Dataset...'
         )
@@ -1411,13 +1577,20 @@ the grid.
         os.path.join( Config.GetResDir(), 'casl-logo.32.png' ),
 	wx.BITMAP_TYPE_PNG
 	)
+    logo_busy_im = wx.Image(
+        os.path.join( Config.GetResDir(), 'casl-logo-busy.32.png' ),
+	wx.BITMAP_TYPE_PNG
+	)
 #    tbar_sizer.Add(
 #	wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() ),
 #	0, wx.ALL | wx.ALIGN_RIGHT
 #        )
-    casl_icon = wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() )
+    self.caslIcon = wx.StaticBitmap( tbar_panel, -1, logo_im.ConvertToBitmap() )
+    self.caslIdleBitmap = logo_im.ConvertToBitmap()
+    self.caslBusyBitmap = logo_busy_im.ConvertToBitmap()
+    self.caslIconBg = self.caslIcon.GetBackgroundColour()
     #casl_icon.SetDropTarget( VeraViewFrameDropTarget( self ) )
-    tbar_sizer.Add( casl_icon, 0, wx.ALL | wx.ALIGN_RIGHT )
+    tbar_sizer.Add( self.caslIcon, 0, wx.ALL | wx.ALIGN_RIGHT )
     tbar_panel.SetSizer( tbar_sizer )
     self.widgetToolBarPanel = tbar_panel
 
@@ -1487,6 +1660,7 @@ the grid.
       self.SetSize( ( 640, 480 ) )
 
     self.SetDropTarget( VeraViewFrameDropTarget( self ) )
+
 #		-- Window Events
 #		--
     self.state.AddListener( self )
@@ -1548,7 +1722,16 @@ Note this defines a new State as well as widgets in the grid.
     fr_pos = widget_config.GetFramePosition()
     fr_size = widget_config.GetFrameSize()
     if fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
-      self.SetPosition( fr_pos )
+      # Ensure window will appear on screen (not cut off or hidden)
+      display_size = wx.DisplaySize()
+      xmin = 0
+      ymin = 0
+      if not Config.IsWindows():
+        ymin = 23 # space for menu bar on linux/mac (sized for mac)
+      xpos = max(min(fr_pos[0], (display_size[0] - fr_size[0])), xmin)
+      ypos = max(min(fr_pos[1], (display_size[1] - fr_size[1])), ymin)
+
+      self.SetPosition((xpos, ypos))
       self.SetSize( fr_size )
     #self.dataSetMenu.Init()
   #end _LoadWidgetConfig
@@ -1561,20 +1744,28 @@ Note this defines a new State as well as widgets in the grid.
     """Handles events from the axial slider.  Called on the UI thread.
 """
     ev.Skip()
+    value = ev.value
+    self.app.DoBusyEventOp( self._OnAxialImpl, value )
+  #end _OnAxial
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnAxialImpl()			-
+  #----------------------------------------------------------------------
+  def _OnAxialImpl( self, value ):
+    """Handles events from the axial slider.  Called on the UI thread.
+"""
     reason = STATE_CHANGE_noop
-    #dmgr = self.state.GetDataModelMgr()
     dmgr = self.state.dataModelMgr
     if dmgr:
-      axial_value = dmgr.GetAxialValue( core_ndx = ev.value )
-      #if axial_value and axial_value[ 0 ] >= 0.0:
+      axial_value = dmgr.GetAxialValue( core_ndx = value )
       if axial_value and axial_value.cm >= 0.0:
         reason = self.state.Change( self.eventLocks, axial_value = axial_value )
     #end if dmgr
 
     if reason != STATE_CHANGE_noop:
       self.state.FireStateChange( reason )
-  #end _OnAxial
+  #end _OnAxialImpl
 
 
   #----------------------------------------------------------------------
@@ -1616,7 +1807,7 @@ Must be called from the UI thread.
       if model_names:
         #if self.state.dataModelMgr.GetDataModelCount() == 1:
         if False:
-          dialog = wx.MessageDialog( 
+          dialog = wx.MessageDialog(
 	      self, 'Last File, Quit VERAView?', 'Close File',
 	      wx.ICON_QUESTION | wx.YES_NO | wx.YES_DEFAULT
 	      )
@@ -1684,7 +1875,7 @@ Must be called from the UI thread.
     ev.Skip()
 
     match = None
-    for rec in self.app.GetFrameRecs().itervalues():
+    for rec in six.itervalues( self.app.GetFrameRecs() ):
       frame = rec.get( 'frame' )
       if frame and frame.IsActive():
         match = frame
@@ -1746,12 +1937,26 @@ Must be called from the UI thread.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnCreateDerivedDataSet()		-
+  #----------------------------------------------------------------------
+  def _OnCreateDerivedDataSet( self, ev ):
+    ev.Skip()
+
+    dialog = DataSetCreatorDialog( self, state = self.state )
+    try:
+      dialog.ShowModal()
+    finally:
+      dialog.Destroy()
+  #end _OnCreateDerivedDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		VeraViewFrame._OnCreateDiffDataSet()		-
   #----------------------------------------------------------------------
   def _OnCreateDiffDataSet( self, ev ):
     ev.Skip()
 
-    dialog = DataSetDiffCreatorDialog( self, state = self.state )
+    dialog = DataSetDiffCreatorDialog( self, self.state )
     try:
       dialog.ShowModal()
     finally:
@@ -1780,19 +1985,28 @@ Must be called from the UI thread.
     """Handles events from the exposure slider.  Called on the UI thread.
 """
     ev.Skip()
+    value = ev.value
+    self.app.DoBusyEventOp( self._OnExposureImpl, value )
+  #end _OnExposure
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnExposureImpl()			-
+  #----------------------------------------------------------------------
+  def _OnExposureImpl( self, value ):
+    """Handles events from the exposure slider.  Called on the UI thread.
+"""
     reason = STATE_CHANGE_noop
     dmgr = self.state.dataModelMgr
     if dmgr:
-      value = dmgr.GetTimeIndexValue( ev.value )
+      value = dmgr.GetTimeIndexValue( value )
       if value >= 0.0:
         reason = self.state.Change( self.eventLocks, time_value = value )
     #end if dmgr
 
-    #reason = self.state.Change( self.eventLocks, state_index = ev.value )
     if reason != STATE_CHANGE_noop:
       self.state.FireStateChange( reason )
-  #end _OnExposure
+  #end _OnExposureImpl
 
 
   #----------------------------------------------------------------------
@@ -2059,6 +2273,25 @@ Must be called from the UI thread.
         self.OpenFile( path, session )
     #end else self.state.dataModelMgr is not None
   #end _OnOpenSingleFile
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._OnRestoreSession()               -
+  #----------------------------------------------------------------------
+  def _OnRestoreSession( self, ev ):
+    ev.Skip()
+
+    try:
+      session = WidgetConfig.ReadUserSession()
+      self.state.dataModelMgr.Close()
+      self.OpenFile( session.GetDataModelPaths(), session )
+      self._LoadWidgetConfig( session, True )
+
+    except Exception, ex:
+      self.logger.exception( 'Error restoring session' )
+      msg = 'Error restoring session:' + os.linesep + str( ex )
+      self.ShowMessageDialog( msg, 'Restore Session' )
+  #end _OnRestoreSession
 
 
   #----------------------------------------------------------------------
@@ -2365,11 +2598,19 @@ May be called from any thread.
 """
     #self.CloseAllWidgets()
 
-    msg = \
-        ', '.join( file_paths )  if hasattr( file_paths, '__iter__' ) else \
+#    msg = \
+#        ', '.join( file_paths )  if hasattr( file_paths, '__iter__' ) else \
+#	str( file_paths )
+#    dialog = wx.ProgressDialog( 'Open File', 'Reading files: %s' % msg )
+    names = \
+        os.linesep.join( file_paths ) \
+        if hasattr( file_paths, '__iter__' ) else \
 	str( file_paths )
 
-    dialog = wx.ProgressDialog( 'Open File', 'Reading files: %s' % msg )
+    dialog = wx.ProgressDialog(
+        'Open File',
+        'Reading files:{0}{1}'.format( os.linesep, names )
+        )
     dialog.Show()
 
 #    wxlibdr.startWorker(
@@ -2621,17 +2862,42 @@ Must be called from the UI event thread
 """
     first_wc = self.GetFirstWidgetContainer()
     if first_wc is not None:
-      file_path = first_wc._CheckAndPromptForAnimatedImage( file_path )
-      if file_path is not None:
-        answer = wx.MessageBox(
-	    'Show selections in images?',
-            'Save Widget Animated Image',
-	    wx.YES_NO, self
-	    )
-        animator.Run( file_path, answer == wx.YES )
+      if self.animateOptionsDialog is None:
+        self.animateOptionsDialog = AnimateOptionsDialog( self, -1 )
+
+      if self.animateOptionsDialog.ShowModal() != wx.ID_CANCEL:
+        file_path = first_wc._CheckAndPromptForAnimatedImage( file_path )
+        if file_path is not None:
+	  animator.Run(
+	      file_path,
+	      self.animateOptionsDialog.frame_delay,
+	      self.animateOptionsDialog.show_selections
+	      )
       #end if file_path is not None
     #end if we have a destination file path
   #end SaveWidgetsAnimatedImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.SaveWidgetsAnimatedImage_1()	-
+  #----------------------------------------------------------------------
+##  def SaveWidgetsAnimatedImage_1( self, animator, file_path = None ):
+##    """
+##Must be called from the UI event thread
+##"""
+##    first_wc = self.GetFirstWidgetContainer()
+##    if first_wc is not None:
+##      file_path = first_wc._CheckAndPromptForAnimatedImage( file_path )
+##      if file_path is not None:
+##        answer = wx.MessageBox(
+##	    'Show selections in images?',
+##            'Save Widget Animated Image',
+##	    wx.YES_NO, self
+##	    )
+##        animator.Run( file_path, answer == wx.YES )
+##      #end if file_path is not None
+##    #end if we have a destination file path
+##  #end SaveWidgetsAnimatedImage_1
 
 
   #----------------------------------------------------------------------
@@ -2670,8 +2936,8 @@ Must be called on the UI event thread.
 	  montager = WidgetImageMontager(
 	      result_path = file_path,
 	      widgets = widgets,
-	      cols = self.grid.GetSizer().GetCols(),
-	      rows = self.grid.GetSizer().GetRows(),
+	      ncols = self.grid.GetSizer().GetCols(),
+	      nrows = self.grid.GetSizer().GetRows(),
 	      hilite = answer == wx.YES
 	      )
 	  montager.Run( 'Save Widgets Image' )
@@ -2705,6 +2971,53 @@ Must be called on the UI event thread.
 """
     self.frameId = value
   #end SetFrameId
+
+
+##  #----------------------------------------------------------------------
+##  #	METHOD:		VeraViewFrame.ShowBusy()		        -
+##  #----------------------------------------------------------------------
+##  def ShowBusy( self, busy = True ):
+##    """Should be called on MainThread.
+##"""
+##    def do_update( bmap ):
+##      self.caslIcon.SetBitmap( bmap )
+##      #self.caslIcon.SetBackgroundColour( color )
+##      self.caslIcon.Update()
+##    #end do_update
+##
+##    bmap = None
+##
+##    self.busyLock.acquire()
+##    if busy:
+##      if self.busyCount == 0:
+##        bmap = self.caslBusyBitmap
+##      self.busyCount += 1
+##    else:
+##      if self.busyCount == 1:
+##        bmap = self.caslIdleBitmap
+##      self.busyCount -= 1
+##
+##    self.busyLock.release()
+##
+##    if bmap:
+##      if threading.current_thread().name == 'MainThread':
+##        do_update( bmap )
+##      else:
+##        wx.CallAfter( do_update, bmap )
+##  #end ShowBusy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame.ShowBusyIcon()		        -
+  #----------------------------------------------------------------------
+  def ShowBusyIcon( self, busy = True ):
+    """Should be called on MainThread.
+"""
+    self.caslIcon.SetBitmap(
+        self.caslBusyBitmap if busy  else self.caslIdleBitmap
+        )
+    self.caslIcon.Update()
+  #end ShowBusyIcon
 
 
   #----------------------------------------------------------------------
@@ -2823,9 +3136,19 @@ session, widget_props, no_widgets are processed.
 #          dmgr.HasDataSetType( 'subpin_theta' )
       has_subpin = dmgr.HasDataSetType( 'subpin_theta' )
 
-      #if core.nass > 1:
-      if core.nass > 1 and has_pin:
+      has_core = \
+          has_pin or \
+          dmgr.HasDataSetType( 'channel' ) or \
+          dmgr.HasDataSetType( ':assembly' ) or \
+          dmgr.HasDataSetType( ':chan_radial' ) or \
+          dmgr.HasDataSetType( ':node' ) or \
+          dmgr.HasDataSetType( ':radial' ) or \
+          dmgr.HasDataSetType( ':radial_assembly' ) or \
+          dmgr.HasDataSetType( ':radial_node' )
+
+      if core.nass > 1 and has_core:
         widget_list.append( 'widget.core_view.Core2DView' )
+#z        widget_list.append( 'widget.core_view_plot.Core2DPlot' )
 
 #			-- Detector mode
 #      if dmgr.HasDataSetType( 'detector' ):
@@ -2850,6 +3173,7 @@ session, widget_props, no_widgets are processed.
 #x          widget_list.append( 'widget.channel_axial_view.ChannelAxial2DView' )
 
 #			-- Special check for Detector
+#z      if 'widget.core_view_plot.Core2DPlot' not in widget_list and \
       if 'widget.core_view.Core2DView' not in widget_list and \
 (dmgr.HasDataSetType( 'detector' ) or dmgr.HasDataSetType( 'fixed_detector' )):
         widget_list.append( 'widget.detector_multi_view.Detector2DMultiView' )
@@ -2866,7 +3190,7 @@ session, widget_props, no_widgets are processed.
 
 #			-- Axial plot?
       #if core.nax > 1:
-      if has_axials:
+      if has_axials and core.nax > 1:
         widget_list.append( 'widget.axial_plot.AxialPlot' )
 
 #			-- Time plot?
@@ -2876,15 +3200,20 @@ session, widget_props, no_widgets are processed.
       #if _debug_:
       if self.app.debug:
         widget_list = [
-            'widget.core_view.Core2DView',
+#            'widget.core_view_plot.Core2DPlot',
+#            'widget.core_view.Core2DView',
 #            'widget.assembly_view.Assembly2DView',
 #            'widget.core_axial_view.CoreAxial2DView',
+#            'widget.data_analysis_view.DataAnalysisView',
 #            'widget.detector_multi_view.Detector2DMultiView',
-#            'widget.vessel_core_view.VesselCore2DView',
-#            'widget.vessel_core_axial_view.VesselCoreAxial2DView',
+            'widget.vessel_core_view.VesselCore2DView',
+            'widget.vessel_core_axial_view.VesselCoreAxial2DView',
 #            'widget.axial_plot.AxialPlot',
+#            'widget.intrapin_edits_assembly_view.IntraPinEditsAssembly2DView',
+#            'widget.intrapin_edits_plot.IntraPinEditsPlot',
 #            'widget.subpin_view.SubPin2DView',
 #            'widget.subpin_plot.SubPinPlot',
+#            'widget.table_view.TableView',
 #            'widget.time_plots.TimePlots',
             ]
 
@@ -2913,11 +3242,26 @@ session, widget_props, no_widgets are processed.
 
       fr_size = None if self.config is None else self.config.GetFrameSize()
       if fr_size is not None and fr_size[ 0 ] > 0 and fr_size[ 1 ] > 0:
-	fr_pos = self.config.GetFramePosition()
-	self.SetPosition( fr_pos )
+        fr_pos = self.config.GetFramePosition()
+        # Ensure window will appear on screen (not cut off or hidden)
+        display_size = wx.DisplaySize()
+        xmin = 0
+        ymin = 0
+        if not Config.IsWindows():
+          ymin = 23 # space for menu bar on linux/mac (sized for mac)
+        xpos = max(min(fr_pos[0], (display_size[0] - fr_size[0])), xmin)
+        ypos = max(min(fr_pos[1], (display_size[1] - fr_size[1])), ymin)
+
+        self.SetPosition((xpos, ypos))
         self.SetSize( fr_size )
       else:
         self._Refit( False )  # True
+
+#			-- Add extra widget if space allows
+#			--
+      if not self.app.debug and \
+          len( widget_list ) < (grid_sizer.GetCols() * grid_sizer.GetRows()):
+        self.CreateWidget( 'widget.table_view.TableView', False )
     #end elif not self.initialized
 
 #		-- Update various widgets
@@ -2988,7 +3332,83 @@ around after the tool is deleted, so we work around this by creating
 a new toolbar to replace the old one.
 """
     dmgr = self.state.dataModelMgr
-    tbar = self.widgetToolBar  # should have been passed in anyway
+    if tbar is None:
+      tbar = self.widgetToolBar  # should have been passed in anyway
+
+    widget_tbar = wx.ToolBar(
+        self.widgetToolBarPanel, -1,
+	style = wx.TB_HORIZONTAL | wx.SIMPLE_BORDER
+	)
+
+#		-- Needed if items will be destroyed?
+    for i in xrange( len( TOOLBAR_ITEMS ) ):
+      item = tbar.FindById( i + 1 )
+      if item is not None:
+        self.Unbind( wx.EVT_TOOL, item )
+        #self.Unbind( wx.EVT_TOOL, self._OnWidgetTool, id = i + 1 )
+
+    if dmgr is not None:
+      ti_count = 1
+      for ti in TOOLBAR_ITEMS:
+        widget_icon = ti.get( 'icon' )
+        if widget_icon is None:
+          widget_tbar.AddSeparator()
+
+        else:
+          ds_type = ti[ 'type' ]
+
+          enabled = \
+	      enable_all or ds_type == '' or \
+	      dmgr.HasDataSetType( ds_type )
+	  if enabled and 'func' in ti:
+	    enabled = ti[ 'func' ]( dmgr )
+
+          if enabled:
+            widget_icon = ti.get( 'icon' )
+            widget_im = wx.Image(
+                os.path.join( Config.GetResDir(), widget_icon ),
+	        wx.BITMAP_TYPE_PNG
+	        )
+
+            tip = ti[ 'widget' ]
+            tb_item = widget_tbar.AddTool(
+                ti_count, widget_im.ConvertToBitmap(),
+	        shortHelpString = tip
+	        )
+	    tb_item.Enable( enabled )
+            self.Bind( wx.EVT_TOOL, self._OnWidgetTool, tb_item )
+
+            ti_count += 1
+          #end if enabled
+
+#				-- File->New menu
+	  mid = self.fileNewMenu.FindItem( ti[ 'widget' ] )
+	  if mid != wx.NOT_FOUND:
+	    self.fileNewMenu.FindItemById( mid ).Enable( enabled )
+        #end if-else separator
+      #end for ti
+    #end if dmgr
+
+    self.widgetToolBarPanel.GetSizer().Replace( tbar, widget_tbar )
+    widget_tbar.Realize()
+    self.widgetToolBarPanel.GetSizer().Layout()
+    self.widgetToolBar = widget_tbar
+
+    tbar.Destroy()
+  #end _UpdateToolBar
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		VeraViewFrame._UpdateToolBar_1()                -
+  #----------------------------------------------------------------------
+  def _UpdateToolBar_1( self, tbar, enable_all = False ):
+    """An irritating Mac bug results in the icon for removed tools hanging
+around after the tool is deleted, so we work around this by creating
+a new toolbar to replace the old one.
+"""
+    dmgr = self.state.dataModelMgr
+    if tbar is None:
+      tbar = self.widgetToolBar  # should have been passed in anyway
 
     widget_tbar = wx.ToolBar(
         self.widgetToolBarPanel, -1,
@@ -3051,7 +3471,7 @@ a new toolbar to replace the old one.
     self.widgetToolBar = widget_tbar
 
     tbar.Destroy()
-  #end _UpdateToolBar
+  #end _UpdateToolBar_1
 
 
   #----------------------------------------------------------------------
@@ -3119,52 +3539,6 @@ a new toolbar to replace the old one.
     tbar.Realize()
   #end _UpdateToolBar_sane
 
-
-#   #----------------------------------------------------------------------
-#   #	METHOD:		VeraViewFrame._UpdateWindowMenus()		-
-#   #----------------------------------------------------------------------
-#   def _UpdateWindowMenus( self, **kwargs ):
-#     """Assume this will only be called if the 'Window' menubar item has
-# been created.
-# """
-#     titles = []
-#     frames = []
-#     for frame_rec in self.app.GetFrameRecs().values():
-#       frame = frame_rec.get( 'frame' )
-#       if frame is not None:
-# 	frames.append( frame )
-#         titles.append( frame.GetTitle() )
-#     #end for frame_rec
-# 
-# #		-- Process menu for each frame
-# #		--
-#     for frame in frames:
-# #			-- Find items to remove
-# #			--
-#       removes = []
-#       for i in xrange( frame.windowMenu.GetMenuItemCount() ):
-#         item = frame.windowMenu.FindItemByPosition( i )
-# 	if item:
-# 	  label = item.GetItemLabelText()
-# 	  if label and label != 'Tile Windows':
-# 	    removes.append( item )
-#       #end for i
-# #			-- Remove items
-# #			--
-#       for item in removes:
-#         frame.windowMenu.DestroyItem( item )
-# 
-# #			-- Add new items
-# #			--
-#       for title in titles:
-#         item = wx.MenuItem( frame.windowMenu, wx.ID_ANY, title )
-# 	frame.Bind( wx.EVT_MENU, frame._OnWindowMenuItem, item )
-# 	frame.windowMenu.AppendItem( item )
-# 	#frame.windowMenu.UpdateUI()
-#       #end for title
-#     #end for frame
-#   #end _UpdateWindowMenus
-
 #end VeraViewFrame
 
 
@@ -3191,7 +3565,8 @@ all the widgets.
 """
     self.frame = frame
 
-    self._axialValue = DataModel.CreateEmptyAxialValueObject()
+    #self._axialValue = DataModel.CreateEmptyAxialValueObject()
+    self._axialValue = AxialValue()
     self.busy = False
     self.busyLock = threading.RLock()
 
@@ -3217,8 +3592,8 @@ all the widgets.
 	montager = WidgetImageMontager(
 	   result_path = fpath,
 	   widgets = widgets,
-	   cols = self.frame.grid.GetSizer().GetCols(),
-	   rows = self.frame.grid.GetSizer().GetRows(),
+	   ncols = self.frame.grid.GetSizer().GetCols(),
+	   nrows = self.frame.grid.GetSizer().GetRows(),
 	   no_dialog = True,
 	   hilite = hilite
 	   )
@@ -3508,6 +3883,8 @@ class VeraViewGrid( wx.Panel ):
   #	METHOD:		VeraViewGrid._InitUI()				-
   #----------------------------------------------------------------------
   def _InitUI( self ):
+    """
+"""
     cols = 1
     rows = 1
 
@@ -3566,9 +3943,5 @@ class VeraViewGrid( wx.Panel ):
 
 #end VeraViewGrid
 
-
-#------------------------------------------------------------------------
-#	NAME:		main()						-
-#------------------------------------------------------------------------
 if __name__ == '__main__':
   VeraViewApp.main()

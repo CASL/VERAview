@@ -106,12 +106,11 @@ except Exception:
 #except Exception:
 #  raise ImportError, 'The Python Imaging Library (PIL) is required for this component'
 
-#from bean.axial_slider import *
-#from bean.exposure_slider import *
 from data.datamodel import *
 from event.state import *
-from raster_widget import *
-from widget import *
+
+from .raster_widget import *
+from .widget import *
 
 
 #------------------------------------------------------------------------
@@ -524,7 +523,8 @@ If neither are specified, a default 'scale' value of 4 is used.
       region_aspect_ratio = float( region_wd ) / float( region_ht )
 
 #				-- Limited by height
-      if region_aspect_ratio > core_aspect_ratio:
+      #if region_aspect_ratio > core_aspect_ratio:
+      if self.fitMode == 'ht':
 	pin_wd = max( 1, int( math.floor( region_ht / axial_pin_equivs ) ) )
 	if self.nodalMode:
 	  node_count = self.cellRange[ -2 ] << 1
@@ -1019,7 +1019,15 @@ If neither are specified, a default 'scale' value of 4 is used.
       if cell_info[ 2 ] >= 0:
 	axial_value = self.dmgr.\
 	    GetAxialValue( self.curDataSet, core_ndx = cell_info[ 2 ] )
-	tip_str += ', Axial: %.2f' % axial_value.cm
+	#tip_str += ', Axial: %.2f' % axial_value.cm
+	tip_str += '\nAxial Mid Point: %.2f cm' % axial_value.cm
+        cm_bin = axial_value.cmBin
+        #if 'cm_range' in axial_value:
+          #cm_range = axial_value[ 'cm_range' ]
+        if cm_bin is not None:
+          tip_str += '\nUpper Bound: %.2f cm' % ( cm_bin[ 1 ] )
+          tip_str += '\nLower Bound: %.2f cm' % ( cm_bin[ 0 ] )
+          #append_str = ' [%.2f,%.2f]' % ( cm_range[ 0 ], cm_range[ 1 ] )
       #end if cell_info[ 2 ] >= 0
     #end if dset is not None and assy_ndx < dset.shape[ 3 ]
 
@@ -1300,7 +1308,8 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
         dc = wx.MemoryDC( new_bmap )
 	gc = wx.GraphicsContext.Create( dc )
 	gc.SetPen( gc.CreatePen( wx.ThePenList.FindOrCreatePen(
-	    wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+            HILITE_COLOR_primary,
+            line_wd, wx.PENSTYLE_SOLID
 	    ) ) )
 	path = gc.CreatePath()
 	path.AddRectangle( *rect )
@@ -1378,7 +1387,16 @@ be overridden by subclasses.
 """
     x = ev.GetX()
     y = ev.GetY()
+    self.GetTopLevelParent().GetApp().DoBusyEventOp( self._OnClickImpl, x, y )
+  #end _OnClick
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._OnClickImpl()			-
+  #----------------------------------------------------------------------
+  def _OnClickImpl( self, x, y ):
+    """
+"""
     cell_info = self.FindCell( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
@@ -1409,13 +1427,25 @@ be overridden by subclasses.
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
     #end if cell found
-  #end _OnClick
+  #end _OnClickImpl
 
 
   #----------------------------------------------------------------------
   #	METHOD:		CoreAxial2DView._OnFindMinMax()			-
   #----------------------------------------------------------------------
   def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
+    """Calls _OnFindMinMaxPin().
+"""
+    self.GetTopLevelParent().GetApp().DoBusyEventOp(
+        self._OnFindMinMaxImpl, mode, all_states_flag, all_assy_flag
+        )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		CoreAxial2DView._OnFindMinMaxImpl()		-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxImpl( self, mode, all_states_flag, all_assy_flag ):
     """Calls _OnFindMinMaxPin().
 """
     if self.curDataSet:
@@ -1427,7 +1457,7 @@ be overridden by subclasses.
         self._OnFindMinMaxPin(
 	    mode, self.curDataSet, all_states_flag, all_assy_flag
 	    )
-  #end _OnFindMinMax
+  #end _OnFindMinMaxImpl
 
 
   #----------------------------------------------------------------------
@@ -1438,7 +1468,9 @@ be overridden by subclasses.
 """
     new_mode = 'xz' if self.mode == 'yz' else 'yz'
     button = ev.GetEventObject()
-    self.SetMode( new_mode, button )
+    #self.SetMode( new_mode, button )
+    self.GetTopLevelParent().GetApp().\
+        DoBusyEventOp( self.SetMode, new_mode, button )
   #end _OnMode
 
 

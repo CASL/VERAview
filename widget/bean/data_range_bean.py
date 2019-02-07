@@ -3,6 +3,11 @@
 #------------------------------------------------------------------------
 #	NAME:		data_range_bean.py				-
 #	HISTORY:							-
+#		2018-11-16	leerw@ornl.gov				-
+#         Added DataRangeValues.customRange.
+#		2018-11-15	leerw@ornl.gov				-
+#         Added "Exponential" Precision Mode option.
+#         Definition and use of DataRangeValues.
 #		2018-06-22	leerw@ornl.gov				-
 #	  Disallowing "inf" in range fields.
 #		2018-06-19	leerw@ornl.gov				-
@@ -20,13 +25,14 @@
 #	  Added precision to dialog.
 #		2016-10-22	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import math, os, sys
+import copy, math, os, sys, webbrowser
 import numpy as np
 import pdb  #pdb.set_trace()
 
 try:
 #  import wx, wx.lib.newevent
   import wx
+  from wx.lib.agw.hyperlink import HyperLinkCtrl
   from wx.lib.scrolledpanel import ScrolledPanel
 except Exception:
   raise ImportError( 'The wxPython module is required for this component' )
@@ -43,15 +49,18 @@ from widget.colormaps import *
 #DataRangeEvent, EVT_DATA_RANGE = wx.lib.newevent.NewEvent()
 
 
+CUSTOM_FORMAT_URL = 'https://docs.python.org/2/library/string.html#format-specification-mini-language'
+
 DEFAULT_colormap = 'jet'
 DEFAULT_precisionDigits = 3
 DEFAULT_precisionMode = 'general'
 DEFAULT_scaleType = '(dataset default)'
 
 
-EMPTY_RANGE = ( float( 'NaN' ), float( 'NaN' ) )
+EMPTY_RANGE = ( np.nan, np.nan )
 
-MODE_OPTIONS = [ 'Fixed', DEFAULT_precisionMode.title() ]
+MODE_OPTIONS = \
+  [ 'Custom', 'Exponential', 'Fixed', DEFAULT_precisionMode.title() ]
 
 SCALE_TYPES = [ DEFAULT_scaleType.title(), 'Linear', 'Log' ]
 
@@ -60,10 +69,7 @@ SCALE_TYPES = [ DEFAULT_scaleType.title(), 'Linear', 'Log' ]
 #	CLASS:		DataRangeBean					-
 #------------------------------------------------------------------------
 class DataRangeBean( wx.Panel ):
-  """Panel containing a list of checkboxes.
-
-Attributes/properties:
-  events		dict keyed by state change IDs of True/False values
+  """Panel with controls for setting the range, colormap, and scale type.
 """
 
 
@@ -77,37 +83,50 @@ Attributes/properties:
   def __init__(
       self, container, id = -1,
       bitmap_func = None,
-      range_in = EMPTY_RANGE,
-      digits_in = DEFAULT_precisionDigits,
-      mode_in = DEFAULT_precisionMode,
-      colormap_in = DEFAULT_colormap,
-      scale_type_in = DEFAULT_scaleType,
-      enable_scale_and_cmap = True
+      values = None,
+#      range_in = EMPTY_RANGE,
+#      digits_in = DEFAULT_precisionDigits,
+#      mode_in = DEFAULT_precisionMode,
+#      colormap_in = DEFAULT_colormap,
+#      scale_type_in = DEFAULT_scaleType,
+      use_scale_and_cmap = True
       ):
     """
 """
     super( DataRangeBean, self ).__init__( container, id )
 
     self.fBitmapFunc = bitmap_func
-    self.fRange = EMPTY_RANGE
+#    self.fRange = EMPTY_RANGE
+    self.fValues = DataRangeValues()
+    self.fUseScaleAndCmap = use_scale_and_cmap
 
     self.fColormapBitmap = \
     self.fColormapButton = \
     self.fColormapMenu = \
+    self.fCustomFormatField = \
+    self.fCustomFormatLabel = \
+    self.fPanelSizer = \
     self.fPrecisionModeCtrl = \
     self.fPrecisionDigitsCtrl = \
+    self.fPrecisionDigitsLabel = \
     self.fScaleTypeCtrl = None
     self.fRangeFields = []
 
-    if range_in:
-      self.SetRange( range_in, False )
+    self.GetRange = self.GetDataRange
+    self.SetRange = self.SetDataRange
 
-    self._InitUI( enable_scale_and_cmap )
-    self.SetColormap( colormap_in )
-    self.SetPrecisionDigits( digits_in )
-    self.SetPrecisionMode( mode_in )
-    self.SetScaleType( scale_type_in )
-    self._UpdateRangeControls()
+    #if range_in:
+      #self.SetRange( range_in, False )
+
+
+    self._InitUI( use_scale_and_cmap )
+#    self.SetColormap( colormap_in )
+#    self.SetPrecisionDigits( digits_in )
+#    self.SetPrecisionMode( mode_in )
+#    self.SetScaleType( scale_type_in )
+#    self._UpdateRangeControls()
+    if values is not None:
+      self.SetValues( values )
   #end __init__
 
 
@@ -117,7 +136,10 @@ Attributes/properties:
   def Check( self ):
     """
 """
-    if (self.fRange[ 0 ] < 0.0 or self.fRange[ 1 ] < 0.0) and \
+#    if (self.fRange[ 0 ] < 0.0 or self.fRange[ 1 ] < 0.0) and \
+#        self.GetScaleType() == 'log':
+    data_range = self.GetDataRange()
+    if (data_range[ 0 ] < 0.0 or data_range[ 0 ] < 0.0) and \
         self.GetScaleType() == 'log':
       self.SetScaleType( 'linear' )
       wx.MessageBox(
@@ -165,10 +187,18 @@ Attributes/properties:
   def Enable( self, flag = True ):
     super( DataRangeBean, self ).Enable( flag )
 
+    custom = 'custom' == self.GetPrecisionMode()
+
     for item in self.fRangeFields:
       item.Enable( flag )
-    self.fPrecisionModeCtrl.Enable( flag )
-    self.fPrecisionDigitsCtrl.Enable( flag )
+    self.fCustomFormatField.Enable( custom )
+    self.fCustomFormatLabel.Enable( custom )
+    self.fPrecisionModeCtrl.Enable( not custom )
+    self.fPrecisionDigitsCtrl.Enable( not custom )
+
+    if self.IsUseScaleAndCmap():
+      self.fColormapButton.Enable( flag )
+      self.fScaleTypeCtrl.Enable( flag )
   #end Enable
 
 
@@ -176,16 +206,35 @@ Attributes/properties:
   #	METHOD:		DataRangeBean.GetColormap()			-
   #----------------------------------------------------------------------
   def GetColormap( self ):
-#    return  str( self.fColormapCtrl.GetValue() ).lower()
-    return  self.fColormapButton.GetLabel()
+    #return  self.fColormapButton.GetLabel()
+    return  self.fValues.colormap
   #end GetColormap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.GetCustomFormat()			-
+  #----------------------------------------------------------------------
+  def GetCustomFormat( self ):
+    #return  self.fRange
+    return  self.fValues.customFormat
+  #end GetCustomFormat
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.GetDataRange()			-
+  #----------------------------------------------------------------------
+  def GetDataRange( self ):
+    #return  self.fRange
+    return  self.fValues.dataRange
+  #end GetDataRange
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean.GetPrecisionDigits()		-
   #----------------------------------------------------------------------
   def GetPrecisionDigits( self ):
-    return  self.fPrecisionDigitsCtrl.GetValue()
+    #return  self.fPrecisionDigitsCtrl.GetValue()
+    return  self.fValues.precisionDigits
   #end GetPrecisionDigits
 
 
@@ -193,36 +242,38 @@ Attributes/properties:
   #	METHOD:		DataRangeBean.GetPrecisionMode()		-
   #----------------------------------------------------------------------
   def GetPrecisionMode( self ):
-    return  str( self.fPrecisionModeCtrl.GetValue() ).lower()
+    #return  str( self.fPrecisionModeCtrl.GetValue() ).lower()
+    return  self.fValues.precisionMode
   #end GetPrecisionMode
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataRangeBean.GetRange()			-
-  #----------------------------------------------------------------------
-  def GetRange( self ):
-    return  self.fRange
-  #end GetRange
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean.GetScaleType()			-
   #----------------------------------------------------------------------
   def GetScaleType( self ):
-    return  str( self.fScaleTypeCtrl.GetValue() ).lower()
+    #return  str( self.fScaleTypeCtrl.GetValue() ).lower()
+    return  self.fValues.scaleType
   #end GetScaleType
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.GetValues()			-
+  #----------------------------------------------------------------------
+  def GetValues( self ):
+    return  copy.copy( self.fValues )
+  #end GetValues
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean._InitUI()				-
   #----------------------------------------------------------------------
-  def _InitUI( self, enable_scale_and_cmap = True ):
+  def _InitUI( self, use_scale_and_cmap = True ):
     """Builds this panel.
 """
 #		-- Panel
 #		--
     panel = wx.Panel( self, -1, style = wx.BORDER_THEME )
-    panel_sizer = wx.FlexGridSizer( 7, 2, 6, 4 )
+    self.fPanelSizer = panel_sizer = wx.FlexGridSizer( 8, 2, 6, 4 )
     panel_sizer.SetFlexibleDirection( wx.HORIZONTAL )
     panel.SetSizer( panel_sizer )
 
@@ -244,7 +295,26 @@ Attributes/properties:
 	  )
     #end for name
 
-    label = wx.StaticText(
+    self.fCustomFormatLabel = wx.StaticText(
+        panel, wx.ID_ANY, label = 'Custom Format:',
+	style = wx.ALIGN_RIGHT
+	)
+    self.fCustomFormatField = wx.TextCtrl(
+        panel, wx.ID_ANY, value = 'g'
+        #size = ( 200, -1 )
+        )
+    self.fCustomFormatField.Bind( wx.EVT_KILL_FOCUS, self._OnCustomFocusOut )
+    self.fCustomFormatField.Bind( wx.EVT_SET_FOCUS, self._OnFocusIn )
+    panel_sizer.Add(
+        self.fCustomFormatLabel, 0,
+        wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0
+        )
+    panel_sizer.Add(
+        self.fCustomFormatField, 0,
+	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
+	)
+
+    self.fPrecisionDigitsLabel = wx.StaticText(
         panel, wx.ID_ANY, label = 'Precision Digits:',
 	style = wx.ALIGN_RIGHT
 	)
@@ -253,7 +323,11 @@ Attributes/properties:
 	min = 1, max = 4, initial = DEFAULT_precisionDigits,
 	style = wx.SP_ARROW_KEYS
         );
-    panel_sizer.Add( label, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
+    self.fPrecisionDigitsCtrl.Bind( wx.EVT_SPINCTRL, self._OnPrecisionDigits )
+    panel_sizer.Add(
+        self.fPrecisionDigitsLabel, 0,
+        wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0
+        )
     panel_sizer.Add(
         self.fPrecisionDigitsCtrl, 0,
 	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
@@ -268,6 +342,7 @@ Attributes/properties:
 	choices = MODE_OPTIONS,
 	style = wx.CB_READONLY
         );
+    self.fPrecisionModeCtrl.Bind( wx.EVT_COMBOBOX, self._OnPrecisionMode )
     panel_sizer.Add( label, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
     panel_sizer.Add(
         self.fPrecisionModeCtrl, 0,
@@ -283,12 +358,13 @@ Attributes/properties:
 	choices = SCALE_TYPES,
 	style = wx.CB_READONLY
         )
+    self.fScaleTypeCtrl.Bind( wx.EVT_COMBOBOX, self._OnScaleType )
     panel_sizer.Add( label, 0, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, 0 )
     panel_sizer.Add(
         self.fScaleTypeCtrl, 0,
 	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
 	)
-    if not enable_scale_and_cmap:
+    if not use_scale_and_cmap:
       self.fScaleTypeCtrl.Enable( False )
 
 #		-- Colormap is embedded in second column
@@ -318,7 +394,7 @@ Attributes/properties:
         cmap_sizer, 0,
 	wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0
 	)
-    if not enable_scale_and_cmap:
+    if not use_scale_and_cmap:
       self.fColormapButton.Enable( False )
 
 #		-- Panel button
@@ -341,6 +417,22 @@ Attributes/properties:
 	style = wx.ALIGN_LEFT
         )
 
+#               -- Help message with link
+#               --
+    help_sizer = wx.BoxSizer( wx.HORIZONTAL )
+    help_message = wx.StaticText(
+        self, wx.ID_ANY,
+        'Custom formats are described at ',
+	style = wx.ALIGN_LEFT
+        )
+    help_sizer.Add( help_message, 0, wx.ALIGN_LEFT | wx.LEFT, 6 )
+    link = HyperLinkCtrl(
+        self, wx.ID_ANY,
+        label = 'at this link', URL = CUSTOM_FORMAT_URL
+        )
+    link.SetFont( link.GetFont().Bold() )
+    help_sizer.Add( link, 0, wx.ALIGN_LEFT, 0 )
+
 #			-- Lay out
 #			--
     sizer = wx.BoxSizer( wx.VERTICAL )
@@ -350,6 +442,10 @@ Attributes/properties:
     sizer.Add(
         message, 0,
 	wx.ALIGN_CENTRE_HORIZONTAL | wx.ALIGN_TOP | wx.ALL | wx.EXPAND, 6
+	)
+    sizer.Add(
+        help_sizer, 0,
+	wx.ALIGN_CENTRE_HORIZONTAL | wx.ALIGN_TOP | wx.EXPAND, 0
 	)
     #sizer.AddStretchSpacer()
     self.Fit()
@@ -385,6 +481,23 @@ Attributes/properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnCustomFocusOut()               -
+  #----------------------------------------------------------------------
+  def _OnCustomFocusOut( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    new_value = ev.GetEventObject().GetValue()
+    if not new_value:
+      new_value = 'g'
+      ev.GetEventObject().SetValue( new_value )
+
+    self.fValues.customFormat = new_value
+  #end _OnCustomFocusOut
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean._OnFocusIn()			-
   #----------------------------------------------------------------------
   def _OnFocusIn( self, ev ):
@@ -408,18 +521,53 @@ Attributes/properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnPrecisionDigits()		-
+  #----------------------------------------------------------------------
+  def _OnPrecisionDigits( self, ev ):
+    """
+"""
+    ev.Skip()
+    self.fValues.precisionDigits = ev.GetEventObject().GetValue()
+  #end _OnPrecisionDigits
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnPrecisionMode()		-
+  #----------------------------------------------------------------------
+  def _OnPrecisionMode( self, ev ):
+    """
+"""
+    ev.Skip()
+    self.fValues.precisionMode = str( ev.GetEventObject().GetValue() ).lower()
+    self._UpdateModeControls()
+  #end _OnPrecisionMode
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean._OnReset()			-
   #----------------------------------------------------------------------
   def _OnReset( self, ev ):
     """
 """
     ev.Skip()
-    self.SetColormap( DEFAULT_colormap )
-    self.SetPrecisionDigits( DEFAULT_precisionDigits )
-    self.SetPrecisionMode( DEFAULT_precisionMode )
-    self.SetRange( EMPTY_RANGE )
-    self.SetScaleType( DEFAULT_scaleType )
+#    self.SetColormap( DEFAULT_colormap )
+#    self.SetPrecisionDigits( DEFAULT_precisionDigits )
+#    self.SetPrecisionMode( DEFAULT_precisionMode )
+#    self.SetRange( EMPTY_RANGE )
+#    self.SetScaleType( DEFAULT_scaleType )
+    self.SetValues( DataRangeValues() )
   #end _OnReset
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._OnScaleType()		        -
+  #----------------------------------------------------------------------
+  def _OnScaleType( self, ev ):
+    """
+"""
+    ev.Skip()
+    self.fValues.scaleType = str( ev.GetEventObject().GetValue() ).lower()
+  #end _OnScaleType
 
 
   #----------------------------------------------------------------------
@@ -434,34 +582,26 @@ Attributes/properties:
     if self.fBitmapFunc:
       self.fColormapBitmap.SetBitmap( self.fBitmapFunc( 'cmap_' + cmap_in ) )
       self.fColormapBitmap.Update()
+
+    self.fValues.colormap = cmap_in
   #end SetColormap
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataRangeBean.SetPrecisionDigits()		-
+  #	METHOD:		DataRangeBean.SetCustomFormat()			-
   #----------------------------------------------------------------------
-  def SetPrecisionDigits( self, prec_in ):
-    self.fPrecisionDigitsCtrl.SetValue( max( 1, min( 4, prec_in ) ) )
-    self.fPrecisionDigitsCtrl.Update()
-  #end SetPrecisionDigits
+  def SetCustomFormat( self, value_in ):
+    if not value_in:
+      value_in = 'g'
+    self.fCustomFormatField.SetValue( value_in )
+    self.fValues.customFormat = value_in
+  #end SetCustomFormat
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataRangeBean.SetPrecisionMode()		-
+  #	METHOD:		DataRangeBean.SetDataRange()			-
   #----------------------------------------------------------------------
-  def SetPrecisionMode( self, mode_in ):
-    mode_in = mode_in.title()
-    if mode_in not in MODE_OPTIONS:
-      mode_in = DEFAULT_precisionMode
-    self.fPrecisionModeCtrl.SetValue( mode_in )
-    self.fPrecisionModeCtrl.Update()
-  #end SetPrecisionMode
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataRangeBean.SetRange()			-
-  #----------------------------------------------------------------------
-  def SetRange( self, value_in, update_controls = True ):
+  def SetDataRange( self, value_in ):
     if value_in is not None and \
         hasattr( value_in, '__iter__' ) and len( value_in ) >= 2:
       cur_values = []
@@ -469,30 +609,71 @@ Attributes/properties:
         try:
 	  x = float( value_in[ i ] )
         except:
-	  x = float( 'NaN' )
+	  x = np.nan
         cur_values.append( x )
       #end for
-      self.fRange = tuple( cur_values )
+      self.fValues.dataRange = tuple( cur_values )
 
     else:
-      self.fRange = EMPTY_RANGE
+      self.fValues.dataRange = EMPTY_RANGE
     #end if
 
-    if update_controls:
-      self._UpdateRangeControls()
-  #end SetRange
+    self._UpdateRangeControls()
+  #end SetDataRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.SetPrecisionDigits()		-
+  #----------------------------------------------------------------------
+  def SetPrecisionDigits( self, prec_in ):
+    prec_in = max( 1, min( 4, prec_in ) )
+    self.fPrecisionDigitsCtrl.SetValue( prec_in )
+    self.fPrecisionDigitsCtrl.Update()
+
+    self.fValues.precisionDigits = prec_in
+  #end SetPrecisionDigits
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.SetPrecisionMode()		-
+  #----------------------------------------------------------------------
+  def SetPrecisionMode( self, mode_in ):
+    tmode_in = mode_in.title()
+    if tmode_in not in MODE_OPTIONS:
+      mode_in = DEFAULT_precisionMode
+    self.fPrecisionModeCtrl.SetValue( tmode_in )
+    self.fPrecisionModeCtrl.Update()
+
+    self.fValues.precisionMode = mode_in
+    self._UpdateModeControls()
+  #end SetPrecisionMode
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean.SetScaleType()			-
   #----------------------------------------------------------------------
   def SetScaleType( self, type_in ):
-    type_in = type_in.title()
-    if type_in not in SCALE_TYPES:
+    ttype_in = type_in.title()
+    if ttype_in not in SCALE_TYPES:
       type_in = DEFAULT_scaleType
-    self.fScaleTypeCtrl.SetValue( type_in )
+    self.fScaleTypeCtrl.SetValue( ttype_in )
     self.fScaleTypeCtrl.Update()
+
+    self.fValues.scaleType = type_in
   #end SetScaleType
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean.SetValues()			-
+  #----------------------------------------------------------------------
+  def SetValues( self, values ):
+    self.SetColormap( values.colormap )
+    self.SetCustomFormat( values.customFormat )
+    self.SetDataRange( values.dataRange )
+    self.SetPrecisionDigits( values.precisionDigits )
+    self.SetPrecisionMode( values.precisionMode )
+    self.SetScaleType( values.scaleType )
+  #end SetValues
 
 
   #----------------------------------------------------------------------
@@ -500,36 +681,68 @@ Attributes/properties:
   #----------------------------------------------------------------------
   def _UpdateRange( self ):
     new_value = []
-    for i in range( len( self.fRange ) ):
+    for i in range( len( self.fValues.dataRange ) ):
       try:
         #cur_value = float( self.fRangeFields[ i ].GetValue() )
 	cur_str = self.fRangeFields[ i ].GetValue()
 	if cur_str and cur_str.lower().find( 'inf' ) >= 0:
-	  cur_value = float( 'NaN' )
+	  cur_value = np.nan  # float( 'NaN' )
 	  self.fRangeFields[ i ].SetValue( 'NaN' )
         else:
           cur_value = float( self.fRangeFields[ i ].GetValue() )
       except:
-        cur_value = float( 'NaN' )
+        cur_value = np.nan  # float( 'NaN' )
 	self.fRangeFields[ i ].SetValue( 'NaN' )
       new_value.append( cur_value )
     #end for i
 
-    self.fRange = tuple( new_value )
+    self.fValues.dataRange = tuple( new_value )
   #end _UpdateRange
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeBean._UpdateModeControls()		-
+  #----------------------------------------------------------------------
+  def _UpdateModeControls( self ):
+    custom = 'custom' == self.GetPrecisionMode()
+    self.fCustomFormatField.Show( custom )
+    self.fCustomFormatLabel.Show( custom )
+    self.fPrecisionDigitsCtrl.Show( not custom )
+    self.fPrecisionDigitsLabel.Show( not custom )
+    self.fPanelSizer.Layout()
+  #end _UpdateModeControls
 
 
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeBean._UpdateRangeControls()		-
   #----------------------------------------------------------------------
   def _UpdateRangeControls( self ):
-    for i in range( len( self.fRange ) ):
+    data_range = self.GetDataRange()
+    for i in range( len( data_range ) ):
       self.fRangeFields[ i ].SetValue(
-	  'NaN' if math.isnan( self.fRange[ i ] ) else
-	  '%.8g' % self.fRange[ i ]
+	  'NaN' if np.isnan( data_range[ i ] ) else
+	  '%.8g' % data_range[ i ]
           )
     #end for i
   #end _UpdateRangeControls
+
+
+#		-- Property Definitions
+#		--
+
+  colormap = property( GetColormap, SetColormap )
+
+  customFormat = property( GetCustomFormat, SetCustomFormat )
+
+  dataRange = property( GetDataRange, SetDataRange )
+
+  precisionDigits = property( GetPrecisionDigits, SetPrecisionDigits )
+
+  precisionMode = property( GetPrecisionMode, SetPrecisionMode )
+
+  scaleType = property( GetScaleType, SetScaleType )
+
+  values = property( GetValues, SetValues )
 
 #end DataRangeBean
 
@@ -641,16 +854,24 @@ Properties:
 
     if 'bitmap_func' in kwargs:
       del kwargs[ 'bitmap_func' ]
+
+    use_scale_and_cmap = kwargs.get(
+        'use_scale_and_cmap',
+        kwargs.get( 'enable_scale_and_cmap', True )
+        )
     if 'enable_scale_and_cmap' in kwargs:
-      enable_scale_and_cmap = kwargs[ 'enable_scale_and_cmap' ]
       del kwargs[ 'enable_scale_and_cmap' ]
+    if 'use_scale_and_cmap' in kwargs:
+      del kwargs[ 'use_scale_and_cmap' ]
 
     super( DataRangeDialog, self ).__init__( *args, **kwargs )
+
+    self.GetRange = self.GetDataRange
 
     self.fBean = None
     self._InitUI(
         bitmap_func = bitmap_func,
-	enable_scale_and_cmap = enable_scale_and_cmap
+	use_scale_and_cmap = use_scale_and_cmap
 	)
   #end __init__
 
@@ -672,6 +893,22 @@ Properties:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog.GetCustomFormat()               -
+  #----------------------------------------------------------------------
+  def GetCustomFormat( self ):
+    return  self.fBean.GetCustomFormat()
+  #end GetCustomFormat
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeDialog.GetDataRange()			-
+  #----------------------------------------------------------------------
+  def GetDataRange( self ):
+    return  self.fBean.GetDataRange()
+  #end GetDataRange
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataRangeDialog.GetPrecisionDigits()		-
   #----------------------------------------------------------------------
   def GetPrecisionDigits( self ):
@@ -688,14 +925,6 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataRangeDialog.GetRange()			-
-  #----------------------------------------------------------------------
-  def GetRange( self ):
-    return  self.fBean.GetRange()
-  #end GetRange
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataRangeDialog.GetScaleType()			-
   #----------------------------------------------------------------------
   def GetScaleType( self ):
@@ -706,31 +935,32 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeDialog._InitUI()			-
   #----------------------------------------------------------------------
-  def _InitUI(
-      self,
+  def _InitUI( self,
       bitmap_func = None,
-      range_in = None,
-      digits_in = DEFAULT_precisionDigits,
-      mode_in = DEFAULT_precisionMode,
-      scale_type_in = DEFAULT_scaleType,
-      colormap_in = DEFAULT_colormap,
-      enable_scale_and_cmap = True
+      values = None,
+#      range_in = None,
+#      digits_in = DEFAULT_precisionDigits,
+#      mode_in = DEFAULT_precisionMode,
+#      scale_type_in = DEFAULT_scaleType,
+#      colormap_in = DEFAULT_colormap,
+      use_scale_and_cmap = True
       ):
     self.fBean = DataRangeBean(
         self, -1, bitmap_func,
-        range_in = range_in,
-        digits_in = DEFAULT_precisionDigits,
-        mode_in = DEFAULT_precisionMode,
-        scale_type_in = DEFAULT_scaleType,
-        colormap_in = DEFAULT_colormap,
-        enable_scale_and_cmap = enable_scale_and_cmap
+#        range_in = range_in,
+#        digits_in = DEFAULT_precisionDigits,
+#        mode_in = DEFAULT_precisionMode,
+#        scale_type_in = DEFAULT_scaleType,
+#        colormap_in = DEFAULT_colormap,
+        values = values,
+        use_scale_and_cmap = use_scale_and_cmap
 	)
 
     button_sizer = wx.BoxSizer( wx.HORIZONTAL )
 
-    ok_button = wx.Button( self, label = '&OK' )
+    ok_button = wx.Button( self, wx.ID_OK, label = '&OK' )
     ok_button.Bind( wx.EVT_BUTTON, self._OnButton )
-    cancel_button = wx.Button( self, label = 'Cancel' )
+    cancel_button = wx.Button( self, wx.ID_CANCEL, label = 'Cancel' )
     cancel_button.Bind( wx.EVT_BUTTON, self._OnButton )
 
     button_sizer.AddStretchSpacer()
@@ -766,11 +996,11 @@ Properties:
 
 #	-- ** EndModel() not passing result to caller via ShowModal() **
     obj = ev.GetEventObject()
-    retcode = 0 if obj.GetLabel() == 'Cancel' else  1
+    retcode = wx.ID_CANCEL if obj.GetLabel() == 'Cancel' else  wx.ID_OK
 
     if obj.GetLabel() != 'Cancel':
       self.fBean.Check()
-      self.fResult = self.fBean.GetRange()
+      #self.fResult = self.fBean.GetRange()
 
     self.EndModal( retcode )
   #end _OnButton
@@ -782,7 +1012,7 @@ Properties:
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()
     if code == wx.WXK_RETURN:
-      self.fResult = self.fBean.GetRange()
+      #self.fResult = self.fBean.GetRange()
       self.EndModal( wx.ID_OK )
     elif code == wx.WXK_ESCAPE:
       self.EndModal( wx.ID_CANCEL )
@@ -796,22 +1026,10 @@ Properties:
   #----------------------------------------------------------------------
   #	METHOD:		DataRangeDialog.ShowModal()			-
   #----------------------------------------------------------------------
-  def ShowModal(
-      self,
-      range_in = None,
-      digits_in = DEFAULT_precisionDigits,
-      mode_in = None,
-      scale_type_in = DEFAULT_scaleType,
-      colormap_in = DEFAULT_colormap
-      ):
-#    self.fResult = range_in
-#    if range_in is not None:
-#      self.fBean.SetRange( range_in )
-    self.fBean.SetColormap( colormap_in )
-    self.fBean.SetPrecisionDigits( digits_in )
-    self.fBean.SetPrecisionMode( mode_in )
-    self.fBean.SetRange( range_in )
-    self.fBean.SetScaleType( scale_type_in )
+  def ShowModal( self, values_in = None ):
+    if values_in is None:
+      values_in = DataRangeValues()
+    self.fBean.SetValues( values_in )
     super( DataRangeDialog, self ).ShowModal()
   #end ShowModal
 
@@ -823,12 +1041,69 @@ Properties:
 
   colormap = property( GetColormap )
 
-  digits = property( GetPrecisionDigits )
+  customFormat = property( GetCustomFormat )
 
-  mode = property( GetPrecisionMode )
+  dataRange = property( GetDataRange )
 
-  range = property( GetRange )
+  precisionDigits = property( GetPrecisionDigits )
 
-  scaletype = property( GetScaleType )
+  precisionMode = property( GetPrecisionMode )
+
+  scaleType = property( GetScaleType )
+
+  values = property( lambda x: x.fBean.values )
 
 #end DataRangeDialog
+
+
+#------------------------------------------------------------------------
+#	CLASS:		DataRangeValues					-
+#------------------------------------------------------------------------
+class DataRangeValues( object ):
+  """
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeValues.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self,
+      custom_format = None,
+      data_range = EMPTY_RANGE,
+      precision_digits = DEFAULT_precisionDigits,
+      precision_mode = DEFAULT_precisionMode,
+      colormap = DEFAULT_colormap,
+      scale_type = DEFAULT_scaleType
+      ):
+    """
+"""
+    self.customFormat = custom_format
+    self.dataRange = data_range
+    self.precisionDigits = precision_digits
+    self.precisionMode = precision_mode
+    self.colormap = colormap
+    self.scaleType = scale_type
+  #end __init__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataRangeValues.EqualRange()			-
+  #----------------------------------------------------------------------
+  def EqualRange( self, that ):
+    """
+"""
+    eq = False
+    one = self.dataRange
+    if np.isnan( one[ 0 ] ) and np.isnan( that[ 0 ] ) and \
+        np.isnan( one[ 1 ] ) and np.isnan( that[ 1 ] ):
+      eq = True
+    else:
+      eq = one == that
+    return  eq
+  #end EqualRange
+
+#end DataRangeValues

@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		state.py					-
 #	HISTORY:							-
+#		2019-01-17	leerw@ornl.gov				-
+#         Migrating from tally to fluence.
 #		2017-09-23	leerw@ornl.gov				-
 #	  Converted tallyAddr to a TallyAddress instance with new
 #	  theta property.
@@ -121,10 +123,11 @@ STATE_CHANGE_dataModelMgr = 0x1 << 4
 STATE_CHANGE_forceRedraw = 0x1 << 5
 STATE_CHANGE_scaleMode = 0x1 << 6
 #STATE_CHANGE_stateIndex = 0x1 << 7
-STATE_CHANGE_tallyAddr = 0x1 << 8
+STATE_CHANGE_fluenceAddr = 0x1 << 8
 STATE_CHANGE_timeDataSet = 0x1 << 9
 STATE_CHANGE_timeValue = 0x1 << 10
 STATE_CHANGE_weightsMode = 0x1 << 11
+STATE_CHANGE_dataSetAdded = 0x1 << 12
 
 STATE_CHANGE_ALL = 0xffffffff
 
@@ -134,10 +137,10 @@ LOCKABLE_STATES = \
   [
     ( STATE_CHANGE_axialValue, 'Axial Value' ),
     ( STATE_CHANGE_coordinates, 'Coordinates' ),
+    ( STATE_CHANGE_fluenceAddr, 'Fluence Address' ),
     ( STATE_CHANGE_curDataSet, LABEL_selectedDataSet ),
     ( STATE_CHANGE_scaleMode, 'Scale Mode' ),
-    ( STATE_CHANGE_timeValue, 'State Point/Time' ),
-    ( STATE_CHANGE_tallyAddr, 'Tally Options' )
+    ( STATE_CHANGE_timeValue, 'State Point/Time' )
   ]
 
 
@@ -156,7 +159,7 @@ All indices are 0-based.
 |                |                | data.datamodel.AxialValue instance         |
 |                |                | ( float value(cm), core-ndx,               |
 |                |                |   detector-index, fixed-detector-index,    |
-|                |                |   tally-index, subpin-index )              |
+|                |                |   fluence-index, subpin-index )            |
 +----------------+----------------+------------------+-------------------------+
 | coordinates    | assemblyAddr   | assembly_addr    | ( index, col, row )     |
 |                |                | 0-based assembly/detector indexes          |
@@ -176,21 +179,22 @@ All indices are 0-based.
 +----------------+----------------+------------------+-------------------------+
 | dataModelMgr   | dataModelMgr   | data_model_mgr   | data.DataModelMgr object|
 +----------------+----------------+------------------+-------------------------+
+| fluenceAddr    | fluenceAddr    | fluence_addr     | ( radiusIndex,          |
+|                |                |                  |   thetaIndex )          |
+|                |                | FluenceAddress instance                    |
+|                | *Note theta is not a reconfig event for VesselCore2DView,   |
+|                | *but it is for VesselCoreAxial2DView                        |
++----------------+----------------+------------------+-------------------------+
 | scaleMode      | scaleMode      | scale_mode       | 'all' or 'state'        |
 +----------------+----------------+------------------+-------------------------+
 | #stateIndex    | stateIndex     | state_index      | 0-based state-point ndx |
-+----------------+----------------+------------------+-------------------------+
-| tallyAddr      | tallyAddr      | tally_addr       | ( name, multIndex,      |
-|                |                |                  |   radiusIndex, statIndex|
-|                |                |                  |   thetaIndex )          |
-|                |                | TallyAddress instance                      |
-|                | *Note theta is not a reconfig event for VesselCore2DView,   |
-|                | *but it is for VesselCoreAxial2DView                        |
 +----------------+----------------+------------------+-------------------------+
 | timeValue      | timeValue      | time_value       | time dataset value      |
 |                |                |                  | (replaces stateIndex)   |
 +----------------+----------------+------------------+-------------------------+
 | weightsMode    | weightsMode    | weights_mode     | 'on' or 'off'           |
++----------------+----------------+------------------+-------------------------+
+| dataSetAdded   |                | dataset_added    | DataSetName instance    |
 +----------------+----------------+------------------+-------------------------+
 """
 
@@ -208,24 +212,28 @@ All indices are 0-based.
   #	METHOD:		__init__()					-
   #----------------------------------------------------------------------
   def __init__( self, *args, **kwargs ):
+    """
+"""
     self._assemblyAddr = ( -1, -1, -1 )
     self._auxNodeAddrs = []
     self._auxSubAddrs = []
-    self._axialValue = DataModel.CreateEmptyAxialValueObject()
+    #self._axialValue = DataModel.CreateEmptyAxialValue()
+    self._axialValue = AxialValue()
     self._curDataSet = DataSetName( 'pin_powers' )
 
     #xxxxx listen to events, update timeDataSet, timeValue
     self._dataModelMgr = DataModelMgr()
+    self._dataModelMgr.AddListener( 'dataSetAdded', self._OnDataSetAdded )
     self._dataModelMgr.AddListener( 'modelAdded', self._OnDataModelMgr )
     self._dataModelMgr.AddListener( 'modelRemoved', self._OnDataModelMgr )
 
+    self._fluenceAddr = FluenceAddress()
     self._listeners = []
     self._logger = logging.getLogger( 'event' )
     self._nodeAddr = -1
     self._scaleMode = 'all'
     #self.stateIndex = -1
     self._subAddr = ( -1, -1 )
-    self._tallyAddr = DataModel.CreateEmptyTallyAddress()
     self._timeDataSet = 'state'
     self._timeValue = 0.0
     self._weightsMode = 'on'
@@ -290,15 +298,17 @@ Keys passed and the corresponding state bit are:
   axial_value		STATE_CHANGE_axialValue
   cur_dataset		STATE_CHANGE_curDataSet
   data_model_mgr	STATE_CHANGE_dataModelMgr
-  node_addr		STATE_CHANGE_coordinates
+  fluence_addr		STATE_CHANGE_fluenceAddr
+  fluence_dataset       STATE_CHANGE_fluenceAddr
   forceRedraw		STATE_CHANGE_forceRedraw
+  node_addr		STATE_CHANGE_coordinates
   scale_mode		STATE_CHANGE_scaleMode
   #state_index		STATE_CHANGE_stateIndex
   sub_addr		STATE_CHANGE_coordinates
-  tally_addr		STATE_CHANGE_tallyAddr
   time_dataset		STATE_CHANGE_timeDataSet
   time_value		STATE_CHANGE_timeValue
   weights_mode		STATE_CHANGE_weightsMode
+  dataset_added         STATE_CHANGE_dataSetAdded
 @return			change reason mask
 """
     reason = STATE_CHANGE_noop
@@ -328,12 +338,20 @@ Keys passed and the corresponding state bit are:
       self._dataModelMgr = kwargs[ 'data_model_mgr' ]
       reason |= STATE_CHANGE_dataModelMgr
 
+    if 'force_redraw' in kwargs and kwargs.get( 'force_redraw' ):
+      reason |= STATE_CHANGE_forceRedraw
+
+    if 'fluence_addr' in kwargs and locks[ STATE_CHANGE_fluenceAddr ]:
+      self._fluenceAddr.update( kwargs[ 'fluence_addr' ] )
+      reason |= STATE_CHANGE_fluenceAddr
+
+    if 'fluence_dataset' in kwargs and locks[ STATE_CHANGE_fluenceAddr ]:
+      self._fluenceAddr.SetDataSetName( kwargs[ 'fluence_dataset' ] )
+      reason |= STATE_CHANGE_fluenceAddr
+
     if 'node_addr' in kwargs and locks[ STATE_CHANGE_coordinates ]:
       self._nodeAddr = kwargs[ 'node_addr' ]
       reason |= STATE_CHANGE_coordinates
-
-    if 'force_redraw' in kwargs and kwargs.get( 'force_redraw' ):
-      reason |= STATE_CHANGE_forceRedraw
 
     if 'scale_mode' in kwargs and locks[ STATE_CHANGE_scaleMode ]:
       self._scaleMode = kwargs[ 'scale_mode' ]
@@ -347,10 +365,6 @@ Keys passed and the corresponding state bit are:
       self._subAddr = kwargs[ 'sub_addr' ]
       reason |= STATE_CHANGE_coordinates
 
-    if 'tally_addr' in kwargs and locks[ STATE_CHANGE_tallyAddr ]:
-      self._tallyAddr = kwargs[ 'tally_addr' ]
-      reason |= STATE_CHANGE_tallyAddr
-
     if 'time_value' in kwargs and locks[ STATE_CHANGE_timeValue ]:
       self._timeValue = kwargs[ 'time_value' ]
       reason |= STATE_CHANGE_timeValue
@@ -358,6 +372,9 @@ Keys passed and the corresponding state bit are:
     if 'weights_mode' in kwargs:
       self._weightsMode = kwargs[ 'weights_mode' ]
       reason |= STATE_CHANGE_weightsMode
+
+    if 'dataset_added' in kwargs:
+      reason |= STATE_CHANGE_dataSetAdded
 
 #		-- Changes with side effects
 #		--
@@ -417,6 +434,9 @@ Keys passed and the corresponding state bit are:
     if (reason & STATE_CHANGE_dataModelMgr) > 0:
       update_args[ 'data_model_mgr' ] = self._dataModelMgr
 
+    if (reason & STATE_CHANGE_fluenceAddr) > 0:
+      update_args[ 'fluence_addr' ] = self._fluenceAddr
+
     if (reason & STATE_CHANGE_forceRedraw) > 0:
       update_args[ 'force_redraw' ] = True
 
@@ -426,9 +446,6 @@ Keys passed and the corresponding state bit are:
 #    if (reason & STATE_CHANGE_stateIndex) > 0:
 #      update_args[ 'state_index' ] = self.stateIndex
 
-    if (reason & STATE_CHANGE_tallyAddr) > 0:
-      update_args[ 'tally_addr' ] = self._tallyAddr
-
     if (reason & STATE_CHANGE_timeDataSet) > 0:
       update_args[ 'time_dataset' ] = self._timeDataSet
 
@@ -437,6 +454,9 @@ Keys passed and the corresponding state bit are:
 
     if (reason & STATE_CHANGE_weightsMode) > 0:
       update_args[ 'weights_mode' ] = self._weightsMode
+
+    if (reason & STATE_CHANGE_dataSetAdded) > 0:
+      update_args[ 'dataset_added' ] = True
 
     return  update_args
   #end CreateUpdateArgs
@@ -458,6 +478,15 @@ Keys passed and the corresponding state bit are:
       ds_display_name = 'pin_powers' \
 	  if 'pin_powers' in data_model.GetDataSetNames( 'pin' ) else \
 	  data_model.GetFirstDataSet( 'pin' )
+
+      if not ds_display_name:
+        names_dict = data_model.GetDataSetNames()
+        for t in sorted( names_dict.keys() ):
+          names = names_dict.get( t )
+          if names:
+            ds_display_name = names[ 0 ]
+            break
+
       result = DataSetName( data_model.GetName(), ds_display_name )
     #end if data_model is not None
 
@@ -559,6 +588,18 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		GetFluenceAddr()                                -
+  #----------------------------------------------------------------------
+  def GetFluenceAddr( self ):
+    """Accessor for the fluenceAddr property.
+    Returns:
+        FluenceAddress: instance
+"""
+    return  self._fluenceAddr
+  #end GetFluenceAddr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		GetNodeAddr()					-
   #----------------------------------------------------------------------
   def GetNodeAddr( self ):
@@ -604,17 +645,6 @@ Keys passed and the corresponding state bit are:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		GetTallyAddr()					-
-  #----------------------------------------------------------------------
-  def GetTallyAddr( self ):
-    """Accessor for the tallyAddr property.
-@return			TallyAddress instance
-"""
-    return  self._tallyAddr
-  #end GetTallyAddr
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		GetTimeDataSet()				-
   #----------------------------------------------------------------------
   def GetTimeDataSet( self ):
@@ -655,19 +685,17 @@ Keys passed and the corresponding state bit are:
 dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 #@param  data_model	DataModel to use for initializing properties
 """
-    undefined_ax = DataModel.CreateEmptyAxialValueObject()
-    #undefined_ax = ( 0.0, -1, -1 )
+    #undefined_ax = DataModel.CreateEmptyAxialValue()
+    undefined_ax = AxialValue()
     undefined2 = ( -1, -1 )
     undefined3 = ( -1, -1, -1 )
 
     del self._auxNodeAddrs[ : ]
     del self._auxSubAddrs[ : ]
     #self.dataModel = data_model
+    self._fluenceAddr = FluenceAddress()
     self._nodeAddr = 0
-
     self._scaleMode = 'all'
-    #self._tallyAddr = ( None, 0, 0 )
-    self._tallyAddr = DataModel.CreateEmptyTallyAddress()
     self._weightsMode = 'on'
 
     data_model = self._dataModelMgr.GetFirstDataModel()
@@ -685,8 +713,8 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
         ndx = core.coreMap[ row, col ] - 1
       self._assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
 
-      self._axialValue = \
-          data_model.CreateAxialValueObject( core_ndx = core.nax >> 1 )
+      self._axialValue = AxialValue( core_ndx = core.nax >> 1 )
+          #data_model.CreateAxialValueObject( core_ndx = core.nax >> 1 )
 
       self._curDataSet = self._FindDefaultDataSet( data_model )
 #      ds_display_name = 'pin_powers' \
@@ -713,17 +741,13 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       self._dataModelMgr.SetTimeDataSet( self._timeDataSet )
       self._timeValue = self._dataModelMgr.GetTimeIndexValue( 0 )
 
-      if core.tally.IsValid():
-	ds_names = data_model.GetDataSetNames( 'tally' )
-#	ds_name = \
-#	    'vessel_tally/total'  if 'vessel_tally/total' in ds_names else \
-#	    ds_names[ 0 ]  if len( ds_names ) > 0 else \
-#	    None
-	ds_name = ds_names[ 0 ]  if len( ds_names ) > 0  else None
-	qds_name = \
-	    DataSetName( data_model.name, ds_name )  if ds_name else  None
-        self._tallyAddr = DataModel.CreateEmptyTallyAddress()
-        self._tallyAddr.update( name = qds_name )
+#      if core.tally.IsValid():
+#	ds_names = data_model.GetDataSetNames( 'tally' )
+#	ds_name = ds_names[ 0 ]  if len( ds_names ) > 0  else None
+#	qds_name = \
+#	    DataSetName( data_model.name, ds_name )  if ds_name else  None
+#        self._tallyAddr = DataModel.CreateEmptyTallyAddress()
+#        self._tallyAddr.update( name = qds_name )
 
     else:
       self._assemblyAddr = undefined3
@@ -734,6 +758,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
       self._subAddr = undefined2
       self._timeDataSet = 'state'
       self._timeValue = 0.0
+    #end else data_model is None
 
     if fire_event_flag:
       self.FireStateChange( STATE_CHANGE_init | STATE_CHANGE_dataModelMgr )
@@ -748,25 +773,13 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 @param  props_dict	dict containing property values
 """
     for k in (
-	'axialValue', 'curDataSet', 'tallyAddr',
+	'axialValue', 'curDataSet', 'fluenceAddr',
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs',
         'nodeAddr', 'scaleMode', 'subAddr',
 	'timeDataSet', 'timeValue', 'weightsMode'
         ):
       if k in props_dict:
         setattr( self, '_' + k, props_dict[ k ] )
-
-#t    for k in ( 'axialValue', ):
-#t      if k in props_dict:
-#t        setattr( self, '_' + k, AxialValue( props_dict[ k ] ) )
-
-#t    for k in ( 'curDataSet', ):
-#t      if k in props_dict:
-#t        setattr( self, '_' + k, DataSetName( props_dict[ k ] ) )
-
-#t    for k in ( 'tallyAddr', ):
-#t      if k in props_dict:
-#t        setattr( self, '_' + k, TallyAddress( props_dict[ k ] ) )
 
     if 'dataModelMgr.thresholds' in props_dict:
       self.dataModelMgr.\
@@ -831,11 +844,21 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnDataSetAdded()				-
+  #----------------------------------------------------------------------
+  def _OnDataSetAdded( self, *args, **kwargs ):
+    """
+"""
+    change_args = { 'dataset_added': DataSetName( *args[ 0 : 2 ] ) }
+    self.FireStateChange( self.Change( **change_args ) )
+  #end _OnDataSetAdded
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RemoveListener()				-
   #----------------------------------------------------------------------
   def RemoveListener( self, *listeners ):
     """Removes the listener(s).
-@param  listeners	one or more listeners to remove
 """
 #    if listener in self._listeners:
 #      self._listeners.remove( listener )
@@ -877,7 +900,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
     for k in (
         'assemblyAddr', 'auxNodeAddrs', 'auxSubAddrs', 'axialValue', 
         'nodeAddr', 'scaleMode', 'subAddr',
-	'tallyAddr', 'timeDataSet', 'timeValue', 'weightsMode'
+	'fluenceAddr', 'timeDataSet', 'timeValue', 'weightsMode'
         ):
       props_dict[ k ] = getattr( self, '_' + k )
 
@@ -922,17 +945,29 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
 
 
   assemblyAddr = property( GetAssemblyAddr )
+
   auxNodeAddrs = property( GetAuxNodeAddrs )
+
   auxSubAddrs = property( GetAuxSubAddrs )
+
   axialValue = property( GetAxialValue )
+
   curDataSet = property( GetCurDataSet )
+
   dataModelMgr = property( GetDataModelMgr )
+
+  fluenceAddr = property( GetFluenceAddr )
+
   nodeAddr = property( GetNodeAddr )
+
   scaleMode = property( GetScaleMode )
+
   subAddr = property( GetSubAddr )
-  tallyAddr = property( GetTallyAddr )
+
   timeDataSet = property( GetTimeDataSet )
+
   timeValue = property( GetTimeValue )
+
   weightsMode = property( GetWeightsMode )
 
 

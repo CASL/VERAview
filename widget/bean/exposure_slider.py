@@ -156,7 +156,7 @@ Attributes/properties:
 
     self.fSlider = wx.Slider(
         self, -1,
-	value = 1, minValue = 1, maxValue = 99,
+	value = 1, minValue = 1, maxValue = 999,
 	pos = wx.DefaultPosition, size = ( -1, -1 ),
 	style = wx.SL_HORIZONTAL | wx.SL_AUTOTICKS | wx.SL_LABELS
 	)
@@ -169,7 +169,14 @@ Attributes/properties:
 
     sizer = wx.BoxSizer( wx.HORIZONTAL )
     sizer.Add( slider_label, 0, wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER )
-    sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
+
+    slider_wrapper = wx.BoxSizer( wx.HORIZONTAL )
+    slider_wrapper.Add(
+        self.fSlider, 1, wx.EXPAND | wx.RIGHT,
+        self.fSlider.GetFont().GetPixelSize().width
+        )
+    #sizer.Add( self.fSlider, 1, wx.ALL | wx.EXPAND, 4 )
+    sizer.Add( slider_wrapper, 1, wx.ALL | wx.EXPAND, 4 )
     self.SetSizer( sizer )
   #end _InitUI
 

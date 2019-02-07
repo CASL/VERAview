@@ -252,7 +252,7 @@ True
   #----------------------------------------------------------------------
   def ShowModal( self ):
     self.fSelections = []
-    super( DataSetListDialog, self ).ShowModal()
+    return  super( DataSetListDialog, self ).ShowModal()
   #end ShowModal
 
 

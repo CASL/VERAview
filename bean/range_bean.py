@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		range_bean.py					-
 #	HISTORY:							-
+#		2018-10-12	leerw@ornl.gov				-
+#	  Trying to support percentages.
 #		2017-07-21	leerw@ornl.gov				-
 #	  Fixing _OnCharHook for Linux.
 #		2017-07-18	leerw@ornl.gov				-
@@ -195,7 +197,7 @@ ignore.
     above_sizer.Add( self.fAboveField, 1, wx.ALIGN_LEFT | wx.ALL, 0 )
 
     st = wx.StaticText(
-        grid_panel, -1, label = 'Above:',
+        grid_panel, -1, label = 'Show Values Above:',
 	style = wx.ALIGN_RIGHT
 	)
     grid_sizer.Add(
@@ -224,7 +226,7 @@ ignore.
     below_sizer.Add( self.fBelowField, 1, wx.ALIGN_LEFT | wx.ALL, 0 )
 
     st = wx.StaticText(
-        grid_panel, -1, label = 'Below:',
+        grid_panel, -1, label = 'Show Values Below:',
 	style = wx.ALIGN_RIGHT
 	)
     grid_sizer.Add(
@@ -307,10 +309,65 @@ Called on the UI thread.
 
     qds_name = DataSetName( self.fDataSetNameField.GetValue() )
     above_op = str( self.fAboveComboBox.GetValue() )
+    above_str = self.fAboveField.GetValue().rstrip( ' \t' ).lstrip( ' \t' )
+    try:
+      above_value = \
+          float( above_str[ 0 : -1 ] )  if above_str.endswith( '%' ) else \
+	  float( above_str )
+    except:
+      above_value = NAN
+
+    below_op = str( self.fBelowComboBox.GetValue() )
+    below_str = self.fBelowField.GetValue().rstrip( ' \t' ).lstrip( ' \t' )
+    try:
+      below_value = \
+          float( below_str[ 0 : -1 ] )  if below_str.endswith( '%' ) else \
+	  float( below_str )
+    except:
+      below_value = NAN
+
+    msg = ''
+    if len( qds_name.displayName ) == 0:
+      msg = 'Please select a dataset'
+    elif above_op == ABOVE_OPS[ 0 ] and below_op == BELOW_OPS[ 0 ]:
+      msg = 'Please specify at least one term'
+    elif above_op != ABOVE_OPS[ 0 ] and math.isnan( above_value ):
+      msg = 'Please enter a value for the "above" range'
+    elif below_op != BELOW_OPS[ 0 ] and math.isnan( below_value ):
+      msg = 'Please enter a value for the "below" range'
+
+    if msg:
+      wx.MessageDialog( self, msg, 'Add Range' ).\
+          ShowWindowModal()
+    else:
+      expr_str = ''
+      if above_op != ABOVE_OPS[ 0 ]:
+	expr_str += '{0:s} {1:s}'.format( above_op, above_str )
+      if below_op != BELOW_OPS[ 0 ]:
+	expr_str += ' {0:s} {1:s}'.format( below_op, below_str )
+
+      self.fState.dataModelMgr.SetDataSetThreshold( qds_name, expr_str )
+      self._UpdateControls()
+    #end if-else msg
+  #end _OnAdd
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		RangeBean._OnAdd_no_pct()			-
+  #----------------------------------------------------------------------
+  def _OnAdd_no_pct( self, ev ):
+    """
+Called on the UI thread.
+"""
+    ev.Skip()
+
+    qds_name = DataSetName( self.fDataSetNameField.GetValue() )
+    above_op = str( self.fAboveComboBox.GetValue() )
     try:
       above_value = float( self.fAboveField.GetValue() )
     except:
       above_value = NAN
+
     below_op = str( self.fBelowComboBox.GetValue() )
     try:
       below_value = float( self.fBelowField.GetValue() )
@@ -333,14 +390,14 @@ Called on the UI thread.
     else:
       expr_str = ''
       if above_op != ABOVE_OPS[ 0 ]:
-	expr_str += '{0:s} {1:6g}'.format( above_op, above_value )
+	expr_str += '{0:s} {1:.6g}'.format( above_op, above_value )
       if below_op != BELOW_OPS[ 0 ]:
-	expr_str += ' {0:s} {1:6g}'.format( below_op, below_value )
+	expr_str += ' {0:s} {1:.6g}'.format( below_op, below_value )
 
       self.fState.dataModelMgr.SetDataSetThreshold( qds_name, expr_str )
       self._UpdateControls()
     #end if-else msg
-  #end _OnAdd
+  #end _OnAdd_no_pct
 
 
   #----------------------------------------------------------------------
@@ -509,6 +566,17 @@ Must pass the 'state' parameter.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		RangeDialog.GetApp()                            -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+"""
+    return  wx.App.Get()
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		RangeDialog.GetResult()				-
   #----------------------------------------------------------------------
 #  def GetResult( self ):
@@ -558,7 +626,7 @@ Must pass the 'state' parameter.
 
 #	-- ** EndModel() not passing result to caller via ShowModal() **
     obj = ev.GetEventObject()
-    retcode = 0 if obj.GetLabel() == 'Cancel' else  1
+    retcode = wx.ID_CANCEL if obj.GetLabel() == 'Cancel' else  wx.ID_OK
 
     self.EndModal( retcode )
   #end _OnButton
@@ -570,9 +638,9 @@ Must pass the 'state' parameter.
   def _OnCharHook( self, ev ):
     code = ev.GetKeyCode()
     if code == wx.WXK_RETURN:
-      self.EndModal( 1 )
+      self.EndModal( wx.ID_OK )
     elif code == wx.WXK_ESCAPE:
-      self.EndModal( 0 )
+      self.EndModal( wx.ID_CANCEL )
     else:
       ev.DoAllowNextEvent()
 
@@ -585,7 +653,7 @@ Must pass the 'state' parameter.
   #----------------------------------------------------------------------
   def ShowModal( self ):
     #self.fResult = None
-    super( RangeDialog, self ).ShowModal()
+    return  super( RangeDialog, self ).ShowModal()
   #end ShowModal
 
 #end RangeDialog

@@ -81,10 +81,13 @@ class RangeExpression( object ):
   #----------------------------------------------------------------------
   def ApplyThreshold( self, arr, invalid_value = NAN ):
     """Applies this expression as a threshold to the specified array
-@param  arr		np.ndarray instance, arr on no change or a new
-			np.ndarray instance if applied
-@param  invalid_value	value with which to fill values outside the
-			range specified by this expression
+    Args:
+        arr (np.ndarray): array to which to apply the threshold
+        invalid_value (float): value with which to fill values outside the
+            range specified by this expression
+    Returns:
+        np.ndarray: ``arr`` on no change or a new np.ndarray with values
+            outside the range filled with ``invalid_value``
 """
     result = arr
     if self.fNumpyExpr:
@@ -210,6 +213,7 @@ instance as the sole argument.
 #		-- Create parser if necessary
 #		--
       if RangeExpression.fParser_ is None:
+	#logical_op = pp.Or( [ pp.CaselessLiteral( 'and' ), pp.Literal( '&&' ) ] )
 	logical_op = pp.CaselessLiteral( 'and' ) ^ pp.Literal( '&&' )
 	word = pp.Word( pp.alphas )
         op = pp.oneOf( '!= <= < >= >' )

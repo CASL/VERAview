@@ -3,6 +3,21 @@
 #------------------------------------------------------------------------
 #	NAME:		widget.py					-
 #	HISTORY:							-
+#		2019-01-17	leerw@ornl.gov				-
+#		2019-01-16	leerw@ornl.gov				-
+#         Transition from tally to fluence.
+#		2018-12-26	leerw@ornl.gov				-
+#         Invoking VeraViewApp.DoBusyEventOp() in event handlers.
+#		2018-11-20	leerw@ornl.gov				-
+#         Applying new DataModelMgrTree and visible datasets button.
+#		2018-11-15	leerw@ornl.gov				-
+#         Using new DataRangeValues.
+#		2018-10-20	leerw@ornl.gov				-
+#         Moved _CreateEmptyBitmapAndDC() and _CreateGraphicsContext()
+#         from RasterWidget.
+#		2018-10-03	leerw@ornl.gov				-
+#	  Passing self.state.weightsMode == 'on' as use_factors param to
+#	  DataModelMgr.GetRange() in _ResolveDataRange().
 #		2018-06-25	leerw@ornl.gov				-
 #	  Fixed _ResolveDataRange() to account for min ge max.
 #		2018-03-14	leerw@ornl.gov				-
@@ -124,7 +139,7 @@
 #		2014-12-08	leerw@ornl.gov				-
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, logging, math, os, sys, threading
+import functools, logging, math, os, six, sys, threading
 import pdb  # set_trace()
 
 try:
@@ -139,11 +154,11 @@ except Exception:
 
 from data.config import *
 from event.state import *
-#from legend import *
-#from legend2 import *
+
 from legend3 import *
-from bean.data_range_bean import *
-import colormaps
+from .bean.data_range_bean import *
+from .bean.datamodel_mgr_tree import *
+from . import colormaps
 
 
 BMAP_NAME_green = 'led_green_16x16'
@@ -153,140 +168,12 @@ DEFAULT_BG_COLOR_TUPLE = ( 155, 155, 155, 255 )
 
 #DEFAULT_BG_COLOR = wx.Colour( *DEFAULT_BG_COLOR_TUPLE )
 
+HILITE_COLOR_primary = wx.Colour( 255, 0, 0, 255 )
+#HILITE_COLOR_primary = wx.Colour( 0, 255, 0, 255 )
+HILITE_COLOR_secondary = wx.Colour( 255, 255, 0, 255 )
+
 PI_OVER_2 = math.pi / 2.0
 TWO_PI = 2.0 * math.pi
-
-SPECTRUM_COLORS = \
-  [
-    ( 0.000000,0.803922,0.560784 ),
-    ( 0.000000,0.803922,0.529412 ),
-    ( 0.000000,0.803922,0.498039 ),
-    ( 0.000000,0.803922,0.466667 ),
-    ( 0.000000,0.803922,0.435294 ),
-    ( 0.000000,0.803922,0.403922 ),
-    ( 0.000000,0.803922,0.372549 ),
-    ( 0.000000,0.803922,0.341176 ),
-    ( 0.000000,0.803922,0.309804 ),
-    ( 0.000000,0.803922,0.278431 ),
-    ( 0.000000,0.803922,0.247059 ),
-    ( 0.000000,0.803922,0.215686 ),
-    ( 0.000000,0.803922,0.184314 ),
-    ( 0.000000,0.803922,0.152941 ),
-    ( 0.000000,0.803922,0.121569 ),
-    ( 0.000000,0.803922,0.090196 ),
-    ( 0.000000,0.803922,0.000000 ),
-    ( 0.031373,0.803922,0.000000 ),
-    ( 0.062745,0.803922,0.000000 ),
-    ( 0.094118,0.803922,0.000000 ),
-    ( 0.125490,0.803922,0.000000 ),
-    ( 0.156863,0.803922,0.000000 ),
-    ( 0.188235,0.803922,0.000000 ),
-    ( 0.219608,0.803922,0.000000 ),
-    ( 0.250980,0.803922,0.000000 ),
-    ( 0.282353,0.803922,0.000000 ),
-    ( 0.313725,0.803922,0.000000 ),
-    ( 0.345098,0.803922,0.000000 ),
-    ( 0.376471,0.803922,0.000000 ),
-    ( 0.407843,0.803922,0.000000 ),
-    ( 0.439216,0.803922,0.000000 ),
-    ( 0.470588,0.803922,0.000000 ),
-    ( 0.560784,0.803922,0.000000 ),
-    ( 0.572549,0.803922,0.000000 ),
-    ( 0.584314,0.803922,0.000000 ),
-    ( 0.596078,0.803922,0.000000 ),
-    ( 0.607843,0.803922,0.000000 ),
-    ( 0.619608,0.803922,0.000000 ),
-    ( 0.631373,0.803922,0.000000 ),
-    ( 0.643137,0.803922,0.000000 ),
-    ( 0.654902,0.803922,0.000000 ),
-    ( 0.666667,0.803922,0.000000 ),
-    ( 0.678431,0.803922,0.000000 ),
-    ( 0.690196,0.803922,0.000000 ),
-    ( 0.701961,0.803922,0.000000 ),
-    ( 0.713725,0.803922,0.000000 ),
-    ( 0.725490,0.803922,0.000000 ),
-    ( 0.737255,0.803922,0.000000 ),
-    ( 0.803922,0.803922,0.000000 ),
-    ( 0.803922,0.800000,0.000000 ),
-    ( 0.803922,0.796078,0.000000 ),
-    ( 0.803922,0.792157,0.000000 ),
-    ( 0.803922,0.788235,0.000000 ),
-    ( 0.803922,0.784314,0.000000 ),
-    ( 0.803922,0.780392,0.000000 ),
-    ( 0.803922,0.776471,0.000000 ),
-    ( 0.803922,0.772549,0.000000 ),
-    ( 0.803922,0.768627,0.000000 ),
-    ( 0.803922,0.764706,0.000000 ),
-    ( 0.803922,0.760784,0.000000 ),
-    ( 0.803922,0.756863,0.000000 ),
-    ( 0.803922,0.752941,0.000000 ),
-    ( 0.803922,0.749020,0.000000 ),
-    ( 0.803922,0.745098,0.000000 ),
-    ( 0.803922,0.686275,0.000000 ),
-    ( 0.803922,0.682353,0.000000 ),
-    ( 0.803922,0.678431,0.000000 ),
-    ( 0.803922,0.674510,0.000000 ),
-    ( 0.803922,0.670588,0.000000 ),
-    ( 0.803922,0.666667,0.000000 ),
-    ( 0.803922,0.662745,0.000000 ),
-    ( 0.803922,0.658824,0.000000 ),
-    ( 0.803922,0.654902,0.000000 ),
-    ( 0.803922,0.650980,0.000000 ),
-    ( 0.803922,0.647059,0.000000 ),
-    ( 0.803922,0.643137,0.000000 ),
-    ( 0.803922,0.639216,0.000000 ),
-    ( 0.803922,0.635294,0.000000 ),
-    ( 0.803922,0.631373,0.000000 ),
-    ( 0.803922,0.627451,0.000000 ),
-    ( 0.803922,0.560784,0.000000 ),
-    ( 0.803922,0.556863,0.000000 ),
-    ( 0.803922,0.552941,0.000000 ),
-    ( 0.803922,0.549020,0.000000 ),
-    ( 0.803922,0.545098,0.000000 ),
-    ( 0.803922,0.541176,0.000000 ),
-    ( 0.803922,0.537255,0.000000 ),
-    ( 0.803922,0.533333,0.000000 ),
-    ( 0.803922,0.529412,0.000000 ),
-    ( 0.803922,0.525490,0.000000 ),
-    ( 0.803922,0.521569,0.000000 ),
-    ( 0.803922,0.517647,0.000000 ),
-    ( 0.803922,0.513725,0.000000 ),
-    ( 0.803922,0.509804,0.000000 ),
-    ( 0.803922,0.505882,0.000000 ),
-    ( 0.803922,0.501961,0.000000 ),
-    ( 0.803922,0.478431,0.000000 ),
-    ( 0.803922,0.470588,0.000000 ),
-    ( 0.803922,0.462745,0.000000 ),
-    ( 0.803922,0.454902,0.000000 ),
-    ( 0.803922,0.447059,0.000000 ),
-    ( 0.803922,0.439216,0.000000 ),
-    ( 0.803922,0.431373,0.000000 ),
-    ( 0.803922,0.423529,0.000000 ),
-    ( 0.803922,0.415686,0.000000 ),
-    ( 0.803922,0.407843,0.000000 ),
-    ( 0.803922,0.400000,0.000000 ),
-    ( 0.803922,0.392157,0.000000 ),
-    ( 0.803922,0.384314,0.000000 ),
-    ( 0.803922,0.376471,0.000000 ),
-    ( 0.803922,0.368627,0.000000 ),
-    ( 0.803922,0.360784,0.000000 ),
-    ( 0.803922,0.301961,0.000000 ),
-    ( 0.803922,0.286275,0.000000 ),
-    ( 0.803922,0.270588,0.000000 ),
-    ( 0.803922,0.254902,0.000000 ),
-    ( 0.803922,0.239216,0.000000 ),
-    ( 0.803922,0.223529,0.000000 ),
-    ( 0.803922,0.207843,0.000000 ),
-    ( 0.803922,0.192157,0.000000 ),
-    ( 0.803922,0.176471,0.000000 ),
-    ( 0.803922,0.160784,0.000000 ),
-    ( 0.803922,0.145098,0.000000 ),
-    ( 0.803922,0.129412,0.000000 ),
-    ( 0.803922,0.113725,0.000000 ),
-    ( 0.803922,0.098039,0.000000 ),
-    ( 0.803922,0.074510,0.000000 ),
-    ( 0.803922,0.000000,0.000000 )
-  ]
 
 TIMERID_RESIZE = 100
 
@@ -370,6 +257,9 @@ GetDataSetDisplayMode()
   the default is specified, both IsDataSetVisible() and
   ToggleDataSetVisible() must be overridden as well.
 
+  Update: GetVisibleDataSets() and SetVisibleDataSets() must be implemented
+  for the new scheme where the mode is anything but ''.
+
 GetDataSetTypes()
   Extensions must override to provide a list of categories/types of datasets
   that can be displayed.  Type names are the keys of the DATASET_DEFS dict
@@ -382,9 +272,11 @@ GetEventLockSet()
   that type are never propagated to the widget.
 
 GetSpecialDataSetTypes()
-  Extensions must override to provide a list of special categories/types
+  Extensions must override to provide a list of dataset categories/types
+  to be displayed in an explicit menu/submenu and for which selections
+  are tracked indepedently of state.curDataSet.
   of datasets that can be displayed.  Right now this is limited to
-  'bank' and 'tally'.
+  'fluence'.
 
 GetTitle()
   Must be overridden by extensions to provide a nice label for the widget.
@@ -397,11 +289,25 @@ GetToolButtonDefs()
 
 GetUsesScaleAndCmap()
   Must be overridden by extensions to specify whether not the widget
-  uses user-assigned scale and cmap on the DataRangeDialog.
+  uses user-assigned scale and cmap on the DataRangeDialog.  Only applies
+  if IsDataSetScaleCapable() is True.
+
+GetVisibleDataSets()
+  If the dataset display mode [GetDataSetDisplayMode()] is not ''
+  extensions must override this method to return a set of visible DataSetNames.
 
 _InitUI()
   Must be implemented by extensions to create any necessary UI components.
   Failure to implement this method results in an exception.
+
+IsDataSetScaleCapable()
+  Specifies whether or not a widget supports the "Edit Data Scale..." menu
+  option, defaulting to True.  Should be overridden by subclasses.
+
+IsDataSetVisible()
+  If the dataset display mode [GetDataSetDisplayMode()] is 'select' or 'multi'
+  extensions must override this method to return the visibility of a specific
+  dataset.
 
 _LoadDataModel()
   Must be implemented by extensions to initialize local fields and properties
@@ -420,7 +326,11 @@ _OnSize()
 
 SetDataSet()
   Called when a dataset is selected on the dataset menu.  Must be implemented
-  by extensions.
+  by extensions which return '' for GetDataSetDisplayMode(.
+
+SetVisibleDataSets()
+  If the dataset display mode [GetDataSetDisplayMode()] is not ''
+  extensions must override this method to accept a set of visible DataSetNames.
 
 ToggleDataSetVisible()
   If the dataset display mode [GetDataSetDisplayMode()] is 'select' or 'multi'
@@ -450,6 +360,9 @@ _CalcFontSize()
 _CreateLegendBitmap()
   Provides a legend wx.Bitmap using a Legend3 instance.
 
+_CreateValueString()
+  Creates minimal length value string.
+
 FireStateChange()
   Calls *container*.FireStateChange() on a widget-initiated change to the
   event state.
@@ -467,6 +380,10 @@ _OnFindMinMaxChannel()
   Handles 'channel' dataset mininum/maximum processing.  Calls
   self.data.FindChannelMinMaxValue() and FireStateChange().
 
+_OnFindMinMaxFluence()
+  Handles 'fluence' dataset minimum/maximum processing.  Calls
+  self.data.FindFluenceMinMaxValue() and FireStateChange().
+
 _OnFindMinMaxMultiDataSets()
   Handles 'detector' multiple datasets minimum/maximum processing.  Calls
   self.data.FindMultiDataSetMinMaxValue() and FireStateChange().
@@ -474,10 +391,6 @@ _OnFindMinMaxMultiDataSets()
 _OnFindMinMaxPin()
   Handles 'pin' dataset minimum/maximum processing.  Calls
   self.data.FindPinMinMaxValue() and FireStateChange().
-
-_OnFindMinMaxTally()
-  Handles 'tally' dataset minimum/maximum processing.  Calls
-  self.data.FindTallyMinMaxValue() and FireStateChange().
 
 _UpdateVisibilityMenuItems()
   Widgets may define menu items for toggling state, in which case the label
@@ -577,15 +490,17 @@ Widget Class Hierarchy
     self.busy = False
     self.busyLock = threading.RLock()
     #self.busyCursor = None
-    self.colormapName = DEFAULT_colormap
+    #self.colormapName = DEFAULT_colormap
     self.container = container
-    self.customDataRange = None
+    #self.customDataRange = None
+    self.dataRangeValues = DataRangeValues()
     self.dmgr = container.state.GetDataModelMgr()
+    self.formatter = RangeScaler()
     self.isLoading = False
     self.logger = Widget.logger_
-    self.precisionDigits = DEFAULT_precisionDigits
-    self.precisionMode = DEFAULT_precisionMode
-    self.scaleType = DEFAULT_scaleType
+    #self.precisionDigits = DEFAULT_precisionDigits
+    #self.precisionMode = DEFAULT_precisionMode
+    #self.scaleType = DEFAULT_scaleType
     self.state = container.state
 
     self.dataRangeDialog = None
@@ -649,7 +564,7 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   #	METHOD:		Widget._BusyDoOp()				-
   #----------------------------------------------------------------------
-  def _BusyDoOp( self, func, *args ):
+  def _BusyDoOp( self, func, *args, **kwargs ):
     """Show some indication of being busy, make the call, then restore from
 the busy indicator.
 Must be called from the UI thread.
@@ -657,11 +572,27 @@ Must be called from the UI thread.
 
     self._BusyBegin()
     try:
-      func( *args )
+      func( *args, **kwargs )
 #      wx.CallAfter( func, *args )
     finally:
       self._BusyEnd()
   #end _BusyDoOp
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._BusyDoOpGlobal()                        -
+  #----------------------------------------------------------------------
+  def _BusyDoOpGlobal( self, func, *pargs, **kwargs ):
+    """No worky.
+"""
+    def doit( parent, func, *pargs, **kwargs ):
+      func( *pargs, **kwargs )
+      parent.ShowBusy( False )
+
+    parent = self.GetTopLevelParent()
+    parent.ShowBusy( True )
+    wx.CallLater( 500, doit, parent, func, *pargs, **kwargs )
+  #end _BusyDoOpGlobal
 
 
   #----------------------------------------------------------------------
@@ -790,6 +721,71 @@ ready for a clipboard copy.  This implementation returns None.
 
 
   #----------------------------------------------------------------------
+  #     METHOD:         Widget._CreateEmptyBitmapAndDC()		-
+  #----------------------------------------------------------------------
+  def _CreateEmptyBitmapAndDC( self, wd, ht, bg_color = None, dc = None ):
+    """Encapsulates platform differences.
+    Args:
+        wd (int): Image width in pixels
+	ht (int): Image height in pixels
+	bg_color (wx.Colour): optional explicit background color
+	dc (wx.MemoryDC): optional DC to initialize, None to create a new
+	    instance
+    Returns:
+        wx.Bitmap, wx.MemoryDC: New bitmap object, new DC or ``dc``
+"""
+    if Config.IsLinux() and bg_color is None:
+      bg_color = self.GetBackgroundColour()
+
+    if bg_color is None:
+      bmap = wx.EmptyBitmapRGBA( wd, ht )
+    else:
+      bmap = wx.EmptyBitmapRGBA(
+          wd, ht,
+	  bg_color.red, bg_color.green, bg_color.blue, bg_color.alpha
+	  )
+
+    if dc is None:
+      dc = wx.MemoryDC()
+    dc.SelectObject( bmap )
+
+    if Config.IsWindows():
+      dc.SetBackground( wx.TheBrushList.FindOrCreateBrush(
+          wx.WHITE, wx.BRUSHSTYLE_SOLID
+	  ) )
+      dc.Clear()
+    else:
+      dc.SetBackground( wx.TheBrushList.FindOrCreateBrush(
+          wx.WHITE, wx.TRANSPARENT
+	  ) )
+
+    return  bmap, dc
+  #end _CreateEmptyBitmapAndDC
+
+
+  #----------------------------------------------------------------------
+  #     METHOD:         Widget._CreateGraphicsContext()		        -
+  #----------------------------------------------------------------------
+  def _CreateGraphicsContext( self, dc ):
+    """Calls wx.GraphicsContent.Create() and then SetAntialiasMode() and
+SetInterpolationQuality() on the resulting GC.
+    Args:
+	dc (wx.DC): DC from which to create the GC
+    Returns:
+	wx.GraphicsContext
+"""
+    gc = wx.GraphicsContext.Create( dc )
+    if Config.IsWindows():
+      gc.SetAntialiasMode( wx.ANTIALIAS_NONE )
+    else:
+      gc.SetAntialiasMode( wx.ANTIALIAS_DEFAULT )
+      gc.SetInterpolationQuality( wx.INTERPOLATION_BEST )
+
+    return  gc
+  #end _CreateGraphicsContext
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._CreateLegendBitmap()			-
   #----------------------------------------------------------------------
   def _CreateLegendBitmap(
@@ -882,22 +878,26 @@ subclasses must override this calling super._CreateMenuDef() to insert
 or append items.
 @return			[ ( label, handler ), ... ]
 """
-    return \
+    menu_def = \
       [
 	{ 'label': 'Copy Displayed Data',
-	  'handler':functools.partial( self._OnCopyData, 'displayed' ) },
+	  'handler': functools.partial( self._OnCopyData, 'displayed' ) },
 	{ 'label': 'Copy Selected Data',
 	  'handler': functools.partial( self._OnCopyData, 'selected' ) },
         { 'label': 'Copy Image', 'handler': self._OnCopyImage },
-	{ 'label': '-' },
-        { 'label': 'Edit Data Scale...', 'handler': self._OnCustomScale },
+	{ 'label': '-' }
       ]
-#    return \
-#      [
-#	( 'Copy Displayed Data', functools.partial( self._OnCopyData, False ) ),
-#	( 'Copy Selected Data', functools.partial( self._OnCopyData, True ) ),
-#        ( 'Copy Image', self._OnCopyImage )
-#      ]
+    if self.IsDataSetScaleCapable():
+      menu_def.append(
+          { 'label': 'Edit Data Scale...', 'handler': self._OnCustomScale }
+          )
+# Using control panel button instead
+#    if self.GetDataSetDisplayMode() != '':
+#      menu_def.append({
+#          'label': 'Set Visible Datasets...',
+#          'handler': self._OnSetVisibleDataSets
+#          })
+    return  menu_def
   #end _CreateMenuDef
 
 
@@ -930,30 +930,122 @@ The default implementation returns None.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget._CreateValueString()			-
+  #----------------------------------------------------------------------
+  def _CreateValueString(
+      self, value,
+      prec_digits = None,
+      prec_mode = None,
+      custom_format = None
+      ):
+    """Creates the string representation of minimal length for a value to
+be displayed in a cell.
+    Args:
+        value (float): value to represent
+        prec_digits (int): optional override of
+            self.dataRangeValues.precisionDigits
+        prec_mode (str): optional override of
+            self.dataRangeValues.precisionMode
+        custom_format (str): option override of
+            self.dataRangeValues.customFormat, used only if prec_mode or
+            self.dataRangeValues.precisionMode is 'custom'
+"""
+    if prec_digits is None:
+      prec_digits = self.dataRangeValues.precisionDigits
+    if prec_mode is None:
+      prec_mode = self.dataRangeValues.precisionMode
+
+    if prec_mode == 'custom':
+      if custom_format is None:
+        custom_format = self.dataRangeValues.customFormat
+    else:
+      custom_format = None
+
+    if custom_format:
+      try:
+        fmt_str = '{0:%s}' % custom_format
+        value_str = fmt_str.format( value )
+      except:
+        value_str = '{0:g}'.format( value )
+
+    else:
+      value_str = self.formatter.Format( value, prec_digits, prec_mode )
+    #end if-else custom_format
+
+    return  value_str
+  #end _CreateValueString
+
+
+##  #----------------------------------------------------------------------
+##  #	METHOD:		Widget._CreateValueString_0()			-
+##  #----------------------------------------------------------------------
+##  def _CreateValueString_0(
+##      self, value,
+##      prec_digits = None,
+##      prec_mode = None,
+##      custom_format = None
+##      ):
+##    """Creates the string representation of minimal length for a value to
+##be displayed in a cell.
+##@param  value		value to represent
+##@param  prec_digits	optional override of self.precisionDigits
+##@param  prec_mode	optional override of self.precisionMode
+##@return			string of minimal length
+##"""
+##    if prec_digits is None:
+##      prec_digits = self.dataRangeValues.precisionDigits
+##    if prec_mode is None:
+##      prec_mode = self.dataRangeValues.precisionMode
+##    if custom_format is None:
+##      custom_format = self.dataRangeValues.customFormat
+##
+##    value_str = self.formatter.\
+##        Format( value, prec_digits, prec_mode, custom_format )
+###RangeScaler does this now
+###    e_ndx = value_str.lower().find( 'e' )
+###    if e_ndx > 0:
+###      value_str = value_str[ : e_ndx ]
+##
+##    return  value_str
+##  #end _CreateValueString_0
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget._FindFirstDataSet()			-
   #----------------------------------------------------------------------
-  def _FindFirstDataSet( self, qds_name_in = None ):
+  def _FindFirstDataSet( self, qds_name = None, ds_type = None ):
     """Finds the first dataset available from the types supported by this.
-@param  qds_name_in	optional dataset name (DataSetName instance) to try
-			first for a match against supported types
-@return			DataSetName instance or None
+    Args:
+        qds_name (data.datamodel.DataSetName): optional name to try first
+            for a match against supported types
+        ds_type (str or list(str)): optional type(s) to search instead of
+            what is returned from ``self.GetDataSetTypes()``.
+    Returns:
+        data.datamodel.DataSetName: found name or None
 """
-    qds_name = None
+    result = None
     if self.dmgr.HasData():
-      ds_types = self.GetDataSetTypes()
-      if qds_name_in and self.dmgr.GetDataSetType( qds_name_in ) in ds_types:
-        qds_name = qds_name_in
+      if ds_type:
+        if hasattr( ds_type, '__iter__' ):
+          ds_types = ds_type
+        else:
+          ds_types = [ ds_type ]
+      else:
+        ds_types = self.GetDataSetTypes()
+
+      if qds_name and self.dmgr.GetDataSetType( qds_name ) in ds_types:
+        result = qds_name
       else:
         for t in ds_types:
-	  qds_name_in = self.dmgr.GetFirstDataSet( t )
-	  if qds_name_in:
-	    qds_name = qds_name_in
+	  qds_name = self.dmgr.GetFirstDataSet( t )
+	  if qds_name:
+	    result = qds_name
 	    break
 	#end for
-      #end if-else ds_name_in in ds_types
+      #end else not: qds_name and self.dmgr.GetDataSetType( qds_name ) ...
     #end if self.dmgr
 
-    return  qds_name
+    return  result
   #end _FindFirstDataSet
 
 
@@ -1030,7 +1122,7 @@ returning -1 if neither found.
   #----------------------------------------------------------------------
   #	METHOD:		Widget.GetCurDataSet()				-
   #----------------------------------------------------------------------
-  def GetCurDataSet( self ):
+  def GetCurDataSet( self, ds_type = None ):
     """This implementation tries to infer the name from an attribute
 named 'curDataSet', 'channelDataSet', or 'pinDataSet', in that order,
 only if GetDataSetDisplayMode is ''.  Otherwise, None is returned.
@@ -1040,12 +1132,20 @@ Subclasses should override as needed.
 """
     qds_name = None
     if not self.GetDataSetDisplayMode():
-      for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
-        if hasattr( self, attr ):
-          qds_name = getattr( self, attr )
-	  break
-      #end for attr
-    #end if not
+      if ds_type == 'fluence':
+        if hasattr( self, 'fluenceAddr' ):
+          qds_name = getattr( self, 'fluenceAddr' ).dataSetName
+
+      elif hasattr( self, 'curDataSet' ):
+        qds_name = getattr( self, 'curDataSet' )
+#      else:
+#        for attr in ( 'curDataSet', 'channelDataSet', 'pinDataSet' ):
+#          if hasattr( self, attr ):
+#            qds_name = getattr( self, attr )
+#	    break
+#        #end for attr
+      #end else not: ds_type == 'fluence'
+    #end if not self.GetDataSetDisplayMode()
 
     return  qds_name
   #end GetCurDataSet
@@ -1174,7 +1274,7 @@ Must be called from the UI thread.
   #----------------------------------------------------------------------
   def GetSpecialDataSetTypes( self ):
     """Accessor specifying the types of special datasets which can be
-processed in this widget.  For now this is limited to 'bank' and 'tally'.
+processed in this widget.  For now this is limited to 'bank'.
 This implementation returns an empty list.
 
 @return			list of dataset types, cannot be None
@@ -1224,6 +1324,21 @@ if appropriate.
 """
     return  True
   #end GetUsesScaleAndCmap
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.GetVisibleDataSets()			-
+  #----------------------------------------------------------------------
+  def GetVisibleDataSets( self ):
+    """Returns a set of DataSetName instances for visible datasets.
+Subclasses that override GetDataSetDisplayMode() to return other than ''
+must override this method and ``SetVisibleDataSets()``.  This implementation
+returns an empty set.
+    Returns:
+        set(DataSetName): visible DataSetNames
+"""
+    return  set()
+  #end GetVisibleDataSets
 
 
 #  #----------------------------------------------------------------------
@@ -1320,12 +1435,26 @@ modifiers.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.IsDataSetScaleCapable()			-
+  #----------------------------------------------------------------------
+  def IsDataSetScaleCapable( self ):
+    """True if this widget supports the "Edit Data Scale..." menu option.
+Defaults to True.  Should be overridden by subclasses.
+    Returns:
+        bool: True to include the menu item, False otherwise
+"""
+    return  True
+  #end IsDataSetScaleCapable
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.IsDataSetVisible()			-
   #----------------------------------------------------------------------
   def IsDataSetVisible( self, ds_name ):
     """True if the specified dataset is currently displayed, False otherwise.
-This is meant for subclasses that override GetDisplaysMultiDataSets() to
-return True, in which case ToggleDataSetVisible() should also be overridden.
+This is meant for subclasses that override GetDataSetDisplayMode() to
+return other than '', in which case ToggleDataSetVisible() should also be
+overridden.
 @param  ds_name		dataset name
 @return			False
 """
@@ -1355,14 +1484,13 @@ method via super.SaveProps() at the end.
     self.isLoading = True
     try:
       for k in (
-	  'colormapName',
-          'customDataRange', 'precisionDigits', 'precisionMode',
-	  'scaleType'
+	  'colormap', 'customFormat', 'dataRange',
+          'precisionDigits', 'precisionMode', 'scaleType'
 	  ):
         if k in props_dict:
-          setattr( self, k, props_dict[ k ] )
+          setattr( self.dataRangeValues, k, props_dict[ k ] )
 
-      for k in ( 'axialValue', 'curDataSet', 'tallyAddr' ):
+      for k in ( 'axialValue', 'curDataSet', 'fluenceAddr' ):
         if k in props_dict and hasattr( self, k ):
           setattr( self, k, props_dict[ k ] )
 
@@ -1491,50 +1619,52 @@ Must be called from the UI thread.
       self.dataRangeDialog = DataRangeDialog(
           self, wx.ID_ANY,
 	  bitmap_func = Widget.GetBitmap,
-	  enable_scale_and_cmap = self.GetUsesScaleAndCmap()
+	  use_scale_and_cmap = self.GetUsesScaleAndCmap()
 	  )
 
-    changed = False
-    self.dataRangeDialog.ShowModal(
-        range_in = self.customDataRange,
-	digits_in = self.precisionDigits,
-	mode_in = self.precisionMode,
-	scale_type_in = self.scaleType,
-	colormap_in = self.colormapName
-	)
-
-    new_colormap = self.dataRangeDialog.GetColormap()
-    if new_colormap != self.colormapName:
-      self.colormapName = new_colormap
-      changed = True
-
-    new_range = self.dataRangeDialog.GetRange()
-    if new_range[ 0 ] > new_range[ 1 ]:
-      wx.MessageBox(
-          'Minimum cannot be greater than maximum', 'Set Data Scale',
-	  wx.ICON_ERROR | wx.OK_DEFAULT
-	  )
-    elif new_range != self.customDataRange:
-      self.customDataRange = new_range
-      changed = True
-
-    new_digits = self.dataRangeDialog.GetPrecisionDigits()
-    if new_digits != self.precisionDigits:
-      self.precisionDigits = new_digits
-      changed = True
-
-    new_mode = self.dataRangeDialog.GetPrecisionMode()
-    if new_mode != self.precisionMode:
-      self.precisionMode = new_mode
-      changed = True
-
-    new_scale_type = self.dataRangeDialog.GetScaleType()
-    if new_scale_type != self.scaleType:
-      self.scaleType = new_scale_type
-      changed = True
-
-    if changed:
-      self.Redraw()
+    if self.dataRangeDialog.ShowModal( self.dataRangeValues ) != wx.ID_CANCEL:
+      changed = False
+  
+      new_colormap = self.dataRangeDialog.GetColormap()
+      if new_colormap != self.dataRangeValues.colormap:
+        self.dataRangeValues.colormap = new_colormap
+        changed = True
+  
+      new_custom_format = self.dataRangeDialog.GetCustomFormat()
+      if new_custom_format != self.dataRangeValues.colormap:
+        self.dataRangeValues.customFormat = new_custom_format
+        changed = True
+  
+      new_range = self.dataRangeDialog.GetDataRange()
+      if new_range[ 0 ] > new_range[ 1 ]:
+        wx.MessageBox(
+            'Minimum cannot be greater than maximum', 'Set Data Scale',
+  	  wx.ICON_ERROR | wx.OK_DEFAULT
+  	  )
+      #elif new_range != self.dataRangeValues.dataRange:
+      elif not self.dataRangeValues.EqualRange( new_range ):
+        self.dataRangeValues.dataRange = new_range
+        changed = True
+  
+      new_digits = self.dataRangeDialog.GetPrecisionDigits()
+      if new_digits != self.dataRangeValues.precisionDigits:
+        self.dataRangeValues.precisionDigits = new_digits
+        changed = True
+  
+      new_mode = self.dataRangeDialog.GetPrecisionMode()
+      if new_mode != self.dataRangeValues.precisionMode:
+        self.dataRangeValues.precisionMode = new_mode
+        changed = True
+  
+      new_scale_type = self.dataRangeDialog.GetScaleType()
+      if new_scale_type != self.dataRangeValues.scaleType:
+        self.dataRangeValues.scaleType = new_scale_type
+        changed = True
+  
+      if changed:
+        #self.Redraw()
+        self.GetTopLevelParent().GetApp().DoBusyEventOp( self.Redraw )
+    #end if self.dataRangeDialog.ShowModal
   #end _OnCustomScale
 
 
@@ -1546,7 +1676,7 @@ Must be called from the UI thread.
 "Maximum" or "Find Minimum" pullright for the widget menu.
 This implementation is a noop.
 Subclasses should override to call _OnFindMinMaxChannel(),
-_OnFindMinMaxMultiDataSets(), _OnFindMinMaxPin(), or _OnFindMinMaxTally().
+_OnFindMinMaxMultiDataSets(), _OnFindMinMaxPin(), or _OnFindMinMaxFluence().
 @param  mode		'min' or 'max', defaulting to the latter
 @param  all_states_flag	True for all states, False for current state
 @param  all_assy_flag	True to search all assemblies, False for current
@@ -1585,6 +1715,36 @@ Note: if all_states_flag is false, self must have a 'timeValue' attribute.
     if update_args:
       self.FireStateChange( **update_args )
   #end _OnFindMinMaxChannel
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._OnFindMinMaxFluence()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxFluence(
+      self, mode, fluence_addr = True, all_states_flag = True,
+      ds_expr = None, radius_start_ndx = 0
+      ):
+    """Handles 'fluence' dataset min/max processing, resulting in a call to
+FireStateChange() with axial_value, state_index, and/or fluence_addr changes.
+Note: if all_states_flag is false, self must have a 'timeValue' attribute.
+@param  mode		'min' or 'max', defaulting to the latter
+@param  fluence_addr	FluenceAddress instance
+@param  all_states_flag	True for all states, False for current state
+@param  ds_expr		optional expression to apply to dataset min/max search
+@param  radius_start_ndx  starting index of range range of validity
+"""
+    update_args = {}
+
+    if fluence_addr:
+      update_args = self.dmgr.FindFluenceMinMaxValue(
+	  mode, fluence_addr,
+	  -1 if all_states_flag else self.timeValue,
+	  self, ds_expr, radius_start_ndx
+          )
+
+    if update_args:
+      self.FireStateChange( **update_args )
+  #end _OnFindMinMaxFluence
 
 
   #----------------------------------------------------------------------
@@ -1649,38 +1809,6 @@ Note: if all_states_flag is false, self must have a 'timeValue' attribute.
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		Widget._OnFindMinMaxTally()			-
-  #----------------------------------------------------------------------
-  def _OnFindMinMaxTally(
-      self, mode, tally_addr = True, all_states_flag = True,
-      ds_expr = None, radius_start_ndx = 0
-      ):
-    """Handles 'tally' dataset min/max processing, resulting in a call to
-FireStateChange() with axial_value, state_index, and/or tally_addr changes.
-Note: if all_states_flag is false, self must have a 'timeValue' attribute.
-@param  mode		'min' or 'max', defaulting to the latter
-@param  tally_addr	TallyAddress instance
-@param  all_states_flag	True for all states, False for current state
-@param  ds_expr		expression to apply to dataset min/max search,
-			if None, tally_addr.multIndex and .statIndex will
-			be applied in DataModel.FindTallyMinMaxValueAddr()
-@param  radius_start_ndx  starting index of range range of validity
-"""
-    update_args = {}
-
-    if tally_addr:
-      update_args = self.dmgr.FindTallyMinMaxValue(
-	  mode, tally_addr,
-	  -1 if all_states_flag else self.timeValue,
-	  self, ds_expr, radius_start_ndx
-          )
-
-    if update_args:
-      self.FireStateChange( **update_args )
-  #end _OnFindMinMaxTally
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		Widget._OnSize()				-
   #----------------------------------------------------------------------
   def _OnSize( self, ev ):
@@ -1691,12 +1819,35 @@ Note: if all_states_flag is false, self must have a 'timeValue' attribute.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		_OnSetVisibleDataSets()				-
+  #----------------------------------------------------------------------
+##  def _OnSetVisibleDataSets( self, ev ):
+##    """
+##"""
+##    ev.Skip()
+##
+##    dialog = DataModelMgrTreeDialog(
+##        self, self.state,
+##        ds_types = self.GetDataSetTypes(),
+##        #ds_visible_func = self.IsDataSetVisible,
+##        show_core_datasets = True,
+##        show_selected_dataset = True,
+##        widget = self
+##        )
+##    if dialog.ShowModal( self.GetVisibleDataSets() ) != wx.ID_CANCEL:
+##      self.SetVisibleDataSets( dialog.selections )
+##      self.Redraw()
+##  #end _OnSetVisibleDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.Redraw()					-
   #----------------------------------------------------------------------
   def Redraw( self ):
     """Calls _OnSize( None )
 """
-    self._OnSize( None )
+    #self._OnSize( None )
+    self._BusyDoOp( self._OnSize, None )
   #end Redraw
 
 
@@ -1720,11 +1871,14 @@ customDataRange.
 #    ds_range = [ NAN, NAN ] \
 #        if self.customDataRange is None else \
 #	list( self.customDataRange )
-    ds_range = \
-        list( self.customDataRange ) \
-	if apply_custom_range and self.customDataRange is not None else \
-	[ NAN, NAN ]
-    calc_range = self.dmgr.GetRange( qds_name, time_value, ds_expr )
+    if apply_custom_range and self.dataRangeValues.dataRange is not None:
+      ds_range = list( self.dataRangeValues.dataRange )
+    else:
+      ds_range = [ NAN, NAN ]
+    calc_range = self.dmgr.GetRange(
+        qds_name, time_value, ds_expr,
+	self.state.weightsMode == 'on'
+	)
     if math.isnan( ds_range[ 0 ] ) or math.isnan( ds_range[ 1 ] ):
       #calc_range = self.dmgr.GetRange( qds_name, time_value, ds_expr )
       if calc_range:
@@ -1760,7 +1914,8 @@ customDataRange.
     """
 """
     return \
-        self.scaleType  if self.scaleType != DEFAULT_scaleType else \
+        self.dataRangeValues.scaleType \
+        if self.dataRangeValues.scaleType != DEFAULT_scaleType else \
 	'linear'  if qds_name is None else \
         self.dmgr.GetDataSetScaleType( qds_name )
   #end _ResolveScaleType
@@ -1775,13 +1930,12 @@ method via super.SaveProps().
 @param  props_dict	dict object to which to serialize properties
 """
     for k in (
-	'colormapName',
-        'customDataRange', 'precisionDigits', 'precisionMode',
-	'scaleType'
+	'colormap', 'customFormat', 'dataRange',
+        'precisionDigits', 'precisionMode', 'scaleType'
 	):
-      props_dict[ k ] = getattr( self, k )
+      props_dict[ k ] = getattr( self.dataRangeValues, k )
 
-    for k in ( 'axialValue', 'tallyAddr' ):
+    for k in ( 'axialValue', 'fluenceAddr' ):
       if hasattr( self, k ):
         props_dict[ k ] = getattr( self, k )
 
@@ -1824,6 +1978,21 @@ implementation is a noop.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		Widget.SetVisibleDataSets()			-
+  #----------------------------------------------------------------------
+  def SetVisibleDataSets( self, qds_names ):
+    """Applys the set of visible DataSetName instances.
+Subclasses that override GetDataSetDisplayMode() to return other than ''
+must override this method and ``GetVisibleDataSets()``.  This implementation
+is a noop.
+    Args:
+        qds_names (set(DataSetName)): set of all visible DataSetNames
+"""
+    pass
+  #end SetVisibleDataSets
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		Widget.ToggleDataSetVisible()			-
   #----------------------------------------------------------------------
   def ToggleDataSetVisible( self, ds_name ):
@@ -1835,6 +2004,31 @@ GetDisplaysMultiDataSets() returns True.
 """
     pass
   #end ToggleDataSetVisible
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget._UpdateMenuItems()			-
+  #----------------------------------------------------------------------
+  def _UpdateMenuItems( self, menu, *re_label_pairs ):
+    """Must be called on the UI event thread.
+    Args:
+        menu (wx.Menu): menu to update
+	*re_label_pairs: sequence of regular expressions to match and
+	    replacement labels
+"""
+    if menu is not None and \
+        re_label_pairs is not None and len( re_label_pairs ) >= 2:
+      for item in menu.GetMenuItems():
+        label = item.GetItemLabel()
+
+	for i in range( 0, len( re_label_pairs ), 2 ):
+	  regex = re_label_pairs[ i ]
+	  new_label = re_label_pairs[ i + 1 ]
+	  if re.match( regex, label ):
+	    item.SetItemLabel( new_label )
+	#end for i
+      #end for item
+  #end _UpdateMenuItems
 
 
   #----------------------------------------------------------------------
@@ -1896,6 +2090,8 @@ GetDisplaysMultiDataSets() returns True.
       pts_per_pixel = 72.0 / gc.GetDPI()[ 0 ]
     else:
       pts_per_pixel = 72.0 / gc.GetPPI()[ 0 ]
+    if Config.IsWindows():
+      pixel_size -= 2
     return  int( pts_per_pixel * pixel_size )
   #end CalcPointSize
 
@@ -1944,6 +2140,23 @@ submenus.
       else:
         ndx += 1
   #end ClearMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Widget.CompareAuxAddrs()			-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CompareAuxAddrs( one, two ):
+    """Compares auxiliary addresses, which might be pin (col, row) pairs or
+node addresses.  For tuples, ordering starts at the end, row before col.
+"""
+    if hasattr( one, '__iter__' ) and hasattr( two, '__iter__' ) and \
+        len( one ) == len( two ):
+      one = one[ ::-1 ]
+      two = two[ ::-1 ]
+
+    return  -1 if one < two else  1 if one > two else  0
+  #end CompareAuxAddrs
 
 
   #----------------------------------------------------------------------
@@ -2236,4 +2449,67 @@ http://www.particleincell.com/blog/2014/colormap/
     gray = int( math.ceil( (r * 0.2989) + (g * 0.5870) + (b * 0.1140) ) )
     return  ( gray, gray, gray, alpha )
   #end ToGray
+
+
+#       -- Properties
+#       --
+
+  colormapName = property( lambda x: x.dataRangeValues.colormap )
+
+  customDataRange = property( lambda x: x.dataRangeValues.dataRange )
+
+  customFormat = property( lambda x: x.dataRangeValues.customFormat )
+
+  precisionDigits = property( lambda x: x.dataRangeValues.precisionDigits )
+
+  precisionMode = property( lambda x: x.dataRangeValues.precisionMode )
+
+  scaleType = property( lambda x: x.dataRangeValues.scaleType )
+
 #end Widget
+
+
+#------------------------------------------------------------------------
+#	CLASS:		WidgetBusyEventOp                               -
+#------------------------------------------------------------------------
+class WidgetBusyEventOp( object ):
+  """Per-user widget configuration.
+"""
+
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetBusyEventOp.__call__()                    -
+  #----------------------------------------------------------------------
+  def __call__( self, *args, **kwargs ):
+    """
+"""
+    args[ 0 ].GetTopLevelParent().GetApp().\
+        DoBusyEventOp( self.func, *args, **kwargs )
+  #end __call__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetBusyEventOp.__get__()                     -
+  #----------------------------------------------------------------------
+  def __get__( self, instance, owner ):
+    """
+"""
+    return  functools.partial( self.__call__, instance )
+    #3  return  types.MethodType( self, instance ) if instance else self
+  #end __get__
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		WidgetBusyEventOp.__init__()                    -
+  #----------------------------------------------------------------------
+  def __init__( self, func ):
+    """
+"""
+    self.func = func
+  #end __init__
+
+#end WidgetBusyEventOp

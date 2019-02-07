@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------
 #	NAME:		animators.py				        -
 #	HISTORY:							-
+#		2019-01-16	leerw@ornl.gov				-
+#         Transition from tally to fluence.
+#		2018-10-02	leerw@ornl.gov				-
+#	  Introduced frame_delay as a param.
 #		2018-08-16	leerw@ornl.gov				-
 #	  Working around wxPython ProgressDialog and GenericProgressDialog
 #	  bugginess under Windows.
@@ -28,7 +32,8 @@
 #		2015-08-31	leerw@ornl.gov				-
 #		2015-08-29	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import glob, inspect, logging, os, platform, shutil, six, subprocess, sys, \
+import glob, inspect, logging, math, os, platform, \
+    StringIO, shutil, six, subprocess, sys, \
     time, tempfile, threading, zipfile
 #import traceback
 #import pdb
@@ -45,6 +50,8 @@ try:
 except Exception:
   raise ImportError, 'The Python Imaging Library (PIL) required for this component'
 
+#import bean.animate_options_bean as aob
+from .bean import animate_options_bean as aob
 from data.config import Config
 from data.datamodel import *
 from event.state import *
@@ -109,8 +116,12 @@ class Animator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		Animator.CreateAnimatedImage()                  -
   #----------------------------------------------------------------------
-  def CreateAnimatedImage( self, file_path, temp_dir ):
+  def CreateAnimatedImage( self, file_path, temp_dir, frame_delay ):
     """
+    Args:
+        file_path (str): path to GIF file to create
+        temp_dir (str): path to temporary directory to hold frame images
+	frame_delay (float): delay in seconds b/w frames
 """
     zfp = zipfile.ZipFile( file_path + '.images.zip', 'w', zipfile.ZIP_DEFLATED )
     fnames = sorted( glob.glob( os.path.join( temp_dir, '*.png' ) ) )
@@ -132,8 +143,10 @@ class Animator( object ):
       zfp.close()
 
 #        [ 'gifsicle', '--disposal=background', '--delay=50', '--loop' ]
+    delay_csecs = max( 1, int( math.floor( frame_delay * 100.0 ) ) )
+    delay_arg = '--delay={0:d}'.format( delay_csecs )
     args = \
-        [ 'gifsicle', '--disposal=background', '--delay=10' ] + \
+        [ 'gifsicle', '--disposal=background', delay_arg ] + \
         sorted( glob.glob( os.path.join( temp_dir, '*.gif' ) ) ) + \
 	[ '-o', file_path ]
     proc = subprocess.Popen( args )
@@ -168,10 +181,6 @@ class Animator( object ):
     #cancelled, skipped = dialog.Update( pct, msg )
     cancelled = dialog.WasCancelled()
     pair = dialog.Update( pct, msg )
-    six.print_(
-        '[Animator._CreateStepImage] cancelled={0}'.format( cancelled ),
-	file = sys.stderr
-	)
     dialog.Fit()
 
     if not cancelled:
@@ -238,11 +247,17 @@ class Animator( object ):
   #----------------------------------------------------------------------
   #	METHOD:		Animator.Run()                           	-
   #----------------------------------------------------------------------
-  def Run( self, file_path, show_selections = False ):
-    """
-Must be called from the UI event thread.
+  def Run(
+      self, file_path,
+      frame_delay = aob.DEFAULT_frameDelay,
+      show_selections = aob.DEFAULT_showSelections
+      ):
+    """Must be called from the UI event thread.
 Creates a worker thread with the _RunBegin() and _Runend() methods.
-@param  file_path	path to gif file to create
+    Args:
+        file_path (str): path to GIF file to create
+	frame_delay (float): delay in seconds b/w frames
+	show_selections (bool): toggle
 """
     
     if Config.IsWindows():
@@ -262,7 +277,7 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
     wxlibdr.startWorker(
 	self._RunEnd,
 	self._RunBackground,
-	wargs = [ dialog, file_path, show_selections ]
+	wargs = [ dialog, file_path, frame_delay, show_selections ]
         )
   #end Run
 
@@ -270,7 +285,7 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
   #----------------------------------------------------------------------
   #	METHOD:		Animator._RunBackground()			-
   #----------------------------------------------------------------------
-  def _RunBackground( self, dialog, file_path, show_selections ):
+  def _RunBackground( self, dialog, file_path, frame_delay, show_selections ):
     """
 """
     temp_dir = tempfile.mkdtemp( '.animation' )
@@ -292,31 +307,20 @@ Creates a worker thread with the _RunBegin() and _Runend() methods.
 	  finally:
 	    self.stepLock.release()
 	#end while blocking
-
-        six.print_(
-	    '[Animator._RunBackground] wasCancelled=%s',
-	    str( dialog.WasCancelled() ),
-	    file = sys.stderr
-	    )
       #end while stepping
 
       if dialog.WasCancelled() or self.nextStep > self.totalSteps:
         status[ 'messages' ] = [ 'Aborted' ]
       else:
         wx.CallAfter( dialog.Pulse, 'Creating animated GIF' )
-        self.CreateAnimatedImage( file_path, temp_dir )
+        self.CreateAnimatedImage( file_path, temp_dir, frame_delay )
 
     except Exception, ex :
+      buf = StringIO.StringIO()
+      traceback.print_exc( file = buf )
+      self.logger.warning( buf.getvalue() )
       status[ 'messages' ] = \
           [ 'Error creating image:' + os.linesep + str( ex ) ]
-#      et, ev, tb = sys.exc_info()
-#      while tb:
-#	print >> sys.stderr, '{0:s}File={1:s}, Line={2:s}'.format(
-#	    os.linesep,
-#            str( tb.tb_frame.f_code ),
-#            str( traceback.tb_lineno( tb ) )
-#	    )
-#        tb = tb.tb_next
 
     finally:
       shutil.rmtree( status[ 'temp_dir' ] )
@@ -425,7 +429,7 @@ class BaseAxialAnimator( Animator ):
     """Subclasses must set self.restoreValue and self.totalSteps.
 @param  widget_in	Widget from which to get images, cannot be None
 @param  axial_name	name of axial mesh ('all, 'detector',
-			'fixed_detector', 'pin'/'core', 'subpin', 'tally')
+			'fixed_detector', 'pin'/'core', 'subpin', 'fluence')
 @param  axial_ndx_name	index name ('cm'/'value', 'core_ndx'/'pin_ndx', etc.)
 @param  centers		True to use mesh centers, False for mesh values
 @param  kwargs
@@ -622,6 +626,29 @@ Called on the worker thread.
 
 
 #------------------------------------------------------------------------
+#	CLASS:		FluenceAxialAnimator				-
+#------------------------------------------------------------------------
+class FluenceAxialAnimator( BaseAxialAnimator ):
+  """Animator interface
+"""
+
+#		-- Object Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		FluenceAxialAnimator.__init__()			-
+  #----------------------------------------------------------------------
+  def __init__( self, widget_in, **kwargs ):
+    super( FluenceAxialAnimator, self ).__init__(
+        widget_in, 'fluence', 'fluence_ndx', **kwargs
+	)
+  #end __init__
+
+#end FluenceAxialAnimator
+
+
+#------------------------------------------------------------------------
 #	CLASS:		SubPinAxialAnimator				-
 #------------------------------------------------------------------------
 class SubPinAxialAnimator( BaseAxialAnimator ):
@@ -642,26 +669,3 @@ class SubPinAxialAnimator( BaseAxialAnimator ):
   #end __init__
 
 #end SubPinAxialAnimator
-
-
-#------------------------------------------------------------------------
-#	CLASS:		TallyAxialAnimator				-
-#------------------------------------------------------------------------
-class TallyAxialAnimator( BaseAxialAnimator ):
-  """Animator interface
-"""
-
-#		-- Object Methods
-#		--
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		TallyAxialAnimator.__init__()			-
-  #----------------------------------------------------------------------
-  def __init__( self, widget_in, **kwargs ):
-    super( TallyAxialAnimator, self ).__init__(
-        widget_in, 'tally', 'tally_ndx', **kwargs
-	)
-  #end __init__
-
-#end TallyAxialAnimator

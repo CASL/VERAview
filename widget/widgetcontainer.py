@@ -3,6 +3,15 @@
 #------------------------------------------------------------------------
 #	NAME:		widgetcontainer.py				-
 #	HISTORY:							-
+#		2019-01-16	leerw@ornl.gov				-
+#         Transition from tally to fluence.
+#		2019-01-02	leerw@ornl.gov				-
+#         Removed self.dataVisibleButton since this has been moved to
+#         DataSetsMenu.
+#		2018-11-20	leerw@ornl.gov				-
+#         Applying new DataModelMgrTree and visible datasets button.
+#		2018-10-02	leerw@ornl.gov				-
+#	  Using AnimateOptionsDialog.
 #		2018-05-05	leerw@ornl.gov				-
 #	  Added other axial animation types.
 #		2017-05-13	leerw@ornl.gov				-
@@ -93,7 +102,7 @@
 #		2014-11-25	leerw@ornl.gov				-
 #------------------------------------------------------------------------
 import functools, logging, math, os, six, sys, time
-import pdb  #pdb.set_trace()
+import pdb
 
 try:
   import wx
@@ -101,13 +110,16 @@ try:
 except Exception:
   raise ImportError( "The wxPython module is required" )
 
-from animators import *
-from bean.dataset_menu import *
-from bean.events_chooser import *
 from data.config import Config
 from event.state import *
-import widget
-from widget_config import *
+
+from .animators import *
+from .bean.animate_options_bean import *
+from .bean.datamodel_mgr_tree import *
+from .bean.dataset_menu import *
+from .bean.events_chooser import *
+from . import widget
+from .widget_config import *
 
 
 ## Now using events_chooser
@@ -216,14 +228,16 @@ widget.
     super( WidgetContainer, self ).__init__( parent, -1, style = wx.BORDER_SIMPLE | wx.TAB_TRAVERSAL )
 
     self.animateMenu = None
+    self.animateOptionsDialog = None
     self.controlPanel = None
     self.eventCheckBoxes = {}
     #self.axialCheckBox = None
     self.dataSetMenu = None
     self.dataSetMenuButton = None
     self.dataSetMenuVersion = -1
-    #deprecated self.derivedDataSetMenu = None
-    #self.exposureCheckBox = None
+    self.dataSetSpecialMenus = {}
+    self.dataSetTopMenu = None
+    self.dataVisibleButton = None
     self.eventLocks = State.CreateLocks()
     self.eventsChooserDialog = None
     self.eventsMenu = None
@@ -233,8 +247,8 @@ widget.
     self.logger = widget.Widget.logger_
     self.parent = parent
     self.state = state
-    self.tallyMenu = None
-    self.tallyMenuButton = None
+#    self.tallyMenu = None
+#    self.tallyMenuButton = None
     self.widget = None
     self.widgetClassPath = widget_classpath
     self.widgetMenu = None
@@ -369,10 +383,12 @@ definition array for a pullright.
   #----------------------------------------------------------------------
   def _DestroyMuchLater( self ):
     """Waits before calling Destroy().
+Deprecated.  Call ``wx.CallLater( 1000, self.Destroy )`` instead.
 """
     def doneit( result ):
       if result.get():
         self.Destroy()
+        #x wx.CallAfter( self.Close )
     #end doneit
 
     def doit():
@@ -485,8 +501,6 @@ definition array for a pullright.
     reason = self.state.ResolveLocks( reason, self.eventLocks )
     if reason != STATE_CHANGE_noop:
       self.widget.HandleStateChange( reason )
-
-    #xxxx STATE_CHANGE_tallyAddr to update menu?
   #end HandleStateChange
 
 
@@ -623,91 +637,126 @@ definition array for a pullright.
 	wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	)
 
-#		-- Dataset menu button
+#		-- Dataset menu buttons
 #		--
     dataset_types = list( self.widget.GetDataSetTypes() )
     if len( dataset_types ) > 0:
       display_mode = self.widget.GetDataSetDisplayMode()
-      ds_menu_mode = \
-          'subselected' if display_mode == 'selected' else \
-	  'submulti' if display_mode == 'multi' else \
-	  'subsingle'
+#      ds_menu_mode = \
+#          'subselected' if display_mode == 'selected' else \
+#	  'submulti' if display_mode == 'multi' else \
+#	  'subsingle'
+      ds_menu_mode = 'subsingle'
       self.dataSetMenu = DataSetsMenu(
 	  self.state, binder = self, mode = ds_menu_mode,
 	  ds_listener = self.widget, ds_types = dataset_types,
 	  show_core_datasets = True,
+          show_dialog_item = display_mode != '',
 	  widget = self.widget
           )
 
       menu_bmap = widget.Widget.GetBitmap( 'data_icon_16x16' )
       self.dataSetMenuButton = wx.BitmapButton( control_panel, -1, menu_bmap )
 
-      self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset to View' ) )
+      self.dataSetMenuButton.SetToolTip( wx.ToolTip( 'Select Dataset' ) )
       self.dataSetMenuButton.Bind( wx.EVT_BUTTON, self._OnDataSetMenu )
       cp_sizer.Add(
           self.dataSetMenuButton, 0,
 	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
 	  )
-    #end if dataset_types
+    #end if len( dataset_types ) > 0
 
 #		-- Tally menu button
 #		--
+##    special_types = self.widget.GetSpecialDataSetTypes()
+##    tally = dmgr.GetCore().tally
+##    if 'tally' in special_types and tally.IsValid():
+##      tally_qds_defs = []
+##      for qds_name in dmgr.GetDataSetQNames( None, 'tally' ):
+##        tally_qds_defs.append({
+##	    'label': dmgr.GetDataSetDisplayName( qds_name ),
+##	    'kind': wx.ITEM_RADIO,
+##	    'handler': functools.partial( self._OnTally, 'name', qds_name )
+##	    })
+##
+##      tally_mult_defs = []
+##      for i in xrange( tally.nmultipliers ):
+##        tally_mult_defs.append({
+##	    'label': tally.multiplierNames[ i ],
+##	    'kind': wx.ITEM_RADIO,
+##	    'handler': functools.partial( self._OnTally, 'multIndex', i )
+##	    })
+##
+##      tally_stat_defs = []
+##      for i in xrange( tally.nstat ):
+##        tally_stat_defs.append({
+##	    'label': tally.stat[ i ],
+##	    'kind': wx.ITEM_RADIO,
+##	    'handler': functools.partial( self._OnTally, 'statIndex', i )
+##	    })
+##
+##      tally_menu_defs = [
+##	  { 'label': 'Select Tally Dataset', 'submenu': tally_qds_defs },
+##	  { 'label': 'Select Tally Multiplier', 'submenu': tally_mult_defs },
+##	  { 'label': 'Select Tally Stat', 'submenu': tally_stat_defs }
+##          ]
+##      self.tallyMenu = self._CreateMenuFromDef( None, tally_menu_defs )
+##
+##      self.tallyMenuButton = wx.BitmapButton(
+##          control_panel, -1,
+##	  widget.Widget.GetBitmap( 'tally_icon_16x16' )
+##	  )
+##
+##      self.tallyMenuButton.SetToolTip( wx.ToolTip( 'Tally Options' ) )
+##      self.tallyMenuButton.Bind(
+##          wx.EVT_BUTTON,
+##	  functools.partial(
+##	      self._OnPopupMenu,
+##	      self.tallyMenuButton, self.tallyMenu
+##	      )
+##	  )
+##      cp_sizer.Add(
+##          self.tallyMenuButton, 0,
+##	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
+##	  )
+##    #end if 'tally'
+
+#		-- Special dataset types get their own menu
+#		--
     special_types = self.widget.GetSpecialDataSetTypes()
-    tally = dmgr.GetCore().tally
-    if 'tally' in special_types and tally.IsValid():
-      tally_qds_defs = []
-      for qds_name in dmgr.GetDataSetQNames( None, 'tally' ):
-        tally_qds_defs.append({
-	    'label': dmgr.GetDataSetDisplayName( qds_name ),
-	    'kind': wx.ITEM_RADIO,
-	    'handler': functools.partial( self._OnTally, 'name', qds_name )
-	    })
+    if special_types:
+      display_mode = self.widget.GetDataSetDisplayMode()
+      for special_type in sorted( special_types ):
+        special_menu = DataSetsMenu(
+            self.state, binder = self, mode = 'subsingle',
+            ds_listener = self.widget, ds_types = [ special_type ],
+            show_core_datasets = False,
+            show_dialog_item = display_mode != '',
+            widget = self.widget
+            )
+        self.dataSetSpecialMenus[ special_type ] = special_menu
 
-      tally_mult_defs = []
-      for i in xrange( tally.nmultipliers ):
-        tally_mult_defs.append({
-	    'label': tally.multiplierNames[ i ],
-	    'kind': wx.ITEM_RADIO,
-	    'handler': functools.partial( self._OnTally, 'multIndex', i )
-	    })
+        if not self.dataSetTopMenu:
+          self.dataSetTopMenu = wx.Menu()
+          if self.dataSetMenu is not None:
+            sub_item = wx.MenuItem(
+                self.dataSetTopMenu, wx.ID_ANY, 'core',
+                subMenu = self.dataSetMenu
+                )
+            self.dataSetTopMenu.AppendItem( sub_item )
 
-      tally_stat_defs = []
-      for i in xrange( tally.nstat ):
-        tally_stat_defs.append({
-	    'label': tally.stat[ i ],
-	    'kind': wx.ITEM_RADIO,
-	    'handler': functools.partial( self._OnTally, 'statIndex', i )
-	    })
-
-      tally_menu_defs = [
-	  { 'label': 'Select Tally Dataset', 'submenu': tally_qds_defs },
-	  { 'label': 'Select Tally Multiplier', 'submenu': tally_mult_defs },
-	  { 'label': 'Select Tally Stat', 'submenu': tally_stat_defs }
-          ]
-      self.tallyMenu = self._CreateMenuFromDef( None, tally_menu_defs )
-
-      self.tallyMenuButton = wx.BitmapButton(
-          control_panel, -1,
-	  widget.Widget.GetBitmap( 'tally_icon_16x16' )
-	  )
-
-      self.tallyMenuButton.SetToolTip( wx.ToolTip( 'Tally Options' ) )
-      self.tallyMenuButton.Bind(
-          wx.EVT_BUTTON,
-	  functools.partial(
-	      self._OnPopupMenu,
-	      self.tallyMenuButton, self.tallyMenu
-	      )
-	  )
-      cp_sizer.Add(
-          self.tallyMenuButton, 0,
-	  wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2
-	  )
-    #end if 'tally'
+        sub_item = wx.MenuItem(
+              self.dataSetTopMenu, wx.ID_ANY, special_type,
+              subMenu = special_menu
+              )
+        self.dataSetTopMenu.AppendItem( sub_item )
+      #end for special_type in special_types
+    #end if special_types
 
 #		-- Widget menu
 #		--
     self.widgetMenu = wx.Menu()
+
 #			-- Save image
     save_option_menu = wx.Menu()
     save_trans_item = \
@@ -745,6 +794,15 @@ definition array for a pullright.
         self.animateMenu.AppendItem( anim_item )
       #end 'axial:detector'
 
+      if 'axial:fluence' in anim_indexes and \
+          dmgr.GetCore().nax > 1 and 'fluence' in all_ds_types:
+        anim_item = wx.MenuItem(
+	    self.animateMenu, wx.ID_ANY, 'Fluence Axial Levels'
+	    )
+        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
+        self.animateMenu.AppendItem( anim_item )
+      #end 'axial:fluence'
+
       if 'axial:pin' in anim_indexes and \
           dmgr.GetCore().nax > 1 and 'pin' in all_ds_types:
 	  #dmgr.HasDataSetType( 'pin' ):
@@ -765,15 +823,6 @@ definition array for a pullright.
         self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
         self.animateMenu.AppendItem( anim_item )
       #end 'axial:subpin'
-
-      if 'axial:tally' in anim_indexes and \
-          dmgr.GetCore().nax > 1 and 'tally' in all_ds_types:
-        anim_item = wx.MenuItem(
-	    self.animateMenu, wx.ID_ANY, 'Tally Axial Levels'
-	    )
-        self.Bind( wx.EVT_MENU, self._OnSaveAnimated, anim_item )
-        self.animateMenu.AppendItem( anim_item )
-      #end 'axial:tally'
 
       #if 'statepoint' in anim_indexes and len( data_model.GetStates() ) > 1:
       if 'statepoint' in anim_indexes and len( dmgr.GetTimeValues() ) > 1:
@@ -810,7 +859,6 @@ definition array for a pullright.
 	)
 
     self.widgetMenuButton.SetToolTip( wx.ToolTip( 'Widget Functions' ) )
-    #self.widgetMenuButton.Bind( wx.EVT_BUTTON, self._OnWidgetMenu )
     self.widgetMenuButton.Bind(
         wx.EVT_BUTTON,
 	functools.partial(
@@ -842,17 +890,15 @@ definition array for a pullright.
     vbox.Add( control_panel, 0, border = 2, flag = wx.EXPAND )
     vbox.Add( self.widget, 1, border = 2, flag = wx.EXPAND )
     self.SetSizer( vbox )
-
-    #xxxxx get preferred size from widget
-    ##self.SetSize( wx.Size( 640, 480 ) )
-    #self.SetSize( self.widget.GetInitialSize() )
-    #self.SetTitle( self.widget.GetTitle() )
     vbox.Layout()
 
     self.state.AddListener( self )
     if not no_init:
       self.widget.Init()
       self.dataSetMenu.Init()
+
+      for k in self.dataSetSpecialMenus:
+        self.dataSetSpecialMenus[ k ].Init()
     #self.widget.SetState( self.state )
   #end _InitUI
 
@@ -908,7 +954,8 @@ definition array for a pullright.
       wx.CallAfter( self.Destroy )
     else:
       self.Hide()
-      self._DestroyMuchLater()
+      #x self._DestroyMuchLater()
+      wx.CallLater( 1000, self.Destroy )
   #end OnClose
 
 
@@ -919,9 +966,35 @@ definition array for a pullright.
     """
 """
     # Using DataModelMgr and State events instead
-    #self.dataSetMenu.UpdateAllMenus()
-    self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
+#    #self.dataSetMenu.UpdateAllMenus()
+
+#    self.dataSetMenuButton.PopupMenu( self.dataSetMenu )
+    self.dataSetMenuButton.PopupMenu(
+        self.dataSetTopMenu  if self.dataSetTopMenu is not None else \
+        self.dataSetMenu
+        )
   #end _OnDataSetMenu
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		_OnDataVisibleButton()				-
+  #----------------------------------------------------------------------
+  def _OnDataVisibleButton( self, ev ):
+    """
+"""
+    ev.Skip()
+
+    display_mode = self.widget.GetDataSetDisplayMode()
+    dialog = DataModelMgrTreeDialog(
+        self, self.state,
+        ds_types = self.widget.GetDataSetTypes(),
+        show_selected_dataset = display_mode == 'selected',
+        widget = self.widget
+        )
+    if dialog.ShowModal( self.widget.GetVisibleDataSets() ) != wx.ID_CANCEL:
+      self.widget.SetVisibleDataSets( dialog.selections )
+      self.widget.Redraw()
+  #end _OnDataVisibleButton
 
 
   #----------------------------------------------------------------------
@@ -1034,10 +1107,15 @@ definition array for a pullright.
         animator = None
 
         label = item.GetLabel().lower()
-	#xxxxx 'all axial'
 	if label.find( 'detector axial' ) >= 0:
 	  animator = DetectorAxialAnimator(
               self.widget, callback = AnimationCallback()
+	      )
+
+	elif label.find( 'fluence axial' ) >= 0:
+	  animator = FluenceAxialAnimator(
+              self.widget, callback = AnimationCallback(),
+	      logger = self.logger
 	      )
 
 	elif label.find( 'pin axial' ) >= 0:
@@ -1053,12 +1131,6 @@ definition array for a pullright.
 
 	elif label.find( 'subpin axial' ) >= 0:
 	  animator = SubPinAxialAnimator(
-              self.widget, callback = AnimationCallback(),
-	      logger = self.logger
-	      )
-
-	elif label.find( 'tally axial' ) >= 0:
-	  animator = TallyAxialAnimator(
               self.widget, callback = AnimationCallback(),
 	      logger = self.logger
 	      )
@@ -1095,42 +1167,30 @@ definition array for a pullright.
   #end _OnShowInNewWindow
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnTally()					-
-  #----------------------------------------------------------------------
-  def _OnTally( self, attr_name, value, ev ):
-    """
-"""
-    if ev is not None:
-      ev.Skip()
-
-    tally_addr = self.state.tallyAddr.copy()
-    tally_addr.update( { attr_name: value } )
-    self.FireStateChange( tally_addr = tally_addr )
-
-#    tally_addr = []
-#    for i in xrange( len( self.state.tallyAddr ) ):
-#      tally_addr.append(
-#	  value  if addr_ndx == i else  self.state.tallyAddr[ i ]
-#          )
-#    self.FireStateChange( tally_addr = tally_addr )
-  #end _OnTally
+##  #----------------------------------------------------------------------
+##  #	METHOD:		_OnTally()					-
+##  #----------------------------------------------------------------------
+##  def _OnTally( self, attr_name, value, ev ):
+##    """
+##"""
+##    if ev is not None:
+##      ev.Skip()
+##
+##    self.GetTopLevelParent().GetApp().\
+##        DoBusyEventOp( self._OnTallyImpl, attr_name, value )
+##  #end _OnTally
 
 
-  #----------------------------------------------------------------------
-  #	METHOD:		_OnWidgetMenu()					-
-  #----------------------------------------------------------------------
-  def _OnWidgetMenu( self, ev ):
-    """
-@deprecated  just call _OnPopupMenu().
-"""
-    # Only for EVT_CONTEXT_MENU
-    #pos = ev.GetPosition()
-    #pos = self.widgetMenuButton.ScreenToClient( pos )
-    #self.widgetMenuButton.PopupMenu( self.widgetMenu, pos )
-
-    self.widgetMenuButton.PopupMenu( self.widgetMenu )
-  #end _OnWidgetMenu
+##  #----------------------------------------------------------------------
+##  #	METHOD:		_OnTallyImpl()					-
+##  #----------------------------------------------------------------------
+##  def _OnTallyImpl( self, attr_name, value ):
+##    """
+##"""
+##    tally_addr = self.state.tallyAddr.copy()
+##    tally_addr.update( { attr_name: value } )
+##    self.FireStateChange( tally_addr = tally_addr )
+##  #end _OnTallyImpl
 
 
   #----------------------------------------------------------------------
@@ -1149,6 +1209,28 @@ definition array for a pullright.
     """
 Must be called from the UI event thread
 """
+    if self.animateOptionsDialog is None:
+      self.animateOptionsDialog = AnimateOptionsDialog( self, -1 )
+
+    if self.animateOptionsDialog.ShowModal() != wx.ID_CANCEL:
+      file_path = self._CheckAndPromptForAnimatedImage( file_path )
+      if file_path is not None:
+        animator.Run(
+	    file_path,
+	    self.animateOptionsDialog.frame_delay,
+	    self.animateOptionsDialog.show_selections
+	    )
+    #end if dialog not canceled
+  #end SaveWidgetAnimatedImage
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		SaveWidgetAnimatedImage_1()			-
+  #----------------------------------------------------------------------
+  def SaveWidgetAnimatedImage_1( self, animator, file_path = None ):
+    """
+Must be called from the UI event thread
+"""
     file_path = self._CheckAndPromptForAnimatedImage( file_path )
 
     if file_path is not None:
@@ -1159,7 +1241,7 @@ Must be called from the UI event thread
 	  )
       animator.Run( file_path, answer == wx.YES )
     #end if we have a destination file path
-  #end SaveWidgetAnimatedImage
+  #end SaveWidgetAnimatedImage_1
 
 
   #----------------------------------------------------------------------

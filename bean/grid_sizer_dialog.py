@@ -18,7 +18,7 @@ try:
 except ImportException:
   raise ImportError, 'The wxPython module is required for this component'
 
-from grid_sizer_bean import *
+from .grid_sizer_bean import *
 
 
 #------------------------------------------------------------------------
@@ -169,7 +169,7 @@ Properties:
 
 #	-- ** EndModel() not passing result to caller via ShowModal() **
     obj = ev.GetEventObject()
-    retcode = 0  if obj.GetLabel() == 'Cancel' else  1
+    retcode = wx.ID_CANCEL  if obj.GetLabel() == 'Cancel' else  wx.ID_OK
 
     if obj.GetLabel() != 'Cancel':
       self.fResult = self.fBean.value
@@ -185,6 +185,6 @@ Properties:
     self.fResult = None
     if value is not None:
       self.fBean.value = value
-    super( GridSizerDialog, self ).ShowModal()
+    return  super( GridSizerDialog, self ).ShowModal()
   #end ShowModal
 #end GridSizerDialog

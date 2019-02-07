@@ -8,9 +8,9 @@ import argparse, h5py, logging, math, os, re, sys, traceback
 import numpy as np
 import pdb
 
-#sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
+#sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), os.pardir ) )
 
-from data.utils import *
+from .utils import *
 
 PATTERN_ws = re.compile( '[\s,]+' )
 

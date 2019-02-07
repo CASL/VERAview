@@ -38,6 +38,12 @@ if not exist "%CondaDir%\pythonw.exe" goto not_found
 set PythonCommand=%CondaDir%\pythonw.exe
 goto found
 
+:try_5
+set CondaDir=C:\ProgramData\Miniconda2
+if not exist "%CondaDir%\pythonw.exe" goto not_found
+set PythonCommand=%CondaDir%\pythonw.exe
+goto found
+
 :not_found
 echo msgbox "Anaconda2/Miniconda2 installation not found.  Edit this script to set the CondaDir variable." > %temp%\msg.vbs
 call "%temp%\msg.vbs"

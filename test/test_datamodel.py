@@ -8,7 +8,7 @@
 import os, sys, traceback, unittest
 import pdb  # set_trace()
 
-sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
+sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), os.pardir ) )
 
 from data.datamodel import *
 

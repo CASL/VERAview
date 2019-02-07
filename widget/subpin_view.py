@@ -35,8 +35,9 @@ except Exception:
 
 from data.utils import DataUtils
 from event.state import *
-from raster_widget import *
-from widget import *
+
+from .raster_widget import *
+from .widget import *
 
 
 MIN_PIN_CIRCLE_R = 1

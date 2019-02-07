@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		core_view.py					-
 #	HISTORY:							-
+#		2018-12-24	leerw@ornl.gov				-
+#         Invoking VeraViewApp.DoBusyEventOp() in event handlers.
 #		2018-03-10	leerw@ornl.gov				-
 #	  Calling self.mapper.to_rgba() once per assembly.
 #		2018-03-02	leerw@ornl.gov				-
@@ -156,7 +158,7 @@
 #	  Added popup on assembly.
 #		2015-01-06	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import logging, math, os, sys, threading, time, timeit, traceback
+import logging, math, os, six, sys, threading, time, timeit, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -175,8 +177,10 @@ except Exception:
 
 from data.datamodel import *
 from event.state import *
-from raster_widget import *
-from widget import *
+
+from .raster_widget import *
+from .widget import *
+#from .widget_ops import *
 
 
 #------------------------------------------------------------------------
@@ -796,7 +800,6 @@ If neither are specified, a default 'scale' value of 4 is used.
       wd, ht = config[ 'clientSize' ]
 
       # label : core : font-sp : legend
-      #xxxxx revisit font_size, bigger than pixel
       region_wd = wd - label_size[ 0 ] - 2 - (font_size << 1) - legend_size[ 0 ]
       assy_wd = region_wd / self.cellRange[ -2 ]
 
@@ -805,8 +808,14 @@ If neither are specified, a default 'scale' value of 4 is used.
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
       assy_ht = region_ht / self.cellRange[ -1 ]
 
-      if assy_ht < assy_wd:
-        assy_wd = assy_ht
+#x      if assy_ht < assy_wd:
+#x        assy_wd = assy_ht
+      if self.fitMode == 'wd':
+        if assy_wd < assy_ht:
+          assy_wd = assy_ht
+      else:
+        if assy_ht < assy_wd:
+          assy_wd = assy_ht
 
       if self.nodalMode:
         pin_wd = max( 1, (assy_wd - 2) >> 1 )
@@ -817,11 +826,12 @@ If neither are specified, a default 'scale' value of 4 is used.
       else:
         pin_wd = max( 1, (assy_wd - 2) / core.npin )
         assy_wd = pin_wd * core.npin + 1
-      assy_advance = assy_wd
+      #x assy_advance = assy_wd
+      assy_advance = assy_wd + 1
       core_wd = self.cellRange[ -2 ] * assy_advance
       core_ht = self.cellRange[ -1 ] * assy_advance
 
-    else:
+    else:  # we don't do this any more
       pin_wd = kwargs[ 'scale' ] if 'scale' in kwargs else 4
 
       if self.nodalMode:
@@ -833,7 +843,8 @@ If neither are specified, a default 'scale' value of 4 is used.
         assy_wd = pin_wd * (core.npin + 1) + 1
       else:
         assy_wd = pin_wd * core.npin + 1
-      assy_advance = assy_wd
+      #x assy_advance = assy_wd
+      assy_advance = assy_wd + 1
 
       #font_size = self._CalcFontSize( 768 )
 
@@ -847,6 +858,9 @@ If neither are specified, a default 'scale' value of 4 is used.
 
       config[ 'clientSize' ] = ( wd, ht )
     #end if-else
+
+#               -- For drawing purposes, assy_wd = assy_advance - 1
+    #y assy_advance = assy_wd
 
     region_x = label_size[ 0 ] + 2
     region_y = label_size[ 1 ] + 2
@@ -1508,18 +1522,16 @@ animated.  Possible values are 'axial:detector', 'axial:pin', 'statepoint'.
 	    )
         primary_pen = wx.ThePenList.FindOrCreatePen(
 #	    wx.Colour( 255, 255, 255, 255 ),
-	    wx.Colour( 255, 0, 0, 255 ),
-	    #max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+            HILITE_COLOR_primary,
 	    line_wd, wx.PENSTYLE_SOLID
 	    )
         secondary_pen = wx.ThePenList.FindOrCreatePen(
-	    wx.Colour( 255, 255, 0, 255 ),
-	    #max( half_line_wd, 1 ), wx.PENSTYLE_SOLID
+	    HILITE_COLOR_secondary,
 	    line_wd, wx.PENSTYLE_SOLID
 	    )
       else:
         select_pen = wx.ThePenList.FindOrCreatePen(
-            wx.Colour( 255, 0, 0, 255 ),
+            HILITE_COLOR_primary,
 	    line_wd, wx.PENSTYLE_SOLID
 	    )
       #end if-else self.nodalMode
@@ -1765,7 +1777,19 @@ be overridden by subclasses.
 """
     x = ev.GetX()
     y = ev.GetY()
+    is_aux = self.IsAuxiliaryEvent( ev )
+    click_count = ev.GetClickCount()
+    self.GetTopLevelParent().GetApp().\
+        DoBusyEventOp( self._OnClickImpl, x, y, is_aux, click_count )
+  #end _OnClick
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnClickImpl()                       -
+  #----------------------------------------------------------------------
+  def _OnClickImpl( self, x, y, is_aux, click_count ):
+    """
+"""
     cell_info = self.FindAssembly( x, y )
     if cell_info is not None and cell_info[ 0 ] >= 0:
       state_args = {}
@@ -1775,7 +1799,6 @@ be overridden by subclasses.
 
       if self.nodalMode:
         node_addr = cell_info[ 5 ]
-        is_aux = self.IsAuxiliaryEvent( ev )
 	if is_aux:
 	  addrs = list( self.auxNodeAddrs )
 	  if node_addr in addrs:
@@ -1787,7 +1810,7 @@ be overridden by subclasses.
 	elif node_addr != self.nodeAddr:
 	  state_args[ 'node_addr' ] = node_addr
 	  state_args[ 'aux_node_addrs' ] = []
-	elif ev.GetClickCount() > 1:
+	elif click_count > 1:
 	  sub_addr = self.dmgr.GetSubAddrFromNode(
 	      node_addr,
 	      'channel' if self.channelMode else 'pin'
@@ -1796,8 +1819,7 @@ be overridden by subclasses.
 	    state_args[ 'sub_addr' ] = sub_addr
 	#end if-elif is_aux
 
-      #if ev.GetClickCount() > 1:
-      elif ev.GetClickCount() > 1:
+      elif click_count > 1:
         pin_addr = cell_info[ 3 : 5 ]
         if pin_addr != self.subAddr:
 	  state_args[ 'sub_addr' ] = pin_addr
@@ -1805,7 +1827,7 @@ be overridden by subclasses.
       if len( state_args ) > 0:
         self.FireStateChange( **state_args )
     #end if cell found
-  #end _OnClick
+  #end _OnClickImpl
 
 
   #----------------------------------------------------------------------
@@ -1829,6 +1851,18 @@ be overridden by subclasses.
   def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
+    self.GetTopLevelParent().GetApp().DoBusyEventOp(
+        self._OnFindMinMaxImpl, mode, all_states_flag, all_assy_flag
+        )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnFindMinMaxImpl()			-
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxImpl( self, mode, all_states_flag, all_assy_flag ):
+    """Calls _OnFindMinMaxPin().
+"""
     #if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
     if self.curDataSet:
       if self.channelMode:
@@ -1839,7 +1873,7 @@ be overridden by subclasses.
         self._OnFindMinMaxPin(
 	    mode, self.curDataSet, all_states_flag, all_assy_flag
 	    )
-  #end _OnFindMinMax
+  #end _OnFindMinMaxImpl
 
 
   #----------------------------------------------------------------------
@@ -1912,7 +1946,20 @@ be overridden by subclasses.
   def _OnMouseUpAssy( self, ev ):
     """
 """
-    pin_info = self.FindPin( *ev.GetPosition() )
+    pos = ev.GetPosition()
+    is_aux = self.IsAuxiliaryEvent( ev )
+    self.GetTopLevelParent().GetApp().\
+        DoBusyEventOp( self._OnMouseUpAssyImpl, pos, is_aux )
+  #end _OnMouseUpAssy
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Core2DView._OnMouseUpAssyImpl()			-
+  #----------------------------------------------------------------------
+  def _OnMouseUpAssyImpl( self, pos, is_aux ):
+    """
+"""
+    pin_info = self.FindPin( *pos )
     if pin_info is None:
       pass
 
@@ -1920,7 +1967,6 @@ be overridden by subclasses.
       node_addr = pin_info[ 2 ]
       valid = self.dmgr.IsValid( self.curDataSet, node_addr = node_addr )
       if valid:
-        is_aux = self.IsAuxiliaryEvent( ev )
 	if is_aux:
 	  addrs = list( self.auxNodeAddrs )
 	  if node_addr in addrs:
@@ -1948,7 +1994,7 @@ be overridden by subclasses.
 	    self.FireStateChange( sub_addr = pin_addr )
       #end if dset
     #end if-else
-  #end _OnMouseUpAssy
+  #end _OnMouseUpAssyImpl
 
 
   #----------------------------------------------------------------------
@@ -1960,7 +2006,8 @@ be overridden by subclasses.
     if len( self.cellRangeStack ) > 0:
       self.cellRange = self.cellRangeStack.pop( -1 )
       self._SetMode( 'core' )
-      self.Redraw()  # self._OnSize( None )
+      #self.Redraw()  # self._OnSize( None )
+      self.GetTopLevelParent().GetApp().DoBusyEventOp( self.Redraw )
   #end _OnUnzoom
 
 

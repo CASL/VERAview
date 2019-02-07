@@ -119,7 +119,7 @@
 #		2015-02-06	leerw@ornl.gov				-
 #	  New grid system.
 #------------------------------------------------------------------------
-import logging, math, os, sys, threading, time, traceback
+import logging, math, os, six, sys, threading, time, traceback
 import numpy as np
 import pdb  #pdb.set_trace()
 
@@ -136,13 +136,11 @@ except Exception:
 #except Exception:
 #  raise ImportError, 'The Python Imaging Library (PIL) required for this component'
 
-#from bean.axial_slider import *
-#from bean.exposure_slider import *
 from data.config import *
 from data.utils import DataUtils
 from event.state import *
-from raster_widget import *
-from widget import *
+from .raster_widget import *
+from .widget import *
 
 
 #------------------------------------------------------------------------
@@ -477,8 +475,14 @@ If neither are specified, a default 'scale' value of 24 is used.
       region_ht = working_ht - label_size[ 1 ] - 2 - (font_size << 1)
       pin_adv_ht = region_ht / self.cellRange[ -1 ]
 
-      if pin_adv_ht < pin_adv_wd:
-        pin_adv_wd = pin_adv_ht
+#x      if pin_adv_ht < pin_adv_wd:
+#x        pin_adv_wd = pin_adv_ht
+      if self.fitMode == 'ht':
+        if pin_adv_ht < pin_adv_wd:
+          pin_adv_wd = pin_adv_ht
+      else:
+        if pin_adv_wd < pin_adv_ht:
+          pin_adv_wd = pin_adv_ht
 
       if self.channelMode:
         pin_gap = 0
@@ -603,6 +607,17 @@ If neither are specified, a default 'scale' value of 24 is used.
   #	METHOD:		Assembly2DView._CreateRasterImage()		-
   #----------------------------------------------------------------------
   def _CreateRasterImage( self, tuple_in, config = None ):
+    try:
+      return  self._CreateRasterImageImpl( tuple_in, config )
+    except:
+      self.logger.exception( "" )
+  #end _CreateRasterImag
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._CreateRasterImageImpl()		-
+  #----------------------------------------------------------------------
+  def _CreateRasterImageImpl( self, tuple_in, config = None ):
     """Called in background task to create the wx.Image for the state.
 @param  tuple_in	0-based ( state_index, assy_ndx, axial_level )
 @param  config		optional config to use instead of self.config
@@ -652,9 +667,6 @@ If neither are specified, a default 'scale' value of 24 is used.
       else:
         dset_array = np.array( dset )
         dset_shape = dset.shape
-
-      ds_range = config[ 'dataRange' ]
-      #value_delta = ds_range[ 1 ] - ds_range[ 0 ]
 
       title_templ, title_size = self._CreateTitleTemplate(
 	  font, self.curDataSet, dset_shape, self.state.timeDataSet,
@@ -847,266 +859,7 @@ If neither are specified, a default 'scale' value of 24 is used.
     #end if valid assy_ndx
 
     return  bmap  if bmap is not None else self.emptyBitmap
-  #end _CreateRasterImage
-
-
-##  #----------------------------------------------------------------------
-##  #	METHOD:		Assembly2DView._CreateRasterImage()		-
-##  #----------------------------------------------------------------------
-##  def _CreateRasterImage( self, tuple_in, config = None ):
-##    """Called in background task to create the wx.Image for the state.
-##@param  tuple_in	0-based ( state_index, axial_level, assy_ndx )
-##@param  config		optional config to use instead of self.config
-##"""
-##    state_ndx = tuple_in[ 0 ]
-##    assy_ndx = tuple_in[ 1 ]
-##    axial_level = tuple_in[ 2 ]
-##    if self.logger.isEnabledFor( logging.DEBUG ):
-##      self.logger.debug( 'tuple_in=%s', str( tuple_in ) )
-##
-##    bmap = None
-##
-##    tuple_valid = self.dmgr.IsValid(
-##	self.curDataSet,
-##        assembly_addr = assy_ndx,
-##	axial_level = axial_level
-##	)
-##
-##    dset_array = None
-##
-##    if config is None:
-##      config = self.config
-##    if config is not None and tuple_valid:
-##      assy_region = config[ 'assemblyRegion' ]
-##      font = config[ 'font' ]
-##      font_size = config[ 'fontSize' ]
-##      im_wd, im_ht = config[ 'imageSize' ]
-##      label_font = config[ 'labelFont' ]
-##      legend_bmap = config[ 'legendBitmap' ]
-##      legend_size = config[ 'legendSize' ]
-##      mapper = config[ 'mapper' ]
-##      pin_gap = config[ 'pinGap' ]
-##      pin_wd = config[ 'pinWidth' ]
-##      value_font = config[ 'valueFont' ]
-##
-##      dset = self.dmgr.GetH5DataSet( self.curDataSet, self.timeValue )
-##      core = self.dmgr.GetCore()
-##
-###		-- "Item" is chan or pin
-##      item_factors = None
-##      if self.state.weightsMode == 'on':
-##        item_factors = self.dmgr.GetFactors( self.curDataSet )
-##
-##      if dset is None:
-##        dset_array = None
-##	dset_shape = ( 0, 0, 0, 0 )
-##      else:
-##        dset_array = np.array( dset )
-##        dset_shape = dset.shape
-##
-##      ds_range = config[ 'dataRange' ]
-##      value_delta = ds_range[ 1 ] - ds_range[ 0 ]
-##
-##      title_templ, title_size = self._CreateTitleTemplate(
-##	  font, self.curDataSet, dset_shape, self.state.timeDataSet,
-##	  assembly_ndx = 3, axial_ndx = 2
-##	  )
-##    #end if valid config
-##
-###		-- Must be valid assy ndx
-###		--
-##    if dset_array is not None and assy_ndx < dset_shape[ 3 ]:
-##      value_draw_list = []
-###			-- Limit axial level
-##      axial_level = min( axial_level, dset_shape[ 2 ] - 1 )
-##      axial_value = self.dmgr.\
-##          GetAxialValue( self.curDataSet, core_ndx = axial_level )
-##
-###			-- Create image
-###			--
-##      bmap, dc = self._CreateEmptyBitmapAndDC( im_wd, im_ht )
-##      gc = self._CreateGraphicsContext( dc )
-##
-##      trans_brush = self._CreateTransparentBrush( gc )
-##      nodata_pen_color = ( 155, 155, 155, 255 )
-##      nodata_pen = gc.CreatePen( wx.Pen( nodata_pen_color, 1 ) )
-##
-##      if self.showLabels:
-##	glabel_font = gc.CreateFont( label_font, wx.BLACK )
-##        gc.SetFont( glabel_font )
-##
-###			-- Loop on rows
-###			--
-##      item_y = assy_region[ 1 ]
-##      for item_row in xrange( self.cellRange[ 1 ], self.cellRange[ 3 ], 1 ):
-###				-- Row label
-###				--
-##	if self.showLabels and item_row < core.npiny:
-##	  label = '%d' % (item_row + 1)
-##	  text_size = gc.GetFullTextExtent( label )
-##	  label_size = ( text_size[ 0 ], text_size[ 1 ] )
-##	  label_y = item_y + ((pin_wd - label_size[ 1 ]) / 2.0)
-##	  #gc.DrawText( label, 1, label_y, trans_brush )
-##	  gc.DrawText( label, 1, label_y )
-##
-##	  if self.channelMode and \
-##	      item_row == min( core.npiny, self.cellRange[ 3 ] - 1 ) - 1:
-##	    label = '%d' % (item_row + 2)
-##	    text_size = gc.GetFullTextExtent( label )
-##	    label_size = ( text_size[ 0 ], text_size[ 1 ] )
-##	    label_y = item_y + pin_wd + pin_gap + \
-##	        ((pin_wd - label_size[ 1 ]) / 2.0)
-##	    #gc.DrawText( label, 1, label_y, trans_brush )
-##	    gc.DrawText( label, 1, label_y )
-##	#end if self.showLabels and item_row < core.npiny
-##
-###				-- Loop on col
-###				--
-##	item_x = assy_region[ 0 ]
-##	for item_col in range( self.cellRange[ 0 ], self.cellRange[ 2 ], 1 ):
-###					-- Column label
-###					--
-##	  if self.showLabels and \
-##	      item_row == self.cellRange[ 1 ] and item_col < core.npinx:
-##	    label = '%d' % (item_col + 1)
-##	    text_size = gc.GetFullTextExtent( label )
-##	    label_size = ( text_size[ 0 ], text_size[ 1 ] )
-##	    label_x = item_x + ((pin_wd - label_size[ 0 ]) / 2.0)
-##	    #gc.DrawText( label, label_x, 1, trans_brush )
-##	    gc.DrawText( label, label_x, 1 )
-##
-##	    if self.channelMode and \
-##	        item_col == min( core.npinx, self.cellRange[ 2 ] - 1 ) - 1:
-##	      label = '%d' % (item_col + 2)
-##	      text_size = gc.GetFullTextExtent( label )
-##	      label_size = ( text_size[ 0 ], text_size[ 1 ] )
-##	      label_x = item_x + pin_wd + pin_gap + \
-##	          ((pin_wd - label_size[ 0 ]) / 2.0)
-##	      #gc.DrawText( label, label_x, 1, trans_brush )
-##	      gc.DrawText( label, label_x, 1 )
-##	  #end if self.showLabels and ...
-##
-###					-- Check row and col in range
-##	  if dset_array is None:
-##	    self.logger.critical( '** A dset_array is None, how did this happen **' )
-##	  if item_row < dset_shape[ 0 ] and item_col < dset_shape[ 1 ]:
-##	    value = dset_array[ item_row, item_col, axial_level, assy_ndx ]
-##	  else:
-##	    value = 0.0
-###					-- Apply pin factors
-###					--
-##	  if item_factors is None:
-##	    item_factor = 1
-##	  elif item_row < item_factors.shape[ 0 ] and \
-##	      item_col < item_factors.shape[ 1 ]:
-##	    item_factor = item_factors[ item_row, item_col, axial_level, assy_ndx ]
-##	  else:
-##	    item_factor = 0
-###					-- Check value and item_factor
-###					--
-##	  if not ( item_factor == 0 or self.dmgr.IsBadValue( value ) ):
-###	    brush_color = Widget.GetColorTuple(
-###	        value - ds_range[ 0 ], value_delta, 255
-###	        )
-##            brush_color = mapper.to_rgba( value, bytes = True )
-##	    gc.SetBrush( gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
-##	        wx.Colour( *brush_color ), wx.BRUSHSTYLE_SOLID
-##		) ) )
-##	    pen_color = Widget.GetDarkerColor( brush_color )
-##	    gc.SetPen( gc.CreatePen( wx.Pen( pen_color, 1 ) ) )
-##
-##	    gc.DrawRectangle( item_x, item_y, pin_wd, pin_wd )
-##
-##	    if value_font is not None:
-##	      value_draw_list.append((
-##	          self._CreateValueString( value ),
-##                  Widget.GetContrastColor( *brush_color ),
-##                  item_x, item_y, pin_wd, pin_wd
-##                  ))
-##	    #end if value_font defined
-##
-##	  else:
-##	    gc.SetBrush( trans_brush )
-##	    gc.SetPen( nodata_pen )
-##	    gc.DrawRectangle( item_x, item_y, pin_wd, pin_wd )
-##	  #if-else good value, not hidden by item_factor
-##
-##	  item_x += pin_wd + pin_gap
-##	#end for item_col
-##
-##	item_y += pin_wd + pin_gap
-##      #end for item_row
-##
-###			-- Draw pins
-###			--
-##      if self.channelMode and self.showChannelPins:
-##        brush_color = ( 155, 155, 155, 128 )
-##	#gc.SetBrush( gc.CreateBrush( wx.Brush( brush_color, wx.SOLID ) ) )
-##	gc.SetBrush( gc.CreateBrush( wx.TheBrushList.FindOrCreateBrush(
-##	    wx.Colour( *brush_color ), wx.BRUSHSTYLE_SOLID
-##	    ) ) )
-##	pen_color = Widget.GetDarkerColor( brush_color, 128 )
-##	gc.SetPen( gc.CreatePen( wx.Pen( pen_color, 1 ) ) )
-##	pin_draw_wd = pin_wd >> 2
-##
-##	pin_y = assy_region[ 1 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
-##	for pin_row in xrange(
-##	    self.cellRange[ 1 ], min( self.cellRange[ 3 ], core.npiny ), 1
-##	    ):
-##	  pin_x = assy_region[ 0 ] + pin_wd + ((pin_gap - pin_draw_wd) >> 1)
-##	  for pin_row in xrange(
-##	      self.cellRange[ 0 ], min( self.cellRange[ 2 ], core.npinx ), 1
-##	      ):
-##	    gc.DrawEllipse( pin_x, pin_y, pin_draw_wd, pin_draw_wd )
-##
-##	    pin_x += pin_wd + pin_gap
-##	  #end for pin_col
-##
-##	  pin_y += pin_wd + pin_gap
-##	#end for pin_row
-##      #end if self.channelMode and self.showChannelPins
-##
-###			-- Draw Values
-###			--
-##      if value_draw_list:
-##        self._DrawValuesWx( value_draw_list, gc )
-##
-###			-- Draw Legend Image
-###			--
-##      if legend_bmap is not None:
-##	gc.DrawBitmap(
-##	    legend_bmap,
-##	    assy_region[ 0 ] + assy_region[ 2 ] + 2 + font_size, 2,
-##	    legend_bmap.GetWidth(), legend_bmap.GetHeight()
-##	    )
-##      else:
-##	legend_size = ( 0, 0 )
-##
-###			-- Draw Title String
-###			--
-##      item_y = max( item_y, legend_size[ 1 ] )
-##      item_y += font_size >> 1
-##
-##      title_str = self._CreateTitleString(
-##	  title_templ,
-##	  #assembly = assy_ndx,
-##	  assembly = core.CreateAssyLabel( *self.assemblyAddr[ 1 : 3 ] ),
-##	  axial = axial_value.cm,
-##	  time = self.timeValue
-##          )
-##      self._DrawStringsWx(
-##	  gc, font,
-##	  ( title_str, ( 0, 0, 0, 255 ),
-##	    #assy_region[ 0 ], item_y, assy_region[ 2 ] - assy_region[ 0 ],
-##	    assy_region[ 0 ], item_y, assy_region[ 2 ],
-##	    'c' )
-##          )
-##
-##      dc.SelectObject( wx.NullBitmap )
-##    #end if valid assy_ndx
-##
-##    return  bmap  if bmap is not None else self.emptyBitmap
-##  #end _CreateRasterImage
+  #end _CreateRasterImageImpl
 
 
   #----------------------------------------------------------------------
@@ -1345,11 +1098,13 @@ Subclasses should override as needed.
 
 	  if i == 0:
 	    gc.SetPen( wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 0, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+                HILITE_COLOR_primary,
+                line_wd, wx.PENSTYLE_SOLID
 		) )
 	  elif secondary_pen is None:
 	    secondary_pen = wx.ThePenList.FindOrCreatePen(
-	        wx.Colour( 255, 255, 0, 255 ), line_wd, wx.PENSTYLE_SOLID
+	        HILITE_COLOR_secondary,
+                line_wd, wx.PENSTYLE_SOLID
 	        )
 	    gc.SetPen( secondary_pen )
 
@@ -1459,13 +1214,23 @@ be overridden by subclasses.
   def _OnClick( self, ev ):
     """
 """
-    #ev.Skip()
+    pos = ev.GetPosition()
     is_aux = self.IsAuxiliaryEvent( ev )
+    self.GetTopLevelParent().GetApp().\
+        DoBusyEventOp( self._OnClickImpl, pos, is_aux )
+  #end _OnClick
 
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._OnClickImpl()			-
+  #----------------------------------------------------------------------
+  def _OnClickImpl( self, pos, is_aux ):
+    """
+"""
 #		-- Validate
 #		--
     valid = False
-    pin_addr = self.FindPin( *ev.GetPosition() )
+    pin_addr = self.FindPin( *pos )
 
     if pin_addr is not None and pin_addr != self.subAddr:
       valid = self.dmgr.IsValid(
@@ -1516,6 +1281,18 @@ be overridden by subclasses.
   def _OnFindMinMax( self, mode, all_states_flag, all_assy_flag, ev ):
     """Calls _OnFindMinMaxPin().
 """
+    self.GetTopLevelParent().GetApp().DoBusyEventOp(
+        self._OnFindMinMaxImpl, mode, all_states_flag, all_assy_flag
+        )
+  #end _OnFindMinMax
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		Assembly2DView._OnFindMinMaxImpl()              -
+  #----------------------------------------------------------------------
+  def _OnFindMinMaxImpl( self, mode, all_states_flag, all_assy_flag ):
+    """Calls _OnFindMinMaxPin().
+"""
     #if DataModel.IsValidObj( self.data ) and self.pinDataSet is not None:
     if self.curDataSet:
       if self.channelMode:
@@ -1526,7 +1303,7 @@ be overridden by subclasses.
         self._OnFindMinMaxPin(
 	    mode, self.curDataSet, all_states_flag, all_assy_flag
 	    )
-  #end _OnFindMinMax
+  #end _OnFindMinMaxImpl
 
 
   #----------------------------------------------------------------------

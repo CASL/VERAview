@@ -549,6 +549,17 @@ Must pass the 'ds_names' parameter.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataSetChooserDialog.GetApp()                   -
+  #----------------------------------------------------------------------
+  def GetApp( self ):
+    """Not sure why this is necessary, but ``wx.App.Get()`` called in
+DataModelMenu returns a ``wx.App`` instance, not a ``VeraViewApp`` instance.
+"""
+    return  wx.App.Get()
+  #end GetApp
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataSetChooserDialog.GetResult()		-
   #----------------------------------------------------------------------
   def GetResult( self ):
@@ -635,7 +646,7 @@ Must pass the 'ds_names' parameter.
     self.fResult = None
     if bean_value is not None:
       self.fBean.value = bean_value
-    super( DataSetChooserDialog, self ).ShowModal()
+    return  super( DataSetChooserDialog, self ).ShowModal()
   #end ShowModal
 
 #end DataSetChooserDialog

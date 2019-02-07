@@ -3,6 +3,8 @@
 #------------------------------------------------------------------------
 #	NAME:		plot_dataset_props.py				-
 #	HISTORY:							-
+#		2018-09-12	leerw@ornl.gov				-
+#	  Added draw order field.
 #		2017-07-21	leerw@ornl.gov				-
 #	  Fixing _OnCharHook for Linux.
 #		2017-03-31	leerw@ornl.gov				-
@@ -16,7 +18,7 @@
 #	  Enforcing axis selections.
 #		2016-05-19	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import functools, json, math, os, sys
+import functools, json, math, os, six, sys
 import pdb  #pdb.set_trace()
 
 try:
@@ -51,6 +53,15 @@ bottom axis check, and scale value text control.
       axis1 = 'Bottom',
       axis2 = 'Top'
       ):
+    """
+    Args:
+        container (wx.Window): parent object
+	wid (int): element id, defaults to -1 or wx.ID_ANY
+	ds_props (dict): keyed by qds_name, settings with which to
+	    initialize this bean
+	axis1 (str): primary axis name
+	axis2 (str): secondary axis name
+"""
     super( PlotDataSetPropsBean, self ).__init__(
         container, wid,
 	agwStyle = wx.LC_REPORT | wx.LC_VRULES | wx.LC_SINGLE_SEL |
@@ -66,12 +77,13 @@ bottom axis check, and scale value text control.
     self.InsertColumn( 1, axis1 + ' Axis' )
     self.InsertColumn( 2, axis2 + ' Axis' )
     self.InsertColumn( 3, 'Scale', width = 128 )
+    self.InsertColumn( 4, 'Draw Order', width = 64 )
 
     self.fEvenColor = wx.Colour( 240, 240, 255 )
     self.fOddColor = wx.Colour( 240, 255, 240 )
 
     if ds_props and isinstance( ds_props, dict ):
-      self.SetValue( ds_props )
+      self.SetProps( ds_props )
   #end __init__
 
 
@@ -83,6 +95,7 @@ bottom axis check, and scale value text control.
 values.
 @return			dict of dataset properties keyed by name with keys:
 			  axis:  axis name or ''
+			  draworder: 1-based draw order sequence
 			  scale:  scale value
 """
     no_axis_names = []
@@ -107,8 +120,14 @@ values.
       except ValueError:
         scale = 1.0
 
-      props[ DataSetName( name ) ] = dict( axis = axis, scale = scale )
-      #props[ name ] = { 'axis': axis, 'scale': scale }
+      order_str = self.GetItemWindow( row, 4 ).GetValue()
+      try:
+        order = int( order_str )
+      except ValueError:
+        order = 999999
+
+      props[ DataSetName( name ) ] = \
+          dict( axis = axis, draworder = order, scale = scale )
     #end for
 
     if not have_axes[ 0 ] and len( no_axis_names ) > 0:
@@ -191,7 +210,10 @@ values.
 
     if props:
       ndx = 0
-      for qds_name, rec in sorted( props.iteritems() ):
+      #for qds_name, rec in sorted( props.iteritems() ):
+      for qds_name, rec in \
+          sorted( props.items(), PlotDataSetPropsBean.CompareRecs ):
+	rec[ 'draworder' ] = ndx + 1
 	if rec.get( 'visible', False ):
 	  name = qds_name.name
           self.InsertStringItem( ndx, name )
@@ -221,6 +243,12 @@ values.
 	  edit.Bind( wx.EVT_SET_FOCUS, self._OnFocusSet )
 	  self.SetItemWindow( ndx, 3, edit, expand = True )
 
+#			-- Draw Order
+	  edit = wx.TextCtrl( self, wx.ID_ANY, value = str( ndx + 1 ) )
+	  edit.Bind( wx.EVT_KILL_FOCUS, self._OnFocusKill )
+	  edit.Bind( wx.EVT_SET_FOCUS, self._OnFocusSet )
+	  self.SetItemWindow( ndx, 4, edit, expand = True )
+
 	  self.SetItemBackgroundColour(
 	      ndx,
 	      self.fEvenColor if ndx % 2 == 0 else self.fOddColor
@@ -231,6 +259,35 @@ values.
       #end for qds_name, rec in sorted( props.iteritems() )
     #end if props
   #end _UpdateControls
+
+
+#		-- Static Methods
+#		--
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		PlotDataSetPropsBean.CompareRecs()		-
+  #----------------------------------------------------------------------
+  @staticmethod
+  def CompareRecs( one, two ):
+    """
+"""
+    order_one = one[ 1 ].get( 'draworder', 999999 )
+    order_two = two[ 1 ].get( 'draworder', 999999 )
+    result = \
+        -1  if order_one < order_two else \
+	1  if order_one > order_two else \
+	0
+    if result == 0:
+      result = \
+          -1  if one[ 0 ] < two[ 0 ] else \
+	  1  if one[ 0 ] > two[ 0 ] else \
+	  0
+
+    return  result
+  #end CompareRecs
+
+#end PlotDataSetPropsBean
 
 
 #------------------------------------------------------------------------
@@ -315,7 +372,7 @@ class PlotDataSetPropsDialog( wx.Dialog ):
     self.Bind( wx.EVT_CHAR_HOOK, self._OnCharHook )
 
     self.SetSize( wx.Size( 640, 400 ) )
-    self.SetTitle( 'DataSet Plot Properties' )
+    self.SetTitle( 'Dataset Plot Properties' )
     #sizer.Layout()
     #self.Fit()
     #self.Center()
@@ -365,7 +422,7 @@ class PlotDataSetPropsDialog( wx.Dialog ):
     self.fProps = {}
 
     self.fBean.SetProps( ds_props if ds_props else {} )
-    super( PlotDataSetPropsDialog, self ).ShowModal()
+    return  super( PlotDataSetPropsDialog, self ).ShowModal()
   #end ShowModal
 
 #end PlotDataSetPropsDialog

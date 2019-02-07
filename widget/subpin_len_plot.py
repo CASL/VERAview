@@ -5,7 +5,7 @@
 #	HISTORY:							-
 #		2018-05-04	leerw@ornl.gov				-
 #------------------------------------------------------------------------
-import logging, math, os, sys, time, traceback
+import logging, math, os, six, sys, time, traceback
 import numpy as np
 import pdb  # pdb.set_trace()
 
@@ -29,13 +29,12 @@ try:
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
 
-#from bean.dataset_chooser import *
-from bean.plot_dataset_props import *
 from event.state import *
 
-from plot_widget import *
-from widget import *
-from widgetcontainer import *
+from .bean.plot_dataset_props import *
+from .plot_widget import *
+from .widget import *
+from .widgetcontainer import *
 
 
 #------------------------------------------------------------------------
@@ -71,7 +70,8 @@ Properties:
     #self.auxNodeAddrs = []
     self.auxSubAddrs = []
     #self.ax2 = None
-    self.axialValue = DataModel.CreateEmptyAxialValueObject()
+    #self.axialValue = DataModel.CreateEmptyAxialValue()
+    self.axialValue = AxialValue()
     self.curDataSet = None
 #    self.dataSetDialog = None
 #    self.dataSetSelections = {}  # keyed by DataSetName
@@ -562,6 +562,7 @@ Must be called from the UI thread.
     return  kwargs
   #end _UpdateStateValues
 
+
   #----------------------------------------------------------------------
   #	METHOD:		_FindDataSetValues()				-
   #----------------------------------------------------------------------
@@ -581,7 +582,7 @@ Must be called from the UI thread.
     result = {}
 
 # find theta from x data
-    datax = np.floor(x_ref_value/(2*np.pi)*len(thetas))
+    datax = int( np.floor(x_ref_value/(2*np.pi)*len(thetas)) )
 #find which dataset cursor is in for y
     if y_ref_value > rodradius and y_ref_value < rodradius + crud[datax] :
       datay = 0

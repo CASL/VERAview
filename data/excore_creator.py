@@ -26,10 +26,10 @@ import argparse, h5py, logging, math, os, sys, traceback
 import numpy as np
 import pdb
 
-#sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), '..' ) )
+#sys.path.insert( 0, os.path.join( os.path.dirname( __file__ ), os.pardir ) )
 #sys.path.insert( 0, VVDIR )
 
-from data.utils import *
+from .utils import *
 
 
 DEF_barrel_outer_cm = 193.68

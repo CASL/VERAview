@@ -113,6 +113,8 @@ Properties:
 """
     self.fWindow = HtmlMessageWindow( self )
     if message:
+      message = \
+          message.replace( '\r\n', '<p/>' ).replace( '\n', '<p/>' )
       self.fWindow.SetPage( message )
 
     close_button = wx.Button( self, label = '&Close' )
@@ -151,15 +153,6 @@ Properties:
     if mode == 'close':
       self.EndModal( 0 )
   #end _OnButton
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		HtmlMessageDialog.ShowModal()			-
-  #----------------------------------------------------------------------
-#  def ShowModal( self ):
-#    #self.fResult = None
-#    super( HtmlMessageDialog, self ).ShowModal()
-#  #end ShowModal
 
 
 #		-- Property Definitions
@@ -213,7 +206,7 @@ Properties:
     """
 """
     dialog = HtmlMessageDialog( parent, wx.ID_ANY, caption, message = message )
-    dialog.ShowModal()
+    return  dialog.ShowModal()
   #end ShowBox
 
 #end HtmlMessageDialog

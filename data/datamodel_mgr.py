@@ -3,6 +3,27 @@
 #------------------------------------------------------------------------
 #	NAME:		datamodel_mgr.py				-
 #	HISTORY:							-
+#		2019-01-28	leerw@ornl.gov				-
+#         Rounding "exposure.." time values to 3 decimal places in
+#         _UpdateTimeValues().
+#		2019-01-15	leerw@ornl.gov				-
+#         Replacing 'tally' with 'fluence'.
+#		2018-10-19	leerw@ornl.gov				-
+#	  Replaced GetRadialMesh() with CalcRadialMesh() after guidance
+#	  from Travis Lange and Cole Gentry on how to compute pin radius.
+#		2018-10-18	leerw@ornl.gov				-
+#	  Calling FixDuplicates() in _UpdateTimeValues().
+#		2018-10-03	leerw@ornl.gov				-
+#	  Added use_factors param to GetRange() and GetRangeAll().
+#		2018-09-13	leerw@ornl.gov				-
+#	  Added HasNodalDataSetType().
+#		2018-09-05	leerw@ornl.gov				-
+#	  Modifying ReadDataSetTimeValues() to return the x-axis values
+#	  as well.
+#		2018-08-31	leerw@ornl.gov				-
+#	  New approach for radialMeshDict.
+#		2018-08-24	leerw@ornl.gov				-
+#	  Added radialMeshDict.
 #		2018-07-26	leerw@ornl.gov				-
 #	  Renaming non-derived dataset category/type from 'axial' to
 #	  'axials' to disambiguate from ':axial' displayed name.
@@ -68,9 +89,9 @@ import bisect, cStringIO, functools, h5py, \
 import numpy as np
 import pdb
 
-from data.datamodel import *
-from data.differences import *
-from data.utils import *
+from .datamodel import *
+from .differences import *
+from .utils import *
 from event.event import *
 
 
@@ -139,10 +160,6 @@ Properties:
   def __init__( self ):
     """
 """
-#    self.allMesh = \
-#    self.allMeshCenters = \
-#    self.axialMesh = \
-#    self.axialMeshCenters = None
     self.axialMeshCentersDict = {}
     self.axialMeshDict = {}
     self.core = None
@@ -150,18 +167,106 @@ Properties:
     self.dataModels = {}
     #self.dataSetNamesVersion = 0
     self.detectorMap = None
-#    self.detectorMesh = \
-#    self.fixedDetectorMesh = \
-#    self.fixedDetectorMeshCenters = None
     self.listeners = \
         { 'dataSetAdded': [], 'modelAdded': [], 'modelRemoved': [] }
     self.logger = logging.getLogger( 'data' )
     self.maxAxialValue = 0.0
-#    self.tallyMesh = \
-#    self.tallyMeshCenters = None
     self.timeDataSet = 'state'
     self.timeValues = []
     self.timeValuesById = {}
+
+#	-- Method aliases
+#	--
+    self.add_listener = self.AddListener
+    self.calc_radial_mesh = self.CalcRadialMesh
+    self.check_data_model_is_compatible = self.CheckDataModelIsCompatible
+    self.close = self.Close
+    self.close_model = self.CloseModel
+    self.create_assembly_addr = self.CreateAssemblyAddr
+    self.create_assembly_addr_from_index = self.CreateAssemblyAddrFromIndex
+    self.create_detector_addr = self.CreateDetectorAddr
+    self.create_detector_addr_from_index = self.CreateDetectorAddrFromIndex
+    self.create_diff_dataset = self.CreateDiffDataSet
+    self.extract_symmetry_extent = self.ExtractSymmetryExtent
+    self.find_channel_min_max_value = self.FindChannelMinMaxValue
+    self.find_fluence_min_max_value = self.FindFluenceMinMaxValue
+    self.find_multi_dataset_min_max_value = self.FindMultiDataSetMinMaxValue
+    self.find_pin_min_max_value = self.FindPinMinMaxValue
+    self._fire_event = self._FireEvent
+    self.get_axial_mesh = self.GetAxialMesh2
+    self.get_axial_mesh_centers = self.GetAxialMeshCenters2
+    self.get_axial_mesh_centers_index = self.GetAxialMeshCentersIndex
+    self.get_axial_mesh_index = self.GetAxialMeshIndex
+    self.get_axial_value = self.GetAxialValue
+    self._get_axial_value_rec = self._GetAxialValueRec
+    self.get_core = self.GetCore
+    self.get_data_model = self.GetDataModel
+    self.get_data_model_count = self.GetDataModelCount
+    self.get_data_model_names = self.GetDataModelNames
+    self.get_data_model_dataset_names = self.GetDataModelDataSetNames
+    self.get_data_models = self.GetDataModels
+    self.get_dataset_def_by_qname = self.GetDataSetDefByQName
+    self.get_dataset_display_name = self.GetDataSetDisplayName
+    self.get_dataset_has_sub_addr = self.GetDataSetHasSubAddr
+    self.get_dataset_scale_type = self.GetDataSetScaleType
+    self.get_dataset_scale_type_all = self.GetDataSetScaleTypeAll
+    self.get_dataset_threshold = self.GetDataSetThreshold
+    self.get_dataset_qnames = self.GetDataSetQNames
+    self.get_dataset_type = self.GetDataSetType
+    self.get_dataset_types = self.GetDataSetTypes
+    self.get_detector_mesh = self.GetDetectorMesh
+    self.get_detector_mesh_index = self.GetDetectorMeshIndex
+    self.get_factors = self.GetFactors
+    self.get_first_data_model = self.GetFirstDataModel
+    self.get_first_dataset = self.GetFirstDataSet
+    self.get_fixed_detector_mesh = self.GetFixedDetectorMesh
+    self.get_fixed_detector_mesh_centers = self.GetFixedDetectorMeshCenters
+    self.get_fixed_detector_mesh_centers_index = self.GetFixedDetectorMeshCentersIndex
+    self.get_fluence_mesh = self.GetFluenceMesh
+    self.get_fluence_mesh_centers = self.GetFluenceMeshCenters
+    self.get_fluence_mesh_index = self.GetFluenceMeshIndex
+    self.get_max_axial_value = self.GetMaxAxialValue
+    self.get_node_addr = self.GetNodeAddr
+    self.get_node_addrs = self.GetNodeAddrs
+    self.get_node_pin_addr = self.GetNodePinAddr
+    self.get_pin_node_addr = self.GetPinNodeAddr
+    #self.get_radial_mesh = self.GetRadialMesh
+    self.get_range = self.GetRange
+    self.get_range_all = self.GetRangeAll
+    self.get_sub_addr_from_node = self.GetSubAddrFromNode
+    self.get_time_dataset = self.GetTimeDataSet
+    self.get_time_index_value = self.GetTimeIndexValue
+    self.get_time_value_index = self.GetTimeValueIndex
+    self.get_time_values = self.GetTimeValues
+    self.has_data = self.HasData
+    self.has_dataset_type = self.HasDataSetType
+    self.is_3d_ready = self.Is3DReady
+    self.is_bad_value = self.IsBadValue
+    self.is_channel_type = self.IsChannelType
+    self.is_derived_dataset = self.IsDerivedDataSet
+    self.is_detector_operable = self.IsDetectorOperable
+    self.is_nodal_type = self.IsNodalType
+    self.is_valid = self.IsValid
+    self.load_dataset_thresholds = self.LoadDataSetThresholds
+    self.normalize_assembly_addr = self.NormalizeAssemblyAddr
+    self.normalize_log_range = self.NormalizeLogRange
+    self.normalize_node_addr = self.NormalizeNodeAddr
+    self.normalize_node_addrs = self.NormalizeNodeAddrs
+    self.normalize_sub_addr = self.NormalizeSubAddr
+    self.normalize_sub_addrs = self.NormalizeSubAddrs
+    self.open_file = self.OpenModel
+    self.read_dataset = self.GetH5DataSet
+    self.read_dataset_axial_values = self.ReadDataSetAxialValues
+    self.read_dataset_time_values = self.ReadDataSetTimeValues
+    self.remove_listener = self.RemoveListener
+    self.resolve_available_time_datasets = self.ResolveAvailableTimeDataSets
+    self._resolve_data_model_name = self._ResolveDataModelName
+    self.revert_if_derived_dataset = self.RevertIfDerivedDataSet
+    self.save_dataset_thresholds = self.SaveDataSetThresholds
+    self.set_dataset_threshold = self.SetDataSetThreshold
+    self.set_time_dataset = self.SaveDataSetThresholds
+    self._update_mesh_values = self._UpdateMeshValues
+    self._update_time_values = self._UpdateTimeValues
   #end __init__
 
 
@@ -178,6 +283,37 @@ Properties:
         self.listeners[ event_name ].append( listener )
     #end if event_name
   #end AddListener
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CalcRadialMesh()			-
+  #----------------------------------------------------------------------
+  def CalcRadialMesh( self,
+      model_param, pin_col, pin_row, axial_level, assy_ndx, nrings
+      ):
+    """
+    Args:
+	model_param (DataSetName or str): a DataSetName instance or a
+	    model name string
+	pin_col (int): 0-based pin column index
+	pin_row (int): 0-based row column index
+	axial_level (int): 0-based axial index
+        assy_ndx (int): 0-based assembly index
+	nrings (int): number of radials
+    Returns:
+        list(float): nrings + 1 values from inside to outside (low to high)
+"""
+    mesh = None
+    dm = self.GetDataModel( model_param )
+    if dm is not None:
+      area = \
+          dm.core.pinVolumes[ pin_row, pin_col, axial_level, assy_ndx ] / \
+          (dm.core.axialMesh[ axial_level + 1 ] - dm.core.axialMesh[ axial_level ])
+      radius = math.sqrt( area / math.pi )
+      mesh = DataUtils.CalcEqualAreaRadii( radius * 2, nrings )
+
+    return  mesh
+  #end CalcRadialMesh
 
 
   #----------------------------------------------------------------------
@@ -256,62 +392,6 @@ Properties:
 
 
   #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.CheckDataModelIsCompatible_orig()	-
-  #----------------------------------------------------------------------
-  def CheckDataModelIsCompatible_orig( self, dm ):
-    """Checks dm for a compatible core geometry.
-@param  dm		DataModel to check
-@throws			Exception with message if incompatible
-"""
-    if dm:
-      if not dm.HasData():
-        raise  Exception( 'Required VERA data not found' )
-
-      msg = ''
-
-      if len( self.dataModelNames ) > 0:
-	cur_core = self.core
-	dm_core = dm.GetCore()
-#			-- Core symmetry
-#			--
-	if cur_core.coreSym != dm_core.coreSym or \
-	    cur_core.nass != dm_core.nass or \
-	    cur_core.nassx != dm_core.nassx or \
-	    cur_core.npinx != dm_core.npinx or \
-	    cur_core.npiny != dm_core.npiny:
-	  msg_fmt = \
-	      '\n* Incompatible core geometry:\n' + \
-	      '\tcoreSym=%d, nass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d\n' + \
-	      'is not compatible with\n' + \
-	      '\tcoreSym=%d, nass=%d, nassx=%d, nassy=%d, npinx=%d, npiny=%d'
-	  msg = msg_fmt % (
-	      dm_core.coreSym, dm_core.nass,
-	      dm_core.nassx, dm_core.nassy,
-	      dm_core.npinx, dm_core.npiny,
-	      cur_core.coreSym, cur_core.nass,
-	      cur_core.nassx, cur_core.nassy,
-	      cur_core.npinx, cur_core.npiny
-	      )
-
-#			-- Core map
-#			--
-	if not np.array_equal( cur_core.coreMap, dm_core.coreMap ):
-	  msg += '\n* core_map differs\n'
-
-#			-- Detector map
-#			--
-#	if self.detectorMap is not None and dm.HasDetectorData() and \
-#	    not np.array_equal( cur_core.detectorMap, dm_core.detectorMap ):
-#	  msg += '\n* detector_map differs\n'
-      #end if len
-
-      if msg:
-        raise  Exception( msg )
-    #end if dm
-  #end CheckDataModelIsCompatible_orig
-
-
-  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.Close()				-
   #----------------------------------------------------------------------
   def Close( self ):
@@ -370,20 +450,85 @@ Properties:
   #----------------------------------------------------------------------
   def CreateAssemblyAddr( self, col, row ):
     """Creates tuple from the column and row indexes.
-@param  col		0-based column index
-@param  row		0-based row index
-@return			0-based ( assy_ndx, col, row )
+    Args:
+        col (int): 0-based column index
+        row (int): 0-based row index
+    Returns:
+        tuple: ( assy_ndx, col, row )
 """
-    core = self.GetCore()
+    core = self.core
     if core is not None and \
 	col >= 0 and row >= 0 and \
         col < core.coreMap.shape[ 1 ] and row < core.coreMap.shape[ 0 ]:
-      result = ( core.coreMap[ row, col ], col, row )
+      result = ( core.coreMap[ row, col ] - 1, col, row )
     else:
       result = ( -1, -1, -1 )
 
     return  result
   #end CreateAssemblyAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CreateAssemblyAddrFromIndex()      -
+  #----------------------------------------------------------------------
+  def CreateAssemblyAddrFromIndex( self, assy_ndx ):
+    """Creates a 3-tuple from the 0-based assembly index.
+    Args:
+        assy_ndx (int): 0-based assembly index
+    Returns:
+        tuple: ( assy_ndx, col, row )
+"""
+    result = ( -1, -1 -1 )
+    if self.core is not None:
+      places = np.argwhere( self.core.coreMap == assy_ndx + 1 )
+      if len( places ) > 0:
+        place = places[ -1 ]
+        result = ( assy_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
+    return  result
+  #end CreateAssemblyAddrFromIndex
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CreateDetectorAddr()		-
+  #----------------------------------------------------------------------
+  def CreateDetectorAddr( self, col, row ):
+    """Creates tuple from the column and row indexes.
+    Args:
+        col (int): 0-based column index
+        row (int): 0-based row index
+    Returns:
+        tuple: ( det_ndx, col, row )
+"""
+    core = self.core
+    if core is not None and \
+	col >= 0 and row >= 0 and \
+        col < core.detectorMap.shape[ 1 ] and row < core.detectorMap.shape[ 0 ]:
+      result = ( core.detectorMap[ row, col ] - 1, col, row )
+    else:
+      result = ( -1, -1, -1 )
+
+    return  result
+  #end CreateDetectorAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.CreateDetectorAddrFromIndex()      -
+  #----------------------------------------------------------------------
+  def CreateDetectorAddrFromIndex( self, det_ndx ):
+    """Creates a 3-tuple from the 0-based detector index.
+    Args:
+        det_ndx (int): 0-based detector index
+    Returns:
+        tuple: ( det_ndx, col, row )
+"""
+    result = ( -1, -1 -1 )
+    if self.core is not None:
+      places = np.argwhere( self.core.detectorMap == det_ndx + 1 )
+      if len( places ) > 0:
+        place = places[ -1 ]
+        result = ( det_ndx, int( place[ 1 ] ), int( place[ 0 ] ) )
+    return  result
+  #end CreateDetectorAddrFromIndex
 
 
   #----------------------------------------------------------------------
@@ -478,6 +623,7 @@ returned.
 			'axial_value', 'sub_addr', 'time_value'
 """
     results = {}
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       state_ndx = \
@@ -499,6 +645,63 @@ returned.
    
     return  results
   #end FindChannelMinMaxValue
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.FindFluenceMinMaxValue()		-
+  #----------------------------------------------------------------------
+  def FindFluenceMinMaxValue(
+      self, mode, fluence_addr, time_value,
+      cur_obj = None, ds_expr = None,
+      radius_start_ndx = 0
+      ):
+    """Creates dict with pin addresses for the "first" (right- and
+bottom-most) occurence of the maximum value of the dataset, which is assumed
+to be a 'pin' dataset.
+If time_value is gt 0, only differences with the corresponding state are
+returned.
+    Args:
+        mode (str): 'min' or 'max', defaulting to the latter
+        fluence_addr (FluenceAddress): instance from dataSetName and other
+            properties are obtained
+        time_value (float): time value to search, or lt 0 for all times
+        cur_obj (object): optional object with attributes/properties to compare
+            against for changes:
+                axialValue (AxialValue instance)
+                fluenceAddr (FluenceAddress instance)
+                stateIndex (int)
+        ds_expr (str): expression to apply to dataset min/max search
+        radius_start_ndx (int): starting 0-based index of radius range of
+            validity
+    Returns:
+        dict: changes with possible keys: 'axial_value', 'fluence_addr',
+            'state_index'
+"""
+    results = {}
+
+    qds_name = fluence_addr.dataSetName
+    dm = self.GetDataModel( qds_name )
+    if dm:
+      state_ndx = \
+          -1  if time_value < 0.0 else \
+	  self.GetTimeValueIndex( time_value, qds_name.modelName )
+      results = dm.FindFluenceMinMaxValue(
+	  mode, fluence_addr, state_ndx,
+	  cur_obj, ds_expr, radius_start_ndx
+          )
+
+      if 'state_index' in results:
+	time_value = self.\
+	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
+        skip = cur_obj is not None and \
+            hasattr( cur_obj, 'timeValue' ) and \
+            getattr( cur_obj, 'timeValue' ) == time_value
+        if not skip:
+	  results[ 'time_value' ] = time_value
+    #end if dm
+   
+    return  results
+  #end FindFluenceMinMaxValue
 
 
   #----------------------------------------------------------------------
@@ -577,6 +780,7 @@ returned.
 			'axial_value', 'sub_addr', 'time_value'
 """
     results = {}
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       state_ndx = \
@@ -601,59 +805,6 @@ returned.
    
     return  results
   #end FindPinMinMaxValue
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.FindTallyMinMaxValue()		-
-  #----------------------------------------------------------------------
-  def FindTallyMinMaxValue(
-      self, mode, tally_addr, time_value,
-      cur_obj = None, ds_expr = None, radius_start_ndx = 0
-      ):
-    """Creates dict with pin addresses for the "first" (right- and
-bottom-most) occurence of the maximum value of the dataset, which is assumed
-to be a 'pin' dataset.
-If time_value is gt 0, only differences with the corresponding state are
-returned.
-@param  mode		'min' or 'max', defaulting to the latter
-@param  tally_addr	TallyAddress instance from which the name, multIndex,
-			and statIndex properties are used
-@param  time_value	value for the current timeDataSet, or -1 for all
-			times/statepoints
-@param  cur_obj		optional object with attributes/properties to
-			compare against for changes: assemblyAddr, axialValue,
-			subAddr, stateIndex
-@param  ds_expr		expression to apply to dataset min/max search,
-			if None, tally_addr.multIndex and .statIndex will
-			be applied in DataModel.FindTallyMinMaxValueAddr()
-@param  radius_start_ndx  starting index of radius range of validity
-@return			changes dict with possible keys: 'assembly_addr',
-			'axial_value', 'sub_addr', 'time_value'
-"""
-    results = {}
-    qds_name = tally_addr.name
-    if qds_name:
-      dm = self.GetDataModel( qds_name )
-    if dm:
-      state_ndx = \
-          -1  if time_value < 0.0 else \
-	  self.GetTimeValueIndex( time_value, qds_name.modelName )
-      results = dm.FindTallyMinMaxValue(
-          mode, tally_addr, state_ndx, cur_obj, ds_expr, radius_start_ndx
-	  )
-
-      if 'state_index' in results:
-	time_value = self.\
-	    GetTimeIndexValue( results[ 'state_index' ], qds_name.modelName )
-        skip = cur_obj is not None and \
-            hasattr( cur_obj, 'timeValue' ) and \
-            getattr( cur_obj, 'timeValue' ) == time_value
-        if not skip:
-	  results[ 'time_value' ] = time_value
-    #end if dm
-   
-    return  results
-  #end FindTallyMinMaxValue
 
 
   #----------------------------------------------------------------------
@@ -701,7 +852,7 @@ the cross-model global mesh.
     """Retrieves the axial mesh for the specified dataset or mesh type.
 @param  qds_name	optional DataSetName instance
 @param  mesh_type	'core', 'detector', 'fixed_detector', 'pin',
-			'subpin', 'tally', or 'all' for the combined mesh
+			'subpin', 'fluence', or 'all' for the combined mesh
 			for all datasets
 @return			mesh for the specified dataset or the
 			cross-model global mesh if qds_name is None
@@ -709,6 +860,7 @@ the cross-model global mesh.
 """
     result = None
     if qds_name is not None:
+      qds_name = DataSetName.Resolve( qds_name )
       dm = self.GetDataModel( qds_name )
       if dm:
 	result = dm.GetAxialMesh( qds_name.displayName, mesh_type )
@@ -746,7 +898,7 @@ the cross-model global mesh centers.
 mesh type.
 @param  qds_name	optional DataSetName instance
 @param  mesh_type	'core', 'fixed_detector', 'pin',
-			'subpin', 'tally', or 'all' for the combined mesh
+			'subpin', 'fluence', or 'all' for the combined mesh
 			for all datasets
 @return			mesh for the specified dataset or the
 			cross-model global mesh if qds_name is None
@@ -754,6 +906,7 @@ mesh type.
 """
     result = None
     if qds_name is not None:
+      qds_name = DataSetName.Resolve( qds_name )
       dm = self.GetDataModel( qds_name )
       if dm:
 	result = dm.GetAxialMeshCenters( qds_name.displayName, mesh_type )
@@ -776,16 +929,17 @@ mesh type.
       self, mesh_value,
       qds_name = None, mesh_type = 'pin'
       ):
-    """Retrieves the axial mesh for the specified dataset or mesh type.
+    """Retrieves the index in the axial mesh for the specified value.
 @param  mesh_value	mesh value in cm
 @param  qds_name	optional DataSetName instance
 @param  mesh_type	'core', 'detector', 'fixed_detector', 'pin',
-			'subpin', 'tally'
-@return			mesh for the specified dataset or the
-			cross-model global mesh if qds_name is None
+			'subpin', 'fluence'
+@return			0-based index in the mesh for the specified dataset
+			or the cross-model global mesh if qds_name is None
 			or not found
 """
     ndx = -1
+    qds_name = DataSetName.Resolve( qds_name )
     mesh = self.GetAxialMeshCenters2( qds_name, mesh_type )
     if mesh is not None and len( mesh ) > 1:
       ndx = bisect.bisect_right( mesh, mesh_value ) - 1
@@ -803,12 +957,13 @@ mesh type.
 @param  mesh_value	mesh value in cm
 @param  qds_name	optional DataSetName instance, overrides ``mesh_type``
 @param  mesh_type	'core', 'detector', 'fixed_detector', 'pin',
-			'subpin', 'tally'
+			'subpin', 'fluence'
 @return			mesh for the specified dataset or the
 			cross-model global mesh if qds_name is None
 			or not found
 """
     ndx = -1
+    qds_name = DataSetName.Resolve( qds_name )
     mesh = self.GetAxialMesh2( qds_name, mesh_type )
     if mesh is not None and len( mesh ) > 1:
       ndx = bisect.bisect_right( mesh, mesh_value ) - 1
@@ -822,37 +977,28 @@ mesh type.
   #	METHOD:		DataModelMgr.GetAxialValue()			-
   #----------------------------------------------------------------------
   def GetAxialValue( self, qds_name = None, **kwargs ):
-    """Retrieves the axial value tuple ( axial_cm, core_ndx, detector_ndx,
-fixed_detector_ndx, tally_ndx, subpin_ndx ) for the specified model.
+    """Retrieves the axial value for the specified model, if specified.
 Otherwise, the
 cross-model levels are used and can be applied only with 'cm' and 'core_ndx'
-arguments.  Calls CreateAxialValue() on the identified DataModel.
-@param  qds_name	optional DataSetName instance
-@param  kwargs		arguments
-    cm				axial value in cm
-    core_ndx			0-based core axial index
-    detector_ndx		0-based detector axial index
-    fixed_detector_ndx		0-based fixed_detector axial index
-    pin_ndx			0-based core axial index, alias for 'core_ndx'
-    subpin_ndx			0-based subpin axial index
-    tally_ndx          		0-based tally axial index
-    value			axial value in cm, alias for 'cm'
-@return			AxialValue instance
-			( axial_cm, core_ndx, detector_ndx, fixed_detector_ndx,
-			  tally_ndx )
+arguments.  Calls ``CreateAxialValue()`` on the identified DataModel.
+    Args:
+        qds_name (DataSetName): optional dataset name from which to find the
+            DataModel
+    Keyword Args:
+        cm (float): axial value in cm
+        core_ndx (int): 0-based core/pin axial index
+        detector_ndx (int): 0-based detector axial index
+        fixed_detector_ndx (int): 0-based fixed detector axial index
+        fluence_ndx (int): 0-based fluence axial index
+        pin_ndx (int): 0-based core/pin axial index
+        subpin_ndx (int): 0-based subpin axial index
+        value (float): axial value in cm, alias for 'cm'
+    Returns:
+        AxialValue: instance
 """
+    qds_name = DataSetName.Resolve( qds_name )
     results = self._GetAxialValueRec( qds_name, **kwargs )
     return  AxialValue( results )
-
-#    tup = (
-#	results.get( 'cm', 0.0 ),
-#	results.get( 'pin', -1 ),
-#	results.get( 'detector', -1 ),
-#	results.get( 'fixed_detector', -1 ),
-#	results.get( 'tally', -1 ),
-#	results.get( 'subpin', -1 )
-#        )
-#    return  tup
   #end GetAxialValue
 
 
@@ -861,16 +1007,17 @@ arguments.  Calls CreateAxialValue() on the identified DataModel.
   #----------------------------------------------------------------------
   def _GetAxialValueRec( self, qds_name = None, **kwargs ):
     """Creates an axial index dict with keys 'cm', 'detector', 'fixed_detector',
-'pin', 'subpin', 'tally'.
+'pin', 'subpin', 'fluence'.
 @param  qds_name	optional DataSetName instance
 Parameters:
   cm			axial value in cm
+  cm_bin                range in cm
   core_ndx		0-based core axial index
   detector_ndx		0-based detector axial index
   fixed_detector_ndx	0-based fixed_detector axial index
   pin_ndx		alias for 'core_ndx'
   subpin_ndx		0-based subpin axial index
-  tally_ndx          	0-based tally axial index
+  fluence_ndx          	0-based fluence axial index
   value			alias for 'cm'
   xxx_ndx		0-based axial index for mesh type 'xxx'
 @return			dictionary of axial index values
@@ -878,14 +1025,16 @@ Parameters:
     results = {}
 
     if qds_name:
+      qds_name = DataSetName.Resolve( qds_name )
       dm = self.GetDataModel( qds_name )
       if dm:
-	results = dm.CreateAxialValueRec( **kwargs )
+	results = dm.CreateAxialValue( **kwargs )
+	#results = dm.CreateAxialValueRec( **kwargs )
 
     elif self.core is not None:
       not_centers_names = set([ 'detector' ])
       predef_names = \
-          set([ 'pin', 'detector', 'fixed_detector', 'subpin', 'tally' ])
+          set([ 'pin', 'detector', 'fixed_detector', 'subpin', 'fluence' ])
 
 #		-- Process arguments
 #		--
@@ -905,6 +1054,9 @@ Parameters:
 	    ndx = max( 0, min( v, len( mesh ) - 1 ) )
 	    results[ name ] = ndx
             results[ 'cm' ] = mesh[ ndx ]
+
+	else:
+	  results[ n ] = kwargs.get( n )
 	#end elif _ndx
       #end for n, v
 
@@ -1006,6 +1158,7 @@ model name or a DataSetName instance.
 			( 'axials', 'channel', 'detector', 'fixed_detector',
 			  'pin', 'scalar', etc. )
 """
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     return  dm.GetDataSetNames( ds_type )  if dm else []
   #end GetDataModelDataSetNames
@@ -1023,6 +1176,26 @@ model name or a DataSetName instance.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetDataSetAttr()			-
+  #----------------------------------------------------------------------
+  def GetDataSetAttr( self, qds_name, attr_name, time_value ):
+    """Retrieves the type for the name dataset.
+    Args:
+        qds_name (DataSetName): dataset name
+        attr_name (str): attribute name
+        time_value (float): time value
+    Returns:
+        obj: value of attribute or None if not found
+"""
+    attr_value = None
+    dset = self.GetH5DataSet( qds_name, time_value )
+    if dset is not None and dset.attrs and attr_name in dset.attrs:
+      attr_value = dset.attrs[ attr_name ]
+    return  attr_value
+  #end GetDataSetAttr
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetDataSetDefByQName()		-
   #----------------------------------------------------------------------
   def GetDataSetDefByQName( self, qds_name ):
@@ -1032,6 +1205,7 @@ dataset.
 @return			dataset definition if found, None otherwise
 """
     ddef = None
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       ddef = dm.GetDataSetDefByDsName( qds_name.displayName )
@@ -1076,6 +1250,7 @@ dataset to determine if it is addressible by sub_addr.
     result = False
     ddef = None
 
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       ddef = dm.GetDataSetDefByDsName( qds_name.displayName )
@@ -1103,6 +1278,7 @@ dataset to determine if it is addressible by sub_addr.
 """
     result = 'linear'
     if qds_name:
+      qds_name = DataSetName.Resolve( qds_name )
       dm = self.GetDataModel( qds_name )
       if dm:
         result = dm.GetDataSetScaleType( qds_name.displayName )
@@ -1156,6 +1332,7 @@ of range expressions for all datasets.
 
     #if isinstance( qds_name, DataSetName ):
     if qds_name:
+      qds_name = DataSetName.Resolve( qds_name )
       dm = self.GetDataModel( qds_name )
       if dm:
         result = dm.GetDataSetThreshold( qds_name.displayName )
@@ -1222,6 +1399,7 @@ If ds_type is None or empty, all types are matched.
 @param  qds_name	DataSetName instance
 @return			type or None
 """
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     return  dm.GetDataSetType( qds_name.displayName )  if dm else  None
   #end GetDataSetType
@@ -1302,13 +1480,24 @@ cross-model mesh is used.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetFactors()			-
   #----------------------------------------------------------------------
-  def GetFactors( self, qds_name ):
+  def GetFactors( self, qds_name, use_pin_factors = False ):
     """Determines the factors from the dataset shape.
-@param  qds_name	name of dataset, DataSetName instance
-@return			factors np.ndarray or None
+    Args:
+        qds_name (DataSetName): dataset name
+        use_pin_factors (bool): True to return pinFactors
+    Returns:
+        np.naddarray: factors array or None
 """
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
-    return  dm.GetFactors( qds_name.displayName )  if dm is not None else  None
+    #return  dm.GetFactors( qds_name.displayName )  if dm is not None else  None
+    result = None
+    if dm is not None:
+      result = \
+          dm.pinFactors  if use_pin_factors else \
+          dm.GetFactors( qds_name.displayName )
+
+    return  result
   #end GetFactors
 
 
@@ -1336,20 +1525,20 @@ cross-model mesh is used.
   #----------------------------------------------------------------------
   def GetFirstDataSet( self, ds_type ):
     """Retrieves the first matching dataset.
-@param  ds_type		datset category/type
-@return			DataSetName instance or None if not found
+@param  ds_type         datset category/type
+@return                 DataSetName instance or None if not found
 """
     qds_name = None
     if ds_type:
       for model_name in self.dataModelNames:
         dm = self.dataModels.get( model_name )
-	ds_name = dm.GetFirstDataSet( ds_type )
-	if ds_name:
-	  qds_name = DataSetName( model_name, ds_name )
-	  break
+        ds_name = dm.GetFirstDataSet( ds_type )
+        if ds_name:
+          qds_name = DataSetName( model_name, ds_name )
+          break
 
     return  qds_name
-  #end GetFirstDataSet
+  #end __init__
 
 
   #----------------------------------------------------------------------
@@ -1411,6 +1600,51 @@ cross-model mesh is used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFluenceMesh()			-
+  #----------------------------------------------------------------------
+  def GetFluenceMesh( self, model_name = None ):
+    """Calls GetAxialMesh2( model_name, 'fluence' ).
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh for the specified model or the
+			cross-model global mesh values if model_name is None
+			or not found
+"""
+    return  self.GetAxialMesh2( model_name, 'fluence' )
+  #end GetFluenceMesh
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFluenceMeshCenters()		-
+  #----------------------------------------------------------------------
+  def GetFluenceMeshCenters( self, model_name = None ):
+    """Calls GetAxialMeshCenters2( model_name, 'fluence' ).
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			mesh for the specified model or the
+			cross-model global mesh values if model_name is None
+			or not found
+"""
+    return  self.GetAxialMeshCenters2( model_name, 'fluence' )
+  #end GetFluenceMeshCenters
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetFluenceMeshIndex()		-
+  #----------------------------------------------------------------------
+  def GetFluenceMeshIndex( self, value, model_name = None ):
+    """ Calls GetAxialMeshCentersIndex( value_model_name, 'fluence' ).
+@param  value		global time value
+@param  model_name	optional name for the model of interest,
+			can be a DataSetName
+@return			0-based index such that
+			values[ ndx ] <= value < values[ ndx + 1 ]
+"""
+    return  self.GetAxialMeshCentersIndex( value, model_name, 'fluence' )
+  #end GetFluenceMeshIndex
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetH5DataSet()			-
   #----------------------------------------------------------------------
   def GetH5DataSet( self, qds_name, time_value ):
@@ -1421,6 +1655,7 @@ cross-model mesh is used.
 """
     dm = dset = None
     if qds_name is not None and time_value >= 0.0:
+      qds_name = DataSetName.Resolve( qds_name )
       state_ndx = self.GetTimeValueIndex( time_value, qds_name.modelName )
       if state_ndx >= 0:
         dm = self.GetDataModel( qds_name )
@@ -1488,27 +1723,96 @@ cross-model mesh is used.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetNodePinAddr()			-
+  #----------------------------------------------------------------------
+  def GetNodePinAddr( self, node_addr ):
+    """Assumes 2x2 pin array.
+    Args:
+	node_addr (int): 0-3
+    Returns
+	tuple: ( pin_col, pin_row )
+"""
+    return \
+        ( 1, 0 )  if node_addr == 1  else \
+        ( 0, 1 )  if node_addr == 2  else \
+        ( 1, 1 )  if node_addr == 3  else \
+	( 0, 0 )
+  #end GetNodePinAddr
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.GetPinNodeAddr()			-
+  #----------------------------------------------------------------------
+  def GetPinNodeAddr( self, pin_col, pin_row ):
+    """Assumes 2x2 pin array.
+    Args:
+        pin_col (int): 0 or 1
+	pin_row (int): 0 or 1
+    Returns
+        int: node addr, 0, 1, 2, 3, or -1 if inputs invalid
+"""
+    pair = ( pin_col, pin_row )
+    return \
+        0  if pair == ( 0, 0 )  else \
+        1  if pair == ( 1, 0 )  else \
+        2  if pair == ( 0, 1 )  else \
+        3  if pair == ( 1, 1 )  else \
+	-1
+  #end GetPinNodeAddr
+
+
+##  #----------------------------------------------------------------------
+##  #	METHOD:		DataModelMgr.GetRadialMesh()			-
+##  #----------------------------------------------------------------------
+##  def GetRadialMesh( self, nrings ):
+##    """Retrieves or if necessary calculates the equal-area(volume) radial mesh
+##for the specified number of rings.
+##    Args:
+##	nrings (int): number of radial rings
+##"""
+##    mesh = self.radialMeshDict.get( nrings )
+##    if mesh is None:
+##      mesh = DataUtils.CalcEqualAreaRadii( self.core.GetPinDiameter(), nrings )
+##      self.radialMeshDict[ nrings ] = mesh
+##    #end if mesh is None
+##
+##    return  mesh
+##  #end GetRadialMesh
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetRange()				-
   #----------------------------------------------------------------------
-  def GetRange( self, qds_name, time_value = -1.0, ds_expr = None ):
+  def GetRange(
+      self, qds_name,
+      time_value = -1.0,
+      ds_expr = None,
+      use_factors = False
+      ):
     """Gets the range for the specified dataset, calculating
 if necessary.  Note all requests for range should flow through this method,
 although Python doesn't allow us to enforce this.  We'll need to adopt
 the properties construct for this class soon.
-@param  qds_name	name of dataset, DataSetName instance
-@param  time_value	value for the current timeDataSet, or -1
-			for global range
-@param  ds_expr		optional reference expression to apply to the dataset
-@return			( min, max ), possibly the range of floating point
-			values or None if qds_name not found
+    Args:
+        qds_name (DataSetName): dataset name
+	time_value (float): value for the current timeDataSet, or -1 for
+	    global range
+	ds_expr (str): optional numpy array index expression to apply to
+	    the dataset (e.g., '[ :, :, :, 0, 0 ]')
+	use_factors (bool): True to apply factors
+    Returns:
+        tuple: ( min_value, max_value ), possibly the range of floating pt
+	    values or None if ``qds_name`` not found
 """
     result = None
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm is not None:
       state_ndx = \
           -1  if time_value < 0.0 else \
 	  self.GetTimeValueIndex( time_value, qds_name.modelName )
-      result = dm.GetRange( qds_name.displayName, state_ndx, ds_expr )
+      result = \
+          dm.GetRange( qds_name.displayName, state_ndx, ds_expr, use_factors )
     #end if dm
    
     return  result
@@ -1518,20 +1822,24 @@ the properties construct for this class soon.
   #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.GetRangeAll()			-
   #----------------------------------------------------------------------
-  def GetRangeAll( self, time_value = -1.0, *qds_names ):
+  def GetRangeAll( self, time_value = -1.0, use_factors = False, *qds_names ):
     """Calculates the range across all the specified datasets.
 Note all requests for multiple ranges should flow through this method.
-@param  time_value	value for the current timeDataSet, or -1
-			for global range
-@param  qds_names	datasets, DataSetName instances
-@return			[ min, max ], possibly the range of floating point
-			values or None if none of qds_names exist
+    Args:
+	time_value (float): value for the current timeDataSet, or -1 for
+	    global range
+	use_factors (bool): True to apply factors
+        qds_names (list): list of DataSetName instances
+    Returns:
+        tuple: ( min_value, max_value ), possibly the range of floating pt
+	    values or None if none of ``qds_names`` exist
 """
     result = None
 
     if qds_names:
       for qds_name in qds_names:
-	cur_range = self.GetRange( qds_name, time_value )
+	cur_range = \
+	    self.GetRange( qds_name, time_value, use_factors = use_factors )
 	if cur_range is None:
 	  pass
 	elif result is None:
@@ -1573,51 +1881,6 @@ Note all requests for multiple ranges should flow through this method.
 
     return  sub_addr
   #end GetSubAddrFromNode
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetTallyMesh()			-
-  #----------------------------------------------------------------------
-  def GetTallyMesh( self, model_name = None ):
-    """Calls GetAxialMesh2( model_name, 'tally' ).
-@param  model_name	optional name for the model of interest,
-			can be a DataSetName
-@return			mesh for the specified model or the
-			cross-model global mesh values if model_name is None
-			or not found
-"""
-    return  self.GetAxialMesh2( model_name, 'tally' )
-  #end GetTallyMesh
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetTallyMeshCenters()		-
-  #----------------------------------------------------------------------
-  def GetTallyMeshCenters( self, model_name = None ):
-    """Calls GetAxialMeshCenters2( model_name, 'tally' ).
-@param  model_name	optional name for the model of interest,
-			can be a DataSetName
-@return			mesh for the specified model or the
-			cross-model global mesh values if model_name is None
-			or not found
-"""
-    return  self.GetAxialMeshCenters2( model_name, 'tally' )
-  #end GetTallyMeshCenters
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.GetTallyMeshIndex()		-
-  #----------------------------------------------------------------------
-  def GetTallyMeshIndex( self, value, model_name = None ):
-    """ Calls GetAxialMeshCentersIndex( value_model_name, 'tally' ).
-@param  value		global time value
-@param  model_name	optional name for the model of interest,
-			can be a DataSetName
-@return			0-based index such that
-			values[ ndx ] <= value < values[ ndx + 1 ]
-"""
-    return  self.GetAxialMeshCentersIndex( value, model_name, 'tally' )
-  #end GetTallyMeshIndex
 
 
   #----------------------------------------------------------------------
@@ -1716,6 +1979,27 @@ is not None, otherwise retrieves the union of values across all models.
 
 
   #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.HasDataSet()			-
+  #----------------------------------------------------------------------
+  def HasDataSet( self, qds_name, time_value = 0.0 ):
+    """Checks for existence of the specified dataset at the specified time.
+    Args:
+        qds_name (DataSetName): qualified dataset name to check
+        time_value (float): time value in the current time dataset
+    Returns:
+        bool: True if the dataset exists, False otherwise
+"""
+    found = False
+    dm = self.GetDataModel( qds_name )
+    if dm is not None:
+      time_ndx = self.GetTimeValueIndex( time_value, dm.name )
+      found = dm.GetState( time_ndx ).HasDataSet( qds_name.displayName )
+
+    return  found
+  #end HasDataSet
+
+
+  #----------------------------------------------------------------------
   #	METHOD:		DataModelMgr.HasDataSetType()			-
   #----------------------------------------------------------------------
   def HasDataSetType( self, ds_type ):
@@ -1733,6 +2017,28 @@ True is returned.
 
     return  found
   #end HasDataSetType
+
+
+  #----------------------------------------------------------------------
+  #	METHOD:		DataModelMgr.HasNodalDataSetType()		-
+  #----------------------------------------------------------------------
+  def HasNodalDataSetType( self ):
+    """Convenience method to call HasDataSetType() on DataModel instances until 
+True is returned.
+@param  ds_type		one of type names, e.g., 'axials', 'channel', 'derived',
+			'detector', 'fixed_detector', 'pin', 'scalar'
+@return			True if there are datasets, False otherwise
+"""
+    found = False
+    for dm in self.dataModels.values():
+      found = \
+          dm.HasDataSetType( ':node' ) or \
+	  dm.HasDataSetType( ':radial_node' )
+      if found:
+        break
+
+    return  found
+  #end HasNodalDataSetType
 
 
   #----------------------------------------------------------------------
@@ -1793,6 +2099,7 @@ True is returned.
 @param  qds_name	name of dataset, DataSetName instance
 @return			True if derived, false otherwise
 """
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     return  dm.IsDerivedDataSet( qds_name.displayName )  if dm else  False
   #end IsDerivedDataSet
@@ -1917,91 +2224,6 @@ dataset.
         )
     return  result
   #end NormalizeAssemblyAddr
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.NormalizeAxialValue()		-
-  #----------------------------------------------------------------------
-  def NormalizeAxialValue( self, model_param, axial_value ):
-    """Normalizes against meshes specified by model_param or the global
-cross-model meshes if model_param is None
-@param  model_param	None for cross-model meshes, either a DataModel
-			instance or a model name/ID string for
-			model-specific meshes
-@param  axial_value	( cm, core_ndx, det_ndx, fdet_ndx, tally_ndx, subpin_ndx )
-@deprecated by datamodel.AxialValue
-"""
-    axial_rec = { 'cm': axial_value[ 0 ] }
-    i = 1
-    for name in ( 'pin', 'detector', 'fixed_detector', 'tally', 'subpin' ):
-      if len( axial_value ) > i:
-        axial_rec[ name ] = axial_value[ i ]
-      i += 1
-
-    result_rec = self.NormalizeAxialValueRec( model_param, axial_rec )
-    result = (
-	result_rec.get( 'cm', 0.0 ),
-	result_rec.get( 'pin', -1 ),
-	result_rec.get( 'detector', -1 ),
-	result_rec.get( 'fixed_detector', -1 ),
-	result_rec.get( 'tally', -1 ),
-	result_rec.get( 'subgin', -1 ),
-        )
-    return  result
-  #end NormalizeAxialValue
-
-
-  #----------------------------------------------------------------------
-  #	METHOD:		DataModelMgr.NormalizeAxialValueRec()		-
-  #----------------------------------------------------------------------
-  def NormalizeAxialValueRec( self, qds_name, axial_value ):
-    """Normalizes against meshes specified by model_param or the global
-cross-model meshes if model_param is None
-@param  qds_name	optional DataModel instance
-@param  axial_value	dict of axial value and indexes as created by
-			_GetAxialValueRec()
-@deprecated by datamodel.AxialValue
-"""
-    result = {}
-
-    if axial_value:
-      dm = None
-      if qds_name:
-        dm = self.GetDataModel( qds_name )
-
-      for mesh_type in ( 'pin', 'fixed_detector', 'tally', 'subpin' ):
-        if mesh_type in axial_value:
-	  if dm:
-	    centers = dm.GetAxialMeshCenters( qds_name.displayName, mesh_type )
-	  else:
-	    centers = self.GetAxialMeshCenters2( None, mesh_type )
-
-	  ndx = -1
-	  if centers is not None and len( centers ) > 1:
-	    ndx = min( axial_value.get( mesh_type, 0 ), len( centers ) - 1 )
-	    ndx = max( 0, ndx )
-	  result[ mesh_type ] = ndx
-        #end if mesh_type
-      #end for mesh_type
-
-      for mesh_type in ( 'detector', ):
-        if mesh_type in axial_value:
-	  if dm:
-	    centers = dm.GetAxialMesh( qds_name.displayName, mesh_type )
-	  else:
-	    centers = self.GetAxialMesh2( None, mesh_type )
-
-	  ndx = -1
-	  if centers is not None and len( centers ) > 1:
-	    ndx = min( axial_value.get( mesh_type, 0 ), len( centers ) - 1 )
-	    ndx = max( 0, ndx )
-	  result[ mesh_type ] = ndx
-        #end if mesh_type
-      #end for mesh_type
-    #end if axial_value
-
-    return  result
-  #end NormalizeAxialValueRec
 
 
   #----------------------------------------------------------------------
@@ -2141,7 +2363,8 @@ being one greater in each dimension.
       #dm = DataModel( h5f_param, id )
       dm = DataModel( h5f_param )
     except Exception, ex:
-      msg = 'Error reading "%s": %s' % ( h5f_param, ex.message )
+      #msg = 'Error reading "%s": %s' % ( h5f_param, ex.message )
+      msg = 'Error reading "{0}":\n{1}'.format( h5f_param, ex.message )
       output = cStringIO.StringIO()
       try:
         print >> output, msg
@@ -2188,10 +2411,10 @@ being one greater in each dimension.
   def ReadDataSetAxialValues( self,
       qds_name,
       assembly_index = 0,
+      fluence_addr = None,
       node_addrs = None,
       sub_addrs = None,
       detector_index = 0,
-      tally_addr = None,
       time_value = 0.0
       ):
     """Reads axial values for a dataset for a specified time value.  Note the
@@ -2202,10 +2425,10 @@ Calls ReadDataSetAxialValues() on the matching DataModel if found.
         qds_name (data.datamodel.DataSetName): dataset name, cannot be none
 	assembly_index (int): optional 0-based assembly index
 	detector_index (int): optional 0-based detector index
+	fluence_addr (FluenceAddress): optional fluence address
 	node_addrs (list(int)): optional list of node indexes
 	sub_addrs (list(pin_col,pin_row)): optional list of 0-based pin
 	   col and row indexes
-	tally_addr (TallyAddress): optional tally address
 	time_value (float): timeDataSet value
     Returns:
         tuple( np.ndarray, dict or np.ndarray ): None if ds_name cannot be found
@@ -2214,6 +2437,7 @@ Calls ReadDataSetAxialValues() on the matching DataModel if found.
 	    that vary by sub_addr, np.ndarray for other datasets.
 """
     result = None
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       state_index = self.GetTimeValueIndex( time_value, qds_name )
@@ -2221,10 +2445,10 @@ Calls ReadDataSetAxialValues() on the matching DataModel if found.
           qds_name.displayName,
 	  assembly_index = assembly_index,
 	  detector_index = detector_index,
+	  fluence_addr = fluence_addr,
 	  node_addrs = node_addrs,
 	  state_index = state_index,
-	  sub_addrs = sub_addrs,
-	  tally_addr = tally_addr
+	  sub_addrs = sub_addrs
 	  )
       if result_pair is not None:
         result = dict( data = result_pair[ 1 ], mesh = result_pair[ 0 ] )
@@ -2238,25 +2462,28 @@ Calls ReadDataSetAxialValues() on the matching DataModel if found.
   #	METHOD:		DataModelMgr.ReadDataSetTimeValues()		-
   #----------------------------------------------------------------------
   def ReadDataSetTimeValues( self, *ds_specs_in ):
-    """Reads values for datasets across time, axial values for a dataset for a specified time value.  Note the
-
-    Reads values for a dataset across all state points, one state point
-at a time for better performance.
-@param  ds_specs_in	list of dataset specifications with the following keys:
-	  assembly_index	0-based assembly index
-	  axial_cm		axial value in cm
-	  detector_index	0-based detector index for detector datasets
-	  qds_name		required DataSetName instance
-	  node_addrs		list of node addrs
-	  sub_addrs		list of sub_addr pairs
-	  tally_addr		tally address
-@return			dict keyed by found qds_name of:
-			  dict with keys 'data' and 'times', where 'data' value
-			  is
-			    dict keyed by sub_addr of np.ndarray for pin-based
-			    datasets,
-			    np.ndarray for datasets that are not pin-based
-			  'times' value is np.ndarray
+    """Reads values for datasets across time, axial values for a dataset for a specified time value.
+    Args:
+	ds_specs_in (list): list of dataset specifications with the following
+	    keys:
+	      assembly_index	0-based assembly index
+	      axial_cm		axial value in cm
+	      detector_index	0-based detector index for detector datasets
+	      ds_name		required dataset name, where a '*' prefix
+				means it's not a time-based dataset but
+				rather another dataset to be treated as
+				the time basis
+	      fluence_addr	FluenceAddress
+	      node_addrs	list of node addrs
+	      sub_addrs		list of sub_addr pairs
+    Returns:
+        dict: dict keyed by found qds_name of:
+	    {
+	    'data': either
+	        dict keyed by sub_addr of np.ndarray for pin-based datasets, or
+		np.ndarray for datasets that are not pin-based,
+	    'times': np.ndarray of times
+	    }
 """
     results = {}
 
@@ -2329,6 +2556,7 @@ The fallback is 'state', meaning state point index.
       #end for dm
 
       if found:
+        name = DS_NAME_ALIASES_FORWARD.get( name, name )
         time_ds_names.add( name )
     #end for name
 
@@ -2376,6 +2604,7 @@ other derived types we pass 'pin'.
 			the base category/type if it is derived
 """
     result = None
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       ds_name = dm.RevertIfDerivedDataSet( qds_name.displayName )
@@ -2417,6 +2646,7 @@ dataset.
 @param  op_value_pairs	sequence of op-value pairs, where op is one of
 			'=', '<', '<=', '>', '>='
 """
+    qds_name = DataSetName.Resolve( qds_name )
     dm = self.GetDataModel( qds_name )
     if dm:
       dm.SetDataSetThreshold( qds_name.displayName, range_expr )
@@ -2490,6 +2720,9 @@ tallyMesh, tallyMeshCenters, and maxAxialValue properties.
       return  max_value
     #end update_mesh
 
+    #--------------------------------------------------------------------
+    #	Method Body                                                     -
+    #--------------------------------------------------------------------
     self.detectorMap = None
     self.maxAxialValue = -1.0
     global_mesh_centers = { 'all': set() }
@@ -2547,20 +2780,19 @@ open DataModels and the timeDataSet property.
       result = range( 1, cur_count + 1 )
 
     elif self.timeDataSet:
-      # cannot resolve with sets b/c values repeat
-      #cur_set = set()
       spec = dict( ds_name = self.timeDataSet )
       for name, dm in self.dataModels.iteritems():
 	cur_values = dm.ReadDataSetTimeValues( spec )
 	if cur_values and self.timeDataSet in cur_values:
+          if self.timeDataSet.find( 'exposure' ) == 0:
+            time_values = cur_values[ self.timeDataSet ]
+            cur_values[ self.timeDataSet ] = time_values.round( 3 )
 	  cur_list = cur_values[ self.timeDataSet ].tolist()
+	  cur_list = DataUtils.FixDuplicates( cur_list )
 	  self.timeValuesById[ name ] = cur_list
-	  #cur_set.update( set( cur_list ) )
-	  #self._ResolveLists( result, cur_list )
 	  result = DataUtils.MergeList( result, *cur_list )
 	else:
 	  self.timeValuesById[ name ] = []
-      #result = list( cur_set )
     #end if-elif
 
     #result.sort()

@@ -313,7 +313,7 @@ Must pass the 'event_set' parameter.
     self.fResult = None
     if events is not None:
       self.fBean.events = events
-    super( EventsChooserDialog, self ).ShowModal()
+    return  super( EventsChooserDialog, self ).ShowModal()
   #end ShowModal
 
 #end EventsChooserDialog

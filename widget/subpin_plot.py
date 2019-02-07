@@ -30,13 +30,12 @@ try:
 except Exception:
   raise ImportError, 'The wxPython matplotlib backend modules are required for this component'
 
-#from bean.dataset_chooser import *
-from bean.plot_dataset_props import *
 from event.state import *
 
-from plot_widget import *
-from widget import *
-from widgetcontainer import *
+from .bean.plot_dataset_props import *
+from .plot_widget import *
+from .widget import *
+from .widgetcontainer import *
 
 
 #------------------------------------------------------------------------
@@ -72,7 +71,8 @@ Properties:
     #self.auxNodeAddrs = []
     self.auxSubAddrs = []
     #self.ax2 = None
-    self.axialValue = DataModel.CreateEmptyAxialValueObject()
+    #self.axialValue = DataModel.CreateEmptyAxialValue()
+    self.axialValue = AxialValue()
     self.curDataSet = None
 #    self.dataSetDialog = None
 #    self.dataSetSelections = {}  # keyed by DataSetName

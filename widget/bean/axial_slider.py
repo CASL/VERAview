@@ -161,7 +161,7 @@ Attributes/properties:
 
     self.fSlider = wx.Slider(
         self, -1,
-	value = 1, minValue = 1, maxValue = 99,
+	value = 1, minValue = 1, maxValue = 999,
 	pos = wx.DefaultPosition, size = ( -1, -1 ),
 	style =
 	    wx.SL_AUTOTICKS | wx.SL_INVERSE | wx.SL_LABELS | wx.SL_RIGHT |

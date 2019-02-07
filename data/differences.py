@@ -13,9 +13,9 @@ import h5py, os, sys
 import numpy as np
 import pdb
 
-from data.datamodel import DataSetName
-from data.interpolator import *
-from data.utils import DataUtils
+from .datamodel import DataSetName
+from .interpolator import *
+from .utils import DataUtils
 
 
 #------------------------------------------------------------------------

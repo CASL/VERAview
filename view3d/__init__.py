@@ -7,4 +7,4 @@ __all__ = \
     'slider_view',
     'volume_view'
   ]
-__version__ = '2.3.0'
+__version__ = '2.4.0'
