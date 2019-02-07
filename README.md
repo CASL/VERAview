@@ -7,8 +7,8 @@ data from VERA multi-physics simulations.
 
 VERAView is under rapid development, and significant changes in the software
 are expected.  However, the snapshots in the repository represent comparatively
-stable versions intended for use.  Bugs and feature requests should be reported
-to
+stable versions intended for use.  Bugs and feature requests can be entered
+using the *Issues* tab on this page or reported via email to
 
     casl-vri-infrastructure@casl.gov
 
@@ -59,7 +59,7 @@ You can execute as root for a system wide install to any location.  Otherwise,
 the default is to install in your home directory.
 
 
-## Fast Track to Tracking the Repository
+## Fast Path to Tracking the Repository
 
 The easiest path for tracking repository updates is to install the
 pre-built Miniconda2 environment for your platform and extracting it in you
