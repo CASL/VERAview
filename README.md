@@ -20,9 +20,9 @@ application installer, and updating from the repository.  Installers for the
 latest stable (relatively speaking) version are available for download as
 follows:
 
-* [Windows application installer](https://newton.ornl.gov/casl/VERAView-2.4.0-Windows-x86_64.exe)
-* [Mac OS X application disk image](https://newton.ornl.gov/casl/VERAView-2.4.0-MacOSX.dmg)
-* [Linux application installer script](https://newton.ornl.gov/casl/VERAView-2.4.0-Linux-x86_64.sh)
+* [Windows application installer](https://newton.ornl.gov/casl/VERAView-2.4.1-Windows-x86_64.exe)
+* [Mac OS X application disk image](https://newton.ornl.gov/casl/VERAView-2.4.1-MacOSX.dmg)
+* [Linux application installer script](https://newton.ornl.gov/casl/VERAView-2.4.1-Linux-x86_64.sh)
 
 Note installers will not be updated as frequently as the repository.  So, if
 you want to track development versions, you'll need to install from the
@@ -53,7 +53,7 @@ folder.  Otherwise, it will be installed in the `$HOME/Applications`.
 
 Linked above is a shell script that must be executed as follows:
 
-    $ bash VERAView-2.4.0-Linux-x86_64.sh
+    $ bash VERAView-2.4.1-Linux-x86_64.sh
 
 You can execute as root for a system wide install to any location.  Otherwise,
 the default is to install in your home directory.
