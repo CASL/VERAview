@@ -2442,19 +2442,13 @@ updating shape indexes as necessary.
 #		-- Vessel Geometry
 #		--
     if input_group is not None:
-      caseid_core_group = input_group.get( 'CASEID/CORE' )
+      caseid_core_group = input_group.get( 'MPACT/xmlParams/CASEID/CORE' )
+      if caseid_core_group is None:
+        caseid_core_group = input_group.get( 'CASEID/CORE' )
       if caseid_core_group is not None:
         extent = self.ExtractSymmetryExtent()
         self.vesselGeom = VesselGeometry()
         self.vesselGeom.Read( caseid_core_group, self.apitch, extent[ -2 : ] )
-#      vessel_mats = input_group.get( 'CASEID/CORE/vessel_mats' )
-#      vessel_radii = input_group.get( 'CASEID/CORE/vessel_radii' )
-#      if vessel_mats is not None and vessel_radii is not None:
-#        extent = self.ExtractSymmetryExtent()
-#        self.vesselGeom = VesselGeometry()
-#        self.vesselGeom.\
-#            Read( vessel_mats, vessel_radii, self.apitch, extent[ -2 : ] )
-#      #end if vessel_mats is not None and vessel_radii is not None
   #end _ReadImpl
 
 
@@ -8963,6 +8957,7 @@ class VesselGeometry( object ):
 
 #               -- Scalars
 #               --
+    # 'baffle_gap'
     for key, name in (
         ( 'baffle_wd', 'baffle_thick' ),
         ( 'pad_arc', 'pad_arc' )

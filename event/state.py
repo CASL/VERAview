@@ -713,8 +713,7 @@ dataModelMgr.OpenModel().  Initializes with dataModelMgr.GetFirstDataModel().
         ndx = core.coreMap[ row, col ] - 1
       self._assemblyAddr = data_model.NormalizeAssemblyAddr( ( ndx, col, row ) )
 
-      self._axialValue = AxialValue( core_ndx = core.nax >> 1 )
-          #data_model.CreateAxialValueObject( core_ndx = core.nax >> 1 )
+      self._axialValue = data_model.CreateAxialValue( core_ndx = core.nax >> 1 )
 
       self._curDataSet = self._FindDefaultDataSet( data_model )
 #      ds_display_name = 'pin_powers' \
