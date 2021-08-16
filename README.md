@@ -20,9 +20,9 @@ application installer, and updating from the repository.  Installers for the
 latest stable (relatively speaking) version are available for download as
 follows:
 
-* [Windows application installer](https://newton.ornl.gov/casl/VERAView-2.4.3-Windows-x86_64.exe)
-* [Mac OS X application disk image](https://newton.ornl.gov/casl/VERAView-2.4.3-MacOSX.dmg)
-* [Linux application installer script](https://newton.ornl.gov/casl/VERAView-2.4.3-Linux-x86_64.sh)
+* [Windows application installer](https://kepler.ornl.gov/casl/VERAView-2.4.3-Windows-x86_64.exe)
+* [Mac OS X application disk image](https://kepler.ornl.gov/casl/VERAView-2.4.3-MacOSX.dmg)
+* [Linux application installer script](https://kepler.ornl.gov/casl/VERAView-2.4.3-Linux-x86_64.sh)
 
 Note installers will not be updated as frequently as the repository.  So, if
 you want to track development versions, you'll need to install from the
@@ -69,7 +69,7 @@ there.
 ### Windows
 
 Download the Miniconda2 environment
-[zip file](https://newton.ornl.gov/casl/Miniconda2-win64.zip).  Extract it in
+[zip file](https://kepler.ornl.gov/casl/Miniconda2_VeraView-win64.zip).  Extract it in
 your folder using File Explorer.  Clone or pull from this repository to obtain
 the latest VERAView version.  Launch using the batch file `vvconda.run.bat` in
 the root VERAView folder.
@@ -77,10 +77,10 @@ the root VERAView folder.
 ### Mac OS X
 
 Download the Miniconda2 environment
-[gzipped tarball](https://newton.ornl.gov/casl/miniconda2-mac.tgz).  Extract it
-in your home directory:
+[gzipped tarball](https://kepler.ornl.gov/casl/miniconda2-vview-macos.tar.gz).
+Extract it in your home directory:
 
-    $ tar xvfz miniconda2-mac.tgz
+    $ tar xvfz miniconda2-vview-macos.tar.gz
 
 Clone or pull from this repository to obtain the latest VERAView version.
 Launch using the script file `vvconda.run.sh` in the root VERAView directory.
@@ -88,10 +88,10 @@ Launch using the script file `vvconda.run.sh` in the root VERAView directory.
 ### Linux
 
 Download the Miniconda2 environment
-[gzipped tarball](https://newton.ornl.gov/casl/miniconda2-linux.tgz).  Extract
-it in your home directory:
+[gzipped tarball](https://kepler.ornl.gov/casl/miniconda2-vview-linux.tar.gz).
+Extract it in your home directory:
 
-    $ tar xvfz miniconda2-linux.tgz
+    $ tar xvfz miniconda2-vview-linux.tar.gz
 
 Clone or pull from this repository to obtain the latest VERAView version.
 Launch using the script file `vvconda.run.sh` in the root VERAView directory.
@@ -136,7 +136,7 @@ environment containing all packages needed by VERAView.
 
 A Windows application installer that will install VERAView and the required
 Python environment (Continuum's Miniconda2) is available
-[here](https://newton.ornl.gov/casl/VERAView-2.3.0-Windows-x86_64.exe).
+[here](https://kepler.ornl.gov/casl/VERAView-2.4.3-Windows-x86_64.exe).
 The installer does not require elevated privileges and will install by default
 in a `VERAView` subfolder in your home folder.
 
@@ -158,12 +158,12 @@ Anaconda2 or Miniconda2 environment or installing one.
 
 A zip file containing the Miniconda2 environment with packages required by
 VERAView can be downloaded from
-[here](https://newton.ornl.gov/casl/Miniconda2-win64.zip).  Extract it in your
-home folder (usually `c:\Users\username` but determined by the `%userprofile%`
-environment variable).  This should result in a `Miniconda2\` subfolder in your
-home folder.  If you extract it to a location other than your home folder, it
-will be necessary to edit the launch script as described in *Launch VERAView*
-below.
+[here](https://kepler.ornl.gov/casl/Miniconda2_VeraView-win64.zip).  Extract it
+in your home folder (usually `c:\Users\username` but determined by the
+`%userprofile%` environment variable).  This should result in a `Miniconda2\`
+subfolder in your home folder.  If you extract it to a location other than your
+home folder, it will be necessary to edit the launch script as described in
+*Launch VERAView* below.
 
 
 #### Clone the Repository
@@ -200,7 +200,7 @@ containing all packages required by VERAView.
 
 An application disk image containing VERAView with the required Python
 environment is available
-[here](https://newton.ornl.gov/casl/VERAView-2.3.0-MacOSX.dmg).
+[here](https://kepler.ornl.gov/casl/VERAView-2.4.3-MacOSX.dmg).
 Once the image is mounted, you may copy the `VERAView.app` file to
 `$HOME/Applications`, or if you are an administrator you may copy it to
 `/Applications.`
@@ -222,8 +222,8 @@ Anaconda2 or Miniconda2 environment or installing one.
 
 A gzipped tar file containing the Miniconda2 environment with packages required
 by VERAView can be downloaded from
-[here](https://newton.ornl.gov/casl/miniconda2-mac.tgz).  Extract it in your
-home directory (usually `/Users/username` but determined by the `$HOME`
+[here](https://kepler.ornl.gov/casl/miniconda2-vview-macos.tar.gz).  Extract it
+in your home directory (usually `/Users/username` but determined by the `$HOME`
 environment variable).  This should result in a `miniconda2/` subdir in your
 home directory.  If you extract it to a location other than your home
 directory, it will be necessary to edit the launch script as described in
@@ -264,7 +264,7 @@ containing all packages required by VERAView.
 
 An installer script containing VERAView with the required Python
 environment is available
-[here](https://newton.ornl.gov/casl/VERAView-2.3.0-Linux-x86_64.sh).
+[here](https://kepler.ornl.gov/casl/VERAView-2.4.3-Linux-x86_64.sh).
 The installer does not require root privileges but can be installed as root.
 When run as root, the default installation path is `/usr/local/veraview-2.3.0`.
 Otherwise the default install path is `$HOME/veraview-2.3.0`.  Execute the
@@ -291,8 +291,8 @@ Anaconda2 or Miniconda2 environment or installing one.
 
 A gzipped tar file containing the Miniconda2 environment with packages required
 by VERAView can be downloaded from
-[here](https://newton.ornl.gov/casl/miniconda2-linux.tgz).  Extract it in your
-home directory (usually `/home/username` but determined by the `$HOME`
+[here](https://kepler.ornl.gov/casl/miniconda2-vview-linux.tar.gz).  Extract it
+in your home directory (usually `/home/username` but determined by the `$HOME`
 environment variable).  This should result in a `miniconda2/` subdir in your
 home directory.  If you extract it to a location other than your home
 directory, it will be necessary to edit the launch script as described in
